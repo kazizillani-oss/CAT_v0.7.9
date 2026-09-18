@@ -1,0 +1,546 @@
+# Chemistry Calc Terminal (CCT) — v0.7.7 · Autonomous Development & Workspace Management Preview
+
+A real terminal application — not a website. A Chemistry Calculation
+Terminal styled like OpenCode / Claude Code / Warp, in the Tokyo Night
+theme, running directly in your command line.
+
+```
+ ██████╗ ██████╗████████╗
+██╔════╝██╔════╝╚══██╔══╝
+██║     ██║        ██║
+██║     ██║        ██║
+╚██████╗╚██████╗   ██║
+ ╚═════╝ ╚═════╝   ╚═╝
+
+CHEMISTRY CALC TERMINAL
+```
+
+## Run it
+
+Requires Python 3.10+. No third-party packages are required.
+
+```bash
+python main.py
+```
+
+### Global install (recommended)
+
+Install CCT once, then launch it from anywhere with a single command:
+
+```bash
+pip install cct-ai-ide
+cct
+```
+
+> The CLI command is `cct`; the PyPI distribution is `cct-ai-ide` because
+> the bare name `cct` is already taken on PyPI by an unrelated project
+> (CREDO Control Tool). Installing from the source tree works the same:
+
+```bash
+cd CCT_project
+pip install .
+cct
+```
+
+Development install (live edits):
+
+```bash
+pip install -e .
+cct
+```
+
+First launch performs a one-time initialization (platform application-data
+directory: `%LOCALAPPDATA%\CCT` on Windows, `~/.config/cct` on Linux,
+`~/Library/Application Support/CCT` on macOS). Later launches skip it.
+`CCT_DATA_DIR` overrides the directory for testing.
+
+On very old Windows `cmd.exe` (not Windows Terminal / PowerShell 7),
+install `colorama` for best color support:
+
+```bash
+pip install -r requirements.txt
+```
+
+## What it does
+
+- Boots with an animated ASCII logo, exactly like OpenCode's startup screen,
+  then drops you into a home dashboard with a command list.
+- A bottom prompt (`Ask Chemistry…`) accepts either slash commands or plain
+  chemistry questions ("first order half life numerical", "mole concept"...).
+- A **fake AI engine** simulates intelligent processing before every answer:
+  `Initializing Chemistry Engine...` → `Completed ✓`, one line at a time,
+  with a spinner and checkmark — just like a modern dev CLI tool "thinking".
+- Every numerical is rendered **notebook-style**: Question → Given Data →
+  Find → Formula → Substitution → Calculation → Units → Verification →
+  Final Answer — with real stacked ASCII fractions and subscripts, e.g.:
+
+  ```
+           2.303
+  k =  ─────────   log(R₀/R)
+             t
+  ```
+
+  No ugly inline `R0/R` text anywhere.
+
+## Commands
+
+| Command             | What it does                                  |
+|----------------------|------------------------------------------------|
+| `/help`              | Help center & command list                      |
+| `/calculator`        | Quick scientific calculator                      |
+| `/solve`              | **Universal formula calculator** — 39 real chemistry formulas + type-your-own custom formula, solved symbolically |
+| `/formulas`          | Browse the formula library                       |
+| `/kinetics`          | Chemical kinetics numericals (priority chapter)  |
+| `/electrochemistry`  | **Nernst equation & Faraday's law numericals**   |
+| `/atomsim`           | **Live Bohr atom & electron simulation**          |
+| `/orbitals`          | **Live quantum orbital (electron cloud) simulation** |
+| `/graph`             | **Animated 2D terminal graphs + 2D/3D PNG export** |
+| `/history`           | Review previously solved notebooks               |
+| `/settings`          | Autosave, precision & preferences                |
+| `/shortcuts`         | Full shortcut-key reference                      |
+| `/about`             | About this terminal                              |
+| `/random`            | Solve a random numerical                         |
+| `/upload`            | Simulate solving a numerical from an image        |
+| `/voice`             | Simulate voice input                             |
+| `/sim3d`             | **[BETA] Real-time 3D Atomic Simulation**        |
+| `/ai`                | **[BETA] CCT AI - Quantum & Chemistry Specialist**|
+| `/agent`             | **[BETA] Chemistry Agentic AI — solves, plots & simulates for you** |
+| `/ai-verify`         | Test your configured AI provider/model connection |
+| `/codepad`           | **NEW** Write/run code, or have CCT AI generate it (own GitHub Light syntax highlighting) |
+| `/edit`              | **NEW** Plain-text in-terminal editor — notes, todo lists, find/replace |
+| `/model`             | **NEW** Switch the AI model for the currently configured provider |
+| `/tokens`            | **NEW** Session token usage + estimated context window remaining |
+| `/theme`             | **NEW** Toggle terminal theme — Tokyo Night (dark) / GitHub Light |
+| `/websearch`         | **NEW** Live web search, no API key needed |
+| `/research`          | **NEW** Deep research — multi-query web search + AI-synthesized, source-cited summary |
+| `/import`            | **NEW** Import a local text file or image for the AI/agent to actually read or see |
+| `/pet`               | Live mascot pet — walks, runs, or sleeps based on activity |
+| `/react`             | **NEW v0.5.8** Reaction simulator — balance any equation (real matrix solve) + kinetics/equilibrium ODE playback |
+| `/export`            | **NEW v0.5.8** Export solved notebooks to Markdown or PDF  |
+| `/tui`               | **NEW v0.5.8** Real Textual split-pane dashboard (sidebar + history + status bar) |
+| `/install`           | **v0.7.7** Autonomous package manager — installs real packages (pip/npm/cargo/…), with permission |
+| `/packages`          | **v0.7.7** Installation dashboard — supported managers & remembered decisions |
+| `/pipeline`          | **v0.7.7** AI Execution Pipeline — Planner→Research→Build→Verify, fully visible |
+| `/orchestrate`       | **v0.7.7** Agent Orchestrator — Coordinator + specialist agent roster |
+| `/devices`           | **v0.7.7** Responsible device control — provider roster & approval-gated actions |
+| `/workspace`         | **v0.7.7** Workspace manager — detect, open & manage project folders (`open/list/add/remove/rename/pin/fav/search/last/detect`); also browses generated files |
+| `/packages history`  | **v0.7.7** Persistent package install history — list, search, remove, clear |
+| `/research`          | **v0.7.7** Switch to Research AI mode — deep research, web-backed |
+| `/debug`             | **v0.7.7** Switch to Debugger AI mode — focused troubleshooting |
+| `/clear`             | Clear screen, return home                        |
+| `/exit`              | Quit                                             |
+
+Type `install requests`, `pip install numpy`, or `npm i react` as a
+plain message and CCT routes it straight to the package manager
+(auto-switching to Build mode) — with the spec's five-choice
+permission dialog (Allow Once / Always Allow / Deny / Always Deny /
+Cancel), a live installation dashboard, and automatic post-install
+verification. Installs are Build-mode work; Restricted mode disables
+them entirely.
+
+You can also just type a chemistry question directly, e.g.:
+
+```
+❯ Ask Chemistry… first order half life
+❯ Ask Chemistry… mole concept
+❯ Ask Chemistry… arrhenius equation
+```
+
+Every question you type now shows up as a **chat message**, followed by an
+animated "Chemistry AI is thinking…" indicator, before the notebook
+solution streams in — a real chat feel, not just instant text.
+
+If what you type is ambiguous, calc_terminal shows a short "Did you mean…"
+list — the terminal equivalent of the smart typing suggestions.
+
+## Universal Formula Calculator (`/solve`)
+
+Two modes:
+
+- **Library mode** — pick any of 39 formulas across Kinetics, Gas Laws,
+  Thermodynamics, Electrochemistry, Equilibrium/Acid-Base, Solutions,
+  Mole Concept and Atomic/Quantum structure. Type values for *all but
+  one* variable and it solves the missing one symbolically (via
+  `sympy`) — it's not hardcoded per-direction, so the same formula can
+  be solved for any of its variables.
+- **Custom mode** — type literally **any** formula (`P*V = n*R*T`,
+  `y = m*x + c`, your own derived expression…), give it known values,
+  name the variable to solve for, and it's solved the same way. Built-
+  in constants (`R`, `h`, `c`, `NA`, `F`, `pi`, `e`, `Rinf`, `a0`, `me`)
+  are available automatically.
+
+## Live Simulations (`/atomsim`, `/orbitals`)
+
+- `/atomsim` — a real-time animated Bohr-model atom: type an element
+  symbol or atomic number (H through Kr, Z = 1–36) and watch protons,
+  neutrons and electrons animate with correct per-shell electron counts
+  (Bohr–Bury K/L/M/N model) and shell-dependent orbital speed.
+- `/orbitals` — a live Monte-Carlo build-up of a real hydrogen-like
+  quantum orbital's probability cloud (`1s, 2s, 2p, 3s, 3p, 3d`),
+  sampled directly from the actual `|ψ|²` radial × angular probability
+  density — the numbers really do change with `n`, `l`, `m`.
+- Both support shortcut keys — `q` quit, `space` pause, `+/-` speed,
+  `n/p` next/previous, `r` reset, `s` save a high-quality PNG snapshot
+  to `~/cct_exports/` (requires `matplotlib`). See `/shortcuts` any
+  time for the full reference.
+
+## Graphs (`/graph`)
+
+A terminal can't natively draw a rotating 3D plot, so calc_terminal
+takes the honest, practical route:
+
+- An **animated ASCII 2D graph** draws live, left to right, directly in
+  the terminal (no dependencies) — 10 built-in chemistry curves: order
+  kinetics decay curves, the linear form of first-order kinetics,
+  Arrhenius plots, Boyle's Law, Maxwell–Boltzmann speed distribution,
+  1s radial probability density, acid–base titration curves, and Bohr
+  energy levels.
+- Optionally **export a high-quality PNG** (2D curve, or a real 3D
+  surface — an orbital probability surface or the ideal-gas P·V·T
+  surface) via `matplotlib`, saved to `~/cct_exports/` and opened with
+  your OS's default image viewer.
+
+## Terminal sound effects
+
+CCT now plays short audio cues for feedback — no extra packages needed:
+a startup chime, a success tone when a numerical/formula/plot/calculation
+finishes, an error buzz on failures, a tone when a live simulation starts,
+and a quiet tick for every tool the Chemistry Agent runs (so a multi-step
+`/agent` request is audible turn-by-turn, not just visual).
+
+- **Windows**: real short tones via the built-in `winsound` module.
+- **macOS/Linux** (and Windows without `winsound`): falls back to the
+  ASCII terminal bell (`\a`) — the same "ding" your shell uses for
+  tab-complete errors. If you don't hear anything, check your terminal's
+  preferences for "audible bell" and make sure it's enabled.
+- Toggle sound on/off any time in `/settings` → option 5.
+
+## Chemistry Agentic AI (`/agent`)
+
+`/ai` is a plain chat with your configured provider. `/agent` goes further:
+the model can actually **operate the app** instead of just describing
+answers in prose. Configure any provider or Ollama (`/agent` will prompt
+you to set one up if you haven't), then ask for things like:
+
+```
+❯ solve ideal gas law with P=1, n=2, T=300
+❯ plot the arrhenius graph and export it
+❯ plot y = sin(x)*exp(-x/5) from 0 to 20 called "Damped Wave"
+❯ simulate an iron atom in 3d
+❯ show me the 2p orbital cloud
+```
+
+Under the hood the agent runs a real tool-calling loop: the model chooses
+one of the tools below per turn, sees the actual result, and can chain
+several tools together before giving you a final plain-language answer.
+Every provider in the registry (OpenAI, Anthropic, Gemini, Groq,
+OpenRouter, Ollama, or a custom endpoint) works the same way, since the
+protocol is plain JSON text rather than a provider-specific schema.
+
+| Tool                | What it does |
+|----------------------|--------------|
+| `solve_formula`       | Solve any of the 39 library formulas symbolically |
+| `solve_custom`        | Solve any formula you/the AI writes on the spot |
+| `calculate`            | Exact arithmetic/scientific evaluation |
+| `generate_numerical`   | Render a full step-by-step notebook numerical |
+| `plot_preset`          | Animate one of the 10 built-in chemistry curves |
+| `plot_function`        | Animate/graph **any** 2D function — the AI can name and define its own curve |
+| `plot_surface`         | Export a high-quality 3D surface PNG — built-in or **any** `z = f(x, y)` the AI names |
+| `simulate_atom_2d`     | Live 2D Bohr atom / electron / proton simulation for any element |
+| `simulate_atom_3d`     | Live real-time 3D atom / electron / proton simulation for any element |
+| `simulate_orbital`     | Live quantum orbital electron-cloud Monte-Carlo simulation |
+
+Once a provider is configured, plain questions typed at the home prompt
+that don't match a local topic are also routed through this same agent —
+so free-text chemistry questions can trigger a real calculation, plot, or
+simulation instead of a guessed answer.
+
+## Workspace Management (`/workspace`, v0.7.7)
+
+CCT acts like a real IDE when you point it at a project folder:
+
+- **Automatic detection on launch** — the app finds the workspace by
+  priority: current working directory (unless it's CCT itself) → VS
+  Code workspace → git repository root → launch directory → last
+  opened folder.
+- **Multi-workspace history** — every folder you open is remembered
+  (`~/.cct_recent_projects.json`) with optional labels, 📌 pinned and
+  ⭐ favorite marks, and per-workspace tree collapse state. The Folder
+  Panel's **Workspaces** strip switches between them without ever
+  closing the panel, and `/workspace list|search|rename|pin|fav|
+  remove|last|forget` manage the same history from the classic
+  terminal.
+- **Open Folder no longer closes the panel** — the picker (with a
+  native Browse… dialog) opens on top; the panel stays put.
+- **AI workspace indexing** — opening a folder indexes it in the
+  background with visible progress in chat (🔍 Scanning Workspace →
+  📖 Reading Files → 🛠 Building Context → ✅ Ready), detecting
+  languages, package managers, real dependencies from manifests, and
+  git branch/status.
+- **Project Header** — the Folder Panel's top strip shows the
+  workspace name, git branch, languages, files, deps, memory usage,
+  and context %.
+- **Package install history** — every `/install` is recorded to
+  `~/.cct_package_history.json`; `packages.summarize()` renders the
+  professional ✅/❌ install card (package, version, environment,
+  dependencies installed, time, verification) in chat after every
+  install, and `/packages history [query|remove|clear]` reviews it.
+
+## AI / Ollama connection verification (`/ai-verify`)
+
+`/ai-verify` (also reachable as `/verify` inside `/ai` or `/agent`) runs a
+real network round trip against your configured provider — not just a
+"is there a config file" check:
+
+- **Ollama** — hits `/api/tags` and confirms your chosen model is actually
+  pulled locally (and tells you the `ollama pull` command if it isn't).
+- **OpenAI-compatible** (OpenAI, Groq, OpenRouter, vLLM/LM Studio) — hits
+  `/models` and lists what your API key can see.
+- **Gemini** — hits `/models` with your key.
+- **Anthropic / custom endpoints** — sends a minimal real completion as
+  the connectivity test, since these don't expose a model-listing route.
+
+Setting up a provider via `/agent` or `/ai` now runs this check
+automatically right after saving, so a bad key or unreachable Ollama
+server is caught immediately instead of on your first real question.
+
+## Element Quiz (`/game`)
+
+A multiple-choice mini-game built on the same element data that powers
+`/atomsim` — no separate content to maintain. Question types rotate
+between symbol \u2194 name, atomic number \u2194 name, electron shell structure
+(K/L/M/N\u2026), and approximate atomic mass.
+
+- **3 lives** — a wrong answer costs one; the round ends at zero.
+- **Streak bonus** — consecutive correct answers add a growing bonus
+  and a `\U0001f525` badge at higher streaks.
+- **Speed bonus** — answer inside 3 seconds for the full bonus, inside
+  6 for a partial one.
+- Session **high score** and **best streak** persist for as long as the
+  terminal stays open, shown on the results screen after each round.
+- Aliases: `/gm`, `/pg`.
+
+## Hidden easter eggs
+
+Not documented anywhere else on purpose — `/shortcuts` just tells you
+how many you've found so far. Try typing plain phrases at the home
+prompt instead of a command (a few classics, a couple of chemistry
+in-jokes, and one that turns the terminal into a periodic-table version
+of the Matrix rain \u2014 press `q` to stop it early).
+
+## Premium terminal look
+
+Chat-style highlighted **bubbles and badges** (via 24-bit ANSI, with
+`colorama` as a legacy-Windows fallback) are used throughout: your
+questions appear as tagged chat messages, AI responses stream inside a
+violet-highlighted bubble, and status/result rows use colored pill
+badges instead of plain text — without losing the Tokyo Night aesthetic.
+
+The home prompt itself is a redesigned **gradient chatbox** — a
+cyan-to-violet shimmering border around a flask (`\u2697`) icon, a rotating
+"try:" suggestion line above it (real example questions, `/solve`,
+`/game`, `/agent`\u2026), and a soft pulsing status dot below it next to
+`\u21b5 send \u00b7 /help commands`. Panel titles can render as gradients too
+(`title_gradient=` in `theme.panel`), used on the home dashboard, the
+Element Quiz and the easter eggs.
+
+## What's covered in v0.3
+
+## Hotfix — chatbox overhaul + agent reliability
+- **Fixed the box-overflow bug** — long/pasted questions were echoed
+  raw by the terminal and broke straight through the border. Enter now
+  triggers a clean re-wrap of whatever you typed, word-wrapped inside
+  the box's own left border, however long it is.
+- **OpenCode/Claude-Code style chatbox** — one unified box (input row +
+  a mode/model status row inside it, closing flush on the right),
+  shortcuts + a rotating "try:" tip printed underneath, and a tiny
+  ASCII mascot that walks across the top before the box appears.
+- **Agent reliability** — step budget raised (6 \u2192 18) so multi-part
+  hard problems (redox stoichiometry, multi-step numericals) aren't
+  cut off; added stall detection for repeated identical tool calls, a
+  forced-convergence final answer instead of a generic "ran out of
+  steps" message, and a retry on empty API responses.
+
+## What's new in v0.5.5 — Copper Edition (closed-box fix)
+
+- **The box now shows fully closed, immediately** — meta row, bottom
+  border, keyboard hints, and the "try:" tip all appear as soon as
+  the box does, matching the reference design. Previously all of
+  that only appeared after pressing Enter, so while you were typing
+  the box looked broken/unfinished: just a bare top border and an
+  open input line, with nothing closing it off.
+  - Plain-input fallback (no `prompt_toolkit`): the rest of the box
+    is pre-drawn below the input line, and the cursor jumps back up
+    to type — using a saved cursor anchor rather than counting
+    relative cursor moves, so it can't drift out of sync.
+  - `prompt_toolkit` path: the bottom toolbar now renders the whole
+    closed box (not just the meta row) as one live multi-line block,
+    which `prompt_toolkit` redraws on its own, so it can't collide
+    with the suggestion dropdown's reserved space.
+
+## What's new in v0.5.4 — Copper Edition (chatbox overflow fix)
+
+- **Fixed the "Ask Chemistry…" box overflow bug** — on a narrow
+  terminal/embedded pane, the rotating example tip (e.g. `"first
+  order half life"`) had no width budget at all, so it printed past
+  the box's right edge. Because the border above it is drawn at the
+  narrower clamped width, that made the top border look like it cut
+  off mid-word instead of framing the whole input line. The tip now
+  trims to fit, or is dropped entirely, so the border always frames
+  the full row at any terminal width.
+
+## What's new in v0.5.3 — Memory Edition
+
+- **Persistent memory for `/ai` and `/agent`** (`calc_terminal/memory.py`,
+  `~/.cct_memory.json`) — both now recall recent conversation turns,
+  durable facts about you ("remember my exam is in May"), a timestamped
+  log of "every movement" (questions asked, tools run, sims played), and
+  your most-asked-about topics, across restarts. `/memory` (alias `/m`)
+  shows what's remembered; `/memory clear` wipes it.
+- **`/ai` and `/agent` now have different personalities**, not just
+  different branding:
+  - `/ai` — **CCT AI** talks normal: short, conversational answers, like
+    texting a knowledgeable friend. If your question turns out to be a
+    big one (a full derivation, several sub-parts, "explain in detail"),
+    it still solves it with tools but keeps the reply brief and nudges
+    you with a 💡 tip to run `/agent` for the complete breakdown.
+  - `/agent` — **CCT Agent** always explains longer, in real notebook
+    format: ALL-CAPS section headers (GIVEN DATA / FIND / FORMULA /
+    SUBSTITUTION / CALCULATION / VERIFICATION / FINAL ANSWER for
+    numericals, OVERVIEW / EXPLANATION / EXAMPLE / KEY POINTS / FINAL
+    ANSWER for concepts), rendered in the same animated notebook-panel
+    style as `/solve`.
+- **Prompt & command suggestions inside `/ai` and `/agent` chat**: the
+  same live autocomplete dropdown the home screen uses now also appears
+  while chatting — example questions/prompts plus `/back`, `/setup`,
+  `/verify`, `/memory`.
+
+## What's new in v0.5.2 — Mango Edition (chatbox redesign)
+- **All-new premium chatbox** — a centered, angular-cornered box
+  (`┌─┐│└─┘`) with a soft left→right navy gradient border, matching the
+  reference OpenCode/Claude-Code design: same border style, same
+  centered width, same two-row layout. Calmer palette than the old
+  rainbow-gradient box — it reads as a single quiet object against the
+  Tokyo Night background.
+- **Sharper, image-matched proportions** — the box now sizes itself to
+  ~72% of the terminal width (clamped 58–76 columns) and centers with
+  equal side margins, so it's the same substantial, focused width at
+  every window size instead of the older edge-to-edge or too-narrow
+  look.
+- **Refined two-tone meta row** — the mode word (`NOTEBOOK`) in a vivid
+  blue, the model name dimmed beside it, and the status word
+  right-aligned in amber — exactly the hierarchy the reference uses
+  (bold accent · dim model · right status).
+- **Polished keyboard-hint row** — each key cap (`tab`, `/help`) is
+  rendered faint+bold like a physical key, its label dimmed, with a
+  4-space gutter between pairs, right-aligned flush with the box's
+  right edge.
+- **Cleaner placeholder** — two-tone "Ask Chemistry…" (label in a calm
+  gray, the rotating example suggestion fainter) inside the
+  suggestion-aware input, the same quiet hierarchy premium input
+  fields use.
+- **Retuned suggestion dropdown** — selected row lifts to the vivid
+  accent blue; unselected rows stay calm on the Tokyo Night background,
+  so the dropdown belongs to the box instead of fighting it.
+
+## What's new in v0.4.2 — Limited Edition
+- **Fixed the box-border overflow bug** — panel width now sizes itself
+  to your real terminal (`shutil.get_terminal_size`, clamped 60-100
+  columns) instead of a hardcoded 78, which was wrapping and breaking
+  box borders on narrower terminal windows.
+- **`/game`** — a new Element Quiz mini-game (lives, streaks, speed
+  bonus, session high score).
+- **Hidden easter eggs** — a handful of secret phrases and a
+  periodic-table Matrix rain (`/matrix`).
+
+## What's new in v0.4.0.1
+- **`/derive`** (or just type "derive first order", "derive zero order",
+  "derive second order", "derive half life") now shows the real
+  step-by-step calculus derivation — differential rate law → separate
+  variables → integrate → result — instead of a random numeric example.
+  Type "n" afterward if you still want a worked numeric example.
+- Notebook-style math formatting everywhere: multiplication is always
+  shown as `x` (never `*`), and division is always a stacked fraction
+  bar (value over value, via `/solve`'s formula/equation display and
+  `mathtext.compose`) or a fraction slash in inline steps — never a
+  raw `/`.
+- New opencode-style window chrome (colored title-bar dots + boxed
+  input box with an "enter send" hint row) on the home screen.
+- Quick single-letter command aliases: `/h`, `/c`, `/s`, `/f`, `/k`,
+  `/d`, `/g`, `/a`, `/e`, `/r`, `/x`, `/o`, `/u`, `/v`, `/3`, `/ag`,
+  `/y`, `/st`, `/sh`, `/at`, `/vf`, `/?` — see `/shortcuts` for the
+  full list (or type `/sh`).
+- More animation: an animated fill-in progress bar during boot, plus
+  the existing spinner/typing/streaming animations now also run for
+  derivations.
+
+### Update: live stage-by-stage reveal + full shortcut coverage
+- Every `/solve` notebook and every `/derive` derivation now draws its
+  panel **one line/stage at a time** instead of dumping the whole
+  block instantly — the border draws in, then GIVEN DATA → FIND →
+  FORMULA → SUBSTITUTION → CALCULATION → UNITS → VERIFICATION →
+  FINAL ANSWER (or each derivation step) appears in sequence with a
+  short pause on every new section header, so it visibly "works out"
+  like a person writing on a notebook page.
+- This is a `Settings` toggle: `/settings` → option `6` (Animated
+  responses) turns it off for instant/static output if you prefer,
+  or if you're running in a non-interactive/piped environment.
+- Every command now has a short alias, so nothing needs to be typed
+  in full — see the alias list above or run `/shortcuts`.
+
+- **Chemical Kinetics** (priority, as requested): Zero Order, First Order,
+  Second Order, Half-Life, Arrhenius Equation — each with real randomized
+  numbers and a genuinely computed, correct answer.
+- **Mole Concept**: mass ↔ moles conversions.
+- **Electrochemistry** (`/electrochemistry`): Nernst equation & Faraday's
+  Law, solved symbolically like the rest of `/solve`.
+- A searchable **Formula Library** with Formula / Meaning / Variables /
+  Units / Conditions / Common Mistakes / Shortcut Trick / Memory Trick /
+  Solved Example for each topic.
+- A **Universal Formula Calculator** (`/solve`) — 39 real formulas solved
+  symbolically for any unknown, plus a free-form "type any formula" mode.
+- **Live simulations** (`/atomsim`, `/orbitals`, `/sim3d`) — real-time
+  animated Bohr atom model, Monte-Carlo quantum orbital electron clouds,
+  and a rotatable real-time 3D atom/electron/proton simulation.
+- **Chemistry graphs** (`/graph`) — 10 animated ASCII 2D curves, with
+  optional high-quality 2D/3D PNG export.
+- **Chemistry Agentic AI** (`/agent`, `/ai`, `/ai-verify`) — a real
+  tool-using agent that solves formulas, plots any 2D/3D curve or surface
+  it names itself, and drives the live atom/orbital simulations; plus a
+  connectivity/model check for whichever API or Ollama provider you use.
+- **Chat-bubble UI** — highlighted message bubbles, a typing indicator, and
+  a streamed AI response for a real chat feel.
+- Session **History** (toggle autosave in `/settings`).
+- A working **quick scientific calculator** (`/calculator`), with its
+  result rounded to your `/settings` decimal-precision preference.
+- Simulated **image upload** and **voice input** flows (OCR/speech are not
+  wired to anything real yet — this is a prototype, per the brief).
+
+## Project layout
+
+```
+main.py                  entry point — python main.py
+calc_terminal/
+  theme.py                Tokyo Night ANSI colors + panel/box rendering + bg highlights
+  chatui.py                chat bubbles, typing indicator, highlighted prompt bar
+  aicore.py                AI provider integration (API/Ollama) + connection verification
+  agent.py                 Chemistry Agentic AI — the tool-calling loop over aicore
+  sound.py                 dependency-free terminal sound effects (winsound / ASCII bell)
+  sim3d.py                 [BETA] Real-time 3D atomic simulations
+  mathtext.py              stacked-fraction / subscript notebook math
+  generators.py            the chemistry numerical generators
+  formulas.py               formula library data
+  solver.py                 universal symbolic formula calculator (sympy)
+  atomsim.py                 live Bohr atom + quantum orbital simulations
+  graphs.py                  animated ASCII graphs + matplotlib 2D/3D export
+                              (built-in presets AND custom AI-named functions/surfaces)
+  keys.py                     cross-platform single-keypress reader (shortcuts)
+  engine.py                    fake-AI loading sequence + notebook renderer
+  game.py                      Element Quiz mini-game (/game)
+  easter_eggs.py                hidden phrases, jokes & the periodic-table Matrix rain
+  app.py                       the interactive terminal application
+```
+
+This is intentionally modular (per the spec's "future architecture"
+section) so a real OCR engine, speech recognition, or an actual LLM
+backend can be dropped in later without restructuring the app.

@@ -1,0 +1,9 @@
+{
+  "provider": "mistral",
+  "fetched_at": "2026-09-09T13:48:31+00:00",
+  "models": [
+    "codestral-latest",
+    "mistral-large-latest",
+    "mistral-small-latest"
+  ]
+}

@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="js/fomoji-theme.js"></script>
+<script src="js/fomoji-animated-bot.js"></script>
+<script src="js/fomoji-components.js"></script>
+<script src="js/fomoji-liquid-glass.js"></script>
+<script src="js/fomoji-fx.js"></script>
+<script src="js/fomoji-commands.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Log in · Fomoji</title>
+<meta name="description" content="Fomoji is the identity and connection layer behind your ecosystem of tools.">
+<link rel="stylesheet" href="css/fomoji-tokens.css">
+<link rel="stylesheet" href="css/fomoji.css">
+<link rel="stylesheet" href="css/fomoji-fx.css">
+<link rel="stylesheet" href="css/fomoji-animated-bot.css">
+<link rel="stylesheet" href="css/fomoji-liquid-glass.css">
+<link rel="stylesheet" href="css/fomoji-glow-engine.css">
+</head>
+<body data-swipe-left="signup.html" data-swipe-right="welcome.html">
+
+<div class="shell">
+
+  <!-- ============ HERO / SIGNATURE ORBIT ============ -->
+  <aside class="hero">
+    <div class="hero-particles" aria-hidden="true">
+      <span class="hero-particle" style="--x:8%; --dur:8s; --delay:-1s"></span>
+      <span class="hero-particle" style="--x:22%; --dur:11s; --delay:-4s"></span>
+      <span class="hero-particle" style="--x:38%; --dur:9s; --delay:-6.5s"></span>
+      <span class="hero-particle" style="--x:55%; --dur:12s; --delay:-2s"></span>
+      <span class="hero-particle" style="--x:70%; --dur:8.5s; --delay:-5s"></span>
+      <span class="hero-particle" style="--x:83%; --dur:10s; --delay:-3s"></span>
+      <span class="hero-particle" style="--x:94%; --dur:13s; --delay:-7s"></span>
+    </div>
+
+    <div class="hero-brand">
+      <a href="index.html"><img src="img/fomoji-logo.png" alt="Fomoji"></a>
+    </div>
+
+    <div class="orbit" aria-hidden="true">
+      <svg viewBox="0 0 340 340">
+        <circle class="orbit-ring" cx="170" cy="170" r="130"></circle>
+        <circle class="orbit-ring" cx="170" cy="170" r="80"></circle>
+
+        <line class="orbit-line" x1="170" y1="170" x2="170" y2="40"></line>
+        <line class="orbit-line" x1="170" y1="170" x2="290" y2="235"></line>
+        <line class="orbit-line" x1="170" y1="170" x2="50" y2="235"></line>
+
+        <circle class="orbit-core-glow" cx="170" cy="170" r="30"></circle>
+        <circle class="core-pulse" cx="170" cy="170" r="20" fill="none" stroke="var(--sage)" stroke-width="1.5"></circle>
+        <circle class="orbit-core" cx="170" cy="170" r="15"></circle>
+        <circle class="orbit-core-dot" cx="170" cy="164" r="2.4"></circle>
+
+        <g class="orbit-node spin1">
+          <g class="orbit-node-inner" transform="translate(170,40)">
+            <circle r="15"></circle>
+            <text text-anchor="middle" dy="4">CAT</text>
+          </g>
+        </g>
+        <g class="orbit-node spin2">
+          <g class="orbit-node-inner" transform="translate(290,235)">
+            <circle r="15"></circle>
+            <text text-anchor="middle" dy="4">AI</text>
+          </g>
+        </g>
+        <g class="orbit-node spin3">
+          <g class="orbit-node-inner" transform="translate(50,235)">
+            <circle r="15"></circle>
+            <text text-anchor="middle" dy="4">APPS</text>
+          </g>
+        </g>
+      </svg>
+    </div>
+
+    <div class="hero-copy">
+      <span class="hero-eyebrow">Identity · Connection</span>
+      <h1 class="hero-headline">One identity.<br>A <em>connected</em> ecosystem.</h1>
+      <p class="hero-sub">Sign in once with Fomoji to authenticate into CAT and every supported app that connects to it.</p>
+    </div>
+
+    <div class="hero-live">
+      <div class="ascii-gallery" data-sets="cat,orbit,signal,wave" aria-hidden="true">
+        <div class="ascii-gallery-tabs"></div>
+        <pre class="ascii-gallery-body fx-ascii" style="font-family:var(--f-mono); font-size:10.5px; line-height:1.5; color:var(--ink-dim); white-space:pre; background:var(--void); border:1px solid var(--line); border-radius:var(--radius-s); padding:12px 14px;"></pre>
+        <div class="pulse-bars"><span></span><span></span><span></span><span></span><span></span></div>
+      </div>
+      <p class="hero-status-line"><span class="status-dot">●</span> connected to orbit<span class="dot-anim"></span></p>
+      <p class="hero-foot" style="margin-top:8px; opacity:0.7;">Swipe left for “Create Fomoji” →</p>
+    </div>
+
+    <p class="hero-foot">FOMOJI &copy; 2026 &nbsp;·&nbsp; built by Kazi Zillani</p>
+  </aside>
+
+  <!-- ============ AUTH CARD ============ -->
+  <main class="auth">
+    <div class="card">
+
+      <div class="form-view" id="formView">
+        <div class="card-head">
+          <h2 class="card-title">Welcome back</h2>
+          <p class="card-sub">New to Fomoji? <a href="signup.html">Create an account</a></p>
+        </div>
+
+        <div class="alert alert-error" id="formAlert" role="alert" aria-live="assertive"></div>
+
+        <form id="loginForm" novalidate>
+          <div class="field">
+            <label for="identifier">Email or username</label>
+            <div class="field-row">
+              <input type="text" id="identifier" name="identifier" autocomplete="username" placeholder="you@example.com" aria-describedby="identifierError">
+            </div>
+            <div class="field-error" id="identifierError" style="display:none"></div>
+          </div>
+
+          <div class="field has-toggle">
+            <label for="password">Password</label>
+            <div class="field-row">
+              <input type="password" id="password" name="password" autocomplete="current-password" placeholder="••••••••" aria-describedby="passwordError">
+              <button type="button" class="toggle-vis" data-toggle-for="password" aria-label="Show password">SHOW</button>
+            </div>
+            <div class="field-error" id="passwordError" style="display:none"></div>
+          </div>
+
+          <div class="foot-links" style="margin-top:-6px; margin-bottom:20px;">
+            <label class="checkline" style="margin:0;">
+              <input type="checkbox" id="remember" checked>
+              Stay signed in
+            </label>
+            <a href="#" id="forgotLink">Forgot password?</a>
+          </div>
+
+          <button type="submit" class="btn btn-primary" id="loginBtn">
+            <span class="spinner"></span>
+            <span class="btn-label">Log in</span>
+          </button>
+        </form>
+
+        <div class="alert alert-error" id="oauthAlert" role="alert" aria-live="assertive" style="display:none;"></div>
+
+        <div class="divider">OR</div>
+
+        <a href="passkey.html" class="btn btn-primary" style="justify-content:center; margin-bottom:10px; text-decoration:none;">
+          <span class="btn-label">🔑 Continue with Passkey (real)</span>
+        </a>
+
+        <!-- Populated by fomoji-oauth.js from /api/oauth/providers — real
+             redirect-based OAuth/OIDC, not a mock. A provider with no
+             client id/secret configured on the server renders disabled. -->
+        <div id="oauthProviderList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:10px;"></div>
+
+        <button type="button" class="btn btn-ghost" id="guestBtn">
+          <span class="spinner"></span>
+          <span class="btn-label">Continue as guest</span>
+        </button>
+        <div class="provider-note">
+          Guest sessions aren't saved anywhere — they last 2 hours in this browser tab and can't edit account settings.
+        </div>
+
+        <a href="connector.html" class="btn btn-primary" style="justify-content:center; margin-top:12px; text-decoration:none;">
+          <span class="btn-label">Connect from CAT</span>
+        </a>
+        <div class="provider-note">
+          Already have a code from CAT? Log in first, then enter it on the Connect page.
+        </div>
+
+        <div class="card-foot-links">
+          <a href="welcome.html">All options</a>
+          <a href="signup.html">Create account</a>
+          <a href="privacy.html">Privacy Policy</a>
+          <a href="terms.html">Terms of Use</a>
+        </div>
+      </div>
+
+      <!-- Forgot-password panel — real reset via the one-time recovery code
+           issued at signup, since there's no mail server to email a link. -->
+      <div class="form-view is-hidden" id="forgotView">
+        <div class="card-head">
+          <h2 class="card-title">Reset password</h2>
+          <p class="card-sub"><a href="#" id="backToLogin">&larr; Back to log in</a></p>
+        </div>
+
+        <div class="alert alert-error" id="resetAlert" role="alert" aria-live="assertive"></div>
+
+        <form id="resetForm" novalidate>
+          <div class="field">
+            <label for="resetIdentifier">Email or username</label>
+            <input type="text" id="resetIdentifier" autocomplete="username" placeholder="you@example.com">
+          </div>
+          <div class="field">
+            <label for="resetCode">Recovery code</label>
+            <input type="text" id="resetCode" placeholder="XXXX-XXXX-XXXX-XXXX" style="font-family:var(--f-mono); letter-spacing:0.04em;">
+            <div class="field-hint">The 16-character code you were shown once when you created your account.</div>
+          </div>
+          <div class="field has-toggle">
+            <label for="resetNewPw">New password</label>
+            <div class="field-row">
+              <input type="password" id="resetNewPw" autocomplete="new-password" placeholder="At least 8 characters">
+              <button type="button" class="toggle-vis" data-toggle-for="resetNewPw" aria-label="Show password">SHOW</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="resetConfirmPw">Confirm new password</label>
+            <input type="password" id="resetConfirmPw" autocomplete="new-password">
+          </div>
+          <button type="submit" class="btn btn-primary" id="resetBtn">
+            <span class="spinner"></span>
+            <span class="btn-label">Reset password</span>
+          </button>
+        </form>
+
+        <div class="alert alert-info is-visible" style="margin-top:18px;">
+          Lost the recovery code too? There's no email-based reset yet — that needs a mail server this build doesn't have. A passkey (if you have one on this identity) still works even without a password.
+        </div>
+      </div>
+
+      <!-- Reset success — shows the freshly rotated recovery code -->
+      <div class="success-view" id="resetSuccessView" aria-live="polite">
+        <div class="success-icon">&#10003;</div>
+        <h2 class="card-title">Password reset.</h2>
+        <p class="card-sub">Your recovery code was rotated — save the new one below.</p>
+        <div class="recovery-box">
+          <div class="recovery-label">
+            New recovery code
+            <button type="button" class="copy-btn" id="copyResetCodeBtn">COPY</button>
+          </div>
+          <div class="recovery-code" id="resetNewCode"></div>
+          <p class="recovery-warn">This is shown once. The old code no longer works.</p>
+        </div>
+        <a href="index.html" class="btn btn-ghost" style="margin-top:20px;">Back to log in</a>
+      </div>
+
+      <!-- Success state -->
+      <div class="success-view" id="successView" aria-live="polite">
+        <div class="success-icon">&#10003;</div>
+        <h2 class="card-title">You're in.</h2>
+        <p class="card-sub" id="successCopy">Signed in to Fomoji.</p>
+        <div class="session-tag" id="sessionTag"></div>
+        <button type="button" class="btn btn-ghost" style="margin-top:14px;" id="viewCardBtn">View your Authentication Card</button>
+        <a href="#" class="btn btn-ghost" style="margin-top:10px;" id="continueBtn">Continue</a>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+
+<script src="js/fomoji-auth.js"></script>
+<script src="js/fomoji-oauth.js"></script>
+<script src="vendor/simplewebauthn-browser.min.js"></script>
+<script src="js/fomoji-webauthn.js"></script>
+<script src="js/fomoji-passkey-manager.js"></script>
+<script src="js/fomoji-auth-card.js"></script>
+<script>
+(async () => {
+  const formView = document.getElementById('formView');
+  const forgotView = document.getElementById('forgotView');
+  const successView = document.getElementById('successView');
+  const resetSuccessView = document.getElementById('resetSuccessView');
+  const formAlert = document.getElementById('formAlert');
+  const loginForm = document.getElementById('loginForm');
+  const loginBtn = document.getElementById('loginBtn');
+  const guestBtn = document.getElementById('guestBtn');
+
+  // already signed in (real or guest)? skip straight to success framing.
+  const existingGuest = FomojiAPI.getGuestAccount();
+  if (existingGuest) {
+    showSuccess(existingGuest, true);
+  } else {
+    let existing = null;
+    try { existing = await FomojiAPI.fetchSession(); } catch { /* treat as signed out */ }
+    if (existing) showSuccess(existing, true);
+  }
+
+  document.getElementById('forgotLink').addEventListener('click', (e) => {
+    e.preventDefault();
+    formView.classList.add('is-hidden');
+    forgotView.classList.remove('is-hidden');
+  });
+  document.getElementById('backToLogin').addEventListener('click', (e) => {
+    e.preventDefault();
+    forgotView.classList.add('is-hidden');
+    formView.classList.remove('is-hidden');
+  });
+
+  document.querySelectorAll('.toggle-vis').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const input = document.getElementById(btn.dataset.toggleFor);
+      const showing = input.type === 'text';
+      input.type = showing ? 'password' : 'text';
+      btn.textContent = showing ? 'SHOW' : 'HIDE';
+      btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+    });
+  });
+
+  function setFieldError(id, message) {
+    const errEl = document.getElementById(id + 'Error');
+    const inputEl = document.getElementById(id);
+    if (message) {
+      errEl.textContent = message;
+      errEl.style.display = 'flex';
+      inputEl.setAttribute('aria-invalid', 'true');
+    } else {
+      errEl.style.display = 'none';
+      inputEl.removeAttribute('aria-invalid');
+    }
+  }
+
+  function setAlert(message) {
+    if (message) { formAlert.textContent = message; formAlert.classList.add('is-visible'); }
+    else { formAlert.classList.remove('is-visible'); formAlert.textContent = ''; }
+  }
+
+  function setLoading(isLoading) {
+    loginBtn.disabled = isLoading;
+    loginBtn.classList.toggle('is-loading', isLoading);
+    loginBtn.querySelector('.btn-label').textContent = isLoading ? 'Signing in…' : 'Log in';
+  }
+
+  function showSuccess(account, alreadySignedIn) {
+    formView.classList.add('is-hidden');
+    forgotView.classList.add('is-hidden');
+    successView.classList.add('is-visible');
+    document.getElementById('successCopy').textContent = alreadySignedIn
+      ? `Already signed in as ${account.username}.`
+      : `Signed in as ${account.username}.`;
+    document.getElementById('sessionTag').textContent = account.isGuest
+      ? `GUEST · expires ${new Date(account.expiresAt).toLocaleTimeString()}`
+      : `FOMOJI ID ${account.fomojiId}`;
+    document.getElementById('continueBtn').href = getSafeRedirect();
+    const viewCardBtn = document.getElementById('viewCardBtn');
+    viewCardBtn.style.display = account.isGuest ? 'none' : 'inline-flex';
+  }
+
+  // ---- guest ----
+  guestBtn.addEventListener('click', () => {
+    guestBtn.disabled = true;
+    guestBtn.classList.add('is-loading');
+    guestBtn.querySelector('.btn-label').textContent = 'Starting guest session…';
+    FomojiAPI.continueAsGuest();
+    window.location.href = getSafeRedirect();
+  });
+
+  // ---- reset password ----
+  const resetForm = document.getElementById('resetForm');
+  const resetAlert = document.getElementById('resetAlert');
+  const resetBtn = document.getElementById('resetBtn');
+
+  resetForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    resetAlert.classList.remove('is-visible');
+
+    const identifier = document.getElementById('resetIdentifier').value;
+    const recoveryCode = document.getElementById('resetCode').value;
+    const newPassword = document.getElementById('resetNewPw').value;
+    const confirmPassword = document.getElementById('resetConfirmPw').value;
+
+    if (!identifier.trim() || !recoveryCode.trim()) {
+      resetAlert.textContent = 'Fill in your email/username and recovery code.';
+      resetAlert.classList.add('is-visible');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      resetAlert.textContent = 'New passwords don\u2019t match.';
+      resetAlert.classList.add('is-visible');
+      return;
+    }
+
+    resetBtn.disabled = true;
+    resetBtn.classList.add('is-loading');
+    resetBtn.querySelector('.btn-label').textContent = 'Resetting…';
+    try {
+      const { newRecoveryCode } = await FomojiAPI.resetPassword({ identifier, recoveryCode, newPassword });
+      forgotView.classList.add('is-hidden');
+      resetSuccessView.classList.add('is-visible');
+      document.getElementById('resetNewCode').textContent = newRecoveryCode;
+    } catch (err) {
+      resetAlert.textContent = err instanceof FomojiAuthError ? err.message : 'Something went wrong.';
+      resetAlert.classList.add('is-visible');
+    } finally {
+      resetBtn.disabled = false;
+      resetBtn.classList.remove('is-loading');
+      resetBtn.querySelector('.btn-label').textContent = 'Reset password';
+    }
+  });
+
+  document.getElementById('copyResetCodeBtn').addEventListener('click', () => {
+    const code = document.getElementById('resetNewCode').textContent;
+    navigator.clipboard?.writeText(code);
+    const btn = document.getElementById('copyResetCodeBtn');
+    btn.textContent = 'COPIED';
+    setTimeout(() => { btn.textContent = 'COPY'; }, 1500);
+  });
+
+  document.getElementById('viewCardBtn').addEventListener('click', () => {
+    FomojiAuthCard.open();
+  });
+
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    setAlert(null);
+    setFieldError('identifier', null);
+    setFieldError('password', null);
+
+    const identifier = document.getElementById('identifier').value;
+    const password = document.getElementById('password').value;
+
+    let valid = true;
+    if (!identifier.trim()) { setFieldError('identifier', 'Enter your email or username.'); valid = false; }
+    if (!password) { setFieldError('password', 'Enter your password.'); valid = false; }
+    if (!valid) return;
+
+    setLoading(true);
+    window.FomojiCompanion?.react('loading');
+    try {
+      const { account } = await FomojiAPI.login({ identifier, password });
+      window.FomojiCompanion?.react('success');
+      showSuccess(account, false);
+    } catch (err) {
+      window.FomojiCompanion?.react('error');
+      setAlert(err instanceof FomojiAuthError ? err.message : 'Something went wrong. Try again.');
+    } finally {
+      setLoading(false);
+    }
+  });
+})();
+</script>
+</body>
+</html>

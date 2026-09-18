@@ -1,0 +1,119 @@
+/* ==========================================================================
+   FOMOJI — GLOW ENGINE  (UI Engine 2.0, Phase 2)
+
+   Replaces the glow rules that used to live scattered in fomoji-fx.css
+   (and, before the Phase-1 fix, silently ignored the active theme's color).
+   Two layers:
+
+     1. LEGACY TARGETS — the 5 elements that already had glow, moved here
+        unchanged in behavior, just expressed with shared radius tokens
+        (--fx-glow-radius) instead of five different hardcoded px values,
+        so a future radius change cascades from one place.
+
+     2. GENERIC ENGINE — any element with a `data-fx-glow` attribute gets
+        glow driven by the SAME state fomoji-components.js already tracks
+        (data-fx-state from Phase 1) plus explicit status classes, instead
+        of needing bespoke CSS per component. Triggers, matching spec
+        section 15:
+          data-fx-glow="hover"      -> glows on [data-fx-state="hover"]
+          data-fx-glow="focus"      -> glows on [data-fx-state="focus"]
+          data-fx-glow="press"      -> glows on [data-fx-state="press"]
+          data-fx-glow="active"     -> glows while .is-active
+          data-fx-glow="success"    -> pulses once on .is-success
+          data-fx-glow="warning"    -> pulses once on .is-warning
+          data-fx-glow="error"      -> pulses once on .is-error
+          data-fx-glow="selection"  -> glows while .is-selected
+          data-fx-glow="always"     -> constant ambient glow
+        (space-separated to combine, e.g. data-fx-glow="hover focus")
+
+   All glow — legacy and generic — respects html[data-glow="off"] and
+   --glow-strength exactly as before, and inherits --fx-accent-rgb /
+   --fx-accent-gold-rgb from the active theme (fomoji-theme.js).
+   Load after css/fomoji-tokens.css and css/fomoji-fx.css.
+   ========================================================================== */
+
+html[data-glow="off"] [data-fx-glow],
+html[data-glow="off"] .tab.is-active svg,
+html[data-glow="off"] .btn-primary::after,
+html[data-glow="off"] .status-dot,
+html[data-glow="off"] .orbit-core,
+html[data-glow="off"] .dash-card:hover{
+  filter:none !important;
+  text-shadow:none !important;
+  box-shadow:none !important;
+}
+html[data-glow="off"] .btn-primary::after{ display:none; }
+
+/* ==========================================================================
+   1. Legacy targets — same visuals as before, shared radius token
+   ========================================================================== */
+html[data-glow="on"] .tab.is-active svg{
+  filter:drop-shadow(0 0 calc(var(--fx-glow-radius, 7px) * var(--glow-strength)) rgba(var(--fx-accent-rgb, 154,160,133), 0.85));
+}
+html[data-glow="on"] .btn-primary{ position:relative; }
+html[data-glow="on"] .btn-primary::after{
+  content:""; position:absolute; inset:-8px; border-radius:inherit; z-index:-1;
+  background:radial-gradient(60% 100% at 50% 100%, rgba(var(--fx-accent-gold-rgb, 201,160,74), 0.4), transparent 70%);
+  filter:blur(calc(var(--fx-glow-radius, 7px) * 1.4));
+  opacity:calc(0.55 * var(--glow-strength));
+  transition:opacity var(--fx-glow-duration, 1.6s) var(--fx-ease-standard, ease);
+}
+html[data-glow="on"] .status-dot{
+  text-shadow:0 0 calc(var(--fx-glow-radius, 7px) * 1.3 * var(--glow-strength)) rgba(var(--fx-accent-rgb, 154,160,133), 0.9);
+}
+html[data-glow="on"] .orbit-core{
+  filter:drop-shadow(0 0 calc(var(--fx-glow-radius, 7px) * 0.85 * var(--glow-strength)) rgba(var(--fx-accent-gold-rgb, 201,160,74), 0.7));
+}
+html[data-glow="on"] .dash-card:hover{
+  box-shadow:
+    0 14px 34px rgba(0,0,0,0.35),
+    0 0 calc(var(--fx-glow-radius, 7px) * 4 * var(--glow-strength)) rgba(var(--fx-accent-rgb, 154,160,133), 0.28),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+/* ==========================================================================
+   2. Generic engine — new components opt in via data-fx-glow, no bespoke CSS
+   ========================================================================== */
+html[data-glow="on"] [data-fx-glow]{
+  transition: box-shadow var(--fx-glow-duration, 1.6s) var(--fx-ease-standard, ease), filter var(--fx-glow-duration, 1.6s) var(--fx-ease-standard, ease);
+}
+
+html[data-glow="on"] [data-fx-glow~="hover"][data-fx-state="hover"],
+html[data-glow="on"] [data-fx-glow~="focus"][data-fx-state="focus"],
+html[data-glow="on"] [data-fx-glow~="press"][data-fx-state="press"],
+html[data-glow="on"] [data-fx-glow~="active"].is-active,
+html[data-glow="on"] [data-fx-glow~="selection"].is-selected,
+html[data-glow="on"] [data-fx-glow~="always"]{
+  box-shadow:0 0 calc(var(--fx-glow-radius, 7px) * 2 * var(--glow-strength)) calc(var(--fx-glow-spread, 0px)) rgba(var(--fx-accent-rgb, 154,160,133), 0.45);
+}
+
+/* status triggers use their own colors regardless of theme accent, and
+   pulse once rather than glowing continuously — a status is an event,
+   not an ambient state */
+html[data-glow="on"] [data-fx-glow~="success"].is-success{
+  animation: fx-glow-pulse-kf var(--fx-glow-duration, 1.6s) var(--fx-ease-standard, ease) 1;
+  --fx-glow-pulse-rgb: 143,174,118; /* var(--good) */
+}
+html[data-glow="on"] [data-fx-glow~="warning"].is-warning{
+  animation: fx-glow-pulse-kf var(--fx-glow-duration, 1.6s) var(--fx-ease-standard, ease) 1;
+  --fx-glow-pulse-rgb: 201,160,74; /* var(--gold) */
+}
+html[data-glow="on"] [data-fx-glow~="error"].is-error{
+  animation: fx-glow-pulse-kf var(--fx-glow-duration, 1.6s) var(--fx-ease-standard, ease) 1;
+  --fx-glow-pulse-rgb: 193,88,79; /* var(--danger) */
+}
+@keyframes fx-glow-pulse-kf{
+  0%   { box-shadow:0 0 0 0 rgba(var(--fx-glow-pulse-rgb, 154,160,133), calc(0.55 * var(--glow-strength))); }
+  40%  { box-shadow:0 0 calc(var(--fx-glow-radius, 7px) * 3) calc(var(--fx-glow-radius, 7px) * 0.5) rgba(var(--fx-glow-pulse-rgb, 154,160,133), calc(0.4 * var(--glow-strength))); }
+  100% { box-shadow:0 0 0 0 rgba(var(--fx-glow-pulse-rgb, 154,160,133), 0); }
+}
+@media (prefers-reduced-motion:reduce){
+  html[data-glow="on"] [data-fx-glow~="success"].is-success,
+  html[data-glow="on"] [data-fx-glow~="warning"].is-warning,
+  html[data-glow="on"] [data-fx-glow~="error"].is-error{ animation:none; }
+}
+html.reduce-motion [data-fx-glow~="success"].is-success,
+html.reduce-motion [data-fx-glow~="warning"].is-warning,
+html.reduce-motion [data-fx-glow~="error"].is-error,
+html[data-motion="reduced"] [data-fx-glow~="success"].is-success,
+html[data-motion="none"] [data-fx-glow~="success"].is-success{ animation:none; }

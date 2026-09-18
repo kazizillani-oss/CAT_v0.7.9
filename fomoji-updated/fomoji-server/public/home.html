@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="js/fomoji-theme.js"></script>
+<script src="js/fomoji-animated-bot.js"></script>
+<script src="js/fomoji-components.js"></script>
+<script src="js/fomoji-liquid-glass.js"></script>
+<script src="js/fomoji-fx.js"></script>
+<script src="js/fomoji-commands.js"></script>
+<script src="js/fomoji-tabbar.js"></script>
+<script src="js/fomoji-signout.js"></script>
+<script src="js/fomoji-gestures.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Home · Fomoji</title>
+<link rel="stylesheet" href="css/fomoji-tokens.css">
+<link rel="stylesheet" href="css/fomoji.css">
+<link rel="stylesheet" href="css/fomoji-fx.css">
+<link rel="stylesheet" href="css/fomoji-animated-bot.css">
+<link rel="stylesheet" href="css/fomoji-liquid-glass.css">
+<link rel="stylesheet" href="css/fomoji-glow-engine.css">
+<link rel="stylesheet" href="css/fomoji-signout.css">
+<link rel="stylesheet" href="css/fomoji-guest-card.css">
+<style>
+  .dash{ position:relative; z-index:1; max-width:720px; margin:0 auto; padding:28px 20px 0; }
+  @media (min-width:820px){ .dash{ padding:44px 40px 0; } }
+  .dash-greet{ font-size:22px; font-weight:600; margin-bottom:4px; }
+  .dash-sub{ color:var(--ink-dim); font-size:13.5px; margin-bottom:26px; }
+  .dash-grid{ display:grid; gap:14px; grid-template-columns:1fr; }
+  @media (min-width:640px){ .dash-grid{ grid-template-columns:1fr 1fr; } }
+  .dash-card{
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.012) 45%, rgba(255,255,255,0.02)),
+      rgba(20,21,15,0.52);
+    backdrop-filter:blur(18px) saturate(150%);
+    -webkit-backdrop-filter:blur(18px) saturate(150%);
+    border:1px solid rgba(239,236,224,0.10); border-radius:var(--radius-m);
+    padding:18px;
+    box-shadow:0 10px 24px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05);
+    transition:transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+  }
+  .dash-card:hover{ transform:translateY(-3px); border-color:var(--sage-deep); box-shadow:0 14px 34px rgba(0,0,0,0.35), 0 0 20px rgba(154,160,133,0.18), inset 0 1px 0 rgba(255,255,255,0.06); }
+  @media (prefers-reduced-motion:reduce){ .dash-card{ transition:none; } .dash-card:hover{ transform:none; } }
+  .dash-card-label{ font-family:var(--f-mono); font-size:10.5px; letter-spacing:0.06em; color:var(--ink-faint); text-transform:uppercase; }
+  .dash-card-value{ font-size:22px; font-weight:600; margin-top:8px; }
+  .dash-card-sub{ font-size:12px; color:var(--ink-faint); margin-top:4px; }
+  .dash-links{ display:flex; flex-direction:column; gap:1px; margin-top:20px; border:1px solid var(--line); border-radius:var(--radius-m); overflow:hidden; }
+  .dash-link{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px; background:rgba(20,21,15,0.5); color:var(--ink); font-size:13.5px;
+    backdrop-filter:blur(14px) saturate(140%); -webkit-backdrop-filter:blur(14px) saturate(140%);
+  }
+  .dash-link:hover{ background:rgba(25,27,19,0.7); color:var(--ink); box-shadow:inset 0 0 0 1px rgba(154,160,133,0.25); }
+  .dash-link small{ display:block; color:var(--ink-faint); font-size:11.5px; margin-top:2px; }
+</style>
+</head>
+<body data-pull-refresh data-pull-refresh-label="checking fomoji session…">
+
+<header class="topbar">
+  <img src="img/fomoji-logo.png" alt="Fomoji">
+  <div class="topbar-user">
+    <span id="topbarName">—</span>
+    <div class="avatar" id="avatarInitial">·</div>
+  </div>
+</header>
+
+<main class="dash">
+  <div id="guestCardHost" style="margin-bottom:18px; display:none;"></div>
+
+  <div class="dash-greet" id="greet">Welcome back.</div>
+  <div class="dash-sub">This is your Fomoji identity — one account, connected to everything below.</div>
+
+  <div class="dash-grid">
+    <div class="dash-card reveal-on-scroll">
+      <div class="dash-card-label">Connected apps</div>
+      <div class="dash-card-value" id="connectedValue">0 / 1</div>
+      <div class="dash-card-sub" id="connectedSub">CAT hasn't been connected yet.</div>
+    </div>
+    <div class="dash-card reveal-on-scroll" style="transition-delay:70ms;">
+      <div class="dash-card-label">Session expires</div>
+      <div class="dash-card-value" id="expiresValue">—</div>
+      <div class="dash-card-sub" id="expiresSub">Local browser session.</div>
+    </div>
+  </div>
+
+  <div class="dash-card reveal-on-scroll" id="catCard" style="margin-top:14px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; transition-delay:120ms;">
+    <div>
+      <div class="dash-card-label" style="display:flex; align-items:center;">
+        <span>CAT CLI &amp; FATTY CAT</span>
+        <span id="fattyStatusPill" style="margin-left:8px; font-size:11px; padding:2px 8px; border-radius:10px; background:rgba(255,255,255,0.1); color:var(--text-muted); font-weight:normal;">Checking...</span>
+      </div>
+      <div style="font-size:15px; font-weight:600; margin-top:6px;" id="catCardHeadline">Not connected</div>
+      <div class="dash-card-sub" id="catCardSub">Connect once to sign in to CAT with this identity.</div>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a href="http://localhost:8765/" class="btn btn-primary btn-inline" target="_blank" rel="noopener" id="startFattyCatBtn">Start FATTY CAT</a>
+      <a href="help.html" class="btn btn-ghost btn-inline">Help</a>
+      <button type="button" class="btn btn-primary btn-inline" id="homeCatConnectBtn">Connect CAT CLI</button>
+      <button type="button" class="btn btn-danger btn-inline is-hidden" id="homeCatDisconnectBtn">Disconnect</button>
+    </div>
+  </div>
+
+  <div class="dash-links reveal-on-scroll" style="transition-delay:170ms;">
+    <a class="dash-link" href="settings.html#account" id="accountLink" data-longpress-menu='[{"label":"Copy link","action":"copy"},{"label":"Open in new tab","action":"newtab"}]'>
+      <span>Account settings<small>Name, security, connected apps</small></span>
+      <span>&rarr;</span>
+    </a>
+    <a class="dash-link" href="settings.html#security" id="securityLink" data-longpress-menu='[{"label":"Copy link","action":"copy"},{"label":"Open in new tab","action":"newtab"}]'>
+      <span>Change password<small>Update your credentials</small></span>
+      <span>&rarr;</span>
+    </a>
+    <a class="dash-link" href="http://localhost:8765/" id="fattyCatLink" target="_blank" rel="noopener" data-longpress-menu='[{"label":"Copy link","action":"copy"},{"label":"Open in new tab","action":"newtab"}]'>
+      <span>Start FATTY CAT Web<small>AI-powered coding assistant in your browser</small></span>
+      <span>&rarr;</span>
+    </a>
+    <a class="dash-link" href="#" id="logoutLink">
+      <span>Log out<small>End this session on this browser</small></span>
+      <span>&rarr;</span>
+    </a>
+  </div>
+
+  <div class="tabbar-spacer"></div>
+</main>
+
+<nav class="tabbar" aria-label="Primary">
+  <a class="tab is-active" href="home.html" aria-current="page" data-ascii-glyph="[~]" data-emoji-glyph="🏠">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9h12v-9"/></svg>
+    <span class="tab-label">Home</span>
+  </a>
+  <a class="tab" href="settings.html" data-ascii-glyph="[@]" data-emoji-glyph="🙂">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.4"/><path d="M5 20c1.2-3.6 4-5.4 7-5.4s5.8 1.8 7 5.4"/></svg>
+    <span class="tab-label">Me</span>
+  </a>
+</nav>
+
+<script src="js/fomoji-auth.js"></script>
+<script src="js/fomoji-guest-card.js"></script>
+<script src="js/connector.js"></script>
+<script src="js/fomoji-connect.js"></script>
+<script>
+/* ---- toast notification system ---- */
+function showToast(message, type) {
+  type = type || 'info';
+  var container = document.querySelector('.toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.className = 'toast-container';
+    document.body.appendChild(container);
+  }
+  var toast = document.createElement('div');
+  toast.className = 'toast toast-' + type;
+  var iconText = type === 'success' ? '\u2713' : '\u2139';
+  toast.innerHTML = '<span class="toast-icon">' + iconText + '</span><span>' + message + '</span>';
+  container.appendChild(toast);
+  setTimeout(function () {
+    toast.classList.add('toast-out');
+    setTimeout(function () { toast.remove(); }, 250);
+  }, 2800);
+}
+
+function copyToClipboard(text, label) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function () {
+      showToast((label || 'Code') + ' copied to clipboard', 'success');
+    }).catch(function () {
+      fallbackCopy(text, label);
+    });
+  } else {
+    fallbackCopy(text, label);
+  }
+}
+
+function fallbackCopy(text, label) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    showToast((label || 'Code') + ' copied to clipboard', 'success');
+  } catch (e) {
+    showToast('Copy failed \u2014 try manually', 'info');
+  }
+  ta.remove();
+}
+</script>
+<script>
+(async () => {
+  const account = await requireSession();
+  if (!account) return;
+
+  document.getElementById('topbarName').textContent = account.username;
+  document.getElementById('avatarInitial').textContent = account.name.trim().charAt(0).toUpperCase() || '?';
+  document.getElementById('greet').textContent = `Welcome back, ${account.name.split(' ')[0]}.`;
+  if (account.expiresAt) {
+    document.getElementById('expiresValue').textContent = new Date(account.expiresAt).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+    document.getElementById('expiresSub').textContent = new Date(account.expiresAt).toLocaleDateString();
+  } else {
+    document.getElementById('expiresValue').textContent = '30 days';
+    document.getElementById('expiresSub').textContent = 'renews each time you sign in';
+  }
+
+  const homeCatConnectBtn = document.getElementById('homeCatConnectBtn');
+  const homeCatDisconnectBtn = document.getElementById('homeCatDisconnectBtn');
+
+  function renderCatCard() {
+    const connections = FomojiAPI.getConnections(account);
+    const connected = !!connections.cat;
+
+    document.getElementById('connectedValue').textContent = connected ? '1 / 1' : '0 / 1';
+    document.getElementById('connectedSub').textContent = connected
+      ? 'CAT is connected to this identity.'
+      : "CAT hasn't been connected yet.";
+
+    document.getElementById('catCardHeadline').textContent = connected ? 'Connected' : 'Not connected';
+    document.getElementById('catCardSub').textContent = connected
+      ? (account.isGuest ? 'Connected for this guest session.' : 'This identity can sign in to CAT.')
+      : 'Connect once to sign in to CAT with this identity.';
+    homeCatConnectBtn.classList.toggle('is-hidden', connected);
+    homeCatDisconnectBtn.classList.toggle('is-hidden', !connected);
+
+    if (account.isGuest && window.FomojiGuestCard) {
+      const guestCardHost = document.getElementById('guestCardHost');
+      if (guestCardHost.style.display !== 'none') {
+        FomojiGuestCard.render(guestCardHost, account, { connected: connected });
+      }
+    }
+  }
+
+  renderCatCard();
+
+  homeCatConnectBtn.addEventListener('click', () => {
+    FomojiConnect.open(account, {
+      onConnected: () => {
+        renderCatCard();
+        showToast('CAT connected successfully', 'success');
+      }
+    });
+  });
+  homeCatDisconnectBtn.addEventListener('click', async () => {
+    homeCatDisconnectBtn.disabled = true;
+    try {
+      await FomojiAPI.disconnectApp(account, 'cat');
+      renderCatCard();
+    } finally {
+      homeCatDisconnectBtn.disabled = false;
+    }
+  });
+
+  /* ---- FATTY CAT Auto-Launcher & Status Integration ---- */
+  const startFattyCatBtn = document.getElementById('startFattyCatBtn');
+  const fattyCatLink = document.getElementById('fattyCatLink');
+  const fattyStatusPill = document.getElementById('fattyStatusPill');
+
+  async function checkFattyStatus() {
+    try {
+      const res = await fetch('/api/fatty/status');
+      const data = await res.json();
+      if (data.running) {
+        if (fattyStatusPill) {
+          fattyStatusPill.textContent = '● Online';
+          fattyStatusPill.style.color = '#00d4aa';
+          fattyStatusPill.style.background = 'rgba(0, 212, 170, 0.15)';
+        }
+        if (startFattyCatBtn) startFattyCatBtn.textContent = 'Open FATTY CAT';
+      } else {
+        if (fattyStatusPill) {
+          fattyStatusPill.textContent = '○ Offline';
+          fattyStatusPill.style.color = 'var(--text-muted)';
+          fattyStatusPill.style.background = 'rgba(255, 255, 255, 0.08)';
+        }
+        if (startFattyCatBtn) startFattyCatBtn.textContent = 'Start FATTY CAT';
+      }
+      return data.running;
+    } catch {
+      if (fattyStatusPill) fattyStatusPill.textContent = '○ Offline';
+      return false;
+    }
+  }
+
+  async function launchFattyCat(e) {
+    if (e) e.preventDefault();
+    const isRunning = await checkFattyStatus();
+    if (isRunning) {
+      window.open('http://localhost:8765/', '_blank', 'noopener');
+      return;
+    }
+
+    showToast('Starting FATTY CAT server...', 'info');
+    if (startFattyCatBtn) {
+      startFattyCatBtn.textContent = 'Starting...';
+      startFattyCatBtn.disabled = true;
+    }
+
+    try {
+      const res = await fetch('/api/fatty/start', { method: 'POST' });
+      const data = await res.json();
+      if (data.success || data.running) {
+        showToast('FATTY CAT is ready! Opening...', 'success');
+        await checkFattyStatus();
+        window.open(data.url || 'http://localhost:8765/', '_blank', 'noopener');
+      } else {
+        showToast(data.error || 'Failed to start FATTY CAT', 'danger');
+      }
+    } catch (err) {
+      showToast('Error launching FATTY CAT: ' + err.message, 'danger');
+    } finally {
+      if (startFattyCatBtn) startFattyCatBtn.disabled = false;
+      checkFattyStatus();
+    }
+  }
+
+  if (startFattyCatBtn) startFattyCatBtn.addEventListener('click', launchFattyCat);
+  if (fattyCatLink) fattyCatLink.addEventListener('click', launchFattyCat);
+  checkFattyStatus();
+
+  if (account.isGuest) {
+    document.getElementById('greet').textContent = 'Browsing as guest.';
+    const accountLink = document.getElementById('accountLink');
+    const securityLink = document.getElementById('securityLink');
+    accountLink.href = 'signup.html';
+    accountLink.querySelector('small').textContent = 'Create an account to unlock this';
+    securityLink.href = 'signup.html';
+    securityLink.querySelector('small').textContent = 'Create an account to unlock this';
+
+    const guestCardHost = document.getElementById('guestCardHost');
+    guestCardHost.style.display = 'block';
+    if (window.FomojiGuestCard) {
+      FomojiGuestCard.render(guestCardHost, account, { connected: !!FomojiAPI.getConnections(account).cat });
+    }
+  }
+
+  document.getElementById('logoutLink').addEventListener('click', (e) => {
+    e.preventDefault();
+    if (window.FomojiSignOut && typeof FomojiSignOut.trigger === 'function') {
+      FomojiSignOut.trigger();
+    } else {
+      FomojiAPI.logout().finally(() => { window.location.href = 'welcome.html'; });
+    }
+  });
+
+  // long-press context menu actions (copy link / open in new tab)
+  document.querySelectorAll('[data-longpress-menu]').forEach(el => {
+    el.addEventListener('fx-longpress-action', (e) => {
+      if (e.detail.action === 'copy') navigator.clipboard?.writeText(new URL(el.getAttribute('href'), window.location.href).href);
+      if (e.detail.action === 'newtab') window.open(el.getAttribute('href'), '_blank', 'noopener');
+    });
+  });
+
+  // pull-to-refresh: re-render the session + connection cards
+  document.addEventListener('fx-pull-refresh', () => {
+    if (account.expiresAt) {
+      document.getElementById('expiresValue').textContent = new Date(account.expiresAt).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+    }
+    renderCatCard();
+  });
+})();
+</script>
+</body>
+</html>

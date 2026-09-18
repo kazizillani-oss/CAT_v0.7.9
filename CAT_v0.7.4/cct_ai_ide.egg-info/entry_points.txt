@@ -1,0 +1,3 @@
+[console_scripts]
+cat = calc_terminal.cli:main
+cct = calc_terminal.cli:main

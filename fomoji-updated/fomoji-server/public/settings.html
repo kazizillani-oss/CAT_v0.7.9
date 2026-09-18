@@ -1,0 +1,1576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="js/fomoji-theme.js"></script>
+<script src="js/fomoji-animated-bot.js"></script>
+<script src="js/fomoji-components.js"></script>
+<script src="js/fomoji-liquid-glass.js"></script>
+<script src="js/fomoji-fx.js"></script>
+<script src="js/fomoji-commands.js"></script>
+<script src="js/fomoji-tabbar.js"></script>
+<script src="js/fomoji-signout.js"></script>
+<script src="js/fomoji-gestures.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Settings · Fomoji</title>
+<link rel="stylesheet" href="css/fomoji-tokens.css">
+<link rel="stylesheet" href="css/fomoji.css">
+<link rel="stylesheet" href="css/fomoji-fx.css">
+<link rel="stylesheet" href="css/fomoji-animated-bot.css">
+<link rel="stylesheet" href="css/fomoji-liquid-glass.css">
+<link rel="stylesheet" href="css/fomoji-3d.css">
+<link rel="stylesheet" href="css/fomoji-glow-engine.css">
+<link rel="stylesheet" href="css/fomoji-signout.css">
+</head>
+<body>
+
+<header class="topbar">
+  <a href="home.html"><img src="img/fomoji-logo.png" alt="Fomoji"></a>
+  <div class="topbar-user">
+    <span id="topbarName">—</span>
+    <div class="avatar" id="avatarInitial">·</div>
+  </div>
+</header>
+
+<div class="settings-wrap">
+
+  <nav class="settings-nav" aria-label="Settings sections">
+    <a href="#account" class="is-active">Account</a>
+    <a href="#security">Security</a>
+    <a href="#connected">Connected apps</a>
+    <a href="#privacy">Privacy</a>
+    <a href="#ai">AI</a>
+    <a href="#appearance">Appearance</a>
+    <a href="#customizeBot">Bot</a>
+    <a href="#navigation">Navigation</a>
+    <a href="#gestures">Gestures</a>
+    <a href="#shortcuts">Shortcuts</a>
+    <a href="about.html">About</a>
+  </nav>
+
+  <main class="settings-main">
+
+    <div class="guest-banner" id="guestBanner" style="display:none;">
+      <span><strong>Browsing as guest</strong> — profile and password can't be edited until you create an account.</span>
+      <a href="signup.html" class="btn btn-primary">Create account</a>
+    </div>
+
+    <!-- ACCOUNT -->
+    <section class="panel" id="account">
+      <div class="panel-head">
+        <div class="panel-title">Account</div>
+        <div class="panel-sub">Your Fomoji identity.</div>
+      </div>
+
+      <div class="field">
+        <label for="nameInput">Name</label>
+        <input type="text" id="nameInput">
+      </div>
+      <div class="field">
+        <label>Username</label>
+        <input type="text" id="usernameInput" disabled>
+        <div class="field-hint">Not editable yet — changing it would break existing sign-ins until a real backend can migrate references safely.</div>
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="text" id="emailInput" disabled>
+        <div class="field-hint">Not editable yet — a real email change needs re-verification, which needs a mail server this build doesn't have.</div>
+      </div>
+
+      <button class="btn btn-primary btn-inline" id="saveNameBtn">Save name</button>
+      <div class="mini-alert" id="accountSavedMsg">✓ Saved.</div>
+    </section>
+
+    <!-- SECURITY -->
+    <section class="panel" id="security">
+      <div class="panel-head">
+        <div class="panel-title">Security</div>
+        <div class="panel-sub">Password and session.</div>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="row-label">Current session</div>
+          <div class="row-sub" id="sessionInfo">—</div>
+        </div>
+        <span class="pill pill-on">Active</span>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">Sign out of Fomoji</div>
+          <div class="row-sub">Ends this session on this browser.</div>
+        </div>
+        <button class="btn btn-danger btn-inline" id="logoutBtn">Log out</button>
+      </div>
+
+      <div class="change-pw-form">
+        <div class="row-label" style="margin-bottom:12px;">Change password</div>
+        <div class="alert alert-error" id="pwAlert" role="alert" aria-live="assertive"></div>
+        <form id="pwForm" novalidate>
+          <div class="field">
+            <label for="currentPw">Current password</label>
+            <input type="password" id="currentPw" autocomplete="current-password">
+          </div>
+          <div class="field">
+            <label for="newPw">New password</label>
+            <input type="password" id="newPw" autocomplete="new-password">
+          </div>
+          <div class="field">
+            <label for="confirmPw">Confirm new password</label>
+            <input type="password" id="confirmPw" autocomplete="new-password">
+          </div>
+          <button type="submit" class="btn btn-primary btn-inline" id="pwBtn">
+            <span class="spinner"></span>
+            <span class="btn-label">Update password</span>
+          </button>
+          <div class="mini-alert" id="pwSavedMsg">✓ Password updated.</div>
+        </form>
+      </div>
+    </section>
+
+    <!-- CONNECTED APPLICATIONS -->
+    <section class="panel" id="connected">
+      <div class="panel-head">
+        <div class="panel-title">Connected applications</div>
+        <div class="panel-sub">Apps that can authenticate using this Fomoji identity.</div>
+      </div>
+      <div class="row" id="catRow">
+        <div>
+          <div class="row-label">CAT</div>
+          <div class="row-sub">Coding agent terminal.</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
+          <span class="pill pill-off" id="catPill">Not connected</span>
+          <a href="help.html" class="btn btn-ghost btn-inline">Help</a>
+          <button type="button" class="btn btn-primary btn-inline" id="catConnectBtn">Connect</button>
+          <button type="button" class="btn btn-danger btn-inline is-hidden" id="catDisconnectBtn">Disconnect</button>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">Future AI Assistant</div>
+          <div class="row-sub">Planned, not built.</div>
+        </div>
+        <span class="pill pill-off">Planned</span>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">Future applications</div>
+          <div class="row-sub">Any app that adopts "Login with Fomoji" appears here once it actually connects.</div>
+        </div>
+        <span class="pill pill-off">Planned</span>
+      </div>
+    </section>
+
+
+    <!-- PRIVACY -->
+    <section class="panel" id="privacy">
+      <div class="panel-head">
+        <div class="panel-title">Privacy</div>
+        <div class="panel-sub">How your data is handled.</div>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">Privacy Policy</div>
+          <div class="row-sub">Full policy, including third-party AI provider handling.</div>
+        </div>
+        <a href="privacy.html" class="btn btn-ghost btn-inline">View</a>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">AI data preferences</div>
+          <div class="row-sub">Per-mode data handling (API / Ollama / Free AI) arrives with the AI connection modes work.</div>
+        </div>
+        <span class="pill pill-off">Not yet built</span>
+      </div>
+    </section>
+
+    <!-- AI -->
+    <section class="panel" id="ai">
+      <div class="panel-head">
+        <div class="panel-title">AI</div>
+        <div class="panel-sub">Default connection mode for CAT.</div>
+      </div>
+      <div class="alert alert-info is-visible">
+        Nothing real to configure here yet — API mode, Ollama/Ollama Cloud, and Free AI mode live on the index6 redesign, not here. Rather than show a mode picker with nothing behind it, this section is left honestly empty until that work exists.
+      </div>
+    </section>
+
+    <!-- APPEARANCE -->
+    <section class="panel" id="appearance">
+      <div class="panel-head">
+        <div class="panel-title">Appearance</div>
+        <div class="panel-sub">Theme and motion.</div>
+      </div>
+      <div class="row" style="flex-direction:column; align-items:flex-start; gap:0;">
+        <div style="width:100%;">
+          <div class="row-label">Theme</div>
+          <div class="row-sub">Background, panels, text, and accent — all switch together. <span id="themeCountLabel"></span></div>
+        </div>
+        <div id="themeGroups" style="width:100%;"></div>
+      </div>
+
+      <div class="row" style="flex-direction:column; align-items:flex-start; gap:0;">
+        <div style="width:100%;">
+          <div class="row-label">Theme Studio</div>
+          <div class="row-sub">Build your own palette. Pick "Custom" above once you save it.</div>
+        </div>
+        <div class="theme-studio" id="themeStudio">
+          <div class="ts-row">
+            <label>Background <input type="color" id="tsVoid"></label>
+            <label>Surface <input type="color" id="tsPanel"></label>
+            <label>Primary <input type="color" id="tsSage"></label>
+            <label>Secondary <input type="color" id="tsGold"></label>
+            <label>Text <input type="color" id="tsInk"></label>
+            <label>Muted text <input type="color" id="tsInkDim"></label>
+            <label>Border <input type="color" id="tsLine"></label>
+            <label>Success <input type="color" id="tsGood"></label>
+            <label>Error <input type="color" id="tsDanger"></label>
+          </div>
+          <div class="ts-row" style="margin-top:12px;">
+            <label>Group
+              <select id="tsMode">
+                <option value="dark">Dark</option>
+                <option value="light">Light</option>
+              </select>
+            </label>
+            <label>Shape
+              <select id="tsShape">
+                <option value="rounded">Rounded</option>
+                <option value="pill">Pill</option>
+                <option value="square">Square</option>
+              </select>
+            </label>
+          </div>
+          <button type="button" class="btn btn-primary btn-inline" id="tsApplyBtn" style="margin-top:14px;">Save &amp; use custom theme</button>
+          <div class="mini-alert" id="tsSavedMsg">✓ Custom theme applied.</div>
+        </div>
+      </div>
+
+      <div class="row" style="flex-direction:column; align-items:flex-start; gap:0;">
+        <div style="width:100%;">
+          <div class="row-label">Icon weight</div>
+          <div class="row-sub">Applies to the tab bar icons.</div>
+        </div>
+        <div class="option-row" id="iconOptions">
+          <button type="button" class="option-chip" data-icons="outline">Outline</button>
+          <button type="button" class="option-chip" data-icons="bold">Bold</button>
+          <button type="button" class="option-chip" data-icons="duotone">Duotone</button>
+          <button type="button" class="option-chip" data-icons="ascii">Ascii</button>
+          <button type="button" class="option-chip" data-icons="emoji">Emoji</button>
+        </div>
+      </div>
+
+      <div class="row" style="flex-direction:column; align-items:flex-start; gap:0;">
+        <div style="width:100%;">
+          <div class="row-label">Surface texture</div>
+          <div class="row-sub">Glassmorphism, neumorphism, skeuomorphism, or a themed surface for cards, panels, and the tab bar. Independent of your color theme, so any texture works with any theme.</div>
+        </div>
+        <div class="option-row" id="textureOptions">
+          <button type="button" class="option-chip" data-texture="flat">Flat</button>
+          <button type="button" class="option-chip" data-texture="glass">Glass</button>
+          <button type="button" class="option-chip" data-texture="liquid">Liquid Glass</button>
+          <button type="button" class="option-chip" data-texture="neu">Neumorphic</button>
+          <button type="button" class="option-chip" data-texture="skeu">Skeuomorphic</button>
+          <button type="button" class="option-chip" data-texture="terminal">Terminal</button>
+          <button type="button" class="option-chip" data-texture="pixel">Pixel</button>
+        </div>
+      </div>
+
+      <div class="row" style="flex-direction:column; align-items:flex-start; gap:0;">
+        <div style="width:100%;">
+          <div class="row-label">3D depth</div>
+          <div class="row-sub">Elevation, tilt, and shadow depth on cards and buttons across Fomoji — including Group and Student authentication cards. Off keeps everything flat.</div>
+        </div>
+        <div class="option-row" id="depth3dOptions">
+          <button type="button" class="option-chip" data-depth3d="off">Off</button>
+          <button type="button" class="option-chip" data-depth3d="low">Low</button>
+          <button type="button" class="option-chip" data-depth3d="medium">Medium</button>
+          <button type="button" class="option-chip" data-depth3d="high">High</button>
+        </div>
+      </div>
+
+      <div class="row" style="flex-direction:column; align-items:flex-start; gap:0;" id="liquidGlassRow">
+        <div style="width:100%;">
+          <div class="row-label">Liquid Glass feel</div>
+          <div class="row-sub">Only applies when Surface texture is Liquid Glass. Bounce recovers elastically on release; stretch deforms slightly toward your finger while pressed.</div>
+        </div>
+        <div class="row" style="width:100%; padding:10px 0 2px;">
+          <div class="row-label" style="font-size:12.5px;">Bounce</div>
+        </div>
+        <div class="option-row" id="bounceOptions">
+          <button type="button" class="option-chip" data-bounce="0">Off</button>
+          <button type="button" class="option-chip" data-bounce="0.3">Subtle</button>
+          <button type="button" class="option-chip" data-bounce="0.6">Medium</button>
+          <button type="button" class="option-chip" data-bounce="1">Strong</button>
+        </div>
+        <div class="row" style="width:100%; padding:10px 0 2px;">
+          <div class="row-label" style="font-size:12.5px;">Stretch</div>
+        </div>
+        <div class="option-row" id="stretchOptions">
+          <button type="button" class="option-chip" data-stretch="0">Off</button>
+          <button type="button" class="option-chip" data-stretch="0.3">Subtle</button>
+          <button type="button" class="option-chip" data-stretch="0.6">Medium</button>
+          <button type="button" class="option-chip" data-stretch="1">Strong</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="row-label">Glow effects</div>
+          <div class="row-sub">Ambient accent-colored glow on the active tab, primary buttons, and status dots.</div>
+        </div>
+        <div class="switch" id="glowSwitch" role="switch" aria-checked="true" tabindex="0" aria-label="Glow effects">
+          <input type="checkbox" id="glowCheckbox">
+        </div>
+      </div>
+      <div class="row" style="flex-direction:column; align-items:flex-start; gap:6px;">
+        <div class="row-label" style="width:100%;">Glow intensity</div>
+        <input type="range" id="glowStrengthSlider" min="0.15" max="1" step="0.05" style="width:100%; accent-color:var(--sage);">
+      </div>
+
+      <div class="row" style="flex-direction:column; align-items:flex-start; gap:0;">
+        <div style="width:100%;">
+          <div class="row-label">Tab bar layout</div>
+          <div class="row-sub">How the bottom navigation is shaped.</div>
+        </div>
+        <div class="option-row" id="tabbarOptions">
+          <button type="button" class="option-chip" data-tabbar="floating">Floating</button>
+          <button type="button" class="option-chip" data-tabbar="compact">Compact</button>
+          <button type="button" class="option-chip" data-tabbar="labeled">Labeled</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="row-label">Ambient parallax</div>
+          <div class="row-sub">Background motion, floating particles, and scroll-linked depth.</div>
+        </div>
+        <div class="switch" id="parallaxSwitch" role="switch" aria-checked="true" tabindex="0" aria-label="Ambient parallax">
+          <input type="checkbox" id="parallaxCheckbox">
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="row-label">Reduce motion</div>
+          <div class="row-sub">Turns off animation across Fomoji, independent of your OS setting.</div>
+        </div>
+        <div class="switch" id="motionSwitch" role="switch" aria-checked="false" tabindex="0" aria-label="Reduce motion">
+          <input type="checkbox" id="motionCheckbox">
+        </div>
+      </div>
+
+      <div class="appearance-preview">
+        <div class="row-label" style="margin-bottom:8px;">Live preview</div>
+        <div class="appearance-preview-tabbar" id="previewTabbar" aria-hidden="true">
+          <a class="tab is-active" href="#" tabindex="-1" onclick="return false;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9h12v-9"/></svg>
+            <span class="tab-label">Home</span>
+          </a>
+          <a class="tab" href="#" tabindex="-1" onclick="return false;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5"/><circle cx="12" cy="7.6" r="0.9" fill="currentColor" stroke="none"/></svg>
+            <span class="tab-label">About</span>
+          </a>
+          <a class="tab" href="#" tabindex="-1" onclick="return false;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.4"/><path d="M5 20c1.2-3.6 4-5.4 7-5.4s5.8 1.8 7 5.4"/></svg>
+            <span class="tab-label">Me</span>
+          </a>
+        </div>
+        <div class="ascii-cat-wrap" style="margin-top:14px; max-width:280px;" aria-hidden="true">
+          <pre class="ascii-cat"><span class="ascii-line">┌─ appearance ──────────</span>
+<span class="ascii-line">│ theme   : <span id="previewAccentLabel">sage</span></span>
+<span class="ascii-line">│ icons   : <span id="previewIconsLabel">outline</span></span>
+<span class="ascii-line">│ tabbar  : <span id="previewTabbarLabel">floating</span></span>
+<span class="ascii-line">│ texture : <span id="previewTextureLabel">flat</span></span>
+<span class="ascii-line">│ glow    : <span id="previewGlowLabel">on</span></span>
+<span class="ascii-line">└────────────────────────</span><span class="ascii-cursor">▍</span></pre>
+        </div>
+
+        <div class="row-label" style="margin:18px 0 8px;">Ascii art gallery</div>
+        <div class="ascii-gallery">
+          <div class="ascii-gallery-tabs"></div>
+          <pre class="fx-ascii ascii-gallery-body" style="font-family:var(--f-mono); font-size:10.5px; line-height:1.5; color:var(--ink-dim); white-space:pre; background:var(--void); border:1px solid var(--line); border-radius:var(--radius-s); padding:12px 14px;"></pre>
+        </div>
+
+        <button type="button" class="btn btn-ghost btn-inline" id="resetAppearanceBtn" style="margin-top:14px;">Reset to defaults</button>
+      </div>
+    </section>
+
+    <!-- CUSTOMIZE BOT -->
+    <section class="panel" id="customizeBot">
+      <div class="panel-head">
+        <div class="panel-title">Customize Bot</div>
+        <div class="panel-sub">One animated companion, fully yours. Independent of your app theme (above) — it can look completely different. Changes apply immediately.</div>
+      </div>
+
+      <div class="row" style="flex-direction:column; align-items:center; gap:8px;">
+        <div class="row-label" style="width:100%;">Live preview</div>
+        <div class="fc-preview-mount" id="botPreviewMount"></div>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="row-label">Show bot</div>
+          <div class="row-sub">Fully removed from the page when off — not just hidden.</div>
+        </div>
+        <div class="switch" id="botVisibleSwitch" role="switch" aria-checked="true" tabindex="0" aria-label="Show bot">
+          <input type="checkbox" id="botVisibleCheckbox">
+        </div>
+      </div>
+
+      <div class="row" style="flex-direction:column; align-items:flex-start; gap:0;">
+        <div style="width:100%;"><div class="row-label">Theme</div></div>
+        <div class="option-row" id="botThemeOptions"></div>
+      </div>
+
+      <div class="row" style="flex-direction:column; align-items:flex-start; gap:0;">
+        <div style="width:100%;"><div class="row-label">Shade</div></div>
+        <div class="option-row" id="botShadeOptions">
+          <button type="button" class="option-chip" data-bot-shade="light">Light</button>
+          <button type="button" class="option-chip" data-bot-shade="normal">Normal</button>
+          <button type="button" class="option-chip" data-bot-shade="dark">Dark</button>
+        </div>
+      </div>
+
+      <div class="row" style="flex-direction:column; align-items:flex-start; gap:0;">
+        <div style="width:100%;">
+          <div class="row-label">Colors</div>
+          <div class="row-sub">Overrides the theme's primary / secondary / highlight / shadow. Reset clears overrides.</div>
+        </div>
+        <div class="option-row" id="botColorOptions" style="gap:10px;">
+          <label class="row-sub" style="display:flex; align-items:center; gap:6px;">Primary <input type="color" id="botColorPrimary"></label>
+          <label class="row-sub" style="display:flex; align-items:center; gap:6px;">Secondary <input type="color" id="botColorSecondary"></label>
+          <label class="row-sub" style="display:flex; align-items:center; gap:6px;">Highlight <input type="color" id="botColorHighlight"></label>
+          <label class="row-sub" style="display:flex; align-items:center; gap:6px;">Shadow <input type="color" id="botColorShadow"></label>
+        </div>
+      </div>
+
+      <div class="row" style="flex-direction:column; align-items:flex-start; gap:0;">
+        <div style="width:100%;"><div class="row-label">Face &amp; eyes</div></div>
+        <div class="option-row" id="botFaceOptions">
+          <button type="button" class="option-chip" data-bot-face="round">Round</button>
+          <button type="button" class="option-chip" data-bot-face="square">Square</button>
+          <button type="button" class="option-chip" data-bot-face="blob">Blob</button>
+          <button type="button" class="option-chip" data-bot-face="pixel">Pixel</button>
+        </div>
+        <div class="option-row" id="botEyesOptions" style="margin-top:8px;">
+          <button type="button" class="option-chip" data-bot-eyes="dot">Dot</button>
+          <button type="button" class="option-chip" data-bot-eyes="oval">Oval</button>
+          <button type="button" class="option-chip" data-bot-eyes="wide">Wide</button>
+          <button type="button" class="option-chip" data-bot-eyes="sleepy">Sleepy</button>
+        </div>
+      </div>
+
+      <div class="row" style="flex-direction:column; align-items:flex-start; gap:0;">
+        <div style="width:100%;"><div class="row-label">Depth</div></div>
+        <div class="option-row" id="botDepthOptions">
+          <button type="button" class="option-chip" data-bot-depth="off">Off</button>
+          <button type="button" class="option-chip" data-bot-depth="low">Low</button>
+          <button type="button" class="option-chip" data-bot-depth="medium">Medium</button>
+          <button type="button" class="option-chip" data-bot-depth="high">High</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="row-label">Bot animation</div>
+          <div class="row-sub">Idle motion, blinking, and reactions.</div>
+        </div>
+        <div class="switch" id="botAnimSwitch" role="switch" aria-checked="true" tabindex="0" aria-label="Bot animation">
+          <input type="checkbox" id="botAnimCheckbox">
+        </div>
+      </div>
+      <div class="row" style="flex-direction:column; align-items:flex-start; gap:0;">
+        <div style="width:100%;"><div class="row-label">Animation speed</div></div>
+        <div class="option-row" id="botSpeedOptions">
+          <button type="button" class="option-chip" data-bot-speed="slow">Slow</button>
+          <button type="button" class="option-chip" data-bot-speed="normal">Normal</button>
+          <button type="button" class="option-chip" data-bot-speed="fast">Fast</button>
+        </div>
+      </div>
+      <div class="row" style="flex-direction:column; align-items:flex-start; gap:0;">
+        <div style="width:100%;"><div class="row-label">Animation intensity</div></div>
+        <div class="option-row" id="botIntensityOptions">
+          <button type="button" class="option-chip" data-bot-intensity="subtle">Subtle</button>
+          <button type="button" class="option-chip" data-bot-intensity="normal">Normal</button>
+          <button type="button" class="option-chip" data-bot-intensity="strong">Strong</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="row-label">Bot interaction</div>
+          <div class="row-sub">Eye tracking, tap/click, hover, and long-press reactions. Turn off to make the bot purely decorative.</div>
+        </div>
+        <div class="switch" id="botInteractSwitch" role="switch" aria-checked="true" tabindex="0" aria-label="Bot interaction">
+          <input type="checkbox" id="botInteractCheckbox">
+        </div>
+      </div>
+
+      <div class="row" style="flex-direction:column; align-items:flex-start; gap:0;">
+        <div style="width:100%;">
+          <div class="row-label">Emotions</div>
+          <div class="row-sub">Try a reaction, or pin one so the bot always shows it.</div>
+        </div>
+        <div class="option-row" id="botEmotionOptions"></div>
+      </div>
+
+      <div class="row" style="flex-direction:column; align-items:flex-start; gap:0;">
+        <div style="width:100%;">
+          <div class="row-label">Sleep after inactivity</div>
+        </div>
+        <div class="option-row" id="botSleepOptions">
+          <button type="button" class="option-chip" data-bot-sleep="30s">30s</button>
+          <button type="button" class="option-chip" data-bot-sleep="1m">1 min</button>
+          <button type="button" class="option-chip" data-bot-sleep="5m">5 min</button>
+          <button type="button" class="option-chip" data-bot-sleep="10m">10 min</button>
+          <button type="button" class="option-chip" data-bot-sleep="off">Off</button>
+        </div>
+      </div>
+
+      <div class="row" style="flex-direction:column; align-items:flex-start; gap:0;">
+        <div style="width:100%;"><div class="row-label">Size</div></div>
+        <div class="option-row" id="botSizeOptions">
+          <button type="button" class="option-chip" data-bot-size="sm">Small</button>
+          <button type="button" class="option-chip" data-bot-size="md">Medium</button>
+          <button type="button" class="option-chip" data-bot-size="lg">Large</button>
+          <button type="button" class="option-chip" data-bot-size="xl">XL</button>
+        </div>
+      </div>
+
+      <div class="row" style="flex-direction:column; align-items:flex-start; gap:0;">
+        <div style="width:100%;"><div class="row-label">Position</div></div>
+        <div class="option-row" id="botPositionOptions">
+          <button type="button" class="option-chip" data-bot-position="br">Bottom right</button>
+          <button type="button" class="option-chip" data-bot-position="bl">Bottom left</button>
+          <button type="button" class="option-chip" data-bot-position="tr">Top right</button>
+          <button type="button" class="option-chip" data-bot-position="tl">Top left</button>
+        </div>
+      </div>
+
+      <div class="row" style="flex-direction:column; align-items:flex-start; gap:0;">
+        <div style="width:100%;">
+          <div class="row-label">Effects</div>
+          <div class="row-sub">Ambient glow and overall opacity.</div>
+        </div>
+        <div class="row" style="width:100%; padding:0;">
+          <div class="row-label" style="font-weight:400;">Glow</div>
+          <div class="switch" id="botGlowSwitch" role="switch" aria-checked="true" tabindex="0" aria-label="Bot glow">
+            <input type="checkbox" id="botGlowCheckbox">
+          </div>
+        </div>
+        <input type="range" id="botOpacitySlider" min="0.4" max="1" step="0.05" style="width:100%; margin-top:10px;">
+      </div>
+
+      <div class="row" style="gap:10px;">
+        <button type="button" class="btn btn-ghost btn-inline" id="botResetBtn">Reset</button>
+        <button type="button" class="btn btn-primary btn-inline" id="botSaveBtn">Save</button>
+        <span class="row-sub" id="botSaveConfirm" style="opacity:0; transition:opacity .3s;">Saved.</span>
+      </div>
+    </section>
+
+    <!-- NAVIGATION / TAB BAR STUDIO -->
+    <section class="panel" id="navigation">
+      <div class="panel-head">
+        <div class="panel-title">Navigation</div>
+        <div class="panel-sub">Customize what's in the tab bar, and where it sits. Home always stays — it's your way back.</div>
+      </div>
+
+      <div class="row" style="flex-direction:column; align-items:flex-start; gap:0;">
+        <div style="width:100%;">
+          <div class="row-label">Tabs</div>
+          <div class="row-sub">Reorder, rename, re-icon, hide, pin, or remove. At least one tab besides Home must stay visible.</div>
+        </div>
+        <div class="tabstudio-list" id="tabstudioList"></div>
+        <button type="button" class="tabstudio-add" id="tabstudioAddBtn">+ Add tab</button>
+        <div class="tabstudio-picker" id="tabstudioAddForm" style="display:none; flex-direction:column; align-items:stretch;">
+          <div class="tabstudio-name-row" style="margin-bottom:2px;">
+            <input type="text" class="tabstudio-name" id="tabstudioNewLabel" placeholder="Tab name" style="border:1px solid var(--line); border-radius:6px; padding:6px 9px;">
+            <select class="tabstudio-action" id="tabstudioNewAction"></select>
+          </div>
+          <div class="row-sub" style="margin:6px 0 2px;">Icon</div>
+          <div class="tabstudio-picker" id="tabstudioNewIconGrid" style="border:none; padding:0; margin-top:0;"></div>
+          <div style="display:flex; gap:8px; margin-top:10px;">
+            <button type="button" class="btn btn-primary btn-inline" id="tabstudioNewSaveBtn">Add tab</button>
+            <button type="button" class="btn btn-ghost btn-inline" id="tabstudioNewCancelBtn">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="row" style="flex-direction:column; align-items:flex-start; gap:0;">
+        <div style="width:100%;">
+          <div class="row-label">Bar position</div>
+          <div class="row-sub">Floating pill at the bottom, or a full-width bar under the header.</div>
+        </div>
+        <div class="option-row" id="tabbarPosOptions">
+          <button type="button" class="option-chip" data-pos="bottom">Bottom</button>
+          <button type="button" class="option-chip" data-pos="top">Top</button>
+        </div>
+      </div>
+
+      <button type="button" class="btn btn-ghost btn-inline" id="tabstudioResetBtn" style="margin-top:6px;">Restore default tabs</button>
+    </section>
+
+    <!-- GESTURE STUDIO -->
+    <section class="panel" id="gestures">
+      <div class="panel-head">
+        <div class="panel-title">Gestures</div>
+        <div class="panel-sub">Bind swipes, taps, and long-presses to actions. Every gesture here also has a button or link elsewhere — nothing is gesture-only.</div>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="row-label">Gesture navigation</div>
+          <div class="row-sub">Master switch — turns every gesture below on or off at once.</div>
+        </div>
+        <div class="switch" id="gestureMasterSwitch" role="switch" aria-checked="true" tabindex="0" aria-label="Gesture navigation">
+          <input type="checkbox" id="gestureMasterCheckbox">
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="row-label">Reduced gestures</div>
+          <div class="row-sub">Keep only swipe left/right and long-press on the tab bar; disable the rest.</div>
+        </div>
+        <div class="switch" id="gestureReducedSwitch" role="switch" aria-checked="false" tabindex="0" aria-label="Reduced gestures">
+          <input type="checkbox" id="gestureReducedCheckbox">
+        </div>
+      </div>
+
+      <div class="row" style="flex-direction:column; align-items:flex-start; gap:0;">
+        <div style="width:100%;">
+          <div class="row-label">Bindings</div>
+          <div class="row-sub">Swipes are recognized anywhere on screen; the tab bar and logo gestures are scoped to those elements.</div>
+        </div>
+        <div class="gesturestudio-list" id="gesturestudioList"></div>
+      </div>
+
+      <button type="button" class="btn btn-ghost btn-inline" id="gesturestudioResetBtn" style="margin-top:6px;">Restore default gestures</button>
+    </section>
+
+    <!-- SHORTCUTS -->
+    <section class="panel" id="shortcuts">
+      <div class="panel-head">
+        <div class="panel-title">Keyboard shortcuts</div>
+        <div class="panel-sub">Remap any global shortcut. Press the button, then press a new key combo.</div>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">Command palette</div>
+          <div class="row-sub">Search every action in Fomoji from anywhere.</div>
+        </div>
+        <button type="button" class="btn btn-ghost btn-inline" id="openPaletteBtn">Open palette</button>
+      </div>
+      <div id="shortcutList"></div>
+      <button type="button" class="btn btn-ghost btn-inline" id="resetShortcutsBtn" style="margin-top:14px;">Restore default shortcuts</button>
+    </section>
+
+    <!-- ABOUT -->
+    <section class="panel" id="about">
+      <div class="panel-head">
+        <div class="panel-title">About</div>
+        <div class="panel-sub">The full ecosystem story now lives on its own page.</div>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">About Fomoji</div>
+          <div class="row-sub">Why it exists, how the ecosystem fits together, version info.</div>
+        </div>
+        <a href="about.html" class="btn btn-ghost btn-inline">Open</a>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">Manual</div>
+          <div class="row-sub">Every Fomoji feature, what's real and what's planned.</div>
+        </div>
+        <a href="manual.html" class="btn btn-ghost btn-inline">Open</a>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">CAT Manual</div>
+          <div class="row-sub">Installing and connecting CAT, per platform.</div>
+        </div>
+        <a href="cat-manual.html" class="btn btn-ghost btn-inline">Open</a>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">Security</div>
+          <div class="row-sub">Auth methods, sessions, and recommendations in one place.</div>
+        </div>
+        <a href="security.html" class="btn btn-ghost btn-inline">Open</a>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">Groups &amp; Student</div>
+          <div class="row-sub">Create or manage a Fomoji Group, or mark your identity as a student.</div>
+        </div>
+        <a href="identities.html" class="btn btn-ghost btn-inline">Open</a>
+      </div>
+      <div class="row">
+        <div class="row-label">Terms of Use</div>
+        <a href="terms.html" class="row-sub">View</a>
+      </div>
+      <div class="row">
+        <div class="row-label">Privacy Policy</div>
+        <a href="privacy.html" class="row-sub">View</a>
+      </div>
+      <div class="row">
+        <div class="row-label">Creator</div>
+        <span class="row-sub">Kazi Zillani</span>
+      </div>
+    </section>
+
+  </main>
+  <div class="tabbar-spacer"></div>
+</div>
+
+<nav class="tabbar" aria-label="Primary">
+  <a class="tab" href="home.html" data-ascii-glyph="[~]" data-emoji-glyph="🏠">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9h12v-9"/></svg>
+    <span class="tab-label">Home</span>
+  </a>
+  <a class="tab is-active" href="settings.html" aria-current="page" data-ascii-glyph="[@]" data-emoji-glyph="🙂">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.4"/><path d="M5 20c1.2-3.6 4-5.4 7-5.4s5.8 1.8 7 5.4"/></svg>
+    <span class="tab-label">Me</span>
+  </a>
+</nav>
+
+<script src="js/fomoji-auth.js"></script>
+<script src="js/connector.js"></script>
+<script src="js/fomoji-connect.js"></script>
+<script src="js/fomoji-3d.js"></script>
+<script>
+(async () => {
+  const account = await requireSession();
+  if (!account) return; // requireSession already redirected
+
+  document.getElementById('topbarName').textContent = account.username;
+  document.getElementById('avatarInitial').textContent = account.name.trim().charAt(0).toUpperCase() || '?';
+  document.getElementById('nameInput').value = account.name;
+  document.getElementById('usernameInput').value = account.username;
+  document.getElementById('emailInput').value = account.email || '';
+  document.getElementById('sessionInfo').textContent = account.isGuest
+    ? `Guest session · expires ${new Date(account.expiresAt).toLocaleString()}`
+    : `Fomoji ID ${account.fomojiId} · session renews on sign-in`;
+
+  if (!account.isGuest && !account.hasPassword) {
+    document.getElementById('pwForm').style.display = 'none';
+    const pwNote = document.createElement('div');
+    pwNote.className = 'alert alert-info is-visible';
+    pwNote.textContent = 'This identity signs in with a passkey and has no password set.';
+    document.getElementById('pwForm').insertAdjacentElement('afterend', pwNote);
+  }
+
+  if (account.isGuest) {
+    document.getElementById('guestBanner').style.display = 'flex';
+    document.getElementById('nameInput').disabled = true;
+    document.getElementById('nameInput').placeholder = 'Guest session';
+    document.getElementById('saveNameBtn').disabled = true;
+    document.getElementById('saveNameBtn').title = 'Create an account to edit your profile';
+    document.getElementById('emailInput').placeholder = 'Guest session — no email';
+    document.getElementById('pwForm').style.display = 'none';
+    const pwNote = document.createElement('div');
+    pwNote.className = 'alert alert-info is-visible';
+    pwNote.textContent = 'Guest sessions don\u2019t have a password to change — create an account to set one.';
+    document.getElementById('pwForm').insertAdjacentElement('afterend', pwNote);
+  }
+
+  // ---- connected apps: CAT connect/disconnect (shared FomojiConnect modal) ----
+  const catPill = document.getElementById('catPill');
+  const catConnectBtn = document.getElementById('catConnectBtn');
+  const catDisconnectBtn = document.getElementById('catDisconnectBtn');
+  const catRow = document.getElementById('catRow');
+
+  function flashRow() {
+    catRow.classList.add('is-flash');
+    catPill.classList.add('is-flash');
+    setTimeout(() => { catRow.classList.remove('is-flash'); catPill.classList.remove('is-flash'); }, 500);
+  }
+
+  function renderCatState() {
+    const connections = FomojiAPI.getConnections(account);
+    const connected = !!connections.cat;
+    catPill.textContent = connected ? 'Connected' : 'Not connected';
+    catPill.classList.toggle('pill-on', connected);
+    catPill.classList.toggle('pill-off', !connected);
+    catConnectBtn.classList.toggle('is-hidden', connected);
+    catDisconnectBtn.classList.toggle('is-hidden', !connected);
+  }
+  renderCatState();
+
+  catConnectBtn.addEventListener('click', () => {
+    FomojiConnect.open(account, { onConnected: () => { renderCatState(); flashRow(); } });
+  });
+
+  catDisconnectBtn.addEventListener('click', async () => {
+    catDisconnectBtn.disabled = true;
+    try {
+      await FomojiAPI.disconnectApp(account, 'cat');
+      renderCatState();
+      flashRow();
+    } finally {
+      catDisconnectBtn.disabled = false;
+    }
+  });
+
+  // ---- account: save name ----
+  document.getElementById('saveNameBtn').addEventListener('click', async () => {
+    if (account.isGuest) return;
+    const btn = document.getElementById('saveNameBtn');
+    const msg = document.getElementById('accountSavedMsg');
+    msg.classList.remove('is-visible');
+    btn.disabled = true;
+    try {
+      await FomojiAPI.updateProfile({ name: document.getElementById('nameInput').value });
+      document.getElementById('topbarName').textContent = account.username;
+      document.getElementById('avatarInitial').textContent = document.getElementById('nameInput').value.trim().charAt(0).toUpperCase() || '?';
+      msg.classList.add('is-visible');
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ---- security: logout ----
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    if (window.FomojiSignOut && typeof FomojiSignOut.trigger === 'function') {
+      FomojiSignOut.trigger();
+    } else {
+      FomojiAPI.logout().finally(() => { window.location.href = 'welcome.html'; });
+    }
+  });
+
+  // ---- security: change password ----
+  const pwForm = document.getElementById('pwForm');
+  const pwAlert = document.getElementById('pwAlert');
+  const pwBtn = document.getElementById('pwBtn');
+  pwForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    pwAlert.classList.remove('is-visible');
+    document.getElementById('pwSavedMsg').classList.remove('is-visible');
+
+    const currentPassword = document.getElementById('currentPw').value;
+    const newPassword = document.getElementById('newPw').value;
+    const confirmPassword = document.getElementById('confirmPw').value;
+
+    if (newPassword !== confirmPassword) {
+      pwAlert.textContent = 'New passwords don\u2019t match.';
+      pwAlert.classList.add('is-visible');
+      return;
+    }
+
+    pwBtn.disabled = true;
+    pwBtn.classList.add('is-loading');
+    try {
+      const { recoveryCode } = await FomojiAPI.changePassword({ currentPassword, newPassword });
+      pwForm.reset();
+      document.getElementById('pwSavedMsg').classList.add('is-visible');
+      if (recoveryCode) {
+        alert(`A password was just set on this identity for the first time, so a recovery code was generated too — save it now, it won't be shown again:\n\n${recoveryCode}`);
+      }
+    } catch (err) {
+      pwAlert.textContent = err instanceof FomojiAuthError ? err.message : 'Something went wrong.';
+      pwAlert.classList.add('is-visible');
+    } finally {
+      pwBtn.disabled = false;
+      pwBtn.classList.remove('is-loading');
+    }
+  });
+
+  // ---- appearance: reduce motion ----
+  const prefs = FomojiStore.getPrefs();
+  const motionSwitch = document.getElementById('motionSwitch');
+  const motionCheckbox = document.getElementById('motionCheckbox');
+  function applyMotionPref(on) {
+    document.documentElement.classList.toggle('reduce-motion', on);
+    motionSwitch.classList.toggle('is-on', on);
+    motionSwitch.setAttribute('aria-checked', String(on));
+    motionCheckbox.checked = on;
+  }
+  applyMotionPref(!!prefs.reducedMotion);
+  function toggleMotion() {
+    const next = !motionSwitch.classList.contains('is-on');
+    applyMotionPref(next);
+    FomojiStore.savePrefs({ ...prefs, reducedMotion: next });
+    // re-apply appearance now that motionAllowed() would return a different
+    // value, so --fx-bounce-strength/--fx-stretch-strength update immediately
+    if (window.FomojiAppearance) FomojiAppearance.set(FomojiAppearance.get());
+  }
+  motionSwitch.addEventListener('click', toggleMotion);
+  motionSwitch.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleMotion(); }
+  });
+
+  // ---- Customize Bot ----
+  // Entirely independent of FomojiAppearance/FomojiSignOut — if
+  // window.AnimatedBot never loaded, this whole block just no-ops safely.
+  (function () {
+    const $ = (id) => document.getElementById(id);
+    const themeOptions = $('botThemeOptions');
+    if (!themeOptions || !window.AnimatedBot) return;
+
+    const shadeOptions = $('botShadeOptions');
+    const faceOptions = $('botFaceOptions');
+    const eyesOptions = $('botEyesOptions');
+    const depthOptions = $('botDepthOptions');
+    const speedOptions = $('botSpeedOptions');
+    const intensityOptions = $('botIntensityOptions');
+    const emotionOptions = $('botEmotionOptions');
+    const sleepOptions = $('botSleepOptions');
+    const sizeOptions = $('botSizeOptions');
+    const positionOptions = $('botPositionOptions');
+    const visibleSwitch = $('botVisibleSwitch'), visibleCheckbox = $('botVisibleCheckbox');
+    const animSwitch = $('botAnimSwitch'), animCheckbox = $('botAnimCheckbox');
+    const interactSwitch = $('botInteractSwitch'), interactCheckbox = $('botInteractCheckbox');
+    const glowSwitch = $('botGlowSwitch'), glowCheckbox = $('botGlowCheckbox');
+    const opacitySlider = $('botOpacitySlider');
+    const colorPrimary = $('botColorPrimary'), colorSecondary = $('botColorSecondary');
+    const colorHighlight = $('botColorHighlight'), colorShadow = $('botColorShadow');
+    const previewMount = $('botPreviewMount');
+    const resetBtn = $('botResetBtn'), saveBtn = $('botSaveBtn'), saveConfirm = $('botSaveConfirm');
+
+    // theme grid — built once from the 35-preset catalogue, grouped
+    const groups = {};
+    AnimatedBot.THEMES.forEach((t) => {
+      if (t.id === 'custom') return; // custom picked implicitly via color overrides, not a grid tile
+      (groups[t.group] = groups[t.group] || []).push(t);
+    });
+    Object.keys(groups).forEach((g) => {
+      const label = document.createElement('div');
+      label.className = 'row-sub';
+      label.style.cssText = 'width:100%; margin:6px 0 2px;';
+      label.textContent = g;
+      themeOptions.appendChild(label);
+      const row = document.createElement('div');
+      row.className = 'option-row';
+      groups[g].forEach((t) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'option-chip';
+        btn.dataset.botTheme = t.id;
+        btn.textContent = t.name;
+        row.appendChild(btn);
+      });
+      themeOptions.appendChild(row);
+    });
+
+    // emotion grid — try / pin any of the 21 named reactions
+    AnimatedBot.EMOTIONS.filter((e) => e !== 'blink').forEach((name) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'option-chip';
+      btn.dataset.botEmotion = name;
+      btn.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+      emotionOptions.appendChild(btn);
+    });
+
+    function setSwitch(sw, cb, on) {
+      sw.classList.toggle('is-on', on);
+      sw.setAttribute('aria-checked', String(on));
+      cb.checked = on;
+    }
+    function selectChips(container, attr, value) {
+      container.querySelectorAll('.option-chip').forEach((el) => {
+        el.classList.toggle('is-selected', el.dataset[attr] === String(value));
+      });
+    }
+    function refresh() {
+      const b = AnimatedBot.get();
+      selectChips(themeOptions, 'botTheme', b.theme);
+      selectChips(shadeOptions, 'botShade', b.shade);
+      selectChips(faceOptions, 'botFace', b.face);
+      selectChips(eyesOptions, 'botEyes', b.eyes);
+      selectChips(depthOptions, 'botDepth', b.depth || (AnimatedBot.THEMES.find(t => t.id === b.theme) || {}).depth || 'low');
+      selectChips(speedOptions, 'botSpeed', b.animSpeed);
+      selectChips(intensityOptions, 'botIntensity', b.animIntensity);
+      selectChips(sleepOptions, 'botSleep', b.sleepAfter);
+      selectChips(sizeOptions, 'botSize', b.size);
+      selectChips(positionOptions, 'botPosition', b.position);
+      emotionOptions.querySelectorAll('.option-chip').forEach((el) => {
+        el.classList.toggle('is-selected', el.dataset.botEmotion === b.expression);
+      });
+      setSwitch(visibleSwitch, visibleCheckbox, !!b.visible);
+      setSwitch(animSwitch, animCheckbox, !!b.animate);
+      setSwitch(interactSwitch, interactCheckbox, !!b.interactive);
+      setSwitch(glowSwitch, glowCheckbox, !!b.glow);
+      opacitySlider.value = b.opacity != null ? b.opacity : 1;
+      const cc = b.customColors || {};
+      const theme = AnimatedBot.THEMES.find(t => t.id === b.theme) || AnimatedBot.THEMES[0];
+      const toHex = (v) => (v && v[0] === '#') ? v : '#46e08a';
+      colorPrimary.value = toHex(cc.primary || theme.vars.primary);
+      colorSecondary.value = toHex(cc.secondary || theme.vars.secondary);
+      colorHighlight.value = toHex(cc.highlight || theme.vars.edge);
+      colorShadow.value = '#000000';
+      if (previewMount) AnimatedBot.mountPreview(previewMount);
+    }
+    refresh();
+    document.addEventListener('fomoji-animated-bot-change', refresh);
+
+    function clickChip(container, cb) {
+      container.addEventListener('click', (e) => {
+        const btn = e.target.closest('.option-chip');
+        if (!btn) return;
+        cb(btn);
+      });
+    }
+    clickChip(themeOptions, (btn) => AnimatedBot.set({ theme: btn.dataset.botTheme, customColors: null }));
+    clickChip(shadeOptions, (btn) => AnimatedBot.set({ shade: btn.dataset.botShade }));
+    clickChip(faceOptions, (btn) => AnimatedBot.set({ face: btn.dataset.botFace }));
+    clickChip(eyesOptions, (btn) => AnimatedBot.set({ eyes: btn.dataset.botEyes }));
+    clickChip(depthOptions, (btn) => AnimatedBot.set({ depth: btn.dataset.botDepth }));
+    clickChip(speedOptions, (btn) => AnimatedBot.set({ animSpeed: btn.dataset.botSpeed }));
+    clickChip(intensityOptions, (btn) => AnimatedBot.set({ animIntensity: btn.dataset.botIntensity }));
+    clickChip(sleepOptions, (btn) => AnimatedBot.set({ sleepAfter: btn.dataset.botSleep }));
+    clickChip(sizeOptions, (btn) => AnimatedBot.set({ size: btn.dataset.botSize }));
+    clickChip(positionOptions, (btn) => AnimatedBot.set({ position: btn.dataset.botPosition }));
+    clickChip(emotionOptions, (btn) => {
+      const b = AnimatedBot.get();
+      const next = b.expression === btn.dataset.botEmotion ? null : btn.dataset.botEmotion;
+      AnimatedBot.set({ expression: next });
+      if (next) AnimatedBot.react(next); // also preview it immediately
+    });
+
+    function bindToggle(sw, key) {
+      function toggle() { AnimatedBot.set({ [key]: !sw.classList.contains('is-on') }); }
+      sw.addEventListener('click', toggle);
+      sw.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+    }
+    bindToggle(visibleSwitch, 'visible');
+    bindToggle(animSwitch, 'animate');
+    bindToggle(interactSwitch, 'interactive');
+    bindToggle(glowSwitch, 'glow');
+    opacitySlider.addEventListener('input', (e) => AnimatedBot.set({ opacity: parseFloat(e.target.value) }));
+
+    function onColorChange() {
+      AnimatedBot.set({
+        theme: AnimatedBot.get().theme, // keep current theme as the base
+        customColors: {
+          primary: colorPrimary.value,
+          secondary: colorSecondary.value,
+          highlight: colorHighlight.value,
+          shadow: colorShadow.value
+        }
+      });
+    }
+    [colorPrimary, colorSecondary, colorHighlight, colorShadow].forEach((inp) => inp.addEventListener('input', onColorChange));
+
+    resetBtn.addEventListener('click', () => AnimatedBot.reset());
+    saveBtn.addEventListener('click', () => {
+      // settings already persist on every change — this is an explicit
+      // confirmation for anyone looking for a save step
+      AnimatedBot.set(AnimatedBot.get());
+      saveConfirm.style.opacity = '1';
+      setTimeout(() => { saveConfirm.style.opacity = '0'; }, 1600);
+    });
+  })();
+
+  // ---- appearance: accent / icons / tab bar / gestures / parallax ----
+  function currentAppearance() {
+    return window.FomojiAppearance
+      ? window.FomojiAppearance.get()
+      : { theme: 'sage-dark', icons: 'outline', tabbar: 'floating', gestures: true, parallax: true, texture: 'flat', glow: true, glowStrength: 0.6, bounceStrength: 0.3, stretchStrength: 0 };
+  }
+
+  // ---- theme grid: built once from window.FomojiThemes, grouped dark/light ----
+  const themeGroups = document.getElementById('themeGroups');
+  if (window.FomojiThemes && themeGroups) {
+    const groupLabels = { dark: 'Dark', light: 'Light' };
+    let total = 0;
+    ['dark', 'light'].forEach(mode => {
+      const themes = window.FomojiThemes.byMode[mode] || [];
+      if (!themes.length) return;
+      total += themes.length;
+      const group = document.createElement('div');
+      group.className = 'theme-group';
+      const label = document.createElement('div');
+      label.className = 'theme-group-label';
+      label.textContent = groupLabels[mode] || mode;
+      group.appendChild(label);
+      const grid = document.createElement('div');
+      grid.className = 'theme-grid';
+      themes.forEach(t => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'theme-swatch';
+        btn.dataset.theme = t.id;
+        btn.innerHTML = `<span class="theme-swatch-dot" style="background:linear-gradient(160deg, ${t.swatch[1]}, ${t.swatch[0]})"></span><span class="theme-swatch-label">${t.name}</span>`;
+        grid.appendChild(btn);
+      });
+      group.appendChild(grid);
+      themeGroups.appendChild(group);
+    });
+    const countLabel = document.getElementById('themeCountLabel');
+    if (countLabel) countLabel.textContent = `${total} to choose from.`;
+  }
+
+  const iconOptions = document.getElementById('iconOptions');
+  const tabbarOptions = document.getElementById('tabbarOptions');
+  const textureOptions = document.getElementById('textureOptions');
+  const depth3dOptions = document.getElementById('depth3dOptions');
+  const liquidGlassRow = document.getElementById('liquidGlassRow');
+  const bounceOptions = document.getElementById('bounceOptions');
+  const stretchOptions = document.getElementById('stretchOptions');
+  const parallaxSwitch = document.getElementById('parallaxSwitch');
+  const parallaxCheckbox = document.getElementById('parallaxCheckbox');
+  const glowSwitch = document.getElementById('glowSwitch');
+  const glowCheckbox = document.getElementById('glowCheckbox');
+  const glowStrengthSlider = document.getElementById('glowStrengthSlider');
+
+  function renderAppearance(a) {
+    themeGroups && themeGroups.querySelectorAll('.theme-swatch').forEach(el => {
+      el.classList.toggle('is-selected', el.dataset.theme === a.theme);
+    });
+    iconOptions.querySelectorAll('.option-chip').forEach(el => {
+      el.classList.toggle('is-selected', el.dataset.icons === a.icons);
+    });
+    tabbarOptions.querySelectorAll('.option-chip').forEach(el => {
+      el.classList.toggle('is-selected', el.dataset.tabbar === a.tabbar);
+    });
+    textureOptions.querySelectorAll('.option-chip').forEach(el => {
+      el.classList.toggle('is-selected', el.dataset.texture === a.texture);
+    });
+    if (liquidGlassRow) liquidGlassRow.style.display = a.texture === 'liquid' ? '' : 'none';
+    depth3dOptions && depth3dOptions.querySelectorAll('.option-chip').forEach(el => {
+      el.classList.toggle('is-selected', el.dataset.depth3d === (a.depth3d || 'medium'));
+    });
+    bounceOptions && bounceOptions.querySelectorAll('.option-chip').forEach(el => {
+      el.classList.toggle('is-selected', parseFloat(el.dataset.bounce) === (a.bounceStrength != null ? a.bounceStrength : 0.3));
+    });
+    stretchOptions && stretchOptions.querySelectorAll('.option-chip').forEach(el => {
+      el.classList.toggle('is-selected', parseFloat(el.dataset.stretch) === (a.stretchStrength != null ? a.stretchStrength : 0));
+    });
+    const themeEntry = window.FomojiThemes && window.FomojiThemes.get(a.theme);
+    document.getElementById('previewAccentLabel').textContent = themeEntry ? themeEntry.name : a.theme;
+    document.getElementById('previewIconsLabel').textContent = a.icons;
+    document.getElementById('previewTabbarLabel').textContent = a.tabbar;
+    document.getElementById('previewTextureLabel').textContent = a.texture || 'flat';
+    document.getElementById('previewGlowLabel').textContent = a.glow === false ? 'off' : 'on';
+
+    if (typeof gestureStudioSync === 'function') gestureStudioSync();
+
+    parallaxSwitch.classList.toggle('is-on', a.parallax);
+    parallaxSwitch.setAttribute('aria-checked', String(a.parallax));
+    parallaxCheckbox.checked = a.parallax;
+
+    const glowOn = a.glow !== false;
+    glowSwitch.classList.toggle('is-on', glowOn);
+    glowSwitch.setAttribute('aria-checked', String(glowOn));
+    glowCheckbox.checked = glowOn;
+    glowStrengthSlider.value = a.glowStrength != null ? a.glowStrength : 0.6;
+  }
+  renderAppearance(currentAppearance());
+
+  themeGroups && themeGroups.addEventListener('click', (e) => {
+    const btn = e.target.closest('.theme-swatch');
+    if (!btn || !window.FomojiAppearance) return;
+    FomojiAppearance.set({ theme: btn.dataset.theme });
+  });
+  iconOptions.addEventListener('click', (e) => {
+    const btn = e.target.closest('.option-chip');
+    if (!btn || !window.FomojiAppearance) return;
+    FomojiAppearance.set({ icons: btn.dataset.icons });
+  });
+  depth3dOptions && depth3dOptions.addEventListener('click', (e) => {
+    const btn = e.target.closest('.option-chip');
+    if (!btn) return;
+    (window.FomojiDepth3D || { set: (v) => window.FomojiAppearance && FomojiAppearance.set({ depth3d: v }) }).set(btn.dataset.depth3d);
+    renderAppearance(currentAppearance());
+  });
+  tabbarOptions.addEventListener('click', (e) => {
+    const btn = e.target.closest('.option-chip');
+    if (!btn || !window.FomojiAppearance) return;
+    FomojiAppearance.set({ tabbar: btn.dataset.tabbar });
+  });
+  textureOptions.addEventListener('click', (e) => {
+    const btn = e.target.closest('.option-chip');
+    if (!btn || !window.FomojiAppearance) return;
+    FomojiAppearance.set({ texture: btn.dataset.texture });
+  });
+  bounceOptions && bounceOptions.addEventListener('click', (e) => {
+    const btn = e.target.closest('.option-chip');
+    if (!btn || !window.FomojiAppearance) return;
+    FomojiAppearance.set({ bounceStrength: parseFloat(btn.dataset.bounce) });
+  });
+  stretchOptions && stretchOptions.addEventListener('click', (e) => {
+    const btn = e.target.closest('.option-chip');
+    if (!btn || !window.FomojiAppearance) return;
+    FomojiAppearance.set({ stretchStrength: parseFloat(btn.dataset.stretch) });
+  });
+
+  function toggleGlow() {
+    if (!window.FomojiAppearance) return;
+    FomojiAppearance.set({ glow: !glowSwitch.classList.contains('is-on') });
+  }
+  glowSwitch.addEventListener('click', toggleGlow);
+  glowSwitch.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleGlow(); }
+  });
+  glowStrengthSlider.addEventListener('input', (e) => {
+    if (!window.FomojiAppearance) return;
+    FomojiAppearance.set({ glowStrength: parseFloat(e.target.value) });
+  });
+
+  // Gesture master on/off now lives entirely in the Gesture Studio panel
+  // below (gestureMasterSwitch / toggleMaster()) — this used to duplicate
+  // that toggle up here in the Appearance panel, wired to a `gestureSwitch`
+  // element that no longer exists on the page. Referencing it threw a
+  // ReferenceError as soon as this script ran, which silently killed every
+  // listener registered AFTER this point in the file — the Navigation
+  // panel's Top/Bottom buttons and the whole Gesture Studio panel included.
+  // Removed rather than re-pointed at gestureMasterSwitch, since Gesture
+  // Studio already owns this toggle and wiring it twice would just cause
+  // the two switches to fight over the same setting.
+
+  function toggleParallax() {
+    if (!window.FomojiAppearance) return;
+    FomojiAppearance.set({ parallax: !parallaxSwitch.classList.contains('is-on') });
+  }
+  parallaxSwitch.addEventListener('click', toggleParallax);
+  parallaxSwitch.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleParallax(); }
+  });
+
+  document.getElementById('resetAppearanceBtn').addEventListener('click', () => {
+    if (!window.FomojiAppearance) return;
+    FomojiAppearance.reset();
+    renderAppearance(currentAppearance());
+  });
+
+  document.addEventListener('fomoji-appearance-change', (e) => renderAppearance(e.detail));
+
+  // ---- theme studio ----
+  const tsIds = { '--void':'tsVoid', '--panel':'tsPanel', '--sage':'tsSage', '--gold':'tsGold', '--ink':'tsInk', '--ink-dim':'tsInkDim', '--line':'tsLine', '--good':'tsGood', '--danger':'tsDanger' };
+  function toHexColor(v) {
+    if (!v) return '#000000';
+    v = v.trim();
+    if (/^#[0-9a-fA-F]{6}$/.test(v)) return v;
+    const probe = document.createElement('div');
+    probe.style.color = v;
+    document.body.appendChild(probe);
+    const rgb = getComputedStyle(probe).color.match(/\d+/g);
+    probe.remove();
+    if (!rgb) return '#000000';
+    return '#' + rgb.slice(0,3).map(n => (+n).toString(16).padStart(2,'0')).join('');
+  }
+  function primeThemeStudio() {
+    if (!window.FomojiThemes) return;
+    const vars = FomojiThemes.getCustomVars();
+    Object.keys(tsIds).forEach(varName => {
+      const el = document.getElementById(tsIds[varName]);
+      if (el) el.value = toHexColor(vars[varName]);
+    });
+    const customEntry = FomojiThemes.get('custom');
+    document.getElementById('tsMode').value = customEntry ? customEntry.mode : 'dark';
+    const radius = customEntry && customEntry.vars['--radius-s'];
+    document.getElementById('tsShape').value = radius === '999px' ? 'pill' : (radius === '4px' ? 'square' : 'rounded');
+  }
+  primeThemeStudio();
+  document.getElementById('tsApplyBtn').addEventListener('click', () => {
+    if (!window.FomojiThemes || !window.FomojiAppearance) return;
+    const vars = {};
+    Object.keys(tsIds).forEach(varName => {
+      const el = document.getElementById(tsIds[varName]);
+      if (el) vars[varName] = el.value;
+    });
+    const shape = document.getElementById('tsShape').value;
+    if (shape === 'pill') { vars['--radius-s'] = vars['--radius-m'] = vars['--radius-l'] = '999px'; }
+    else if (shape === 'square') { vars['--radius-s'] = '4px'; vars['--radius-m'] = '6px'; vars['--radius-l'] = '10px'; }
+    else { vars['--radius-s'] = '8px'; vars['--radius-m'] = '14px'; vars['--radius-l'] = '22px'; }
+    FomojiThemes.setCustom(vars, document.getElementById('tsMode').value);
+    FomojiAppearance.set({ theme: 'custom' });
+    const msg = document.getElementById('tsSavedMsg');
+    msg.classList.add('is-visible');
+    window.setTimeout(() => msg.classList.remove('is-visible'), 2200);
+  });
+
+  // ---- keyboard shortcuts ----
+  const shortcutList = document.getElementById('shortcutList');
+  function renderShortcuts() {
+    if (!window.FomojiCommands || !shortcutList) return;
+    const shortcutable = FomojiCommands.list.filter(c => c.shortcutId);
+    const current = FomojiCommands.getShortcuts();
+    const conflicts = FomojiCommands.findConflicts();
+    shortcutList.innerHTML = shortcutable.map(c => {
+      const combo = current[c.shortcutId];
+      const conflictIds = combo && conflicts[combo] ? conflicts[combo] : null;
+      return `<div class="shortcut-row">
+        <div>
+          <div class="row-label">${c.label}</div>
+          ${conflictIds ? `<div class="shortcut-conflict">Also used by ${conflictIds.filter(id => id !== c.shortcutId).length} other shortcut(s)</div>` : ''}
+        </div>
+        <button type="button" class="shortcut-key-btn" data-shortcut-id="${c.shortcutId}">${FomojiCommands.comboLabel(combo)}</button>
+      </div>`;
+    }).join('');
+
+    shortcutList.querySelectorAll('.shortcut-key-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        shortcutList.querySelectorAll('.shortcut-key-btn').forEach(b => b.classList.remove('is-recording'));
+        btn.classList.add('is-recording');
+        btn.textContent = 'Press keys\u2026';
+        const onKey = (e) => {
+          e.preventDefault();
+          const combo = FomojiCommands.normalizeCombo(e);
+          if (!combo) return; // pure modifier key, keep listening
+          document.removeEventListener('keydown', onKey, true);
+          FomojiCommands.setShortcut(btn.dataset.shortcutId, combo);
+          renderShortcuts();
+        };
+        document.addEventListener('keydown', onKey, true);
+      });
+    });
+  }
+  renderShortcuts();
+  document.getElementById('resetShortcutsBtn').addEventListener('click', () => {
+    if (!window.FomojiCommands) return;
+    FomojiCommands.resetShortcuts();
+    renderShortcuts();
+  });
+  document.getElementById('openPaletteBtn').addEventListener('click', () => {
+    if (window.FomojiCommands) FomojiCommands.open();
+  });
+
+  // ---- Tab Bar Studio ----
+  (function () {
+    if (!window.FomojiTabbar) return;
+    var listEl = document.getElementById('tabstudioList');
+    var addBtn = document.getElementById('tabstudioAddBtn');
+    var addForm = document.getElementById('tabstudioAddForm');
+    var newLabel = document.getElementById('tabstudioNewLabel');
+    var newAction = document.getElementById('tabstudioNewAction');
+    var newIconGrid = document.getElementById('tabstudioNewIconGrid');
+    var posOptions = document.getElementById('tabbarPosOptions');
+    var iconKeys = Object.keys(FomojiTabbar.ICONS);
+    var pickedIcon = iconKeys[0];
+
+    function iconSvg(key) {
+      return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + FomojiTabbar.ICONS[key].svg + '</svg>';
+    }
+
+    // action <select> options, grouped
+    var groups = {};
+    FomojiTabbar.ACTIONS.forEach(function (a) {
+      (groups[a.group] = groups[a.group] || []).push(a);
+    });
+    var actionOptionsHtml = Object.keys(groups).map(function (g) {
+      return '<optgroup label="' + g + '">' + groups[g].map(function (a) {
+        return '<option value="' + a.id + '">' + a.label + '</option>';
+      }).join('') + '</optgroup>';
+    }).join('');
+    newAction.innerHTML = actionOptionsHtml;
+
+    function renderIconGrid() {
+      newIconGrid.innerHTML = iconKeys.map(function (key) {
+        return '<button type="button" class="tabstudio-icon-choice' + (key === pickedIcon ? ' is-selected' : '') + '" data-icon="' + key + '" title="' + FomojiTabbar.ICONS[key].label + '">' + iconSvg(key) + '</button>';
+      }).join('');
+      newIconGrid.querySelectorAll('.tabstudio-icon-choice').forEach(function (btn) {
+        btn.addEventListener('click', function () { pickedIcon = btn.dataset.icon; renderIconGrid(); });
+      });
+    }
+    renderIconGrid();
+
+    function renderList() {
+      var tabs = FomojiTabbar.getTabs();
+      var visibleCount = tabs.filter(function (t) { return !t.hidden; }).length;
+      listEl.innerHTML = tabs.map(function (t, i) {
+        var action = FomojiTabbar.ACTIONS.filter(function (a) { return a.id === t.action; })[0];
+        return '<div class="tabstudio-row' + (t.hidden ? ' is-hidden' : '') + '" data-id="' + t.id + '">' +
+          '<div class="tabstudio-icon">' + iconSvg(t.icon) + '</div>' +
+          '<div class="tabstudio-main">' +
+            '<div class="tabstudio-name-row">' +
+              '<input class="tabstudio-name" data-role="name" value="' + t.label.replace(/"/g, '&quot;') + '" ' + (t.id === FomojiTabbar.HOME_ID ? 'disabled' : '') + '>' +
+              (t.pinned ? '<span class="tabstudio-tag is-on">Pinned</span>' : '') +
+            '</div>' +
+            '<select class="tabstudio-action" data-role="action">' + FomojiTabbar.ACTIONS.map(function (a) {
+              return '<option value="' + a.id + '"' + (a.id === t.action ? ' selected' : '') + '>' + a.label + '</option>';
+            }).join('') + '</select>' +
+          '</div>' +
+          '<div class="tabstudio-controls">' +
+            '<button type="button" class="tabstudio-icon-btn" data-role="up" title="Move up" ' + (i === 0 ? 'disabled' : '') + '>&uarr;</button>' +
+            '<button type="button" class="tabstudio-icon-btn" data-role="down" title="Move down" ' + (i === tabs.length - 1 ? 'disabled' : '') + '>&darr;</button>' +
+            '<button type="button" class="tabstudio-icon-btn' + (t.hidden ? '' : ' is-active') + '" data-role="hide" title="' + (t.hidden ? 'Show tab' : 'Hide tab') + '" ' + (t.pinned || (!t.hidden && visibleCount <= 1) ? 'disabled' : '') + '>' + (t.hidden ? '\u25CF' : '\u25CE') + '</button>' +
+            '<button type="button" class="tabstudio-icon-btn tabstudio-danger" data-role="remove" title="Remove tab" ' + (t.id === FomojiTabbar.HOME_ID || t.pinned || tabs.length <= 1 ? 'disabled' : '') + '>&times;</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      var pos = FomojiTabbar.get().position;
+      posOptions.querySelectorAll('.option-chip').forEach(function (el) {
+        el.classList.toggle('is-selected', el.dataset.pos === pos);
+      });
+    }
+    renderList();
+
+    listEl.addEventListener('click', function (e) {
+      var row = e.target.closest('.tabstudio-row');
+      var btn = e.target.closest('button[data-role]');
+      if (!row || !btn) return;
+      var id = row.dataset.id;
+      var role = btn.dataset.role;
+      if (role === 'hide') {
+        var hidden = row.classList.contains('is-hidden');
+        FomojiTabbar.setHidden(id, !hidden);
+      } else if (role === 'remove') {
+        FomojiTabbar.removeTab(id);
+      } else if (role === 'up' || role === 'down') {
+        var ids = FomojiTabbar.getTabs().map(function (t) { return t.id; });
+        var idx = ids.indexOf(id);
+        var swapWith = role === 'up' ? idx - 1 : idx + 1;
+        if (swapWith < 0 || swapWith >= ids.length) return;
+        var tmp = ids[idx]; ids[idx] = ids[swapWith]; ids[swapWith] = tmp;
+        FomojiTabbar.reorder(ids);
+      }
+      renderList();
+    });
+
+    listEl.addEventListener('change', function (e) {
+      var row = e.target.closest('.tabstudio-row');
+      if (!row) return;
+      var id = row.dataset.id;
+      if (e.target.dataset.role === 'action') {
+        FomojiTabbar.updateTab(id, { action: e.target.value });
+      }
+    });
+    listEl.addEventListener('blur', function (e) {
+      if (e.target.dataset && e.target.dataset.role === 'name') {
+        var row = e.target.closest('.tabstudio-row');
+        if (row && e.target.value.trim()) FomojiTabbar.updateTab(row.dataset.id, { label: e.target.value.trim() });
+      }
+    }, true);
+
+    addBtn.addEventListener('click', function () {
+      addForm.style.display = addForm.style.display === 'none' ? 'flex' : 'none';
+      newLabel.value = '';
+      newLabel.focus();
+    });
+    document.getElementById('tabstudioNewCancelBtn').addEventListener('click', function () {
+      addForm.style.display = 'none';
+    });
+    document.getElementById('tabstudioNewSaveBtn').addEventListener('click', function () {
+      FomojiTabbar.addTab({ label: newLabel.value.trim() || 'New tab', icon: pickedIcon, action: newAction.value });
+      addForm.style.display = 'none';
+      renderList();
+    });
+
+    posOptions.addEventListener('click', function (e) {
+      var btn = e.target.closest('.option-chip');
+      if (!btn) return;
+      FomojiTabbar.setPosition(btn.dataset.pos);
+      renderList();
+    });
+
+    document.getElementById('tabstudioResetBtn').addEventListener('click', function () {
+      FomojiTabbar.resetToDefault();
+      renderList();
+    });
+
+    document.addEventListener('fomoji-tabbar-change', function () { renderList(); });
+  })();
+
+  // ---- Gesture Studio ----
+  var gestureStudioSync = function () {}; // replaced below once the panel wires up
+  (function () {
+    if (!window.FomojiGestures) return;
+    var listEl = document.getElementById('gesturestudioList');
+    var masterSwitch = document.getElementById('gestureMasterSwitch');
+    var masterCheckbox = document.getElementById('gestureMasterCheckbox');
+    var reducedSwitch = document.getElementById('gestureReducedSwitch');
+    var reducedCheckbox = document.getElementById('gestureReducedCheckbox');
+
+    function actionOptionsHtml(forSlot) {
+      var list = FomojiGestures.ACTIONS.filter(function (a) {
+        // tabNext/tabPrev only make sense on swipe left/right
+        if ((a.id === 'tabNext' || a.id === 'tabPrev') && forSlot.indexOf('swipe') !== 0) return false;
+        return true;
+      });
+      var groups = {};
+      list.forEach(function (a) { (groups[a.group] = groups[a.group] || []).push(a); });
+      return '<option value="">None</option>' + Object.keys(groups).map(function (g) {
+        return '<optgroup label="' + g + '">' + groups[g].map(function (a) {
+          return '<option value="' + a.id + '">' + a.label + '</option>';
+        }).join('') + '</optgroup>';
+      }).join('');
+    }
+
+    function renderGestureList() {
+      var bindings = FomojiGestures.getBindings();
+      var conflicts = FomojiGestures.findConflicts();
+      var reduced = FomojiGestures.isReduced();
+      var lastGroup = null;
+      listEl.innerHTML = FomojiGestures.SLOTS.map(function (slot) {
+        var muted = reduced && !slot.reducedSafe;
+        var bound = bindings[slot.id];
+        var conflictSlots = bound && conflicts[bound] ? conflicts[bound].filter(function (id) { return id !== slot.id; }) : null;
+        var groupHtml = '';
+        if (slot.group !== lastGroup) { groupHtml = '<div class="gesturestudio-group-label">' + slot.group + '</div>'; lastGroup = slot.group; }
+        return groupHtml + '<div class="gesturestudio-row' + (muted ? ' is-muted' : '') + '" data-slot="' + slot.id + '">' +
+          '<span class="gesturestudio-label">' + slot.label + '</span>' +
+          '<select class="gesturestudio-select" data-role="binding" ' + (muted ? 'disabled' : '') + '>' + actionOptionsHtml(slot.id) + '</select>' +
+          (conflictSlots && conflictSlots.length ? '<div class="gesturestudio-conflict">Also bound to ' + conflictSlots.length + ' other gesture(s) — both will trigger the same action.</div>' : '') +
+          '</div>';
+      }).join('');
+      // set selected values after building (avoids HTML-escaping headaches)
+      listEl.querySelectorAll('.gesturestudio-row').forEach(function (row) {
+        var sel = row.querySelector('select');
+        sel.value = bindings[row.dataset.slot] || '';
+      });
+    }
+
+    function syncSwitches() {
+      var masterOn = FomojiGestures.isMasterEnabled();
+      masterSwitch.classList.toggle('is-on', masterOn);
+      masterSwitch.setAttribute('aria-checked', String(masterOn));
+      masterCheckbox.checked = masterOn;
+
+      var reducedOn = FomojiGestures.isReduced();
+      reducedSwitch.classList.toggle('is-on', reducedOn);
+      reducedSwitch.setAttribute('aria-checked', String(reducedOn));
+      reducedCheckbox.checked = reducedOn;
+
+      renderGestureList();
+    }
+    gestureStudioSync = syncSwitches;
+    syncSwitches();
+
+    listEl.addEventListener('change', function (e) {
+      if (e.target.dataset.role !== 'binding') return;
+      var row = e.target.closest('.gesturestudio-row');
+      FomojiGestures.setBinding(row.dataset.slot, e.target.value || null);
+      renderGestureList();
+    });
+
+    function toggleMaster() { FomojiGestures.setMasterEnabled(!FomojiGestures.isMasterEnabled()); }
+    masterSwitch.addEventListener('click', toggleMaster);
+    masterSwitch.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleMaster(); } });
+
+    function toggleReduced() { FomojiGestures.setReduced(!FomojiGestures.isReduced()); syncSwitches(); }
+    reducedSwitch.addEventListener('click', toggleReduced);
+    reducedSwitch.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleReduced(); } });
+
+    document.getElementById('gesturestudioResetBtn').addEventListener('click', function () {
+      FomojiGestures.resetToDefault();
+      syncSwitches();
+    });
+
+    document.addEventListener('fomoji-gestures-change', syncSwitches);
+    document.addEventListener('fomoji-appearance-change', syncSwitches);
+  })();
+
+  // ---- nav active-state on scroll ----
+  const navLinks = Array.from(document.querySelectorAll('.settings-nav a'));
+  const sections = navLinks.map(a => document.querySelector(a.getAttribute('href')));
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = '#' + entry.target.id;
+        navLinks.forEach(a => a.classList.toggle('is-active', a.getAttribute('href') === id));
+      }
+    });
+  }, { rootMargin: '-40% 0px -50% 0px' });
+  sections.forEach(s => s && observer.observe(s));
+})();
+</script>
+</body>
+</html>

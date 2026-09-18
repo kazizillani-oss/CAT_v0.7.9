@@ -1,0 +1,11 @@
+{
+  "provider": "zhipu",
+  "fetched_at": "2026-09-09T13:49:02+00:00",
+  "models": [
+    "glm-4-air",
+    "glm-4-plus",
+    "glm-5.1",
+    "glm-5.2",
+    "glm-5.3"
+  ]
+}

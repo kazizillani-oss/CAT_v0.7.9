@@ -1,0 +1,57 @@
+/* ==========================================================================
+   FOMOJI — Guest Card
+   Guest is a legitimate Fomoji identity/session type, not an error state —
+   this reuses the same visual language as the other identity cards
+   (see .id-card in identities.html) so it never looks like a warning.
+   Self-contained: reads existing theme tokens only, same pattern as
+   fomoji-signout.css, so it can be dropped on any page (home.html
+   included) without importing identities.html's page-scoped styles.
+   ========================================================================== */
+
+.fomoji-guest-card{
+  position:relative;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:var(--radius-m, 14px);
+  padding:18px 18px 16px;
+  overflow:hidden;
+}
+.fomoji-guest-card::before{
+  content:"";
+  position:absolute; inset:0 0 auto 0; height:3px;
+  background:linear-gradient(90deg, var(--sage), transparent 80%);
+}
+
+.fomoji-guest-card-top{
+  display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+}
+.fomoji-guest-card-eyebrow{
+  font-family:var(--f-mono); font-size:10.5px; letter-spacing:0.14em; text-transform:uppercase;
+  color:var(--sage);
+}
+.fomoji-guest-card-badge{
+  font-family:var(--f-mono); font-size:9.5px; letter-spacing:0.06em; text-transform:uppercase;
+  padding:2px 8px; border-radius:999px; border:1px solid var(--line); color:var(--ink-faint);
+  white-space:nowrap;
+}
+
+.fomoji-guest-card-id{
+  font-family:var(--f-mono); font-size:17px; font-weight:600; color:var(--ink);
+  margin-top:10px; letter-spacing:0.01em;
+}
+
+.fomoji-guest-card-rows{
+  margin-top:12px; display:flex; flex-direction:column; gap:5px;
+  font-size:12.5px; color:var(--ink-dim);
+}
+.fomoji-guest-card-row{ display:flex; justify-content:space-between; gap:10px; }
+.fomoji-guest-card-row span:first-child{ color:var(--ink-faint); }
+
+.fomoji-guest-card-actions{
+  display:flex; gap:8px; flex-wrap:wrap; margin-top:16px;
+}
+.fomoji-guest-card-actions .btn{ flex:1 1 auto; }
+
+@media (min-width:420px){
+  .fomoji-guest-card-id{ font-size:19px; }
+}

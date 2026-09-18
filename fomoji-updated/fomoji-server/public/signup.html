@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="js/fomoji-theme.js"></script>
+<script src="js/fomoji-animated-bot.js"></script>
+<script src="js/fomoji-components.js"></script>
+<script src="js/fomoji-liquid-glass.js"></script>
+<script src="js/fomoji-fx.js"></script>
+<script src="js/fomoji-commands.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Create account · Fomoji</title>
+<meta name="description" content="Create your Fomoji account — one identity, a connected ecosystem.">
+<link rel="stylesheet" href="css/fomoji-tokens.css">
+<link rel="stylesheet" href="css/fomoji.css">
+<link rel="stylesheet" href="css/fomoji-fx.css">
+<link rel="stylesheet" href="css/fomoji-animated-bot.css">
+<link rel="stylesheet" href="css/fomoji-liquid-glass.css">
+<link rel="stylesheet" href="css/fomoji-glow-engine.css">
+</head>
+<body data-swipe-right="index.html">
+
+<div class="shell">
+
+  <aside class="hero">
+    <div class="hero-brand">
+      <a href="index.html"><img src="img/fomoji-logo.png" alt="Fomoji"></a>
+    </div>
+
+    <div class="orbit" aria-hidden="true">
+      <svg viewBox="0 0 340 340">
+        <circle class="orbit-ring" cx="170" cy="170" r="130"></circle>
+        <circle class="orbit-ring" cx="170" cy="170" r="80"></circle>
+
+        <line class="orbit-line" x1="170" y1="170" x2="170" y2="40"></line>
+        <line class="orbit-line" x1="170" y1="170" x2="290" y2="235"></line>
+        <line class="orbit-line" x1="170" y1="170" x2="50" y2="235"></line>
+
+        <circle class="orbit-core-glow" cx="170" cy="170" r="30"></circle>
+        <circle class="core-pulse" cx="170" cy="170" r="20" fill="none" stroke="var(--sage)" stroke-width="1.5"></circle>
+        <circle class="orbit-core" cx="170" cy="170" r="15"></circle>
+        <circle class="orbit-core-dot" cx="170" cy="164" r="2.4"></circle>
+
+        <g class="orbit-node spin1">
+          <g class="orbit-node-inner" transform="translate(170,40)">
+            <circle r="15"></circle>
+            <text text-anchor="middle" dy="4">CAT</text>
+          </g>
+        </g>
+        <g class="orbit-node spin2">
+          <g class="orbit-node-inner" transform="translate(290,235)">
+            <circle r="15"></circle>
+            <text text-anchor="middle" dy="4">AI</text>
+          </g>
+        </g>
+        <g class="orbit-node spin3">
+          <g class="orbit-node-inner" transform="translate(50,235)">
+            <circle r="15"></circle>
+            <text text-anchor="middle" dy="4">APPS</text>
+          </g>
+        </g>
+      </svg>
+    </div>
+
+    <div class="hero-copy">
+      <span class="hero-eyebrow">Create once</span>
+      <h1 class="hero-headline">Create once.<br>Connect <em>everywhere</em>.</h1>
+      <p class="hero-sub">One Fomoji account is all you need to authenticate into CAT and every app that joins the ecosystem after it.</p>
+    </div>
+
+    <p class="hero-foot">FOMOJI &copy; 2026 &nbsp;·&nbsp; built by Kazi Zillani</p>
+  </aside>
+
+  <main class="auth">
+    <div class="card">
+
+      <div class="form-view" id="formView">
+        <div class="card-head">
+          <h2 class="card-title">Create your Fomoji account</h2>
+          <p class="card-sub">Already have one? <a href="index.html">Log in</a></p>
+        </div>
+
+        <div class="alert alert-error" id="formAlert" role="alert" aria-live="assertive"></div>
+
+        <form id="signupForm" novalidate>
+          <div class="field">
+            <label for="name">Name</label>
+            <input type="text" id="name" name="name" autocomplete="name" placeholder="Your full name" aria-describedby="nameError">
+            <div class="field-error" id="nameError" style="display:none"></div>
+          </div>
+
+          <div class="field">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" autocomplete="username" placeholder="yourname" aria-describedby="usernameError">
+            <div class="field-error" id="usernameError" style="display:none"></div>
+          </div>
+
+          <div class="field">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" autocomplete="email" placeholder="you@example.com" aria-describedby="emailError">
+            <div class="field-error" id="emailError" style="display:none"></div>
+          </div>
+
+          <div class="field has-toggle">
+            <label for="password">Password</label>
+            <div class="field-row">
+              <input type="password" id="password" name="password" autocomplete="new-password" placeholder="At least 8 characters" aria-describedby="passwordError">
+              <button type="button" class="toggle-vis" data-toggle-for="password" aria-label="Show password">SHOW</button>
+            </div>
+            <div class="strength" id="strengthMeter" data-level="0" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+            <div class="field-error" id="passwordError" style="display:none"></div>
+          </div>
+
+          <div class="field has-toggle">
+            <label for="confirm">Confirm password</label>
+            <div class="field-row">
+              <input type="password" id="confirm" name="confirm" autocomplete="new-password" placeholder="Repeat your password" aria-describedby="confirmError">
+              <button type="button" class="toggle-vis" data-toggle-for="confirm" aria-label="Show password">SHOW</button>
+            </div>
+            <div class="field-error" id="confirmError" style="display:none"></div>
+          </div>
+
+          <label class="checkline">
+            <input type="checkbox" id="agree">
+            I agree to the <a href="terms.html" target="_blank" rel="noopener">Terms of Use</a> and <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.
+          </label>
+
+          <button type="submit" class="btn btn-primary" id="signupBtn">
+            <span class="spinner"></span>
+            <span class="btn-label">Create Fomoji account</span>
+          </button>
+        </form>
+
+        <div class="provider-note">
+          This creates a real Fomoji identity on the server — your password is hashed (never stored in plain text) and never leaves this request. Prefer not to use a password at all? <a href="passkey.html">Create with a passkey instead</a>.
+        </div>
+
+        <div class="card-foot-links">
+          <a href="welcome.html">All options</a>
+          <a href="index.html">Log in instead</a>
+          <a href="privacy.html">Privacy Policy</a>
+          <a href="terms.html">Terms of Use</a>
+        </div>
+      </div>
+
+      <div class="success-view" id="successView" aria-live="polite">
+        <div class="success-icon">&#10003;</div>
+        <h2 class="card-title">Account created successfully.</h2>
+        <p class="card-sub" id="successCopy">Welcome to Fomoji.</p>
+
+        <div class="recovery-box">
+          <div class="recovery-label">
+            Recovery code
+            <button type="button" class="copy-btn" id="copyRecoveryBtn">COPY</button>
+          </div>
+          <div class="recovery-code" id="recoveryCodeValue"></div>
+          <p class="recovery-warn">Save this now — it's shown once. There's no email-based recovery yet, so this code is the only way to reset your password.</p>
+        </div>
+
+        <div class="session-tag" id="sessionTag"></div>
+        <a href="#" class="btn btn-ghost" style="margin-top:20px;" id="continueBtn">Continue</a>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+
+<script src="js/fomoji-auth.js"></script>
+<script>
+(() => {
+  const formAlert = document.getElementById('formAlert');
+  const formView = document.getElementById('formView');
+  const successView = document.getElementById('successView');
+  const signupForm = document.getElementById('signupForm');
+  const signupBtn = document.getElementById('signupBtn');
+  const strengthMeter = document.getElementById('strengthMeter');
+
+  document.querySelectorAll('.toggle-vis').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const input = document.getElementById(btn.dataset.toggleFor);
+      const showing = input.type === 'text';
+      input.type = showing ? 'password' : 'text';
+      btn.textContent = showing ? 'SHOW' : 'HIDE';
+      btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+    });
+  });
+
+  document.getElementById('password').addEventListener('input', (e) => {
+    strengthMeter.dataset.level = FomojiValidate.passwordStrength(e.target.value);
+  });
+
+  document.getElementById('copyRecoveryBtn').addEventListener('click', () => {
+    const code = document.getElementById('recoveryCodeValue').textContent;
+    navigator.clipboard?.writeText(code);
+    const btn = document.getElementById('copyRecoveryBtn');
+    btn.textContent = 'COPIED';
+    setTimeout(() => { btn.textContent = 'COPY'; }, 1500);
+  });
+
+  function setFieldError(id, message) {
+    const errEl = document.getElementById(id + 'Error');
+    const inputEl = document.getElementById(id);
+    if (message) {
+      errEl.textContent = message;
+      errEl.style.display = 'flex';
+      inputEl.setAttribute('aria-invalid', 'true');
+    } else {
+      errEl.style.display = 'none';
+      inputEl.removeAttribute('aria-invalid');
+    }
+  }
+
+  function setAlert(message) {
+    if (message) { formAlert.textContent = message; formAlert.classList.add('is-visible'); }
+    else { formAlert.classList.remove('is-visible'); formAlert.textContent = ''; }
+  }
+
+  function setLoading(isLoading) {
+    signupBtn.disabled = isLoading;
+    signupBtn.classList.toggle('is-loading', isLoading);
+    signupBtn.querySelector('.btn-label').textContent = isLoading ? 'Creating account…' : 'Create Fomoji account';
+  }
+
+  signupForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    setAlert(null);
+    ['name', 'username', 'email', 'password', 'confirm'].forEach(id => setFieldError(id, null));
+
+    const name = document.getElementById('name').value;
+    const username = document.getElementById('username').value;
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const confirm = document.getElementById('confirm').value;
+    const agree = document.getElementById('agree').checked;
+
+    let valid = true;
+    const checks = [
+      ['name', FomojiValidate.name(name)],
+      ['username', FomojiValidate.username(username)],
+      ['email', FomojiValidate.email(email)],
+      ['password', FomojiValidate.password(password)],
+      ['confirm', FomojiValidate.matches(password, confirm)],
+    ];
+    checks.forEach(([id, result]) => {
+      if (result !== true) { setFieldError(id, result); valid = false; }
+    });
+    if (!agree) { setAlert('You need to agree to the Terms of Use and Privacy Policy to continue.'); valid = false; }
+    if (!valid) return;
+
+    setLoading(true);
+    window.FomojiCompanion?.react('loading');
+    try {
+      const { account, recoveryCode } = await FomojiAPI.register({ name, username, email, password });
+      window.FomojiCompanion?.react('success');
+      formView.classList.add('is-hidden');
+      successView.classList.add('is-visible');
+      document.getElementById('recoveryCodeValue').textContent = recoveryCode;
+      document.getElementById('sessionTag').textContent = `FOMOJI ID ${account.fomojiId}`;
+      document.getElementById('continueBtn').href = getSafeRedirect();
+    } catch (err) {
+      window.FomojiCompanion?.react('error');
+      setAlert(err instanceof FomojiAuthError ? err.message : 'Something went wrong. Try again.');
+    } finally {
+      setLoading(false);
+    }
+  });
+})();
+</script>
+</body>
+</html>

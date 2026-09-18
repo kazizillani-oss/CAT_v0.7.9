@@ -1,0 +1,10 @@
+{
+  "provider": "gemini",
+  "fetched_at": "2026-09-09T13:48:12+00:00",
+  "models": [
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-thinking",
+    "gemini-2.5-flash",
+    "gemini-2.5-pro"
+  ]
+}

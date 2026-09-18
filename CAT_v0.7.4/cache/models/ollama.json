@@ -1,0 +1,9 @@
+{
+  "provider": "ollama",
+  "fetched_at": "2026-09-10T14:18:11+00:00",
+  "models": [
+    "deepseek-coder:1.3b-base-q8_0",
+    "deepseek-r1:latest",
+    "gemma4:e4b"
+  ]
+}

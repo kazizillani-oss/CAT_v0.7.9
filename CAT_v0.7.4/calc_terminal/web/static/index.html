@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#161822">
+  <title>CAT v0.7.9.0 — Coding Agent Terminal</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐱</text></svg>">
+</head>
+<body>
+  <div id="app">
+    <!-- Top Header Bar: ≡ ○ CAT  |  [ 🔒 Ask Every Time ]  |  ▣ compressed -->
+    <header id="cct-header">
+      <div class="cct-header-left" onclick="FATTY.toggleNavMenu()" title="Main Menu">
+        <span class="cct-brand-menu">≡</span>
+        <span class="cct-brand-circle">○</span>
+        <span class="cct-brand-title">CAT</span>
+      </div>
+
+      <div class="cct-header-center">
+        <button class="cct-perm-pill-btn" id="cct-perm-pill-btn" onclick="FATTY.togglePermissionModal()" title="Click to Change Permission Mode">
+          <span id="cct-perm-icon">🔒</span>
+          <span id="cct-perm-text">Ask Every Time</span>
+        </button>
+      </div>
+
+      <div class="cct-header-right" onclick="FATTY.openFolderDialog()" title="Current Workspace Directory">
+        <span class="cct-ws-icon">▣</span>
+        <span class="cct-ws-name" id="cct-header-ws-name">compressed</span>
+      </div>
+    </header>
+
+    <!-- Main Menu Popup Dropdown (Attached to ≡ ○ CAT) -->
+    <div id="cct-main-menu-popup" class="cct-menu-dropdown" style="display: none;" onclick="event.stopPropagation()">
+      <div class="cct-menu-scroll" id="cct-main-menu-items">
+        <!-- Injected dynamically from /api/menu -->
+      </div>
+    </div>
+
+    <!-- Main Workspace Area -->
+    <div id="cct-workspace">
+      <!-- Left Sidebar: File Explorer -->
+      <aside id="cct-sidebar">
+        <div class="cct-sidebar-scroll">
+          <div class="cct-sidebar-top">
+            <span class="cct-sidebar-chevron" onclick="FATTY.toggleSidebar()">▾</span>
+            <button class="cct-open-folder-btn" onclick="FATTY.openFolderDialog()">Open Folder</button>
+          </div>
+
+          <!-- Active Workspace Info -->
+          <div class="cct-ws-summary">
+            <div class="cct-ws-title">
+              <span>📁</span>
+              <span id="cct-ws-folder-name">compressed</span>
+            </div>
+            <div class="cct-ws-languages" id="cct-ws-folder-sub">HTML, JavaScript, CSS · 3</div>
+          </div>
+
+          <!-- ASCII Directory Tree -->
+          <div class="cct-filetree" id="cct-tree-container">
+            <!-- Dynamic tree injected by JS -->
+          </div>
+
+          <!-- Recent Projects -->
+          <div class="cct-recent-section" id="cct-recent-container">
+            <!-- Recent rows injected by JS -->
+          </div>
+
+          <!-- Drop Notice -->
+          <div class="cct-dropzone-notice">
+            Drag & drop files here, or into Chat/Editor, to attach them for the AI.
+          </div>
+        </div>
+      </aside>
+
+      <!-- Sidebar Resizer -->
+      <div class="cct-resizer" id="cct-sidebar-resizer"></div>
+
+      <!-- Center Main Work / Conversation Column -->
+      <main id="cct-main">
+        <div id="cct-conversation">
+          <!-- Top Right Folder Tag -->
+          <div class="cct-opened-folder-tag" id="cct-opened-folder-tag">Opened folder: C:\Users\ADMIN</div>
+
+          <!-- State A: Welcome Dashboard (Screenshot 1) -->
+          <div id="cct-welcome-view">
+            <!-- CAT ASCII Art -->
+            <pre class="cct-ascii-hero">  ██████╗  █████╗ ████████╗
+ ██╔════╝ ██╔══██╗╚══██╔══╝
+ ██║      ███████║   ██║   
+ ██║      ██╔══██║   ██║   
+ ╚██████╗ ██║  ██║   ██║   
+  ╚═════╝ ╚═╝  ╚═╝   ╚═╝   </pre>
+
+            <div class="cct-hero-info">
+              <div class="cct-version-row">CAT v0.7.9.0</div>
+              <div class="cct-tagline-row">Chemistry • Coding • Intelligence</div>
+              <div class="cct-ready-row">
+                <span class="cct-ready-dot">●</span>
+                <span>CAT Build</span>
+                <span class="cct-ready-faint">ready · type to start, / for commands</span>
+              </div>
+              <div class="cct-suggest-row">Create · Analyze · Build · Debug · Research</div>
+              <div class="cct-ai-status-row">
+                <span class="cct-ready-dot">●</span>
+                <span>AI STATUS — </span>
+                <span class="cct-ai-status-model" id="cct-welcome-model">ollama deepseek-r1</span>
+                <span class="cct-ready-faint">· Ready</span>
+              </div>
+            </div>
+
+            <!-- 4 Action Buttons -->
+            <div class="cct-welcome-actions">
+              <button class="cct-action-btn" onclick="FATTY.openFolderDialog()">📁 Open Folder</button>
+              <button class="cct-action-btn" onclick="FATTY.newChat()">📝 New Chat</button>
+              <button class="cct-action-btn" onclick="FATTY.openSettings()">⚙ Settings</button>
+              <button class="cct-action-btn" onclick="FATTY.openDocs()">📖 Documentation</button>
+            </div>
+
+            <!-- 2 Columns -->
+            <div class="cct-welcome-columns">
+              <div class="cct-column">
+                <div class="cct-column-title">Recent Projects</div>
+                <div class="cct-column-item" onclick="FATTY.openRecentPath('ADMIN')">📁 ADMIN</div>
+                <div class="cct-column-item" onclick="FATTY.openRecentPath('compressed')">📁 compressed</div>
+                <div class="cct-column-item" onclick="FATTY.openRecentPath('CAT_v0.7.9')">📁 CAT_v0.7.9</div>
+                <div class="cct-column-item" onclick="FATTY.openRecentPath('Downloads')">📁 Downloads</div>
+                <div class="cct-column-item" onclick="FATTY.openRecentPath('Scripts')">📁 Scripts</div>
+              </div>
+
+              <div class="cct-column">
+                <div class="cct-column-title">Session Notebooks</div>
+                <div class="cct-column-item" id="cct-session-count">0 solved this session</div>
+                <div class="cct-column-faint">No generated files yet.</div>
+              </div>
+            </div>
+
+            <!-- Divider -->
+            <div class="cct-welcome-divider">- · - · -</div>
+          </div>
+
+          <!-- State B: Active Chat Messages (Screenshot 2) -->
+          <div id="cct-chat-turns" style="display: none;">
+            <!-- Turns will be appended dynamically by JS -->
+          </div>
+        </div>
+
+        <!-- Sticky Composer Docked at Bottom of Main Column -->
+        <div id="cct-composer">
+          <div class="cct-composer-input-row">
+            <span class="cct-prompt-symbol">&gt;</span>
+            <textarea class="cct-composer-textarea" id="cct-message-input" placeholder="Type a message..." rows="1"></textarea>
+          </div>
+          <div class="cct-composer-footer">
+            <div class="cct-footer-left">
+              <span class="cct-mode-blocks">
+                <span class="cct-mode-block b1"></span>
+                <span class="cct-mode-block b2"></span>
+                <span class="cct-mode-block b3"></span>
+                <span class="cct-mode-block b4"></span>
+              </span>
+              <span class="cct-mode-badge" id="cct-mode-badge" onclick="FATTY.openModeSelector()" title="Click to change AI mode (Ctrl+M)">🔨 Build</span>
+              <span class="cct-badge-sep">·</span>
+              <span class="cct-model-badge" id="cct-model-badge" onclick="FATTY.openModelPicker()" title="Click to select provider & model">OLLAMA deepseek-r1</span>
+              <span class="cct-badge-sep">·</span>
+              <span class="cct-workspace-badge" id="cct-ws-badge" onclick="FATTY.openFolderDialog()" title="Current workspace">Workspace</span>
+            </div>
+            <div class="cct-footer-right">
+              <span class="cct-context-indicator" id="cct-context-indicator">Context 0K</span>
+              <button class="cct-footer-btn" onclick="FATTY.openSettings()" title="Settings">⚙</button>
+              <button class="cct-footer-btn" onclick="FATTY.triggerAttach()" title="Attach file">📎</button>
+              <button class="cct-footer-btn cct-send-btn" onclick="FATTY.sendMessage()" title="Send message (Enter)">➤</button>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Editor Resizer -->
+      <div class="cct-resizer" id="cct-editor-resizer" style="display: none;"></div>
+
+      <!-- Right Column: Code Editor Pane -->
+      <aside id="cct-editor-pane">
+        <div class="cct-editor-toolbar">
+          <div class="cct-editor-file-info">
+            <span class="cct-editor-menu-glyph">≡</span>
+            <span class="cct-editor-dot">○</span>
+            <span class="cct-editor-filename" id="cct-editor-filename">index.html</span>
+          </div>
+          <div class="cct-editor-controls">
+            <button class="cct-editor-btn cct-btn-run" onclick="FATTY.runPreview()" title="Run Web Preview (▷)">▷</button>
+            <button class="cct-editor-btn cct-btn-split" onclick="FATTY.toggleSplitView()" title="Split Preview View (⿻)">⿻</button>
+            <button class="cct-editor-btn cct-btn-close" onclick="FATTY.closeEditor()" title="Close Editor (✕)">✕</button>
+          </div>
+        </div>
+
+        <div class="cct-editor-body">
+          <div class="cct-line-numbers" id="cct-line-numbers">
+            <!-- Line numbers injected by JS -->
+          </div>
+          <div class="cct-code-container" id="cct-code-container">
+            <textarea class="cct-code-textarea" id="cct-code-editor" spellcheck="false"></textarea>
+          </div>
+          <iframe id="cct-web-preview" title="Web Preview Frame"></iframe>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Hidden File Input for Attachments -->
+  <input type="file" id="cct-file-input" style="display: none;" onchange="FATTY.handleFileAttach(event)">
+
+  <!-- MODAL: Permission Mode Menu -->
+  <div class="cct-modal-backdrop" id="cct-perm-modal" style="display: none;" onclick="FATTY.closeAllModals(event)">
+    <div class="cct-modal-box" onclick="event.stopPropagation()">
+      <div class="cct-modal-titlebar">
+        <span>Permission Mode</span>
+        <button class="cct-modal-close-btn" onclick="FATTY.closeAllModals()">✕</button>
+      </div>
+      <div class="cct-modal-content">
+        <div class="cct-option-item" id="opt-perm-ask" onclick="FATTY.setPermissionMode('ask')">
+          <div class="cct-option-title">🔒 Ask Every Time</div>
+          <div class="cct-option-desc">Ask me before executing protected actions (file write, delete, terminal commands).</div>
+        </div>
+        <div class="cct-option-item" id="opt-perm-restricted" onclick="FATTY.setPermissionMode('restricted')">
+          <div class="cct-option-title">🛡 Restricted</div>
+          <div class="cct-option-desc">Analyze and help, but block all protected actions automatically.</div>
+        </div>
+        <div class="cct-option-item" id="opt-perm-full" onclick="FATTY.setPermissionMode('full')">
+          <div class="cct-option-title">⚡ Full Access</div>
+          <div class="cct-option-desc">Work automatically within allowed workspace without interactive prompts.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Startup Welcome Screen (Screenshot 2 / welcome_modal.py) -->
+  <div class="cct-modal-backdrop" id="cct-welcome-modal" style="display: none;" onclick="FATTY.closeAllModals(event)">
+    <div class="cct-modal-box cct-welcome-box" onclick="event.stopPropagation()">
+      <div class="cct-modal-titlebar">
+        <span class="cct-welcome-title">Welcome to CAT v0.7.9.0</span>
+        <button class="cct-modal-close-btn" onclick="FATTY.dismissWelcomeModal()">✕</button>
+      </div>
+      <div class="cct-modal-content cct-welcome-content">
+        <pre class="cct-ascii-welcome">  ██████╗  █████╗ ████████╗
+ ██╔════╝ ██╔══██╗╚══██╔══╝
+ ██║      ███████║   ██║   
+ ██║      ██╔══██║   ██║   
+ ╚██████╗ ██║  ██║   ██║   
+  ╚═════╝ ╚═╝  ╚═╝   ╚═╝   </pre>
+        <div class="cct-welcome-tagline">Coding · Agents · Intelligence — the terminal for builders.</div>
+        
+        <!-- Staged Boot Progress Bar -->
+        <div class="cct-boot-progress-wrap">
+          <div class="cct-boot-progress-bar" id="cct-boot-progress-bar" style="width: 100%;"></div>
+        </div>
+        <div class="cct-boot-status" id="cct-boot-status">● System ready. All subsystems initialized.</div>
+
+        <!-- Highlights Grid -->
+        <div class="cct-highlights-grid" id="cct-highlights-grid">
+          <!-- Injected dynamically from /api/startup/status -->
+        </div>
+      </div>
+      <div class="cct-modal-footer cct-welcome-footer">
+        <label class="cct-welcome-checkbox-label">
+          <input type="checkbox" id="cct-welcome-dont-show"> Don't show again on startup
+        </label>
+        <button class="cct-modal-btn primary" onclick="FATTY.dismissWelcomeModal()">Get Started ➜</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Open Folder Dialog (Method A: Browse & Method B: Enter Path) -->
+  <div class="cct-modal-backdrop" id="cct-folder-modal" style="display: none;" onclick="FATTY.closeAllModals(event)">
+    <div class="cct-modal-box" style="width: 620px;" onclick="event.stopPropagation()">
+      <div class="cct-modal-titlebar">
+        <span>📁 Open Folder</span>
+        <button class="cct-modal-close-btn" onclick="FATTY.closeAllModals()">✕</button>
+      </div>
+      <!-- Tab Navigation -->
+      <div class="cct-tabs-header">
+        <button class="cct-tab-btn active" id="tab-folder-browse" onclick="FATTY.switchFolderTab('browse')">📂 Browse Directory</button>
+        <button class="cct-tab-btn" id="tab-folder-path" onclick="FATTY.switchFolderTab('path')">⌨ Enter Path Directly</button>
+      </div>
+      <div class="cct-modal-content">
+        <!-- Tab 1: Method A Directory Tree Browser -->
+        <div id="cct-folder-tab-browse">
+          <div class="cct-fs-nav-bar">
+            <button class="cct-fs-up-btn" onclick="FATTY.browseFolderUp()" title="Go up one folder">⬆ Up</button>
+            <div class="cct-fs-current-path" id="cct-fs-current-path" title="Current browsing directory">...</div>
+          </div>
+          <div class="cct-fs-drives-row" id="cct-fs-drives-row">
+            <!-- Drive buttons: C:\, D:\, etc. -->
+          </div>
+          <div class="cct-fs-folder-list" id="cct-fs-folder-list">
+            <!-- Folder items loaded from /api/fs/browse -->
+          </div>
+        </div>
+
+        <!-- Tab 2: Method B Direct Path with Live Validation -->
+        <div id="cct-folder-tab-path" style="display: none;">
+          <div class="cct-form-group">
+            <label class="cct-form-label">Full Directory Path:</label>
+            <input type="text" class="cct-form-input" id="cct-folder-input" placeholder="e.g. C:\Users\ADMIN\my-project" oninput="FATTY.onFolderInputChanged(this.value)">
+          </div>
+          <div class="cct-validation-msg" id="cct-folder-validation-msg">Enter path to validate...</div>
+        </div>
+      </div>
+      <div class="cct-modal-footer">
+        <button class="cct-modal-btn" onclick="FATTY.closeAllModals()">Cancel</button>
+        <button class="cct-modal-btn primary" id="cct-folder-confirm-btn" onclick="FATTY.confirmOpenFolder()">Open Folder</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Recent Workspaces -->
+  <div class="cct-modal-backdrop" id="cct-recent-modal" style="display: none;" onclick="FATTY.closeAllModals(event)">
+    <div class="cct-modal-box" style="width: 640px;" onclick="event.stopPropagation()">
+      <div class="cct-modal-titlebar">
+        <span>🕓 Recent Workspaces</span>
+        <button class="cct-modal-close-btn" onclick="FATTY.closeAllModals()">✕</button>
+      </div>
+      <div class="cct-modal-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span class="cct-column-title">Workspaces History (~/.cct_projects.json)</span>
+          <button class="cct-action-link-btn" onclick="FATTY.clearRecentWorkspaces()">Clear Missing</button>
+        </div>
+        <div class="cct-recent-modal-list" id="cct-recent-modal-list">
+          <!-- Injected dynamically from /api/workspace/recent -->
+        </div>
+      </div>
+      <div class="cct-modal-footer">
+        <button class="cct-modal-btn primary" onclick="FATTY.closeAllModals()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Saved Chats (chat_store.py) -->
+  <div class="cct-modal-backdrop" id="cct-chats-modal" style="display: none;" onclick="FATTY.closeAllModals(event)">
+    <div class="cct-modal-box" style="width: 620px;" onclick="event.stopPropagation()">
+      <div class="cct-modal-titlebar">
+        <span>💬 Saved Chat Sessions</span>
+        <button class="cct-modal-close-btn" onclick="FATTY.closeAllModals()">✕</button>
+      </div>
+      <div class="cct-modal-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span class="cct-column-title">Sessions (~/.cat/chats/)</span>
+          <button class="cct-modal-btn primary" style="padding: 3px 10px; font-size: 11px;" onclick="FATTY.createNewChatSession()">+ New Chat</button>
+        </div>
+        <div class="cct-chats-modal-list" id="cct-chats-modal-list">
+          <!-- Injected dynamically from /api/chats -->
+        </div>
+      </div>
+      <div class="cct-modal-footer">
+        <button class="cct-modal-btn primary" onclick="FATTY.closeAllModals()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Model Context Protocol Servers (mcp.py) -->
+  <div class="cct-modal-backdrop" id="cct-mcp-modal" style="display: none;" onclick="FATTY.closeAllModals(event)">
+    <div class="cct-modal-box" style="width: 660px;" onclick="event.stopPropagation()">
+      <div class="cct-modal-titlebar">
+        <span>🔌 Model Context Protocol (MCP) Servers</span>
+        <button class="cct-modal-close-btn" onclick="FATTY.closeAllModals()">✕</button>
+      </div>
+      <div class="cct-modal-content">
+        <div class="cct-column-title">Configured MCP Servers:</div>
+        <div class="cct-mcp-servers-list" id="cct-mcp-servers-list">
+          <!-- Injected dynamically from /api/mcp/servers -->
+        </div>
+
+        <div class="cct-column-title" style="margin-top: 14px;">Add / Edit MCP Server:</div>
+        <div class="cct-form-group">
+          <label class="cct-form-label">Server Name / ID:</label>
+          <input type="text" class="cct-form-input" id="cct-mcp-name" placeholder="e.g. filesystem or fetch">
+        </div>
+        <div class="cct-form-group">
+          <label class="cct-form-label">Command:</label>
+          <input type="text" class="cct-form-input" id="cct-mcp-cmd" placeholder="e.g. npx or python">
+        </div>
+        <div class="cct-form-group">
+          <label class="cct-form-label">Arguments (space separated):</label>
+          <input type="text" class="cct-form-input" id="cct-mcp-args" placeholder="e.g. -y @modelcontextprotocol/server-filesystem C:\">
+        </div>
+        <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+          <button class="cct-modal-btn primary" onclick="FATTY.saveMcpServer()">Save MCP Server</button>
+        </div>
+      </div>
+      <div class="cct-modal-footer">
+        <button class="cct-modal-btn" onclick="FATTY.closeAllModals()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Backup Providers (Automatic Failover Chain) -->
+  <div class="cct-modal-backdrop" id="cct-backup-modal" style="display: none;" onclick="FATTY.closeAllModals(event)">
+    <div class="cct-modal-box" style="width: 620px;" onclick="event.stopPropagation()">
+      <div class="cct-modal-titlebar">
+        <span>📡 Backup Providers Failover Chain</span>
+        <button class="cct-modal-close-btn" onclick="FATTY.closeAllModals()">✕</button>
+      </div>
+      <div class="cct-modal-content">
+        <div class="cct-notice-banner">
+          Automatic Failover Chain: If your primary provider experiences rate limits, timeouts, or downtime, CAT streams uninterrupted by falling back down this ordered chain.
+        </div>
+        <div class="cct-column-title" style="margin-top: 8px;">Active Failover Chain Order:</div>
+        <div class="cct-backup-chain-list" id="cct-backup-chain-list">
+          <!-- Injected dynamically from /api/backup-providers -->
+        </div>
+      </div>
+      <div class="cct-modal-footer">
+        <button class="cct-modal-btn" onclick="FATTY.closeAllModals()">Close</button>
+        <button class="cct-modal-btn primary" onclick="FATTY.saveBackupChain()">Save Chain Order</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Themes & Color Palette -->
+  <div class="cct-modal-backdrop" id="cct-themes-modal" style="display: none;" onclick="FATTY.closeAllModals(event)">
+    <div class="cct-modal-box" style="width: 600px;" onclick="event.stopPropagation()">
+      <div class="cct-modal-titlebar">
+        <span>◑ Themes & Appearance</span>
+        <button class="cct-modal-close-btn" onclick="FATTY.closeAllModals()">✕</button>
+      </div>
+      <div class="cct-modal-content">
+        <div class="cct-column-title">Available Textual & Terminal Themes:</div>
+        <div class="cct-themes-grid" id="cct-themes-grid">
+          <!-- Injected dynamically from /api/themes -->
+        </div>
+      </div>
+      <div class="cct-modal-footer">
+        <button class="cct-modal-btn primary" onclick="FATTY.closeAllModals()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: User Profile & Identity -->
+  <div class="cct-modal-backdrop" id="cct-user-modal" style="display: none;" onclick="FATTY.closeAllModals(event)">
+    <div class="cct-modal-box" style="width: 580px;" onclick="event.stopPropagation()">
+      <div class="cct-modal-titlebar">
+        <span>☺ User Profile & Identity</span>
+        <button class="cct-modal-close-btn" onclick="FATTY.closeAllModals()">✕</button>
+      </div>
+      <div class="cct-modal-content" id="cct-user-modal-content">
+        <!-- Injected dynamically from /api/user/profile -->
+      </div>
+      <div class="cct-modal-footer">
+        <button class="cct-modal-btn" onclick="FATTY.openSignOutModal()">Sign Out</button>
+        <button class="cct-modal-btn primary" onclick="FATTY.closeAllModals()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Sign Out Confirmation -->
+  <div class="cct-modal-backdrop" id="cct-signout-modal" style="display: none;" onclick="FATTY.closeAllModals(event)">
+    <div class="cct-modal-box" style="width: 440px;" onclick="event.stopPropagation()">
+      <div class="cct-modal-titlebar">
+        <span>⎋ Sign Out</span>
+        <button class="cct-modal-close-btn" onclick="FATTY.closeAllModals()">✕</button>
+      </div>
+      <div class="cct-modal-content" style="font-size: 13px; line-height: 1.5; padding: 16px 0;">
+        <p>Are you sure you want to sign out from CAT?</p>
+        <p class="cct-text-muted" style="font-size: 11.5px; margin-top: 6px;">This will revoke active tokens, terminate local auth sessions, and switch to local guest mode.</p>
+      </div>
+      <div class="cct-modal-footer">
+        <button class="cct-modal-btn" onclick="FATTY.closeAllModals()">Cancel</button>
+        <button class="cct-modal-btn danger" onclick="FATTY.confirmSignOut()">Sign Out</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Gestures -->
+  <div class="cct-modal-backdrop" id="cct-gestures-modal" style="display: none;" onclick="FATTY.closeAllModals(event)">
+    <div class="cct-modal-box" style="width: 580px;" onclick="event.stopPropagation()">
+      <div class="cct-modal-titlebar">
+        <span>✋ Gesture Shortcuts & Controls</span>
+        <button class="cct-modal-close-btn" onclick="FATTY.closeAllModals()">✕</button>
+      </div>
+      <div class="cct-modal-content">
+        <div class="cct-column-title">Configured Gestures:</div>
+        <div class="cct-gestures-list" id="cct-gestures-list">
+          <!-- Injected dynamically from /api/gestures -->
+        </div>
+      </div>
+      <div class="cct-modal-footer">
+        <button class="cct-modal-btn primary" onclick="FATTY.closeAllModals()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Personalize & Customization (3D Skeuomorphic Studio) -->
+  <div class="cct-modal-backdrop" id="cct-personalize-modal" style="display: none;" onclick="FATTY.closeAllModals(event)">
+    <div class="cct-modal-box" style="width: 640px;" onclick="event.stopPropagation()">
+      <div class="cct-modal-titlebar">
+        <span>🎨 Personalize & AI Customization Studio</span>
+        <button class="cct-modal-close-btn" onclick="FATTY.closeAllModals()">✕</button>
+      </div>
+      <div class="cct-modal-content" style="display: flex; flex-direction: column; gap: 12px;">
+        <div class="cct-form-group">
+          <label class="cct-form-label" style="font-weight: bold; color: var(--accent-build);">Choose AI Persona:</label>
+          <div id="cct-persona-cards" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px;">
+            <!-- Rendered dynamically as 3D tactile cards -->
+          </div>
+          <select class="cct-form-input" id="cct-persona-select" style="display: none;" onchange="FATTY.onPersonaSelected(this.value)">
+            <!-- Hidden select sync -->
+          </select>
+        </div>
+        <div class="cct-form-group">
+          <label class="cct-form-label" style="font-weight: bold;">Custom Persona Instructions:</label>
+          <textarea class="cct-form-input cct-search-input" id="cct-custom-prompt" rows="3" placeholder="Additional persona instructions, tone rules, or role constraints..."></textarea>
+        </div>
+        <div class="cct-form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label class="cct-form-label" style="font-weight: bold;">Creativity & Temperature:</label>
+            <span class="cct-badge" id="cct-temp-val" style="background: rgba(224,175,104,0.15); border: 1px solid var(--accent-build); color: var(--accent-build); padding: 2px 8px; font-weight: bold;">0.70</span>
+          </div>
+          <input type="range" min="0" max="1" step="0.05" value="0.7" id="cct-temp-slider" oninput="document.getElementById('cct-temp-val').textContent=parseFloat(this.value).toFixed(2)" style="accent-color: var(--accent-build); cursor: pointer; margin-top: 6px;">
+        </div>
+      </div>
+      <div class="cct-modal-footer">
+        <button class="cct-modal-btn" onclick="FATTY.closeAllModals()">Cancel</button>
+        <button class="cct-modal-btn primary" onclick="FATTY.savePersonalization()">Save Personalization</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Settings Dialog -->
+  <div class="cct-modal-backdrop" id="cct-settings-modal" style="display: none;" onclick="FATTY.closeAllModals(event)">
+    <div class="cct-modal-box" onclick="event.stopPropagation()">
+      <div class="cct-modal-titlebar">
+        <span>Settings & Model Configuration</span>
+        <button class="cct-modal-close-btn" onclick="FATTY.closeAllModals()">✕</button>
+      </div>
+      <div class="cct-modal-content">
+        <div class="cct-form-group">
+          <label class="cct-form-label">AI Provider:</label>
+          <input type="text" class="cct-form-input" id="cct-cfg-provider" value="ollama">
+        </div>
+        <div class="cct-form-group">
+          <label class="cct-form-label">Model Name:</label>
+          <input type="text" class="cct-form-input" id="cct-cfg-model" value="deepseek-r1">
+        </div>
+        <div class="cct-form-group">
+          <label class="cct-form-label">API Key / Endpoint:</label>
+          <input type="text" class="cct-form-input" id="cct-cfg-endpoint" value="http://localhost:11434">
+        </div>
+      </div>
+      <div class="cct-modal-footer">
+        <button class="cct-modal-btn" onclick="FATTY.closeAllModals()">Cancel</button>
+        <button class="cct-modal-btn primary" onclick="FATTY.saveSettings()">Save Configuration</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Documentation -->
+  <div class="cct-modal-backdrop" id="cct-docs-modal" style="display: none;" onclick="FATTY.closeAllModals(event)">
+    <div class="cct-modal-box" style="width: 580px;" onclick="event.stopPropagation()">
+      <div class="cct-modal-titlebar">
+        <span>CAT CLI Documentation</span>
+        <button class="cct-modal-close-btn" onclick="FATTY.closeAllModals()">✕</button>
+      </div>
+      <div class="cct-modal-content" style="font-size: 12.5px; line-height: 1.6;">
+        <div><b>Commands:</b> Type <code>/</code> in chat for slash command suggestions.</div>
+        <div><b>/model</b> — Switch AI provider & model</div>
+        <div><b>/setup</b> — Reconfigure current AI provider</div>
+        <div><b>/verify</b> — Test AI connectivity</div>
+        <div><b>/workspace</b> — Manage project workspace</div>
+        <div><b>/clear</b> — Reset conversation to Welcome screen</div>
+        <div><b>Keyboard Shortcuts:</b></div>
+        <div><code>Enter</code>: Send message | <code>Shift+Enter</code>: New line</div>
+        <div><code>Ctrl+K</code> or <code>/</code>: Command Palette (86 commands)</div>
+        <div><code>Ctrl+M</code>: Switch AI Mode (Build, Plan, Research, Debugger, Agent, Notebook)</div>
+        <div><code>Ctrl+S</code>: Save open file in editor</div>
+        <div><code>Ctrl+B</code>: Toggle file explorer sidebar</div>
+      </div>
+      <div class="cct-modal-footer">
+        <button class="cct-modal-btn" onclick="FATTY.closeAllModals()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Command Palette (Ctrl+K / /) -->
+  <div class="cct-modal-backdrop" id="cct-command-palette-modal" style="display: none;" onclick="FATTY.closeAllModals(event)">
+    <div class="cct-palette-box" onclick="event.stopPropagation()">
+      <div class="cct-palette-input-wrap">
+        <span class="cct-palette-prompt">&gt;</span>
+        <input type="text" class="cct-palette-input" id="cct-palette-input" placeholder="Type a command or search (e.g. /solve, /model, /workspace, /atomsim)..." autocomplete="off" spellcheck="false">
+        <button class="cct-modal-close-btn" onclick="FATTY.closeAllModals()">✕</button>
+      </div>
+      <div class="cct-palette-list" id="cct-palette-list">
+        <!-- Injected dynamically by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Model & Provider Picker -->
+  <div class="cct-modal-backdrop" id="cct-model-picker-modal" style="display: none;" onclick="FATTY.closeAllModals(event)">
+    <div class="cct-modal-box cct-picker-box" onclick="event.stopPropagation()">
+      <div class="cct-modal-titlebar">
+        <span>AI Providers & Models</span>
+        <button class="cct-modal-close-btn" onclick="FATTY.closeAllModals()">✕</button>
+      </div>
+      <div class="cct-modal-content">
+        <div class="cct-form-group">
+          <label class="cct-form-label">Search Provider:</label>
+          <input type="text" class="cct-form-input" id="cct-picker-filter" placeholder="Filter providers (ollama, openai, groq, deepseek, anthropic...)" oninput="FATTY.filterProviders(this.value)">
+        </div>
+        <div class="cct-column-title" style="margin-top: 4px;">Providers (<span id="cct-provider-count">155</span>):</div>
+        <div class="cct-provider-list" id="cct-picker-providers">
+          <!-- Injected dynamically by JS -->
+        </div>
+        <div class="cct-column-title" style="margin-top: 6px;">Available Models:</div>
+        <div class="cct-model-list" id="cct-picker-models">
+          <!-- Injected dynamically by JS -->
+        </div>
+      </div>
+      <div class="cct-modal-footer">
+        <button class="cct-modal-btn" onclick="FATTY.closeAllModals()">Cancel</button>
+        <button class="cct-modal-btn primary" onclick="FATTY.applySelectedModel()">Select Model</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Mode Selector (Ctrl+M) -->
+  <div class="cct-modal-backdrop" id="cct-mode-selector-modal" style="display: none;" onclick="FATTY.closeAllModals(event)">
+    <div class="cct-modal-box" style="width: 560px;" onclick="event.stopPropagation()">
+      <div class="cct-modal-titlebar">
+        <span>Switch AI Mode (Ctrl+M)</span>
+        <button class="cct-modal-close-btn" onclick="FATTY.closeAllModals()">✕</button>
+      </div>
+      <div class="cct-modal-content">
+        <div class="cct-mode-grid" id="cct-mode-grid">
+          <!-- Injected dynamically by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Memory Center (/memory) -->
+  <div class="cct-modal-backdrop" id="cct-memory-modal" style="display: none;" onclick="FATTY.closeAllModals(event)">
+    <div class="cct-modal-box" style="width: 580px;" onclick="event.stopPropagation()">
+      <div class="cct-modal-titlebar">
+        <span>Memory Center (~/.cct_memory.json)</span>
+        <button class="cct-modal-close-btn" onclick="FATTY.closeAllModals()">✕</button>
+      </div>
+      <div class="cct-modal-content">
+        <div class="cct-column-title">Remembered Facts:</div>
+        <div class="cct-memory-list" id="cct-memory-list">
+          <!-- Injected dynamically by JS -->
+        </div>
+        <div class="cct-memory-input-row">
+          <input type="text" class="cct-form-input" id="cct-add-fact-input" style="flex: 1;" placeholder="Add a durable fact (e.g. 'Exam is in May', 'Use TypeScript')...">
+          <button class="cct-modal-btn primary" onclick="FATTY.addMemoryFact()">Add Fact</button>
+        </div>
+      </div>
+      <div class="cct-modal-footer">
+        <button class="cct-modal-btn" onclick="FATTY.clearAllMemory()">Clear All</button>
+        <button class="cct-modal-btn primary" onclick="FATTY.closeAllModals()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Extensions Manager (/extensions) -->
+  <div class="cct-modal-backdrop" id="cct-extensions-modal" style="display: none;" onclick="FATTY.closeAllModals(event)">
+    <div class="cct-modal-box" style="width: 580px;" onclick="event.stopPropagation()">
+      <div class="cct-modal-titlebar">
+        <span>CAT Extensions & Plugins</span>
+        <button class="cct-modal-close-btn" onclick="FATTY.closeAllModals()">✕</button>
+      </div>
+      <div class="cct-modal-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <span style="font-size: 12px; color: var(--term-text-muted);">Manage installed extensions or build your own custom plugins.</span>
+          <button class="cct-modal-btn primary" id="cct-open-create-ext-btn" onclick="FATTY.openCreateExtensionModal()" style="padding: 4px 10px; font-size: 11px; white-space: nowrap;">＋ Create Extension</button>
+        </div>
+        <div class="cct-ext-list" id="cct-extensions-list">
+          <!-- Injected dynamically by JS -->
+        </div>
+      </div>
+      <div class="cct-modal-footer">
+        <button class="cct-modal-btn primary" onclick="FATTY.closeAllModals()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Create Extension -->
+  <div class="cct-modal-backdrop" id="cct-create-ext-modal" style="display: none;" onclick="FATTY.closeCreateExtensionModal(event)">
+    <div class="cct-modal-box" style="width: 520px;" onclick="event.stopPropagation()">
+      <div class="cct-modal-titlebar">
+        <span>⚡ Create Custom Extension</span>
+        <button class="cct-modal-close-btn" onclick="FATTY.closeCreateExtensionModal()">✕</button>
+      </div>
+      <div class="cct-modal-content" style="display: flex; flex-direction: column; gap: 10px;">
+        <div>
+          <label style="font-size: 11px; color: var(--term-text-muted); display: block; margin-bottom: 4px;">Extension Name *</label>
+          <input type="text" id="cct-create-ext-name" class="cct-input" placeholder="e.g. Code Formatter Pro" style="width: 100%; box-sizing: border-box;" />
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <div style="flex: 2;">
+            <label style="font-size: 11px; color: var(--term-text-muted); display: block; margin-bottom: 4px;">ID (slug) *</label>
+            <input type="text" id="cct-create-ext-id" class="cct-input" placeholder="e.g. code_formatter" style="width: 100%; box-sizing: border-box;" />
+          </div>
+          <div style="flex: 1;">
+            <label style="font-size: 11px; color: var(--term-text-muted); display: block; margin-bottom: 4px;">Icon</label>
+            <input type="text" id="cct-create-ext-icon" class="cct-input" placeholder="⚡" value="⚡" style="width: 100%; box-sizing: border-box; text-align: center;" />
+          </div>
+        </div>
+        <div>
+          <label style="font-size: 11px; color: var(--term-text-muted); display: block; margin-bottom: 4px;">Description</label>
+          <input type="text" id="cct-create-ext-desc" class="cct-input" placeholder="What does this extension do?" style="width: 100%; box-sizing: border-box;" />
+        </div>
+        <div>
+          <label style="font-size: 11px; color: var(--term-text-muted); display: block; margin-bottom: 4px;">Category</label>
+          <select id="cct-create-ext-cat" class="cct-input" style="width: 100%; box-sizing: border-box;">
+            <option value="Productivity">Productivity</option>
+            <option value="Developer Tools">Developer Tools</option>
+            <option value="AI & ML">AI & ML</option>
+            <option value="Utilities">Utilities</option>
+            <option value="Custom">Custom</option>
+          </select>
+        </div>
+        <div id="cct-create-ext-error" style="color: var(--term-error, #f43f5e); font-size: 11px; display: none;"></div>
+      </div>
+      <div class="cct-modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button class="cct-modal-btn" onclick="FATTY.closeCreateExtensionModal()">Cancel</button>
+        <button class="cct-modal-btn primary" id="cct-create-ext-submit" onclick="FATTY.submitCreateExtension()">Create & Install</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
+

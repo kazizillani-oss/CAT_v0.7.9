@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="js/fomoji-theme.js"></script>
+<script src="js/fomoji-animated-bot.js"></script>
+<script src="js/fomoji-components.js"></script>
+<script src="js/fomoji-liquid-glass.js"></script>
+<script src="js/fomoji-fx.js"></script>
+<script src="js/fomoji-commands.js"></script>
+<script src="js/fomoji-tabbar.js"></script>
+<script src="js/fomoji-signout.js"></script>
+<script src="js/fomoji-gestures.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Help &amp; Manual · CAT</title>
+<link rel="stylesheet" href="css/fomoji-tokens.css">
+<link rel="stylesheet" href="css/fomoji.css">
+<link rel="stylesheet" href="css/fomoji-fx.css">
+<link rel="stylesheet" href="css/fomoji-animated-bot.css">
+<link rel="stylesheet" href="css/fomoji-liquid-glass.css">
+<link rel="stylesheet" href="css/fomoji-glow-engine.css">
+<link rel="stylesheet" href="css/fomoji-signout.css">
+<style>
+  .help{ position:relative; z-index:1; max-width:720px; margin:0 auto; padding:28px 20px 0; }
+  @media (min-width:820px){ .help{ padding:44px 40px 0; } }
+
+  .help-head{ margin-bottom:22px; }
+  .help-eyebrow{
+    font-family:var(--f-mono); font-size:11px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--putty); display:block; margin-bottom:10px;
+  }
+  .help-title{ font-size:clamp(22px,3.6vw,30px); font-weight:600; }
+  .help-sub{ margin-top:8px; font-size:13.5px; color:var(--ink-dim); line-height:1.6; max-width:520px; }
+
+  .help-toc{ display:flex; gap:8px; flex-wrap:wrap; margin:20px 0 32px; }
+  .help-toc a{
+    font-size:12px; font-family:var(--f-mono); color:var(--ink-dim);
+    border:1px solid var(--line); border-radius:999px; padding:6px 12px;
+  }
+  .help-toc a:hover{ color:var(--sage); border-color:var(--sage-deep); }
+
+  .help-section{ margin-bottom:36px; scroll-margin-top:24px; }
+  .help-section h2{ font-size:17px; font-weight:600; color:var(--ink); margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+  .help-section h2 .step-num{
+    font-family:var(--f-mono); font-size:11px; color:var(--void);
+    background:var(--sage); width:20px; height:20px; border-radius:50%;
+    display:inline-flex; align-items:center; justify-content:center; flex:none;
+  }
+  .help-section p{ font-size:13.5px; line-height:1.7; color:var(--ink-dim); }
+  .help-section p + p{ margin-top:8px; }
+
+  .code-block{
+    background:#070805; border:1px solid var(--line); border-radius:var(--radius-s);
+    padding:12px 14px; margin:12px 0;
+    font-family:var(--f-mono); font-size:12.5px; color:var(--putty);
+    overflow-x:auto; white-space:pre;
+  }
+  .code-block .cmt{ color:var(--ink-faint); }
+
+  .steps{ list-style:none; margin:12px 0 0; padding:0; counter-reset:step; }
+  .steps li{
+    counter-increment:step;
+    display:flex; gap:12px; align-items:flex-start;
+    padding:10px 0; border-top:1px solid var(--line-soft);
+    font-size:13.5px; color:var(--ink-dim); line-height:1.6;
+  }
+  .steps li:first-child{ border-top:none; }
+  .steps li::before{
+    content:counter(step);
+    font-family:var(--f-mono); font-size:11px; color:var(--sage);
+    background:var(--panel-2); border:1px solid var(--line);
+    width:20px; height:20px; border-radius:50%; flex:none;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .steps strong{ color:var(--ink); }
+
+  .feature-grid{ display:grid; gap:10px; grid-template-columns:1fr; margin-top:14px; }
+  @media (min-width:640px){ .feature-grid{ grid-template-columns:1fr 1fr; } }
+  .feature-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-s);
+    padding:13px 15px;
+  }
+  .feature-card-title{ font-size:13px; font-weight:600; color:var(--ink); margin-bottom:4px; }
+  .feature-card-sub{ font-size:12px; color:var(--ink-faint); line-height:1.55; }
+
+  .kbd-table{ width:100%; margin-top:12px; border-collapse:collapse; font-size:12.5px; }
+  .kbd-table tr{ border-top:1px solid var(--line-soft); }
+  .kbd-table tr:first-child{ border-top:none; }
+  .kbd-table td{ padding:9px 0; color:var(--ink-dim); }
+  .kbd-table td:first-child{ width:40%; }
+  kbd{
+    font-family:var(--f-mono); font-size:11px; color:var(--ink);
+    background:var(--panel-2); border:1px solid var(--line); border-bottom-width:2px;
+    border-radius:5px; padding:2px 7px;
+  }
+
+  .help-note{
+    border:1px dashed var(--line); border-radius:var(--radius-s);
+    padding:12px 14px; font-size:12.5px; color:var(--ink-faint); margin-top:14px; line-height:1.6;
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a href="home.html"><img src="img/fomoji-logo.png" alt="Fomoji"></a>
+  <div class="topbar-user">
+    <span id="topbarName">—</span>
+    <div class="avatar" id="avatarInitial">·</div>
+  </div>
+</header>
+
+<main class="help">
+  <div class="help-head">
+    <span class="help-eyebrow">Help &amp; Manual</span>
+    <h1 class="help-title">Everything you need to run CAT.</h1>
+    <p class="help-sub">Install it, point it at a model, and see what it can actually do. This is CAT's own manual — separate from connecting it to your Fomoji identity, which happens in Settings.</p>
+  </div>
+
+  <div id="asciiMount"></div>
+  <p class="ascii-caption" style="margin-bottom:28px;">C.A.T — coding agent terminal</p>
+
+  <nav class="help-toc">
+    <a href="#install">Install</a>
+    <a href="#models">Switch models</a>
+    <a href="#features">Features</a>
+    <a href="#manual">Manual</a>
+    <a href="#shortcuts">Shortcuts</a>
+    <a href="#connect">Connect to Fomoji</a>
+    <a href="cat-manual.html">Full CAT manual</a>
+    <a href="manual.html">Fomoji manual</a>
+    <a href="security.html">Security</a>
+  </nav>
+
+  <section class="help-section" id="install">
+    <h2><span class="step-num">1</span>Install CAT</h2>
+    <p>CAT is a Python + Textual terminal app. Exact packaging can change as the project evolves, so treat this as the working template rather than a fixed command:</p>
+    <div class="code-block"><span class="cmt"># 1. get the project folder (however you distribute it — clone, download, etc.)
+</span>cd cat-project
+
+<span class="cmt"># 2. create a virtual environment (recommended)</span>
+python -m venv .venv
+source .venv/bin/activate   <span class="cmt"># Windows: .venv\Scripts\activate</span>
+
+<span class="cmt"># 3. install dependencies</span>
+pip install -r requirements.txt
+
+<span class="cmt"># 4. run it</span>
+python -m calc_terminal</div>
+    <div class="help-note">
+      One real gotcha from CAT's own history: syntax highlighting depends on the <code>textual[syntax]</code> extra, not plain <code>textual</code>. If code looks unhighlighted after install, that's almost always why — check <code>requirements.txt</code> pins the syntax extra.
+    </div>
+  </section>
+
+  <section class="help-section" id="models">
+    <h2><span class="step-num">2</span>Use another model</h2>
+    <p>CAT already talks to providers through its own <code>model.py</code> architecture — 109 of them at last count — plus local and cloud Ollama:</p>
+    <ul class="steps">
+      <li><strong>Switch providers</strong> — pick a different provider/model from CAT's own provider settings; this is separate from Fomoji and doesn't need a Fomoji connection to work.</li>
+      <li><strong>Run local models</strong> — point CAT at a local Ollama install for fully offline model access.</li>
+      <li><strong>Use Ollama Cloud</strong> — same Ollama integration, cloud-hosted, for when local hardware isn't enough.</li>
+      <li><strong>Grant real tool access</strong> — set permission mode to <strong>Full Access</strong> so any AI mode (not just Agent) can actually read/write files and run tools, not just chat.</li>
+    </ul>
+    <div class="help-note">
+      Fomoji's own "AI connection modes" picker (API / Ollama / Free AI, with privacy warnings) is a separate, not-yet-built piece — see the About page. Switching models inside CAT itself already works today; that part isn't blocked on Fomoji.
+    </div>
+  </section>
+
+  <section class="help-section" id="features">
+    <h2><span class="step-num">3</span>Features</h2>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-card-title">Four AI modes</div>
+        <div class="feature-card-sub">Notebook, Agent, Build, and Plan — each themed, each with its own system prompt.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-title">Permission system</div>
+        <div class="feature-card-sub">Full Access, Ask Every Time, or Custom — a clear badge always shows which mode is active.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-title">File explorer &amp; projects</div>
+        <div class="feature-card-sub">Open real folders, browse, and switch between recent projects.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-title">Code editor</div>
+        <div class="feature-card-sub">Tree-sitter syntax highlighting, including CUDA, GLSL, WGSL, and QASM.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-title">Agent tools</div>
+        <div class="feature-card-sub">fix_bug, explain_algorithm, generate_unit_tests, generate_benchmark, and more.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-title">Quantum simulator</div>
+        <div class="feature-card-sub">A from-scratch statevector simulator with OpenQASM support — no Qiskit dependency.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-title">MCP server</div>
+        <div class="feature-card-sub">Exposes CAT's own tools to other MCP clients like VS Code via <code>cat --mcp-server</code>.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-title">Right-click context menus</div>
+        <div class="feature-card-sub">Copy, retry, fork, and rewrite actions on both AI and your own messages.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="help-section" id="manual">
+    <h2><span class="step-num">4</span>Full manual</h2>
+    <p><strong>Permission modes</strong> — Full Access lets any mode use real tools; Ask Every Time confirms each file/project action before it runs; Custom lets you set the eight individual capability toggles yourself.</p>
+    <p><strong>Workspace &amp; projects</strong> — Open Folder starts a real project session; Recent Projects keeps a pinnable, searchable list so you're not re-browsing every time.</p>
+    <p><strong>Terminal / REPL</strong> — commands prefixed with <code>/@#!$%*+_</code> route to different subsystems (chat, code, calc, sim, export each keep separate history).</p>
+    <p><strong>Editor</strong> — dirty-tab indicator (●), safe close/reopen, per-tab word wrap, and a one-time banner if syntax highlighting isn't installed correctly.</p>
+  </section>
+
+  <section class="help-section" id="shortcuts">
+    <h2><span class="step-num">5</span>Keyboard shortcuts</h2>
+    <table class="kbd-table">
+      <tr><td><kbd>Ctrl</kbd>+<kbd>P</kbd></td><td>Command palette</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>W</kbd></td><td>Close tab (plain Ctrl+W is claimed by delete-word in the editor)</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd></td><td>Reopen last closed tab</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></td><td>Toggle word wrap for the current tab</td></tr>
+    </table>
+  </section>
+
+  <section class="help-section" id="connect">
+    <h2><span class="step-num">6</span>Connect CAT to Fomoji</h2>
+    <p>This is the one Fomoji-specific step: authorizing CAT to sign in using your Fomoji identity, so you're not managing separate accounts.</p>
+    <a href="settings.html#connected" class="btn btn-primary btn-inline" style="margin-top:8px;">Go to Connected apps</a>
+  </section>
+
+  <div class="tabbar-spacer"></div>
+</main>
+
+<nav class="tabbar" aria-label="Primary">
+  <a class="tab is-active" href="home.html" aria-current="page" data-ascii-glyph="[~]" data-emoji-glyph="🏠">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9h12v-9"/></svg>
+    <span class="tab-label">Home</span>
+  </a>
+  <a class="tab" href="settings.html" data-ascii-glyph="[@]" data-emoji-glyph="🙂">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.4"/><path d="M5 20c1.2-3.6 4-5.4 7-5.4s5.8 1.8 7 5.4"/></svg>
+    <span class="tab-label">Me</span>
+  </a>
+</nav>
+
+<script src="js/fomoji-auth.js"></script>
+<script src="js/connector.js"></script>
+<script src="js/fomoji-connect.js"></script>
+<script>
+(async () => {
+  const account = await requireSession();
+  if (!account) return;
+
+  document.getElementById('topbarName').textContent = account.username;
+  document.getElementById('avatarInitial').textContent = account.name.trim().charAt(0).toUpperCase() || '?';
+  document.getElementById('asciiMount').innerHTML = FomojiConnect.asciiHtml(true);
+})();
+</script>
+</body>
+</html>

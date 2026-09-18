@@ -1,0 +1,93 @@
+# Chemistry Calc Terminal — core app only needs the Python standard
+# library. The features below are optional; the app degrades gracefully
+# (with a clear message) if a package is missing.
+
+# NOTE: terminal sound effects (startup/success/error/simulation chimes)
+# need NO extra package — they use the built-in `winsound` module on
+# Windows and the ASCII terminal bell everywhere else. Toggle in /settings.
+
+# Recommended on old Windows cmd.exe for background-highlight colors
+# used by the chat bubbles / badges (theme.py falls back safely without it):
+colorama>=0.4.6
+
+# Needed for /solve — symbolic algebra that solves ANY formula for any
+# unknown variable:
+sympy>=1.12
+
+# Needed for /graph's "Export a high-quality PNG" option (2D curves and
+# 3D surfaces like the orbital / P-V-T surface, including any custom
+# function/surface plotted by /agent). The live animated ASCII graph
+# inside the terminal works without these:
+matplotlib>=3.7
+numpy>=1.24
+
+# Needed for /ai, /agent and /ai-verify — talking to an API provider
+# (OpenAI/Claude/Gemini/Groq/OpenRouter/custom) or a local Ollama server,
+# and for the connection/model verification check:
+requests>=2.31.0
+
+# The same `requests` package above also powers /websearch and /research
+# (key-free DuckDuckGo HTML search) and image analysis via /import and the
+# code pad's :import — no extra package needed for any of these.
+
+# Powers the live, clickable "type-ahead" suggestion dropdown on the
+# main chat input (arrow keys or mouse to pick, Tab to accept with an
+# animated fill-in). Fully optional — without it the input box still
+# works exactly as before, just without the dropdown:
+prompt_toolkit>=3.0.43
+
+# Needed only for the most reliable clipboard copy on /copycode and the
+# code pad's :copy. Fully optional: without it, CCT falls back to the
+# native OS clipboard tool (Windows' built-in `clip`, macOS's `pbcopy`,
+# or Linux's xclip/xsel/wl-copy if installed) — and if none of those are
+# available either, it just saves the code to a file instead.
+pyperclip>=1.8.2
+
+# Needed for /export's PDF option (Markdown export works with no extra
+# package). Without it, /export still writes .md files fine and just
+# says PDF isn't available:
+reportlab>=4.0
+
+# Needed for /tui — the real Textual-based split-pane dashboard, AND for
+# the primary chat UI (calc_terminal/ui/) that's the default interactive
+# experience. Without it, both fall back to the always-available
+# print()-based terminal. Pulls in `rich` (and via rich, `pygments`,
+# needed for syntax-highlighted code blocks in AI replies) automatically.
+#
+# The [syntax] extra is REQUIRED, not optional, for this project: it's
+# what pulls in `tree-sitter` plus the per-language `tree-sitter-<lang>`
+# grammar packages (python/json/markdown/toml/yaml/html/css/javascript/
+# rust/go/regex/sql/java/bash/xml) that calc_terminal/ui/editor.py's
+# TextArea.code_editor() actually highlights with. Textual's own
+# `_tree_sitter.get_language()` silently returns None (no exception,
+# no log the user would ever see) when `tree_sitter` isn't importable —
+# so a plain `textual>=0.60` install still runs fine and *looks* like a
+# working editor (line numbers, gutter, current-line highlight, cursor,
+# tabs, find/replace all still work, since none of those depend on
+# tree-sitter), it just silently renders every token in the theme's
+# plain foreground color instead of highlighting keywords/strings/
+# comments/etc. That's the actual root cause behind "editor looks like
+# a plain text viewer" reports — not a bug in editor.py's highlighting
+# code or its Tokyo Night theme, both of which already implement full
+# capture-name -> color mapping and were verified (headless Textual
+# test) to highlight correctly once this extra is actually installed.
+textual[syntax]>=0.60
+platformdirs>=4.4
+
+# Real filesystem event watching for the live File Explorer (v0.7.9.0):
+# created/deleted/renamed/modified files appear in the Explorer tree
+# immediately, without polling or reopening the folder. A stdlib
+# snapshot-poll fallback inside calc_terminal/fs_watcher.py keeps the
+# explorer live even when watchdog isn't installed.
+watchdog>=4.0
+
+# --- v0.7.10 Live Web Preview (OPTIONAL but recommended) ---------------
+# The real Chromium engine behind the Web Preview pane (right pane
+# CODE/PREVIEW switch). Without it, CAT runs fine - the preview panel
+# explains exactly what to install:
+#   pip install playwright
+#   playwright install chromium
+playwright>=1.40
+
+# Desktop notifications for connector code (CAT CLI auth flow):
+plyer>=2.1

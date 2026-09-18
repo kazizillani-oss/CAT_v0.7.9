@@ -1,0 +1,9 @@
+{
+  "provider": "moonshot",
+  "fetched_at": "2026-09-09T13:49:18+00:00",
+  "models": [
+    "kimi-k2",
+    "kimi-k3",
+    "moonshot-v1-128k"
+  ]
+}

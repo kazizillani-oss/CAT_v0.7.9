@@ -1,0 +1,338 @@
+/* ==========================================================================
+   FOMOJI — FX LAYER (integrates with fomoji-theme.js / FomojiAppearance)
+   Adds on top of the existing accent/icons/tabbar/gestures/parallax system:
+     - surface textures:  [data-texture] flat | glass | neu | skeu
+     - ambient glow:      [data-glow] on/off, --glow-strength
+     - an animated multi-set ascii art gallery (.ascii-gallery)
+     - extra gesture affordances: long-press menu, pull-to-refresh, swipe-dismiss
+   Load AFTER css/fomoji.css. Nothing here redefines a selector fomoji.css
+   already owns — it only adds [data-texture]/[data-glow] variants and new,
+   uniquely-named components.
+   ========================================================================== */
+
+:root{ --glow-strength: 0.6; }
+
+/* ==========================================================================
+   1. TEXTURES
+   ========================================================================== */
+
+/* -- glass: frosted, translucent, soft top sheen --
+   background tint now follows the active theme (--fx-surface-rgb, set in
+   fomoji-theme.js from that theme's own --panel) instead of a hardcoded
+   near-black rgba() — the old hardcode is why Light Mode text used to
+   disappear here: dark theme ink on a forced-dark "frosted" panel. */
+html[data-texture="glass"] .card,
+html[data-texture="glass"] .panel,
+html[data-texture="glass"] .dash-card{
+  background:
+    linear-gradient(155deg, rgba(255,255,255,0.07), rgba(255,255,255,0.015) 55%),
+    rgba(var(--fx-surface-rgb, 20,21,15),0.5) !important;
+  border-color:rgba(255,255,255,0.12) !important;
+  backdrop-filter:blur(20px) saturate(150%);
+  -webkit-backdrop-filter:blur(20px) saturate(150%);
+  box-shadow:0 1px 0 rgba(255,255,255,0.08) inset, 0 18px 40px -14px rgba(0,0,0,0.55);
+}
+html[data-texture="glass"] .tabbar{
+  background:rgba(var(--fx-surface-strong-rgb, 16,17,12),0.45) !important;
+  backdrop-filter:blur(22px) saturate(160%);
+  -webkit-backdrop-filter:blur(22px) saturate(160%);
+}
+html[data-texture="glass"] .field input{
+  background:rgba(255,255,255,0.04);
+  backdrop-filter:blur(6px);
+}
+
+/* -- neumorphic: soft extruded dual-shadow, same hue as background --
+   These shadow pairs are only correct on a DARK panel: a strong black
+   drop-shadow paired with a near-invisible white highlight. On a light
+   panel that reads as a harsh black smudge with no visible highlight at
+   all — the same rgba(0,0,0,0.5)/(255,255,255,0.025) pair doesn't scale
+   the other direction. [data-theme-mode="light"] gets its own lighter,
+   inverted-strength pair below so the extrusion still reads as "same hue
+   as background" instead of "dark blob on a white card". */
+html[data-texture="neu"] .card,
+html[data-texture="neu"] .panel,
+html[data-texture="neu"] .dash-card{
+  background:var(--panel) !important;
+  border-color:transparent !important;
+  box-shadow:8px 8px 18px rgba(0,0,0,0.5), -7px -7px 16px rgba(255,255,255,0.025) !important;
+}
+html[data-texture="neu"] .btn-ghost{
+  background:var(--panel); border-color:transparent;
+  box-shadow:5px 5px 11px rgba(0,0,0,0.45), -4px -4px 11px rgba(255,255,255,0.025);
+}
+html[data-texture="neu"] .btn-ghost:active{ box-shadow:inset 4px 4px 9px rgba(0,0,0,0.5), inset -4px -4px 9px rgba(255,255,255,0.02); }
+html[data-texture="neu"] .field input{
+  background:var(--panel); border-color:transparent;
+  box-shadow:inset 3px 3px 7px rgba(0,0,0,0.45), inset -3px -3px 7px rgba(255,255,255,0.02);
+}
+html[data-texture="neu"] .tabbar{
+  box-shadow:8px 8px 18px rgba(0,0,0,0.5), -7px -7px 16px rgba(255,255,255,0.02) !important;
+}
+html[data-texture="neu"] .tab.is-active{
+  box-shadow:inset 3px 3px 7px rgba(0,0,0,0.4), inset -3px -3px 7px rgba(255,255,255,0.02);
+  border-radius:inherit; /* match the tab's own 999px pill — a hardcoded 12px here
+                             made the active tab a rounded square instead of a pill;
+                             invisible in light mode's low-contrast shadow, obvious
+                             in dark mode's stronger inset shadow */
+}
+
+/* -- neumorphic, Light Mode override: lighter shadow, real highlight --
+   covers the login/register auth .card and every field/button on it. */
+html[data-theme-mode="light"][data-texture="neu"] .card,
+html[data-theme-mode="light"][data-texture="neu"] .panel,
+html[data-theme-mode="light"][data-texture="neu"] .dash-card{
+  box-shadow:8px 8px 16px rgba(0,0,0,0.12), -7px -7px 16px rgba(255,255,255,0.9) !important;
+}
+html[data-theme-mode="light"][data-texture="neu"] .btn-ghost{
+  box-shadow:5px 5px 10px rgba(0,0,0,0.10), -4px -4px 10px rgba(255,255,255,0.85);
+}
+html[data-theme-mode="light"][data-texture="neu"] .btn-ghost:active{
+  box-shadow:inset 4px 4px 8px rgba(0,0,0,0.12), inset -4px -4px 8px rgba(255,255,255,0.8);
+}
+html[data-theme-mode="light"][data-texture="neu"] .field input{
+  box-shadow:inset 3px 3px 6px rgba(0,0,0,0.10), inset -3px -3px 6px rgba(255,255,255,0.85);
+}
+html[data-theme-mode="light"][data-texture="neu"] .tabbar{
+  box-shadow:8px 8px 16px rgba(0,0,0,0.12), -7px -7px 16px rgba(255,255,255,0.85) !important;
+}
+html[data-theme-mode="light"][data-texture="neu"] .tab.is-active{
+  box-shadow:inset 3px 3px 6px rgba(0,0,0,0.10), inset -3px -3px 6px rgba(255,255,255,0.8);
+}
+
+/* -- skeuomorphic: brushed hardware panel, bevels, terminal-chassis feel --
+   The chassis itself stays intentionally dark in every theme (a real control
+   panel doesn't relabel itself for light mode) — but the TEXT inside it must
+   still work in Light Mode, where the active theme's --ink/--ink-dim/--ink-faint
+   are dark-on-purpose (for the light panels everywhere else on the page).
+   Re-declaring those three custom properties here, scoped to the chassis,
+   overrides them for every descendant that reads var(--ink...) — row labels,
+   panel titles, field labels — without having to hunt down and override each
+   of those selectors individually. */
+html[data-texture="skeu"] .card,
+html[data-texture="skeu"] .panel,
+html[data-texture="skeu"] .dash-card{
+  --ink: #ece9d8;
+  --ink-dim: #b9b6a6;
+  --ink-faint: #8c8a7a;
+  background:
+    repeating-linear-gradient(180deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 3px),
+    linear-gradient(175deg, #1c1e15, #111209 65%) !important;
+  border-color:#050502 !important;
+  box-shadow:0 1px 0 rgba(255,255,255,0.07) inset, 0 -1px 0 rgba(0,0,0,0.6) inset, 0 12px 26px -12px rgba(0,0,0,0.7) !important;
+}
+html[data-texture="skeu"] .btn-primary{
+  box-shadow:0 1px 0 rgba(255,255,255,0.25) inset, 0 4px 0 var(--gold-dim), 0 10px 20px rgba(0,0,0,0.4);
+  transition:transform .1s ease, box-shadow .1s ease;
+}
+html[data-texture="skeu"] .btn-primary:active{ transform:translateY(3px); box-shadow:0 1px 0 rgba(255,255,255,0.2) inset, 0 1px 0 var(--gold-dim); }
+html[data-texture="skeu"] .btn-ghost{
+  --ink: #ece9d8;
+  background:linear-gradient(180deg,#22241a,#15160f) !important;
+  border-color:#050502 !important;
+  box-shadow:0 1px 0 rgba(255,255,255,0.08) inset, 0 3px 8px rgba(0,0,0,0.5);
+}
+html[data-texture="skeu"] .tabbar{
+  --ink-faint: #8c8a7a;
+  --ink: #ece9d8;
+  background:linear-gradient(180deg,#181a12,#0d0e09) !important;
+  border-color:#050502 !important;
+  box-shadow:0 1px 0 rgba(255,255,255,0.05) inset, 0 14px 30px rgba(0,0,0,0.5) !important;
+}
+html[data-texture="skeu"] .field input{
+  --ink: #ece9d8;
+  background:linear-gradient(180deg,#111209,#161710) !important;
+  box-shadow:inset 0 2px 5px rgba(0,0,0,0.55);
+}
+/* small decorative rivets, corners of the auth card only */
+html[data-texture="skeu"] .card::before,
+html[data-texture="skeu"] .card::after{
+  content:""; position:absolute; width:5px; height:5px; border-radius:50%; top:10px;
+  background:radial-gradient(circle at 35% 35%, #55564a, #0c0d08 70%);
+  box-shadow:0 1px 0 rgba(255,255,255,0.1);
+  z-index:2;
+}
+html[data-texture="skeu"] .card{ position:relative; }
+html[data-texture="skeu"] .card::before{ left:10px; }
+html[data-texture="skeu"] .card::after{ right:10px; }
+
+/* -- terminal: CRT scanlines + phosphor glow, monospace throughout --
+   Independent of the "CAT Terminal" color theme — this is the surface
+   texture axis, so it reads correctly layered on any active theme, not
+   just cat-terminal's own palette. Scanline animation is a single static
+   background-position (no rAF loop, per the perf constraint), and is
+   skipped entirely under reduced motion. */
+html[data-texture="terminal"] .card,
+html[data-texture="terminal"] .panel,
+html[data-texture="terminal"] .dash-card{
+  font-family:var(--f-mono) !important;
+  background:
+    repeating-linear-gradient(180deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 3px),
+    var(--panel) !important;
+  border-color:var(--line) !important;
+  box-shadow:0 0 0 1px rgba(var(--fx-accent-rgb,70,224,138),0.08) inset, 0 0 22px -6px rgba(var(--fx-accent-rgb,70,224,138),0.25);
+}
+html[data-texture="terminal"] .tabbar{
+  font-family:var(--f-mono) !important;
+  background:
+    repeating-linear-gradient(180deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 3px),
+    var(--void) !important;
+}
+html[data-texture="terminal"] .field input{
+  font-family:var(--f-mono) !important;
+  background:var(--void);
+  border-color:var(--line);
+  caret-color:var(--sage);
+}
+html[data-texture="terminal"] .btn-primary{
+  font-family:var(--f-mono) !important;
+  text-transform:uppercase; letter-spacing:0.04em;
+  box-shadow:0 0 14px -2px rgba(var(--fx-accent-rgb,70,224,138),0.5);
+}
+html.reduce-motion[data-texture="terminal"] .card,
+html[data-motion="reduced"][data-texture="terminal"] .card{ box-shadow:none; }
+
+/* -- pixel: blocky Minecraft-GUI bevel, hard corners, chunky borders --
+   Classic inventory-slot look (light top/left edge, dark bottom/right
+   edge) built from stacked inset box-shadows — no image assets. */
+html[data-texture="pixel"] .card,
+html[data-texture="pixel"] .panel,
+html[data-texture="pixel"] .dash-card{
+  border-radius:2px !important;
+  border:2px solid var(--void) !important;
+  box-shadow:
+    inset 2px 2px 0 rgba(255,255,255,0.12),
+    inset -2px -2px 0 rgba(0,0,0,0.35) !important;
+  background:var(--panel) !important;
+  image-rendering:pixelated;
+}
+html[data-texture="pixel"] .btn,
+html[data-texture="pixel"] .btn-primary,
+html[data-texture="pixel"] .btn-ghost{
+  border-radius:2px !important;
+  border:2px solid var(--void) !important;
+  box-shadow:
+    inset 2px 2px 0 rgba(255,255,255,0.18),
+    inset -2px -2px 0 rgba(0,0,0,0.4) !important;
+}
+html[data-texture="pixel"] .btn:active,
+html[data-texture="pixel"] .btn-primary:active,
+html[data-texture="pixel"] .btn-ghost:active{
+  box-shadow:
+    inset -2px -2px 0 rgba(255,255,255,0.12),
+    inset 2px 2px 0 rgba(0,0,0,0.4) !important;
+  transform:translateY(1px);
+}
+html[data-texture="pixel"] .field input{
+  border-radius:2px !important;
+  border:2px solid var(--void) !important;
+  box-shadow:inset 2px 2px 0 rgba(0,0,0,0.35), inset -2px -2px 0 rgba(255,255,255,0.06) !important;
+  background:var(--panel-2);
+}
+html[data-texture="pixel"] .tabbar{
+  border-radius:2px !important;
+  border:2px solid var(--void) !important;
+  box-shadow:inset 2px 2px 0 rgba(255,255,255,0.1), inset -2px -2px 0 rgba(0,0,0,0.3) !important;
+}
+html[data-texture="pixel"] .tab.is-active{
+  border-radius:2px !important;
+  box-shadow:inset 2px 2px 0 rgba(0,0,0,0.3), inset -2px -2px 0 rgba(255,255,255,0.1) !important;
+}
+
+/* ==========================================================================
+   2. GLOW — [data-glow="on"], strength via --glow-strength (0.15–1)
+   ========================================================================== */
+/* Glow now lives entirely in css/fomoji-glow-engine.css — see that file for
+   the .tab.is-active/.btn-primary/.status-dot/.orbit-core/.dash-card rules
+   that used to be here, plus the new generic [data-fx-glow] engine. Keeping
+   two files both targeting the same 5 selectors risked them drifting out of
+   sync (e.g. the accent-color bug fixed earlier), so they're consolidated
+   into one place instead of duplicated across two. */
+
+/* ==========================================================================
+   3. ASCII / EMOJI ICON STYLE — extra options alongside outline/bold/duotone
+   ========================================================================== */
+html[data-icons="ascii"] .tab svg{ display:none; }
+html[data-icons="ascii"] .tab::before{
+  font-family:var(--f-mono); font-size:15px; line-height:1; content:attr(data-ascii-glyph);
+  display:block; margin-bottom:2px;
+}
+html[data-icons="emoji"] .tab svg{ display:none; }
+html[data-icons="emoji"] .tab::before{
+  font-size:16px; line-height:1; content:attr(data-emoji-glyph); display:block; margin-bottom:2px;
+}
+
+/* ==========================================================================
+   4. ASCII ART GALLERY — animated, multi-set, tab-switchable
+   ========================================================================== */
+.ascii-gallery{ position:relative; }
+.ascii-gallery-tabs{ display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
+.ascii-gallery-tab{
+  font-family:var(--f-mono); font-size:10px; letter-spacing:.05em;
+  padding:5px 9px; border-radius:6px; border:1px solid var(--line);
+  color:var(--ink-faint); background:var(--panel); cursor:pointer;
+}
+.ascii-gallery-tab.is-active{ color:var(--sage); border-color:var(--sage-deep); background:rgba(154,160,133,0.08); }
+html[data-accent="gold"] .ascii-gallery-tab.is-active{ color:var(--gold); border-color:var(--gold-dim); background:rgba(201,160,74,0.1); }
+html[data-accent="rose"] .ascii-gallery-tab.is-active{ color:#cf8f95; border-color:#8a4d52; background:rgba(207,143,149,0.1); }
+html[data-accent="ocean"] .ascii-gallery-tab.is-active{ color:#79a3c9; border-color:#3f6482; background:rgba(121,163,201,0.1); }
+
+.ascii-gallery-line{
+  display:block; overflow:hidden; white-space:pre; max-width:0;
+  animation:ascii-type 1.1s steps(36,end) forwards;
+  animation-delay:var(--line-delay, 0s);
+}
+@keyframes ascii-type{ to{ max-width:100%; } }
+.ascii-gallery-hi{ color:var(--sage); }
+html[data-accent="gold"] .ascii-gallery-hi{ color:var(--gold); }
+html[data-accent="rose"] .ascii-gallery-hi{ color:#cf8f95; }
+html[data-accent="ocean"] .ascii-gallery-hi{ color:#79a3c9; }
+
+html[data-parallax="off"] .ascii-gallery-line{ animation:none; max-width:100%; }
+
+/* dash cards define their own hover `transition` shorthand (transform/
+   border-color/box-shadow) which would otherwise clobber the fade+rise
+   that .reveal-on-scroll needs for opacity/transform — restate both here
+   at higher (two-class) specificity so reveal-on-scroll keeps working
+   on elements that are also .dash-card. */
+.dash-card.reveal-on-scroll{
+  transition:opacity .6s cubic-bezier(.16,.8,.3,1), transform .5s cubic-bezier(.16,.8,.3,1), border-color .15s ease, box-shadow .15s ease;
+}
+
+/* ==========================================================================
+   5. GESTURE ADD-ONS: long-press menu, pull-to-refresh, swipe-dismiss
+   ========================================================================== */
+.fx-longpress-menu{
+  position:fixed; z-index:80; min-width:180px;
+  border-radius:12px; padding:6px;
+  background:var(--panel-2); border:1px solid var(--line);
+  box-shadow:0 20px 40px rgba(0,0,0,0.5);
+  opacity:0; transform:scale(0.92); transform-origin:top center;
+  transition:opacity .15s ease, transform .15s cubic-bezier(.34,1.6,.5,1);
+  pointer-events:none;
+}
+.fx-longpress-menu.is-open{ opacity:1; transform:scale(1); pointer-events:auto; }
+.fx-longpress-menu button{
+  display:block; width:100%; text-align:left; background:none; border:none;
+  color:var(--ink); font-size:13px; padding:9px 10px; border-radius:8px; cursor:pointer;
+}
+.fx-longpress-menu button:hover{ background:var(--panel); color:var(--sage); }
+
+.fx-pulltorefresh{
+  position:absolute; top:0; left:0; right:0; display:flex; justify-content:center; align-items:center;
+  padding-top:10px; font-family:var(--f-mono); font-size:10px; color:var(--ink-faint);
+  opacity:0; transform:translateY(-14px); transition:opacity .2s ease, transform .2s ease;
+  pointer-events:none; z-index:5; gap:6px;
+}
+.fx-pulltorefresh.is-visible{ opacity:1; transform:translateY(0); }
+.fx-pulltorefresh .fx-spin-glyph{ display:inline-block; animation:fx-spin-glyph 0.8s linear infinite; }
+@keyframes fx-spin-glyph{ to{ transform:rotate(360deg); } }
+
+.fx-swipe-dismissable{ touch-action:pan-y; }
+.fx-swipe-dismissing{ transition:none !important; }
+.fx-swipe-dismissed{ opacity:0 !important; transform:translateX(120%) !important; transition:opacity .25s ease, transform .25s ease; }
+
+@media (prefers-reduced-motion:reduce){
+  .ascii-gallery-line{ animation:none !important; max-width:100% !important; }
+}
+html.reduce-motion .ascii-gallery-line{ animation:none !important; max-width:100% !important; }

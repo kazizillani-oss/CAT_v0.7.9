@@ -1,0 +1,89 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+# Distribution name. The CLI command is `cat` (and alias `cct`).
+# The bare PyPI name "cct" is taken on PyPI by an unrelated tool, so
+# "cct-ai-ide" is the distribution package name.
+name = "cct-ai-ide"
+version = "0.7.9.0"
+description = "CAT v0.7.9.0 — Coding Agent Terminal / terminal AI coding agent"
+readme = "CAT_v0.7.4/README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "Kazi Zillani" }
+]
+keywords = ["cat", "cct", "ai", "agent", "terminal", "tui", "cli", "coding-agent"]
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "textual[syntax]>=0.60",
+    "platformdirs>=4.4",
+    "rich>=13.0",
+    "colorama>=0.4.6; sys_platform == 'win32'",
+    "requests>=2.31.0",
+    "watchdog>=4.0",
+    "plyer>=2.1",
+]
+
+[project.optional-dependencies]
+web = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.20.0",
+    "pydantic>=2.0",
+]
+science = [
+    "sympy>=1.12",
+    "matplotlib>=3.7",
+    "numpy>=1.24",
+    "reportlab>=4.0",
+    "pyperclip>=1.8.2",
+    "prompt_toolkit>=3.0.43",
+]
+host = [
+    "PySide6>=6.6",  # Qt WebEngine — true embedded browser INSIDE CAT Host window
+]
+browser = [
+    "PySide6>=6.6",
+    "pywebview>=4.4",  # lightweight WebView2 fallback (uses Edge WebView2 Runtime)
+    "playwright>=1.40",  # Chromium fallback (already required for Preview, but external)
+]
+all = [
+    "cct-ai-ide[web,science,browser]",
+]
+
+[project.urls]
+Homepage = "https://github.com/cct-ai/cat"
+Changelog = "https://github.com/cct-ai/cat/blob/main/CHANGELOG_v0.7.9.md"
+
+[project.scripts]
+cat = "calc_terminal.cli:main"
+cct = "calc_terminal.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "CAT_v0.7.4"}
+
+[tool.setuptools.packages.find]
+where = ["CAT_v0.7.4"]
+include = ["calc_terminal*"]
+
+# Non-.py resources that MUST ship inside the wheel/sdist: first-run
+# seeding copies these into the user's app-data dir (first_run.py).
+[tool.setuptools.package-data]
+"calc_terminal.models" = ["*.json"]
+"calc_terminal.providers" = ["*.json"]

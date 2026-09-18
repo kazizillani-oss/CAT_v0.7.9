@@ -1,0 +1,2395 @@
+{
+  "version": "0.7.9.0",
+  "total_capabilities": 296,
+  "summary": {
+    "tools_count": 37,
+    "commands_count": 86,
+    "modes_count": 6,
+    "permissions_count": 10,
+    "extensions_count": 2,
+    "providers_count": 155
+  },
+  "tools": [
+    {
+      "name": "list_formulas",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "List every formula key in the library (call this if unsure of a key).",
+      "args_signature": "{}",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "solve_formula",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Solve a named library formula for its one unknown variable.",
+      "args_signature": "{\"key\": \"ideal_gas\", \"values\": {\"P\": 1, \"n\": 2, \"T\": 300}}  (leave exactly one variable out of values)",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "solve_custom",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Solve ANY formula you write, for any named variable \u2014 not limited to the library.",
+      "args_signature": "{\"formula\": \"P*V = n*R*T\", \"values\": {\"P\": 1, \"n\": 2, \"T\": 300}, \"solve_for\": \"V\"}",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "calculate",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Evaluate a plain arithmetic/scientific expression exactly (+ - * / ** sqrt log sin cos ...).",
+      "args_signature": "{\"expression\": \"2.303/50 * log10(1.0/0.25)\"}",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "generate_numerical",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Generate and render a full randomized notebook-style numerical for a topic (kinetics/mole/etc).",
+      "args_signature": "{\"topic\": \"first order half life\"}",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "plot_preset",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Plot one of the 10 built-in animated chemistry curves (kinetics, Arrhenius, Boyle's, titration...).",
+      "args_signature": "{\"preset\": \"arrhenius\", \"export\": false}",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "plot_function",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Plot/animate ANY 2D function you name yourself, e.g. a curve not in the presets.",
+      "args_signature": "{\"expression\": \"sin(x)*exp(-x/5)\", \"xmin\": 0, \"xmax\": 20, \"title\": \"Damped oscillation\", \"export\": false}",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "plot_surface",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Export a high-quality 3D surface PNG: built-in ('orbital_3d','pvt') or any z=f(x,y) you name.",
+      "args_signature": "{\"kind\": \"custom\", \"expression\": \"exp(-(x**2+y**2)/4)\", \"title\": \"Gaussian electron density\"}",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "simulate_atom_2d",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Run the live 2D animated Bohr atom / electron / proton / neutron simulation for an element.",
+      "args_signature": "{\"element\": \"Fe\", \"frames\": 220}",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "simulate_atom_3d",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Run the live real-time 3D atom / electron / proton simulation (rotatable) for an element.",
+      "args_signature": "{\"element\": \"Na\", \"frames\": 220}",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "simulate_orbital",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Run the live quantum orbital electron-cloud Monte-Carlo simulation (1s,2s,2p,3s,3p,3d).",
+      "args_signature": "{\"orbital\": \"2p\", \"points\": 1500}",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "orbital_grid",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Export a reference-chart PNG of many hydrogen orbitals' |psi|^2 side by side (n up to 4).",
+      "args_signature": "{}",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "bonding_map",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Export a stylized chemical-bonding electron-density map (ELF-style, rainbow colormap) for a molecule.",
+      "args_signature": "{\"molecule\": \"furan\"}  (available: furan, water, methane, co2, ethanol, benzene)",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "bloch_sphere",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Export a Bloch sphere for a single qubit state, with exact Z/X/Y measurement probabilities.",
+      "args_signature": "{\"theta_deg\": 90, \"phi_deg\": 0}  (90,0 = |+>; 0,0 = |0>; 90,90 = |+i>)",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "web_search",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Search the live web for current information (no API key needed).",
+      "args_signature": "{\"query\": \"latest IUPAC atomic weight of lithium\", \"max_results\": 5}",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "deep_research",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Run several web searches on different angles of a topic and synthesize a cited summary.",
+      "args_signature": "{\"topic\": \"green hydrogen production methods\", \"num_queries\": 3}",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "read_attachment",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Read/analyze a file or image the user imported with /import this session.",
+      "args_signature": "{\"path\": \"notes.txt\"}  (path can be a partial match; omit to use the most recent import)",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "read_file",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Read a real file from disk by path (workspace-relative or absolute).",
+      "args_signature": "{\"path\": \"src/main.py\"}",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "list_directory",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "List a real folder's contents by path (workspace-relative or absolute).",
+      "args_signature": "{\"path\": \"src\"}  (omit path to list the workspace root)",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "write_file",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Create or overwrite a real file on disk with the given text content.",
+      "args_signature": "{\"path\": \"src/main.py\", \"content\": \"print(1)\", \"overwrite\": false, \"reason\": \"Generate the requested script.\"}",
+      "permission_required": true,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "create_folder",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Create a real folder on disk (and any missing parent folders).",
+      "args_signature": "{\"path\": \"src/models\", \"reason\": \"Organize the new module.\"}",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "delete_file",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Permanently delete a single real file on disk (folders are refused).",
+      "args_signature": "{\"path\": \"old_notes.txt\", \"reason\": \"No longer needed.\"}",
+      "permission_required": true,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "rename_file",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Rename/move a real file or folder on disk.",
+      "args_signature": "{\"path\": \"old.py\", \"new_path\": \"new.py\", \"reason\": \"Clearer name.\"}",
+      "permission_required": true,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "edit_file",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Edit a file by replacing old_text with new_text (find/replace). The old_text must appear exactly in the file.",
+      "args_signature": "{\"path\": \"main.py\", \"old_text\": \"old code\", \"new_text\": \"new code\", \"reason\": \"Fix bug.\"}",
+      "permission_required": true,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "search_workspace",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Search for files or content in the workspace. Returns matching lines with file:line.",
+      "args_signature": "{\"query\": \"def main\", \"file_pattern\": \"*.py\", \"max_results\": 10}",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "archive_list",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "List all entries in an archive (ZIP, tar.gz, tar.bz2) \u2014 folders and files, with sizes. Use this FIRST on any attached/compressed file.",
+      "args_signature": "{\"path\": \"backup.zip\"}",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "archive_delete_entries",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Delete entries from a ZIP archive by exact name or glob pattern; folder names remove the whole folder tree. Safe-replace: original preserved until the modified copy validates.",
+      "args_signature": "{\"path\": \"backup.zip\", \"entries\": [\"folders/\", \"old_file.txt\"]}  or {\"pattern\": \"*.tmp\"}",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "archive_extract",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Extract an archive into a real destination folder (default: a folder named after the archive in the workspace).",
+      "args_signature": "{\"path\": \"project.zip\", \"dest\": \"extracted_project\"}",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "archive_add_entries",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Add files (from disk) and/or new text entries into an existing ZIP archive.",
+      "args_signature": "{\"path\": \"project.zip\", \"files\": [\"notes.txt\"]}  or {\"entries\": [{\"name\": \"docs/readme.md\", \"content\": \"...\"}]}",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "archive_repack",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Rebuild a ZIP fresh: recompress, dedupe repeated names, optionally drop directory placeholder entries (drop_dirs).",
+      "args_signature": "{\"path\": \"project.zip\", \"drop_dirs\": false}",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "archive_validate",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Validate that an archive file is intact and readable (zip CRC test / tar read-through). Run this after any modification.",
+      "args_signature": "{\"path\": \"backup.zip\"}",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "run_build",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Build the project in the active workspace (auto-detects npm/pyproject/setup.py/cargo/Makefile/CMake, or pass an explicit command). Real build output and exit code.",
+      "args_signature": "{\"command\": \"npm run build\"}  (or {} to auto-detect)",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "run_tests",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Run the project's test suite (auto-detects pytest/npm test/cargo/go test, or pass an explicit command). Real results.",
+      "args_signature": "{\"command\": \"python -m pytest\"}  (or {} to auto-detect)",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "inspect_project",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Inspect the active workspace/project: layout, folders, files, manifests (package.json / pyproject.toml / ...). Use this to ground yourself before acting.",
+      "args_signature": "{\"path\": \".\"}  (omit for the workspace root)",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "run_terminal",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Run a terminal command on the user's machine in the active workspace folder (e.g. 'python main.py', 'pip install ...'). The user sees the command, its output, and the exit code.",
+      "args_signature": "{\"command\": \"python main.py\", \"reason\": \"Run the generated script.\"}",
+      "permission_required": true,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "install_packages",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Install real packages with the Autonomous Package Manager (pip/npm/cargo/brew/winget...). Governed by the active permission mode: asks in Ask-Each-Time, automatic in Full Access, refused in Restricted. Unknown packages are researched first.",
+      "args_signature": "{\"packages\": \"requests\"}  or {\"packages\": [\"numpy\", \"pandas\"]}",
+      "permission_required": true,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "device_action",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Request an action on the user's authorized device via the Responsible Device Control framework (terminal, simulation; desktop/android/ios/browser are extension points).",
+      "args_signature": "{\"provider\": \"simulation\", \"action\": \"run\", \"target\": \"atom Fe\"}",
+      "permission_required": true,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    }
+  ],
+  "commands": [
+    {
+      "name": "/help",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Show help & shortcuts",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/calculator",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Quick scientific calculator",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/solve",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Universal formula calculator (39 formulas + custom)",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/formulas",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Browse the formula library",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/kinetics",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Chemical kinetics numericals",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/derive",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Real step-by-step calculus derivations (not examples)",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/electrochemistry",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Cell potential & Nernst numericals",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/atomsim",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Live Bohr atom & electron simulation",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/orbitals",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Live quantum orbital (electron cloud) simulation",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/orbitalgrid",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Export a reference chart of many hydrogen orbitals",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/bonding",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Chemical bonding density map (ELF-style) for a molecule",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/bloch",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Bloch sphere for a single qubit state (theta, phi in degrees)",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/permissions",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "View or switch AI permission mode (ask/restricted/full)",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/workspace",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Workspace manager \u2014 detect, open, and manage project folders; browse generated files",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/graph",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Chemistry graphs \u2014 animated 2D + exported 2D/3D",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/game",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Element Quiz \u2014 learn chemistry by playing",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/history",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Review previously solved notebooks",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/settings",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Autosave, precision & preferences",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/shortcuts",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Full shortcut key reference",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/about",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "About this terminal",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/random",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Solve a random numerical",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/upload",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Simulate solving from an image",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/voice",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Simulate voice input",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/sim3d",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "[BETA] Real-time 3D Atomic Simulation",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/gpu3d",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "[BETA] Real GPU-rendered 3D (atom/graph/scale) \u2014 opens in browser",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/mode",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Cycle or jump to an AI mode: Notebook, Research, Plan, Build, Debugger, or Agent",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/notebook",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Switch to Notebook AI mode \u2014 chemistry/physics/math, daily use",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/research",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Deep research: multi-query web search + AI-synthesized summary",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/agent",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Switch to Agent AI mode \u2014 real tool use: solves/plots/simulates for you",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/build",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Switch to Build AI mode \u2014 code generation, debugging, architecture",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/plan",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Switch to Plan AI mode \u2014 roadmaps, brainstorming, prototypes",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/debug",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Switch to Debugger AI mode \u2014 focused troubleshooting of broken code",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/ai",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Alias for /notebook \u2014 CAT AI's original quick-chat persona",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/install",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Autonomous package manager \u2014 install real packages with permission",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/packages",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Installation dashboard \u2014 supported managers & remembered decisions",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/pipeline",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "AI Execution Pipeline \u2014 Planner\u2192Research\u2192Build\u2192Verify, fully visible",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/orchestrate",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Agent Orchestrator \u2014 Coordinator + specialist agent roster",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/devices",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Responsible device control \u2014 provider roster & approval-gated actions",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/ai-verify",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Test your AI provider connection & list models",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/memory",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "What CAT remembers about you \u2014 facts, activity, topics",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/codepad",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Write/run code, or have CAT AI generate it (GitHub Light syntax)",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/edit",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Plain-text in-terminal editor \u2014 notes, todo lists, snippets",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/model",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Switch AI model for the current provider (live list, search & filters)",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/model search",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Search available models by name, family, or capability",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/model refresh",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Force-refresh the model list from the provider's API",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/free",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Show only free models for the current provider",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/latest",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Show the newest available models for the current provider",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/provider",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Switch AI provider (data-driven list from providers.json)",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/status",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Provider / model / source / last refresh status",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/refresh-models",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Force-refresh the model list from the selected provider",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/tokens",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Session token usage & estimated context remaining",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/theme",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Switch terminal theme \u2014 Tokyo Night (dark) or GitHub Light",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/websearch",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Live web search (no API key needed)",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/import",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Import a text file, image, or .zip for the AI/agent to read/see",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/pet",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Show the live mascot pet \u2014 walks, runs, or sleeps based on activity",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/react",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "NEW Reaction simulator \u2014 balance equations + kinetics/equilibrium playback",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/export",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "NEW Export solved notebooks to Markdown or PDF",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/tui",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "NEW Real Textual dashboard \u2014 sidebar + scrolling history + status bar",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/composer",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Reopen the primary chat UI if you dropped to the fallback terminal",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/open",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Open a project folder as the IDE workspace (Explorer + Editor)",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/sidebar",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Toggle the Explorer sidebar",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/find",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Toggle find/replace in the active editor tab",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/preview",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Live Web Preview \u2014 open/close the embedded browser (Ctrl+Shift+P)",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/preview start",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Start the live preview server + embedded browser",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/preview stop",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Stop the live preview and return to the code editor",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/preview reload",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Reload the web preview page",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/preview fullscreen",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Expand/restore the right workspace pane (\u2ffb)",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/preview status",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Show live server / browser / watcher state",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/browser",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "CAT Browser \u2014 graphical browser (tabs, address bar, Fomoji)",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/browse",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Alias for /browser \u2014 open any URL or search",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/browser open",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Open a URL in CAT Browser",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/browser search",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Search the web in CAT Browser (Google/DuckDuckGo)",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/signout",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Sign out of Fomoji \u2014 clear CAT session",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/logout",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Alias for /signout",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/todo",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "NEW AI Todo Manager \u2014 manual + AI-detected tasks, per project",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/timeline",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "NEW Session Timeline \u2014 searchable log of this run's activity",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/copycode",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Copy the most recent code block shown by the AI to your clipboard",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/vision",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "CAT Vision \u2014 screen sharing + annotation + visual debugging",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/vision start",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Start a Vision capture session",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/vision stop",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Stop the current Vision session",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/vision pause",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Pause Vision capture",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/vision analyze",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Analyze current annotated region",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/vision screenshot",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Capture a single screenshot for analysis",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/vision clear",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Clear Vision session data",
+      "is_native_ui": false,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/clear",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Clear screen & return home",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/exit",
+      "category": "cli_command",
+      "source": "calc_terminal/commands_data.py",
+      "description": "Quit Chemistry Calc Terminal",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    }
+  ],
+  "modes": [
+    {
+      "id": "notebook",
+      "name": "Notebook",
+      "category": "ai_mode",
+      "source": "calc_terminal/ai_modes.py",
+      "color": null,
+      "accent": [
+        122,
+        162,
+        247
+      ],
+      "icon": "\ud83d\udcd8",
+      "fatty_cat_status": "connected",
+      "browser_compatible": true
+    },
+    {
+      "id": "research",
+      "name": "Research",
+      "category": "ai_mode",
+      "source": "calc_terminal/ai_modes.py",
+      "color": null,
+      "accent": [
+        255,
+        105,
+        180
+      ],
+      "icon": "\ud83d\udd0d",
+      "fatty_cat_status": "connected",
+      "browser_compatible": true
+    },
+    {
+      "id": "plan",
+      "name": "Plan",
+      "category": "ai_mode",
+      "source": "calc_terminal/ai_modes.py",
+      "color": null,
+      "accent": [
+        158,
+        206,
+        106
+      ],
+      "icon": "\ud83e\udded",
+      "fatty_cat_status": "connected",
+      "browser_compatible": true
+    },
+    {
+      "id": "build",
+      "name": "Build",
+      "category": "ai_mode",
+      "source": "calc_terminal/ai_modes.py",
+      "color": null,
+      "accent": [
+        224,
+        175,
+        104
+      ],
+      "icon": "\ud83d\udd28",
+      "fatty_cat_status": "connected",
+      "browser_compatible": true
+    },
+    {
+      "id": "debugger",
+      "name": "Debugger",
+      "category": "ai_mode",
+      "source": "calc_terminal/ai_modes.py",
+      "color": null,
+      "accent": [
+        220,
+        20,
+        60
+      ],
+      "icon": "\ud83d\udc1b",
+      "fatty_cat_status": "connected",
+      "browser_compatible": true
+    },
+    {
+      "id": "agent",
+      "name": " Agent",
+      "category": "ai_mode",
+      "source": "calc_terminal/ai_modes.py",
+      "color": null,
+      "accent": [
+        187,
+        154,
+        247
+      ],
+      "icon": "\u2699",
+      "fatty_cat_status": "connected",
+      "browser_compatible": true
+    }
+  ],
+  "permissions": [
+    {
+      "key": "read_files",
+      "label": "Read Files",
+      "category": "permissions",
+      "source": "calc_terminal/permissions.py",
+      "is_mutating": false,
+      "default": true,
+      "fatty_cat_status": "connected",
+      "browser_compatible": true
+    },
+    {
+      "key": "write_files",
+      "label": "Write Files",
+      "category": "permissions",
+      "source": "calc_terminal/permissions.py",
+      "is_mutating": true,
+      "default": true,
+      "fatty_cat_status": "connected",
+      "browser_compatible": true
+    },
+    {
+      "key": "execute_python",
+      "label": "Execute Python",
+      "category": "permissions",
+      "source": "calc_terminal/permissions.py",
+      "is_mutating": true,
+      "default": true,
+      "fatty_cat_status": "connected",
+      "browser_compatible": true
+    },
+    {
+      "key": "shell_commands",
+      "label": "Shell Commands",
+      "category": "permissions",
+      "source": "calc_terminal/permissions.py",
+      "is_mutating": true,
+      "default": true,
+      "fatty_cat_status": "connected",
+      "browser_compatible": true
+    },
+    {
+      "key": "install_packages",
+      "label": "Install Packages",
+      "category": "permissions",
+      "source": "calc_terminal/permissions.py",
+      "is_mutating": true,
+      "default": true,
+      "fatty_cat_status": "connected",
+      "browser_compatible": true
+    },
+    {
+      "key": "device_control",
+      "label": "Device Control",
+      "category": "permissions",
+      "source": "calc_terminal/permissions.py",
+      "is_mutating": true,
+      "default": false,
+      "fatty_cat_status": "connected",
+      "browser_compatible": true
+    },
+    {
+      "key": "internet",
+      "label": "Internet",
+      "category": "permissions",
+      "source": "calc_terminal/permissions.py",
+      "is_mutating": false,
+      "default": false,
+      "fatty_cat_status": "connected",
+      "browser_compatible": true
+    },
+    {
+      "key": "formula_library",
+      "label": "Formula Library",
+      "category": "permissions",
+      "source": "calc_terminal/permissions.py",
+      "is_mutating": false,
+      "default": true,
+      "fatty_cat_status": "connected",
+      "browser_compatible": true
+    },
+    {
+      "key": "notebook",
+      "label": "Notebook",
+      "category": "permissions",
+      "source": "calc_terminal/permissions.py",
+      "is_mutating": false,
+      "default": true,
+      "fatty_cat_status": "connected",
+      "browser_compatible": true
+    },
+    {
+      "key": "calculator",
+      "label": "Calculator",
+      "category": "permissions",
+      "source": "calc_terminal/permissions.py",
+      "is_mutating": false,
+      "default": true,
+      "fatty_cat_status": "connected",
+      "browser_compatible": true
+    }
+  ],
+  "extensions": [
+    {
+      "id": "gestures",
+      "name": "Gestures",
+      "category": "extensions",
+      "source": "calc_terminal/extensions.py",
+      "description": "Advanced gesture controls for CAT \u2014 double-click, long-press, swipe and custom shortcuts.",
+      "enabled_by_default": false,
+      "fatty_cat_status": "connected_via_api",
+      "browser_compatible": true
+    },
+    {
+      "id": "personalize",
+      "name": "Personalize",
+      "category": "extensions",
+      "source": "calc_terminal/extensions.py",
+      "description": "AI personality, tone, custom instructions and memory \u2014 make CAT yours.",
+      "enabled_by_default": false,
+      "fatty_cat_status": "connected_via_api",
+      "browser_compatible": true
+    }
+  ],
+  "providers_count": 155,
+  "providers": [
+    {
+      "id": "yi",
+      "name": "01.AI (Yi)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "zeroone",
+      "name": "01.AI Zero-One",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "abacus",
+      "name": "Abacus AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "ai21",
+      "name": "AI21 Labs",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "airtop",
+      "name": "Airtop",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "aisera",
+      "name": "Aisera",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "akamai",
+      "name": "Akamai (Cloudlet)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "aleph-alpha",
+      "name": "Aleph Alpha",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "alibaba",
+      "name": "Alibaba Cloud (Qwen)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "aws-bedrock",
+      "name": "Amazon Web Services (Bedrock)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "anthropic",
+      "name": "Anthropic (Claude)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "anyscale",
+      "name": "Anyscale",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "assemblyai",
+      "name": "AssemblyAI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "baidu",
+      "name": "Baidu (ERNIE)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "qianfan",
+      "name": "Baidu Qianfan",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "banana",
+      "name": "Banana",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "baseten",
+      "name": "Baseten",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "beam",
+      "name": "Beam",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "bioage",
+      "name": "BioAge Labs",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "black-forest-labs",
+      "name": "Black Forest Labs",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "byte-avalanche",
+      "name": "ByteDance (Doubao)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "cerebras",
+      "name": "Cerebras",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "clarifai",
+      "name": "Clarifai",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "cohere",
+      "name": "Cohere",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "coreweave",
+      "name": "CoreWeave",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "cortex",
+      "name": "Cortex AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "databricks",
+      "name": "Databricks (DBRX)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "deepgram",
+      "name": "Deepgram",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "deepinfra",
+      "name": "DeepInfra",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "deepseek",
+      "name": "DeepSeek",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "deployai",
+      "name": "Deploy AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "elastic",
+      "name": "Elastic (ELSER)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "eleutherai",
+      "name": "EleutherAI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "featherless",
+      "name": "Featherless AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "fireworks",
+      "name": "Fireworks AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "forefront",
+      "name": "Forefront AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "friendli",
+      "name": "Friendli AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "gcore",
+      "name": "Gcore",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "gemini",
+      "name": "Google Gemini",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "palm",
+      "name": "Google PaLM API",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "goog-vertex",
+      "name": "Google Vertex AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "gradient",
+      "name": "Gradient AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "groq",
+      "name": "Groq",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "h2o",
+      "name": "H2O.ai",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "hotpot",
+      "name": "Hotpot AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "huggingface",
+      "name": "Hugging Face (Inference)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "hyperbolic",
+      "name": "Hyperbolic",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "ibm-watsonx",
+      "name": "IBM watsonx",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "watson",
+      "name": "IBM Watsonx.ai",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "idiomatic",
+      "name": "Idiomatic AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "inflection",
+      "name": "Inflection AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "jasper",
+      "name": "Jasper AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "jina",
+      "name": "Jina AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "koala",
+      "name": "Koala AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "koboldai",
+      "name": "KoboldAI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "lambdalabs",
+      "name": "Lambda Labs",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "lepton",
+      "name": "Lepton AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "llama-api",
+      "name": "Llama API",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "lmsys",
+      "name": "LMSYS (FastChat)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "localai",
+      "name": "LocalAI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "maritaca",
+      "name": "Maritaca AI (Sabia)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "microsoft-azure",
+      "name": "Microsoft Azure OpenAI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "mistral",
+      "name": "Mistral AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "modal",
+      "name": "Modal",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "monsterapi",
+      "name": "Monster API",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "moonshot",
+      "name": "Moonshot AI (Kimi)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "nebius",
+      "name": "Nebius AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "neets",
+      "name": "Neets AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "neuralmagic",
+      "name": "Neural Magic",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "nomic",
+      "name": "Nomic AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "notebooklm",
+      "name": "NotebookLM",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "novita",
+      "name": "Novita AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "nvidia",
+      "name": "NVIDIA NIM",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "oci-genai",
+      "name": "OCI Generative AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "ollama",
+      "name": "Ollama (Local)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "openai",
+      "name": "OpenAI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "openrouter",
+      "name": "OpenRouter",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "perplexity",
+      "name": "Perplexity AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "petals",
+      "name": "Petals",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "phind",
+      "name": "Phind",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "premai",
+      "name": "Prem AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "reka",
+      "name": "Reka AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "replicate",
+      "name": "Replicate",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "runpod",
+      "name": "RunPod",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "sagify",
+      "name": "Sagify AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "sambanova",
+      "name": "SambaNova",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "sensenova",
+      "name": "SenseTime (SenseNova)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "seven",
+      "name": "Seven AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "siliconflow",
+      "name": "SiliconFlow",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "snowflake",
+      "name": "Snowflake Cortex",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "spark",
+      "name": "Spark AI (iFlytek)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "stability",
+      "name": "Stability AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "stepfun",
+      "name": "StepFun (Step-2)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "stochastic",
+      "name": "Stochastic AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "tencent",
+      "name": "Tencent (Hunyuan)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "titan",
+      "name": "Titan AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "together",
+      "name": "Together AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "togetherai-alt",
+      "name": "Together AI (Alt)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "together-cloud",
+      "name": "Together AI (Cloud)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "trulens",
+      "name": "TruLens AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "upstage",
+      "name": "Upstage AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "vllm",
+      "name": "vLLM",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "voiceflow",
+      "name": "Voiceflow",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "voyage",
+      "name": "Voyage AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "writer",
+      "name": "Writer AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "xai",
+      "name": "xAI (Grok)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "xenova",
+      "name": "Xenova (Transformers.js)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "zhipu",
+      "name": "Zhipu AI (GLM)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "zilliz",
+      "name": "Zilliz Cloud",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "alibaba-qwen",
+      "name": "Alibaba Qwen",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "baidu-ernie",
+      "name": "Baidu ERNIE",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "bytedance-doubao",
+      "name": "ByteDance Doubao",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "tencent-hunyuan",
+      "name": "Tencent Hunyuan",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "minimax",
+      "name": "MiniMax",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "01-yi",
+      "name": "01.AI Yi",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "xunfei-spark",
+      "name": "iFlytek Spark",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "sensenova",
+      "name": "SenseTime SenseNova",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "stepfun",
+      "name": "StepFun (Step)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "baichuan",
+      "name": "Baichuan",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "upstage",
+      "name": "Upstage (Solar)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "kakaocorp",
+      "name": "Kakao Corp (HyperCLOVA)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "ncloud",
+      "name": "Naver Cloud (HyperCLOVA X)",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "cerebras",
+      "name": "Cerebras",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "groq",
+      "name": "Groq",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "fireworks",
+      "name": "Fireworks AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "together",
+      "name": "Together AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "deepinfra",
+      "name": "DeepInfra",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "novita",
+      "name": "Novita AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "sambanova",
+      "name": "SambaNova",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "lambda",
+      "name": "Lambda Labs",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "runpod",
+      "name": "RunPod",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "anyscale",
+      "name": "Anyscale",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "bedrock",
+      "name": "AWS Bedrock",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "azure-openai",
+      "name": "Azure OpenAI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "google-vertex",
+      "name": "Google Vertex AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "ibm-watsonx",
+      "name": "IBM watsonx",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "oracle-oci",
+      "name": "Oracle OCI Generative AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "cohere",
+      "name": "Cohere",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "ai21",
+      "name": "AI21 Labs",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "aleph-alpha",
+      "name": "Aleph Alpha",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "mistral",
+      "name": "Mistral AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "perplexity",
+      "name": "Perplexity AI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "replicate",
+      "name": "Replicate",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "huggingface",
+      "name": "Hugging Face",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "openrouter",
+      "name": "OpenRouter",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "nvidia",
+      "name": "NVIDIA NIM",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "databricks",
+      "name": "Databricks",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "snowflake",
+      "name": "Snowflake Cortex",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "cerebras",
+      "name": "Cerebras Inference",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "friendli",
+      "name": "FriendliAI",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "gpt4all",
+      "name": "GPT4All",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "lmstudio",
+      "name": "LM Studio",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "text-generation-webui",
+      "name": "text-generation-webui",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "koboldcpp",
+      "name": "KoboldCpp",
+      "category": "provider",
+      "base_url": null
+    },
+    {
+      "id": "ollama-custom",
+      "name": "Ollama Custom",
+      "category": "provider",
+      "base_url": null
+    }
+  ]
+}

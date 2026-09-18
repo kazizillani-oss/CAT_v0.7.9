@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="js/fomoji-theme.js"></script>
+<script src="js/fomoji-animated-bot.js"></script>
+<script src="js/fomoji-components.js"></script>
+<script src="js/fomoji-liquid-glass.js"></script>
+<script src="js/fomoji-fx.js"></script>
+<script src="js/fomoji-commands.js"></script>
+<script src="js/fomoji-tabbar.js"></script>
+<script src="js/fomoji-signout.js"></script>
+<script src="js/fomoji-gestures.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>CAT Manual · Fomoji</title>
+<link rel="stylesheet" href="css/fomoji-tokens.css">
+<link rel="stylesheet" href="css/fomoji.css">
+<link rel="stylesheet" href="css/fomoji-fx.css">
+<link rel="stylesheet" href="css/fomoji-animated-bot.css">
+<link rel="stylesheet" href="css/fomoji-liquid-glass.css">
+<link rel="stylesheet" href="css/fomoji-glow-engine.css">
+<link rel="stylesheet" href="css/fomoji-signout.css">
+<style>
+  .doc{ position:relative; z-index:1; max-width:720px; margin:0 auto; padding:28px 20px 0; }
+  @media (min-width:820px){ .doc{ padding:44px 40px 0; } }
+  .doc-head{ margin-bottom:22px; }
+  .doc-eyebrow{
+    font-family:var(--f-mono); font-size:11px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--putty); display:block; margin-bottom:10px;
+  }
+  .doc-title{ font-size:clamp(22px,3.6vw,30px); font-weight:600; }
+  .doc-sub{ margin-top:8px; font-size:13.5px; color:var(--ink-dim); line-height:1.6; max-width:560px; }
+  .doc-toc{ display:flex; gap:8px; flex-wrap:wrap; margin:20px 0 32px; }
+  .doc-toc a{
+    font-size:12px; font-family:var(--f-mono); color:var(--ink-dim);
+    border:1px solid var(--line); border-radius:999px; padding:6px 12px;
+  }
+  .doc-toc a:hover{ color:var(--sage); border-color:var(--sage-deep); }
+  .doc-section{ margin-bottom:34px; scroll-margin-top:24px; }
+  .doc-section h2{ font-size:16.5px; font-weight:600; color:var(--ink); margin-bottom:10px; display:flex; align-items:center; gap:8px; }
+  .doc-section h2 .step-num{
+    font-family:var(--f-mono); font-size:11px; color:var(--void);
+    background:var(--sage); width:20px; height:20px; border-radius:50%;
+    display:inline-flex; align-items:center; justify-content:center; flex:none;
+  }
+  .doc-section h3{ font-size:13.5px; font-weight:600; color:var(--ink); margin:16px 0 6px; }
+  .doc-section p{ font-size:13.5px; line-height:1.7; color:var(--ink-dim); }
+  .doc-section p + p{ margin-top:8px; }
+  .code-block{
+    background:#070805; border:1px solid var(--line); border-radius:var(--radius-s);
+    padding:12px 14px; margin:10px 0;
+    font-family:var(--f-mono); font-size:12.5px; color:var(--putty);
+    overflow-x:auto; white-space:pre;
+  }
+  .code-block .cmt{ color:var(--ink-faint); }
+  .doc-note{
+    border:1px dashed var(--line); border-radius:var(--radius-s);
+    padding:12px 14px; font-size:12.5px; color:var(--ink-faint); margin-top:12px; line-height:1.6;
+  }
+  .doc-note.is-honest{ border-color:var(--line); background:var(--panel); }
+  .doc-note strong{ color:var(--ink-dim); }
+  .kbd-table{ width:100%; margin-top:10px; border-collapse:collapse; font-size:12.5px; }
+  .kbd-table tr{ border-top:1px solid var(--line-soft); }
+  .kbd-table tr:first-child{ border-top:none; }
+  .kbd-table td{ padding:9px 0; color:var(--ink-dim); }
+  .kbd-table td:first-child{ width:40%; }
+  kbd{
+    font-family:var(--f-mono); font-size:11px; color:var(--ink);
+    background:var(--panel-2); border:1px solid var(--line); border-bottom-width:2px;
+    border-radius:5px; padding:2px 7px;
+  }
+  .doc-status{
+    display:inline-flex; align-items:center; gap:5px;
+    font-family:var(--f-mono); font-size:10.5px; letter-spacing:0.04em; text-transform:uppercase;
+    padding:2px 8px; border-radius:999px; margin-left:6px; vertical-align:middle;
+  }
+  .doc-status.is-live{ background:rgba(154,160,133,0.16); color:var(--sage); }
+  .doc-status.is-planned{ background:var(--panel-2); color:var(--ink-faint); border:1px solid var(--line); }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a href="home.html"><img src="img/fomoji-logo.png" alt="Fomoji"></a>
+  <div class="topbar-user">
+    <span id="topbarName">—</span>
+    <div class="avatar" id="avatarInitial">·</div>
+  </div>
+</header>
+
+<main class="doc">
+  <div class="doc-head">
+    <span class="doc-eyebrow">CAT Manual</span>
+    <h1 class="doc-title">Coding Agent Terminal, installed and connected.</h1>
+    <p class="doc-sub">CAT today is a desktop terminal app — this manual is honest about that. Where a platform isn't supported yet, it says so instead of describing something that doesn't exist. For the shorter quick-start, see <a href="help.html">Help</a>; for how CAT ties to your Fomoji identity, see <a href="manual.html#cat">the main manual</a>.</p>
+  </div>
+
+  <nav class="doc-toc">
+    <a href="#what">What is CAT</a>
+    <a href="#install-windows">Windows</a>
+    <a href="#install-linux">Linux</a>
+    <a href="#install-macos">macOS</a>
+    <a href="#install-browser">Browser</a>
+    <a href="#install-ios">iPhone/iPad</a>
+    <a href="#install-android">Android</a>
+    <a href="#install-tablets">Tablets</a>
+    <a href="#auth">Authentication</a>
+    <a href="#remote">Remote</a>
+    <a href="#sessions">Sessions</a>
+    <a href="#terminal">Terminal controls</a>
+    <a href="#limitations">Limitations</a>
+  </nav>
+
+  <section class="doc-section" id="what">
+    <h2><span class="step-num">1</span>What is CAT?</h2>
+    <p>CAT (Coding Agent Terminal) is a Python + Textual terminal application: four themed AI modes (Notebook, Agent, Build, Plan), a real file explorer and code editor with tree-sitter syntax highlighting, an agent tool suite, a from-scratch quantum simulator with OpenQASM support, and an MCP server so other MCP clients can use CAT's tools. It talks to 109+ model providers plus local and cloud Ollama.</p>
+  </section>
+
+  <section class="doc-section" id="install-windows">
+    <h2><span class="step-num">2</span>Installation — Windows <span class="doc-status is-live">Live</span></h2>
+    <p>CAT ships as a Python package, so Windows, Linux, and macOS all follow the same underlying steps — a virtual environment, then <code>pip</code>. Prerequisite: <strong>Python 3.10+</strong> on your PATH (the Windows installer's "Add python.exe to PATH" checkbox handles this).</p>
+    <div class="code-block"><span class="cmt"># from a Command Prompt or PowerShell, inside the CAT project folder</span>
+python -m venv .venv
+.venv\Scripts\activate
+
+pip install -r requirements.txt
+python -m calc_terminal</div>
+  </section>
+
+  <section class="doc-section" id="install-linux">
+    <h2><span class="step-num">3</span>Installation — Linux <span class="doc-status is-live">Live</span></h2>
+    <p>Same package, standard venv flow. Prerequisite: Python 3.10+ and its <code>venv</code> module (on Debian/Ubuntu that's the <code>python3-venv</code> package if it isn't already present).</p>
+    <div class="code-block">cd cat-project
+python3 -m venv .venv
+source .venv/bin/activate
+
+pip install -r requirements.txt
+python -m calc_terminal</div>
+  </section>
+
+  <section class="doc-section" id="install-macos">
+    <h2><span class="step-num">4</span>Installation — macOS <span class="doc-status is-live">Live</span></h2>
+    <p>Identical flow to Linux. Prerequisite: Python 3.10+ — the system Python that ships with macOS is usually too old, so install a current one via <a href="https://www.python.org/downloads/macos/">python.org</a> or Homebrew (<code>brew install python</code>) first.</p>
+    <div class="code-block">cd cat-project
+python3 -m venv .venv
+source .venv/bin/activate
+
+pip install -r requirements.txt
+python -m calc_terminal</div>
+    <div class="doc-note"><strong>Same gotcha on every OS:</strong> syntax highlighting depends on the <code>textual[syntax]</code> extra, not plain <code>textual</code>. If code looks unhighlighted after install, check that <code>requirements.txt</code> pins the syntax extra.</div>
+  </section>
+
+  <section class="doc-section" id="install-browser">
+    <h2><span class="step-num">5</span>Browser <span class="doc-status is-planned">Planned</span></h2>
+    <p>There's no browser or PWA build of CAT yet. CAT is a native Textual terminal app that runs in an actual terminal emulator — this page won't claim a Web/PWA version exists until one does.</p>
+  </section>
+
+  <section class="doc-section" id="install-ios">
+    <h2><span class="step-num">6</span>iPhone/iPad <span class="doc-status is-planned">Planned</span></h2>
+    <p>Not supported yet. There's no iOS app and no browser build to run as a home-screen PWA. The realistic path today, if you need CAT away from your main machine, is SSH-ing into a computer that already has it installed, from any terminal-capable SSH client.</p>
+  </section>
+
+  <section class="doc-section" id="install-android">
+    <h2><span class="step-num">7</span>Android <span class="doc-status is-planned">Planned</span></h2>
+    <p>Same situation as iOS — no native app, no browser build. Termux (a real Linux terminal environment for Android) can run CAT today using the same Linux install steps above, since it's genuinely Python + a terminal, not a special Android build.</p>
+  </section>
+
+  <section class="doc-section" id="install-tablets">
+    <h2><span class="step-num">8</span>Tablets <span class="doc-status is-planned">Planned</span></h2>
+    <p>No touch-optimized terminal toolbar exists yet. A tablet running a real Linux environment (or SSH into one) can use CAT exactly as a desktop would, keyboard permitting — there's just nothing tablet-specific built for it.</p>
+  </section>
+
+  <section class="doc-section" id="auth">
+    <h2><span class="step-num">9</span>CAT authentication <span class="doc-status is-planned">Half-built — see limitations</span></h2>
+    <p>CAT signs in using your Fomoji identity rather than a separate password. From Fomoji's side, this is real: open <a href="settings.html#connected">Settings → Connected apps</a> and hit Connect — you'll see exactly what CAT would get (identity verification, no password sharing, one-tap future sign-ins), and confirming genuinely saves that authorization to your account.</p>
+    <p>What isn't real yet: CAT itself doesn't call this flow. There's no redirect from a running CAT session into this consent screen and back, so today "Connect" records your consent but nothing on the CAT side changes yet. See <a href="#limitations">Limitations</a>.</p>
+  </section>
+
+  <section class="doc-section" id="remote">
+    <h2><span class="step-num">10</span>CAT Remote <span class="doc-status is-planned">Planned</span></h2>
+    <p>There's no hosted or remote-environment version of CAT — every install above runs locally against whatever machine you installed it on. "Remote" access today just means SSH into that machine, the same as any other terminal app.</p>
+  </section>
+
+  <section class="doc-section" id="sessions">
+    <h2><span class="step-num">11</span>CAT Sessions <span class="doc-status is-planned">Planned</span></h2>
+    <p>CAT's own Recent Projects list lets you reopen folders you've worked in before, but there's no cross-device session resume or handoff — that needs a backend to track session state centrally, which doesn't exist in this build.</p>
+  </section>
+
+  <section class="doc-section" id="terminal">
+    <h2><span class="step-num">12</span>Terminal controls <span class="doc-status is-live">Live</span></h2>
+    <p>CAT's own commands are prefixed with <code>/@#!$%*+_</code>, routing to different subsystems (chat, code, calc, sim, export) each with their own history. Global keyboard shortcuts:</p>
+    <table class="kbd-table">
+      <tr><td><kbd>Ctrl</kbd>+<kbd>P</kbd></td><td>Command palette</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>W</kbd></td><td>Close tab (plain Ctrl+W is claimed by delete-word in the editor)</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd></td><td>Reopen last closed tab</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></td><td>Toggle word wrap for the current tab</td></tr>
+    </table>
+    <p>The editor shows a dirty-tab indicator (●) for unsaved changes, supports safe close/reopen, and shows a one-time banner if syntax highlighting isn't installed correctly. There's no mobile terminal toolbar — see the platform sections above.</p>
+  </section>
+
+  <section class="doc-section" id="limitations">
+    <h2><span class="step-num">13</span>Limitations</h2>
+    <p>To be precise about what "connecting CAT to Fomoji" currently means: it means recording a consent decision in Fomoji. It does <strong>not</strong> mean CAT has been given any access to your operating system, files, or accounts through Fomoji — Fomoji has no such access to grant, in a browser or anywhere else. CAT's own file and tool access is controlled entirely by CAT's own permission modes (Full Access, Ask Every Time, Custom), set inside CAT itself, independent of Fomoji.</p>
+    <p>Since there's no browser or mobile build of CAT at all yet, there's also nothing to compare a "browser CAT" against — every install above is the same local, desktop, native-terminal CAT with full normal OS access as any terminal program has, gated by your own OS permissions, not by Fomoji.</p>
+  </section>
+
+  <div class="tabbar-spacer"></div>
+</main>
+
+<nav class="tabbar" aria-label="Primary">
+  <a class="tab is-active" href="home.html" aria-current="page" data-ascii-glyph="[~]" data-emoji-glyph="🏠">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9h12v-9"/></svg>
+    <span class="tab-label">Home</span>
+  </a>
+  <a class="tab" href="settings.html" data-ascii-glyph="[@]" data-emoji-glyph="🙂">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.4"/><path d="M5 20c1.2-3.6 4-5.4 7-5.4s5.8 1.8 7 5.4"/></svg>
+    <span class="tab-label">Me</span>
+  </a>
+</nav>
+
+<script src="js/fomoji-auth.js"></script>
+<script src="js/connector.js"></script>
+<script src="js/fomoji-connect.js"></script>
+<script>
+(async () => {
+  const account = await requireSession();
+  if (!account) return;
+
+  document.getElementById('topbarName').textContent = account.username;
+  document.getElementById('avatarInitial').textContent = account.name.trim().charAt(0).toUpperCase() || '?';
+})();
+</script>
+</body>
+</html>
