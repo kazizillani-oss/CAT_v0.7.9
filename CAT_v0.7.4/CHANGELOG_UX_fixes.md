@@ -2,7 +2,7 @@
 
 Addresses the two requests in this pass:
 
-## 1. Composer "deploy" behavior (OpenCode / Cursor / Claude Code style)
+## 1. Composer "deploy" behavior 
 
 `calc_terminal/ui/composer.py`:
 - **Enter now submits** the message (previously only Ctrl+Enter did;
