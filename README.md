@@ -39,20 +39,7 @@ Or via PowerShell:
 powershell -ExecutionPolicy Bypass -File installer/windows/scripts/install.ps1 -Install
 ```
 
-### Option 2: via npm (Global Launcher)
-```bash
-npm install -g @kazi/cat
-cat
-```
-*Note: On Linux/macOS or systems with existing `cat` utilities, you can also run `catx`.*
-
-### Option 3: via PyPI (Python Package)
-```bash
-pip install cat-cli
-cat
-```
-
-### Option 4: Local Development / Editable Install
+### Option 2: Local Development / Editable Install
 If you are developing or running from source:
 ```bash
 git clone https://github.com/kazizillani-oss/CAT_v0.7.9.git
