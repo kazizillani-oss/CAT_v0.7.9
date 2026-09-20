@@ -955,16 +955,6 @@ if TEXTUAL_AVAILABLE:
             super().__init__(id=id)
             self._items = {}  # turn_id -> ConversationItem (the bubble, not its row)
             self._welcome = None
-            # v0.7.9.6: the welcome SLOT is one widget at a time, so
-            # `_welcome` is the live one and `_dashboard` is a typed alias
-            # that is non-None only while a WelcomeDashboard occupies the
-            # slot. Kept in sync by show_dashboard()/hide_welcome() so
-            # CCTApp._cascade_resize can ask "is the dashboard the thing
-            # that needs a re-fit?" without reaching into the slot blindly
-            # (the previous app-side `getattr(conv, "_dashboard", None)`
-            # check could never be true — the attribute did not exist,
-            # so the dashboard branch was dead code).
-            self._dashboard = None
             # v0.7.9.0: the CAT Agent ASCII activity indicator — a pure
             # UI-state widget driven by real backend state (AgentActivity
             # / MessageStarted / MessageFinished), never model output.
@@ -1020,7 +1010,6 @@ if TEXTUAL_AVAILABLE:
             if self._welcome is not None:
                 self._welcome.remove()
                 self._welcome = None
-            self._dashboard = None
 
         def show_dashboard(self, dashboard_widget):
             """spec v0.7 Welcome Dashboard: mounted the same way
@@ -1032,17 +1021,6 @@ if TEXTUAL_AVAILABLE:
             self.hide_welcome()
             self._welcome = dashboard_widget
             self.mount(self._welcome)
-            # v0.7.9.6: the welcome slot is duck-typed (plain WelcomeBanner,
-            # CATChatEmptyState, or the richer WelcomeDashboard all land
-            # here). Track the dashboard specifically so callers that need
-            # its resize/stats contract can ask a real question instead of
-            # feature-sniffing the slot.
-            from . import dashboard as _dashboard_mod
-            self._dashboard = (
-                dashboard_widget
-                if _dashboard_mod.WelcomeDashboard is not None
-                and isinstance(dashboard_widget, _dashboard_mod.WelcomeDashboard)
-                else None)
 
         def show_empty_state(self, empty_state_widget):
             """v0.7.9.0: the CATChatEmptyState startup centerpiece mounts

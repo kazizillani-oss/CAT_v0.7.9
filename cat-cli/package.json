@@ -1,0 +1,152 @@
+{
+  "name": "cat-cli",
+  "displayName": "CAT CLI (v0.8.0 BETA)",
+  "description": "CAT (Coding Agent Terminal) launcher for VS Code: opens the existing Python/Textual CAT CLI in the integrated terminal with one click.",
+  "publisher": "kazizillani",
+  "version": "0.8.0",
+    "engines": {
+    "vscode": "^1.138.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "cat",
+    "cat-cli",
+    "coding agent",
+    "terminal",
+    "python",
+    "tui"
+  ],
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#0d1117",
+    "theme": "dark"
+  },
+  "extensionKind": [
+    "ui"
+  ],
+  "activationEvents": [],
+  "main": "./extension.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kazizillani-oss/CAT_v0.7.9"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "kazizillani.cat.open",
+        "title": "CAT: Open",
+        "category": "CAT",
+        "icon": "$(terminal)"
+      },
+      {
+        "command": "kazizillani.cat.restart",
+        "title": "CAT: Restart",
+        "category": "CAT",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "kazizillani.cat.close",
+        "title": "CAT: Close",
+        "category": "CAT",
+        "icon": "$(x)"
+      },
+      {
+        "command": "kazizillani.cat.checkInstallation",
+        "title": "CAT: Check Installation",
+        "category": "CAT",
+        "icon": "$(check)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "kazizillani.cat.open",
+          "group": "navigation@90"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "kazizillani.cat.open",
+          "when": "true"
+        },
+        {
+          "command": "kazizillani.cat.restart",
+          "when": "true"
+        },
+        {
+          "command": "kazizillani.cat.close",
+          "when": "true"
+        },
+        {
+          "command": "kazizillani.cat.checkInstallation",
+          "when": "true"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "kazizillani.cat.open",
+        "key": "ctrl+alt+c",
+        "mac": "ctrl+cmd+c"
+      }
+    ],
+    "configuration": {
+      "title": "CAT CLI",
+      "properties": {
+        "cat.executable": {
+          "type": "string",
+          "default": "cat",
+          "description": "CAT executable to launch. A bare name ('cat') auto-detects the real entry point; a full command string (e.g., 'python -m calc_terminal') is used as-is. Supports {workspace}."
+        },
+        "cat.launchArguments": {
+          "type": "array",
+          "default": [],
+          "description": "Additional arguments to pass to CAT when launching."
+        },
+        "cat.pythonPath": {
+          "type": "string",
+          "default": "",
+          "description": "Python interpreter used to run CAT. Leave empty to auto-detect (workspace .venv/venv/env, conda, poetry, py/python3/python)."
+        },
+        "cat.autoDetectPython": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically detect the Python environment (venv, conda, poetry, system). Disable to require cat.pythonPath."
+        },
+        "cat.reuseTerminal": {
+          "type": "boolean",
+          "default": true,
+          "description": "Reuse the existing CAT terminal instead of opening a new one for every launch."
+        },
+        "cat.autoStart": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically start CAT when VS Code opens."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "pretest": "npm run lint",
+    "test": "vscode-test",
+    "package": "vsce package --allow-missing-repository --skip-license"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "24.x",
+    "@types/vscode": "^1.138.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.0.0",
+    "@vscode/vsce": "^4.0.0",
+    "eslint": "^10.5.0",
+    "globals": "^17.12.0"
+  },
+  "overrides": {
+    "diff": "^8.0.4",
+    "serialize-javascript": "^7.0.6"
+  }
+}

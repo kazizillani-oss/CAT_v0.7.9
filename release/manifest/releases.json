@@ -1,0 +1,57 @@
+{
+  "$schema": "./schema.json",
+  "version": "0.7.9.0",
+  "channel": "stable",
+  "releaseDate": "2026-09-18T12:00:00Z",
+  "platforms": {
+    "windows-x64": {
+      "url": "https://github.com/kazizillani-oss/CAT_v0.7.9/releases/download/v0.7.9.0/cat-windows-x64.zip",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "executable": "cat.exe",
+      "archiveType": "zip",
+      "minOsVersion": "10.0"
+    },
+    "windows-arm64": {
+      "url": "https://github.com/kazizillani-oss/CAT_v0.7.9/releases/download/v0.7.9.0/cat-windows-arm64.zip",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "executable": "cat.exe",
+      "archiveType": "zip",
+      "minOsVersion": "10.0"
+    },
+    "linux-x64": {
+      "url": "https://github.com/kazizillani-oss/CAT_v0.7.9/releases/download/v0.7.9.0/cat-linux-x64.tar.gz",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "executable": "cat",
+      "archiveType": "tar.gz",
+      "minOsVersion": "glibc-2.31"
+    },
+    "linux-arm64": {
+      "url": "https://github.com/kazizillani-oss/CAT_v0.7.9/releases/download/v0.7.9.0/cat-linux-arm64.tar.gz",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "executable": "cat",
+      "archiveType": "tar.gz",
+      "minOsVersion": "glibc-2.31"
+    },
+    "macos-x64": {
+      "url": "https://github.com/kazizillani-oss/CAT_v0.7.9/releases/download/v0.7.9.0/cat-macos-x64.tar.gz",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "executable": "cat",
+      "archiveType": "tar.gz",
+      "minOsVersion": "11.0"
+    },
+    "macos-arm64": {
+      "url": "https://github.com/kazizillani-oss/CAT_v0.7.9/releases/download/v0.7.9.0/cat-macos-arm64.tar.gz",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "executable": "cat",
+      "archiveType": "tar.gz",
+      "minOsVersion": "11.0"
+    }
+  },
+  "installer": {
+    "windows": {
+      "url": "https://github.com/kazizillani-oss/CAT_v0.7.9/releases/download/v0.7.9.0/CAT-Setup.exe",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "notes": "CAT v0.7.9.0 universal production release"
+}

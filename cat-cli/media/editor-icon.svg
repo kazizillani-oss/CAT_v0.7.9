@@ -1,0 +1,8 @@
+<svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <!-- CAT CLI editor-title icon (16px optical size of the activity bar mark). -->
+  <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.5 7.5 6.5 3.5l2.5 2.5h6l2.5-2.5 2 4v5.5a7.5 7.5 0 0 1-7.5 7.5 7.5 7.5 0 0 1-7.5-7.5Z"/>
+    <path d="M8.6 9.4 11 11.6l-2.4 2.2"/>
+    <path d="M12.4 14h3.2"/>
+  </g>
+</svg>

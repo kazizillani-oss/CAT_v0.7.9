@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CATReleaseManifest",
+  "type": "object",
+  "required": ["version", "channel", "releaseDate", "platforms"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(\\.[0-9]+)?(-[a-zA-Z0-9.]+)?$"
+    },
+    "channel": {
+      "type": "string",
+      "enum": ["stable", "beta", "alpha", "nightly"]
+    },
+    "releaseDate": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "platforms": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["url", "sha256", "executable", "archiveType"],
+        "properties": {
+          "url": { "type": "string", "format": "uri" },
+          "sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" },
+          "executable": { "type": "string" },
+          "archiveType": { "type": "string", "enum": ["zip", "tar.gz", "exe", "binary"] },
+          "sizeBytes": { "type": "integer" },
+          "minOsVersion": { "type": "string" }
+        }
+      }
+    },
+    "installer": {
+      "type": "object",
+      "properties": {
+        "windows": {
+          "type": "object",
+          "required": ["url", "sha256"],
+          "properties": {
+            "url": { "type": "string", "format": "uri" },
+            "sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" },
+            "sizeBytes": { "type": "integer" }
+          }
+        }
+      }
+    },
+    "notes": {
+      "type": "string"
+    }
+  }
+}

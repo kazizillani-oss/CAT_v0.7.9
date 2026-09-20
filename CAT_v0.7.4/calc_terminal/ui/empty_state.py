@@ -9,16 +9,16 @@ slot — so the art can never leak into history, prompts or copies).
     ┌─────────────── chat pane only ───────────────┐
     │                                              │
     │              ██████╗ █████╗ ████████╗        │
-    │             ██╔════╝██╔══██╗╚══██╔══╝        │
+    │             ██╔════╝██╔══██╗╚══██╔══╝         │
     │             ██║     ███████║   ██║           │
     │             ██║     ██╔══██║   ██║           │
     │             ╚██████╗██║  ██║   ██║           │
     │              ╚═════╝╚═╝  ╚═╝   ╚═╝           │
     │                                              │
     │                 CAT v0.7.9.0                 │
-    │       Chemistry • Coding • Intelligence      │
-    │              ● CAT Notebook ready            │
-    │ Create · Analyze · Build  · Debug · Research │
+    │          Chemistry • Coding • Intelligence   │
+    │                  ● CAT Notebook ready        │
+    │   Create · Analyze · Build · Debug · Research│
     │                                              │
     └──────────────────────────────────────────────┘
 
@@ -33,9 +33,8 @@ Hard rules:
   never make it overlap anything (the v0.7.9.0 layout contract holds).
 * Mode-aware: the ready line reflects the ACTUAL active mode
   (ai_modes.current_mode()) via set_mode().
-* Responsive: picks full / semi / compact / mini / text-only word art
-  from the live widget width (on_resize), so a narrow chat pane never
-  overflows.
+* Responsive: picks full / compact / text-only word art from the live
+  widget width (on_resize), so a narrow chat pane never overflows.
 * Subtle one-shot entrance animation (fade + slight rise) and an
   optional slow pulse on the ready dot only — the word art itself never
   moves continuously.
@@ -57,90 +56,10 @@ try:
 except Exception:
     TEXTUAL_AVAILABLE = False
 
-# Width budgets (columns) of the word-art variants, including their
+# Width budgets (columns) of the two word-art variants, including their
 # side padding — used to pick the variant that fits without overflow.
-# v0.7.9.6: extended the chain further down so ultra-narrow panes
-# (4 cols — the floor of any usable chat region) still render a
-# recognizable CAT motif instead of degrading to a single "CAT" label.
 _FULL_ART_MIN_WIDTH = 34
-_SEMI_ART_MIN_WIDTH = 28
 _COMPACT_ART_MIN_WIDTH = 22
-_MINI_ART_MIN_WIDTH = 14
-_TINY_ART_MIN_WIDTH = 10
-_MICRO_ART_MIN_WIDTH = 6
-_NANO_ART_MIN_WIDTH = 4  # 2-row cat face floor — below this, text-only
-
-# v0.7.9.6: the 3-row faces need ~5 rows of vertical breathing room to sit
-# comfortably in the pane. Below that, the 2-row mini cat is swapped in so
-# the centerpiece stays a cat face without pushing the version/tagline
-# lines out of the viewport (the old behaviour let the art claim the whole
-# pane and clip the identity block on a short terminal).
-_MIN_3ROW_HEIGHT = 8
-
-
-def _pick_art_variant(width, height=None):
-    """Pure, side-effect-free variant chooser — the single source of truth
-    for the responsive art ladder.
-
-    Pulled out of `CATChatEmptyState._fit_width` in v0.7.9.6 so the
-    decision can be unit-tested without a mounted widget (the method-level
-    version short-circuits on `is_attached`, which made the ladder
-    untestable in a headless probe). `_fit_width` now calls this and only
-    handles the repaint.
-
-    Returns one of: 'nanoface', 'microface', 'tinyface', 'miniface',
-    'miniface2', 'compact', 'semi', 'full'.
-
-    Width rungs (widest line, including padding):
-        >= 34 cols -> full block letters (from app.LOGO)
-        >= 28      -> semi
-        >= 22      -> compact
-        >= 14      -> mini 3-row cat face
-        >= 10      -> tiny 3-row cat face
-        >=  6      -> micro 3-row cat face
-        >=  4      -> nano 2-row cat face
-        <  4       -> text-only wordmark (handled by the caller)
-
-    Height gate: on a pane with no room for three rows, EVERY multi-row
-    variant collapses to the 2-row cat — including the 6-row `full`
-    block letters, which would overflow even harder than the 3-row
-    faces. The 2-row nano face is unaffected.
-    """
-    try:
-        w = int(width or 0)
-    except Exception:
-        w = 0
-    try:
-        h = int(height) if height is not None else None
-    except Exception:
-        h = None
-
-    if w >= _FULL_ART_MIN_WIDTH:
-        variant = "full"
-    elif w >= _SEMI_ART_MIN_WIDTH:
-        variant = "semi"
-    elif w >= _COMPACT_ART_MIN_WIDTH:
-        variant = "compact"
-    elif w >= _MINI_ART_MIN_WIDTH:
-        variant = "miniface"
-    elif w >= _TINY_ART_MIN_WIDTH:
-        variant = "tinyface"
-    elif w >= _MICRO_ART_MIN_WIDTH:
-        variant = "microface"
-    elif w >= _NANO_ART_MIN_WIDTH:
-        variant = "nanoface"
-    else:
-        variant = "text"
-
-    # Short-pane downgrade: on a pane with no room for three rows, EVERY
-    # multi-row variant collapses to the 2-row cat — including the 6-row
-    # `full` block letters, which would overflow even harder than the
-    # 3-row faces. The nano face is already 2 rows, so it passes through.
-    if h is not None and h < _MIN_3ROW_HEIGHT:
-        if variant in ("full", "semi", "compact", "miniface", "tinyface",
-                       "microface"):
-            variant = "miniface2"
-    return variant
 
 if TEXTUAL_AVAILABLE:
 
@@ -164,58 +83,12 @@ if TEXTUAL_AVAILABLE:
             " ╚═════╝╚═╝  ╚═╝   ╚═╝",
         ]
 
-    # Semi-compact variant (~26 cols) — proportional block letters
-    # that fit between full and compact widths.
-    _SEMI_ART = [
-        "█▀▀▀▀▀  ▄▀▀▀▄  ▀▀█▀▀",
-        "█      █▀▀▀▀█    █  ",
-        "█▄▄▄▄▄ █   █    █  ",
-    ]
-
-    # Compact variant for narrow chat panes (~19 cols) — same three
-    # letters, clean bevel block construction, still unmistakably "CAT".
+    # Compact variant for narrow chat panes (~16 cols) — same three
+    # letters, half-block construction, still unmistakably "CAT".
     _COMPACT_ART = [
-        "█▀▀▀ █▀▀█ ▀█▀",
-        "█    █▄▄█  █ ",
-        "▀▀▀▀ ▀  ▀  ▀ ",
-    ]
-
-    # Mini ASCII cat face for very narrow viewports (~10 cols, 3 rows)
-    _MINI_CAT_ART = [
-        "  /\\_/\\  ",
-        " ( o.o ) ",
-        "  > ^ <  ",
-    ]
-
-    # v0.7.9.6: extra-responsive chain of progressively-smaller cat
-    # faces. Each variant is one row shorter / two cols narrower than
-    # the previous so the chat pane centerpiece stays a recognizable
-    # CAT motif all the way down to ~4 cols, instead of collapsing to
-    # a text-only wordmark at the first hint of a narrow viewport.
-    #
-    # Tiny:  ~8 cols, 3 rows — keeps the eyes & smile
-    _TINY_CAT_ART = [
-        " /\\_/\\ ",
-        "(o.o) ",
-        " >^< ",
-    ]
-    # Micro: ~6 cols, 3 rows — stripped to eyes + a nose, still reads as a face
-    _MICRO_CAT_ART = [
-        "/\\_/\\",
-        "o.o ",
-        " > <",
-    ]
-    # Nano:  ~4 cols, 2 rows — minimal cat silhouette, last line of defense
-    #        before the text-only fallback
-    _NANO_CAT_ART = [
-        "/\\_/",
-        "o.o",
-    ]
-    # 2-row mini cat — used in tight horizontal banners where 3 rows
-    # would otherwise overflow the available height.
-    _MINI_CAT_ART_2ROW = [
-        "/\\_/\\ (o.o)",
-        " > ^ <  ",
+        "▄▄▄▄ ▄▄▄▄▄ █████",
+        "█    █▄▄█   █  ",
+        "▀▀▀▀ █   █   █  ",
     ]
 
     def _lerp_hex(a: str, b: str, t: float) -> str:
@@ -265,24 +138,22 @@ if TEXTUAL_AVAILABLE:
             height: 1fr;
             align: center middle;
             opacity: 0;
-            offset-y: 2;
+            offset-y: 3;
         }
         CATChatEmptyState.open {
             opacity: 1;
             offset-y: 0;
         }
         CATChatEmptyState {
-            transition: opacity 600ms, offset 500ms;
+            transition: opacity 500ms, offset-y 500ms;
         }
         CATChatEmptyState #cct-empty-art {
             width: auto;
             text-align: center;
-            min-height: 1;
         }
         CATChatEmptyState .cct-empty-line {
             width: 1fr;
             text-align: center;
-            min-height: 1;
         }
         CATChatEmptyState #cct-empty-ready {
             transition: opacity 1300ms;
@@ -297,20 +168,13 @@ if TEXTUAL_AVAILABLE:
             self._ready = bool(ready)
             self._tagline = tagline
             self._compact = False   # re-evaluated on resize
-            self._repaint_pending = False  # dirty flag for dedup
-            self._resize_timer = None  # debounce timer handle
-            self._pending_width = None  # last width seen in on_resize
-            self._pending_height = None  # last height seen in on_resize
-            self._last_width = 0  # last laid-out width (drives text fallback)
 
         # ------------------------------------------------------ content --
         def _art_markup(self):
             """Word-art block with a restrained top-to-bottom accent
             gradient (mode gradient stops — same family the composer
-            badge uses). Falls back through semi → compact → mini → tiny
-            → micro → nano → text-only as the pane narrows AND the short-
-            pane 2-row cat when there isn't room for three rows, so it
-            can never overflow horizontally or vertically.
+            badge uses). Falls back through compact → text-only as the
+            pane narrows, so it can never overflow horizontally.
 
             v0.7.9.0 light-mode audit: mode-gradient end stops are tuned
             for dark surfaces; on white the pale ends dropped below 2:1
@@ -326,31 +190,9 @@ if TEXTUAL_AVAILABLE:
                     g_end = _darken(g_end, 0.25)
             except Exception:
                 pass
-            variant = self._compact or "full"
-            if variant == "text":
-                # v0.7.9.6: the wordmark fallback is now width-aware. At the
-                # 2-3 col widths that reach here, the full 22-col banner
-                # would overflow the pane, so it collapses in three steps
-                # down to a bare `CAT` that fits any usable width.
-                w = getattr(self, "_last_width", 0) or 0
-                if w >= 22:
-                    label = "━━━━━ 🐱 CAT CLI ━━━━━"
-                elif w >= 14:
-                    label = "━ 🐱 CAT ━"
-                elif w >= 8:
-                    label = "🐱 CAT"
-                else:
-                    label = "CAT"
-                return f"[{g_start} b]{label}[/]"
-            art = {
-                "nanoface": _NANO_CAT_ART,
-                "microface": _MICRO_CAT_ART,
-                "tinyface": _TINY_CAT_ART,
-                "miniface": _MINI_CAT_ART,
-                "miniface2": _MINI_CAT_ART_2ROW,
-                "compact": _COMPACT_ART,
-                "semi": _SEMI_ART,
-            }.get(variant) or _full_art()
+            if self._compact == "text":
+                return f"[b]{g_start}CAT[/]"
+            art = _COMPACT_ART if self._compact else _full_art()
             n = max(1, len(art) - 1)
             lines = []
             for i, line in enumerate(art):
@@ -367,20 +209,8 @@ if TEXTUAL_AVAILABLE:
             status = (f"[{success}]\u25cf[/] [{muted} b]{label}[/] "
                       f"[{faint}]ready[/]") if self._ready else \
                      (f"[{faint}]\u25cb starting\u2026[/]")
-            # Responsive suggestions: shorter text for narrow panes.
-            # v0.7.9.6: keyed off the renamed variant ladder (…face) so the
-            # suggestion string shrinks in lockstep with the art instead of
-            # falling through to the longest option on a narrow pane.
-            if self._compact in ("text", "nanoface", "microface"):
-                suggestions = "Create \u00b7 Build"
-            elif self._compact in ("tinyface", "miniface", "miniface2"):
-                suggestions = "Create \u00b7 Build \u00b7 Debug"
-            elif self._compact in ("compact", "semi"):
-                suggestions = ("Create \u00b7 Analyze \u00b7 Build "
-                               "\u00b7 Debug")
-            else:
-                suggestions = ("Create \u00b7 Analyze \u00b7 Build \u00b7 Debug "
-                               "\u00b7 Research")
+            suggestions = ("Create \u00b7 Analyze \u00b7 Build \u00b7 Debug "
+                           "\u00b7 Research")
             return {
                 "art": self._art_markup(),
                 "version": f"[{muted} b]CAT v{self._version}[/]",
@@ -390,41 +220,15 @@ if TEXTUAL_AVAILABLE:
             }
 
         def _repaint_children(self):
-            """Update all child Static widgets with current markup.
-            Uses a dirty flag to deduplicate rapid successive calls."""
-            if self._repaint_pending:
-                return
-            self._repaint_pending = True
-            try:
-                self._do_repaint()
-            finally:
-                self._repaint_pending = False
-
-        def _do_repaint(self):
-            """Actual repaint logic — guarded by _repaint_children()."""
-            if not self.is_attached:
-                return
             body = self._body_markup()
             try:
                 self.query_one("#cct-empty-art", Static).update(body["art"])
-            except Exception:
-                pass
-            try:
                 self.query_one("#cct-empty-version", Static).update(
                     body["version"])
-            except Exception:
-                pass
-            try:
                 self.query_one("#cct-empty-tagline", Static).update(
                     body["tagline"])
-            except Exception:
-                pass
-            try:
                 self.query_one("#cct-empty-ready", Static).update(
                     body["ready"])
-            except Exception:
-                pass
-            try:
                 self.query_one("#cct-empty-suggest", Static).update(
                     body["suggestions"])
             except Exception:
@@ -461,8 +265,6 @@ if TEXTUAL_AVAILABLE:
                 self.set_interval(1.3, self._pulse_ready_dot)
 
         def _pulse_ready_dot(self):
-            if not self.is_attached:
-                return
             try:
                 dot = self.query_one("#cct-empty-ready", Static)
                 dot.styles.opacity = 1.0 if not self._pulse_up else 0.45
@@ -471,52 +273,24 @@ if TEXTUAL_AVAILABLE:
                 pass
 
         def on_resize(self, event):
-            """Debounced resize: wait 50ms after the last resize event
-            before recalculating layout, preventing thrashing during
-            rapid terminal resizing. v0.7.9.6: also captures the latest
-            width AND height here so the eventual _fit_width call doesn't
-            need to touch the size object a second time (and can't observe
-            a stale size if the user is mid-drag). The height is what
-            drives the short-pane → 2-row cat downgrade."""
-            if event and getattr(event, "size", None):
-                self._pending_width = event.size.width
-                self._pending_height = event.size.height
-            if self._resize_timer is not None:
-                self._resize_timer.stop()
-            self._resize_timer = self.set_timer(0.05, self._fit_width)
+            self._fit_width()
 
         def _fit_width(self):
-            """Responsive rule: pick the largest art variant that fits the
-            LIVE chat-pane width (never overflow horizontally) and, since
-            v0.7.9.6, also respects the available HEIGHT so a short
-            terminal degrades to the 2-row cat instead of clipping the
-            identity block below the art.
-
-            The decision itself lives in the module-level
-            `_pick_art_variant()` helper — pure and unit-testable; this
-            method only reads the live size and triggers a repaint.
-            Short-circuits when the variant is unchanged, so a continuous
-            stream of redraws with no real layout change costs
-            effectively zero."""
-            if not self.is_attached:
-                return
-            w = getattr(self, "_pending_width", None)
-            h = getattr(self, "_pending_height", None)
-            if not w or not h:
-                try:
-                    size = self.size
-                    w = w or (size.width or 0)
-                    h = h or (size.height or 0)
-                except Exception:
-                    pass
-            if not w:
-                return  # widget not yet laid out — skip
-            self._last_width = w
-            variant = _pick_art_variant(w, h)
-            if variant != self._compact:
-                self._compact = variant
+            """Responsive rule: pick the largest art variant that fits
+            the LIVE chat-pane width (never overflow horizontally)."""
+            try:
+                w = self.size.width or self.outer_size.width or 0
+            except Exception:
+                w = 0
+            if w >= _FULL_ART_MIN_WIDTH:
+                compact = False
+            elif w >= _COMPACT_ART_MIN_WIDTH:
+                compact = True
+            else:
+                compact = "text"
+            if compact != self._compact:
+                self._compact = compact
                 self._repaint_children()
-
 
         # ------------------------------------------------- public state --
         def set_mode(self, mode_key):

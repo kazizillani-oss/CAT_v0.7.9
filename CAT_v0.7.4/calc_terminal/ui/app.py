@@ -1572,18 +1572,24 @@ Screen Button.cct-dash-action.-active {
 #cct-dash-columns { height: auto; width: 100%; padding-top: 1; layout: horizontal; overflow: hidden; }
 #cct-dash-columns.stacked { layout: vertical; }
 #cct-dash-columns.stacked .cct-dash-col { width: 100%; margin: 1 0; }
-/* v0.7.9.6: LAYOUT ONLY. The card's 3D skeuomorphic look (bevel borders,
-   background, tint, hover glow) is owned by `.cct-dash-card-3d` in
-   theme_css.BASE_CSS — the single source of truth. This rule used to
-   redeclare border/background/padding at EQUAL specificity, and because
-   _COMPONENT_CSS is concatenated after BASE_CSS it silently won: the
-   accent bevel here replaced the neutral bevel there, `tint` survived
-   from the other rule but its `transition` did not, so the glass wash
-   snapped instead of animating. Two rules fighting over one card.
-   Splitting them — geometry here, skin there — removes the conflict. */
 .cct-dash-col {
     width: 1fr;
     height: auto;
+    padding: 1 2;
+    margin: 0 1;
+    background: $surface;
+    border: heavy;
+    border-top: heavy $accent-highlight;
+    border-left: heavy $accent-highlight;
+    border-bottom: heavy $surface-dark;
+    border-right: heavy $surface-dark;
+    transition: border 120ms;
+}
+.cct-dash-col:hover {
+    border-top: heavy #ffffff;
+    border-left: heavy #ffffff;
+    border-bottom: heavy $accent;
+    border-right: heavy $accent;
 }
 .cct-dash-col-title {
     color: $text;
@@ -2127,26 +2133,13 @@ if TEXTUAL_AVAILABLE:
                 return "0.7.9.0"
 
         def _tick_idle_animation(self):
-            """Cheap idle-heartbeat: paints the status bar once per cycle
-            when the agent isn't streaming. v0.7.9.6 stability pass:
-            short-circuits when the screen isn't actually attached
-            (during shutdown, on terminal teardown, while another
-            screen is being swapped in) — that was the source of the
-            intermittent "refresh of a detached widget" warnings that
-            showed up when the user hit Ctrl+Q mid-render."""
             self._idle_tick += 1
-            if self._is_streaming:
-                return
-            try:
-                if not self.is_mounted:
-                    return
-            except Exception:
-                return
-            try:
-                self.status_line.refresh_status()
-                self._refresh_header_right()
-            except Exception:
-                pass
+            if not self._is_streaming:
+                try:
+                    self.status_line.refresh_status()
+                    self._refresh_header_right()
+                except Exception:
+                    pass
 
         # ------------------------------------------------------- v0.7 IDE --
         def _ide_state(self):
@@ -3869,62 +3862,6 @@ if TEXTUAL_AVAILABLE:
             except Exception:
                 pass
 
-        def on_resize(self, event):
-            """Terminal resize: cascade a debounced fit pass to the
-            empty-state centerpiece + dashboard so every responsive
-            variant recomputes from the new pane width.
-
-            v0.7.9.6 stability pass: a single timer is reused — every
-            new resize cancels the previous one and only the LAST
-            resize actually triggers the downstream `on_resize` chain
-            (each child has its own per-instance 50ms debounce).
-            Without this, dragging the terminal width produces 30+
-            recompute passes per second and the UI feels laggy."""
-            try:
-                _timer = getattr(self, "_resize_cascade_timer", None)
-                if _timer is not None:
-                    try:
-                        _timer.stop()
-                    except Exception:
-                        pass
-                self._resize_cascade_timer = self.set_timer(
-                    0.05, self._cascade_resize)
-            except Exception:
-                pass
-
-        def _cascade_resize(self):
-            """Walk the tree once and invoke on_resize on the dashboard
-            + chat empty state (if mounted). Direct method calls — we
-            intentionally do NOT use `post_message` because every
-            child already implements its own debounce.
-
-            v0.7.9.6: `_dashboard` is a SUBSET of the welcome slot (a
-            WelcomeDashboard is mounted *as* the welcome widget), so the
-            two calls below used to hit the same object twice on every
-            resize — one redundant full art rebuild + 2 widget queries.
-            The identity check collapses that to a single pass."""
-            try:
-                conv = getattr(self, "conversation", None)
-                if conv is None:
-                    return
-                welcome = getattr(conv, "_welcome", None)
-                dash = getattr(conv, "_dashboard", None)
-                target = welcome if welcome is not None else dash
-                if target is not None and getattr(target, "is_attached", False):
-                    try:
-                        target.on_resize(None)
-                    except Exception:
-                        pass
-                # Only a *distinct* dashboard needs a second pass.
-                if (dash is not None and dash is not target
-                        and getattr(dash, "is_attached", False)):
-                    try:
-                        dash.on_resize(None)
-                    except Exception:
-                        pass
-            except Exception:
-                pass
-
         def on_unmount(self):
             try:
                 from ..preview.dev_server import get_dev_server_manager
@@ -4128,16 +4065,7 @@ if TEXTUAL_AVAILABLE:
             del self._preview_events[:-400:]
 
         def _drain_preview_events(self):
-            """UI thread: apply queued controller events to widgets.
-
-            v0.7.9.6 perf hardening: skipped entirely when the queue
-            is empty. Previously we were still paying the cost of the
-            `with self._preview_events_lock:` block 5 times a second
-            (0.2s interval) forever, even on an idle session with no
-            preview subsystem activity. With the lock-free fast-path
-            an idle session burns effectively zero CPU here."""
-            if not self._preview_events:
-                return
+            """UI thread: apply queued controller events to widgets."""
             with self._preview_events_lock:
                 batch = self._preview_events
                 self._preview_events = []
