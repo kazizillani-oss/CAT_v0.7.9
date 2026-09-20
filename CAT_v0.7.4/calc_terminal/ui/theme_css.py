@@ -289,6 +289,8 @@ Screen { background: $app-background; }
     border-left: heavy $surface-highlight;
     border-bottom: heavy $surface-dark;
     border-right: heavy $surface-dark;
+    tint: $surface-dark 6%;
+    transition: background 80ms;
 }
 
 .cct-panel:focus-within {
@@ -297,6 +299,7 @@ Screen { background: $app-background; }
     border-left: heavy #ffffff;
     border-bottom: heavy $border-active;
     border-right: heavy $border-active;
+    tint: $accent 4%;
 }
 
 .cct-card-3d, .cct-panel-3d {
@@ -306,6 +309,46 @@ Screen { background: $app-background; }
     border-left: heavy $surface-highlight;
     border-bottom: heavy $surface-dark;
     border-right: heavy $surface-dark;
+    tint: $surface-dark 5%;
+    padding: 1 2;
+}
+
+.cct-panel-3d-raised {
+    background: $surface;
+    border: heavy;
+    border-top: heavy #ffffff;
+    border-left: heavy #ffffff;
+    border-bottom: heavy $surface-dark;
+    border-right: heavy $surface-dark;
+    tint: $surface-highlight 6%;
+    padding: 1 2;
+}
+
+.cct-card-3d-inset {
+    background: $app-background;
+    border: heavy;
+    border-top: heavy $surface-shadow;
+    border-left: heavy $surface-shadow;
+    border-bottom: heavy $surface-highlight;
+    border-right: heavy $surface-highlight;
+    tint: $surface-dark 10%;
+    padding: 1 2;
+}
+
+.cct-dashboard {
+    background: $surface;
+    border: heavy;
+    border-top: heavy $surface-highlight;
+    border-left: heavy $surface-highlight;
+    border-bottom: heavy $surface-dark;
+    border-right: heavy $surface-dark;
+    tint: $surface-dark 4%;
+}
+
+.cct-dashboard-header {
+    background: $surface-alt;
+    border-bottom: heavy $surface-dark;
+    tint: $surface-highlight 5%;
     padding: 1 2;
 }
 
@@ -336,25 +379,305 @@ Toast, Toast.-information, Toast.-warning, Toast.-error {
     border-left: heavy #ffffff;
     border-bottom: heavy $surface-dark;
     border-right: heavy $surface-dark;
+    tint: $surface-highlight 6%;
     padding: 1 2;
+    transition: opacity 200ms;
 }
 Toast.-warning {
     border-top: heavy #ffffff;
     border-left: heavy #ffffff;
     border-bottom: heavy $warning;
     border-right: heavy $warning;
+    tint: $warning 5%;
 }
 Toast.-error {
     border-top: heavy #ffffff;
     border-left: heavy #ffffff;
     border-bottom: heavy $error;
     border-right: heavy $error;
+    tint: $error 5%;
 }
 Toast.-information {
     border-top: heavy #ffffff;
     border-left: heavy #ffffff;
     border-bottom: heavy $accent-shadow;
     border-right: heavy $accent-shadow;
+    tint: $accent 4%;
+}
+
+/* ==================================================== v0.7.9.6 ======
+   CAT 3D SKEUOMORPHIC DESIGN SYSTEM
+   Strong, physical-looking 3D buttons + cards with a real bevel (bright
+   top-left highlight + dark bottom-right shadow), a soft glow on hover,
+   and a satisfying press-down on activation. Every `Button` in the
+   app picks this up by default — no per-widget restyling needed —
+   so the whole TUI looks and feels like one cohesive piece of
+   hardware instead of a flat terminal skin.
+
+   The trick is a *double* border: an outer `border-top/left` in the
+   light highlight color and an outer `border-bottom/right` in the
+   dark shadow color. Textual's per-side `border-top/left/right/bottom`
+   shorthand draws four independent edges in four colors, so the
+   button reads as physically raised. A 1-step `offset-y: -1` on hover
+   "lifts" the button (already inside Textual's render model); the
+   press state inverts the bevel and drops `offset-y: 1` for the
+   physical press feel.
+
+   This block is the *only* authority on Button visuals — every later
+   Button rule (`.cct-btn`, `.cct-btn-primary`, `.cct-dash-action`,
+   `.cct-btn-3d-skeu`, the modal buttons, the icon buttons) inherits
+   from here so restyling the whole system is a one-line change.
+   ------------------------------------------------------------------ */
+.cct-btn-3d-skeu,
+.cct-btn-3d-skeu:ansi.-style-default,
+.cct-btn-3d-skeu:ansi.-style-flat,
+Screen .cct-btn-3d-skeu,
+Button.cct-btn-3d-skeu,
+Button.cct-btn-3d-skeu.-style-default,
+Button.cct-btn-3d-skeu:ansi.-style-default,
+Button.cct-btn-3d-skeu:ansi.-style-flat,
+Screen Button.cct-btn-3d-skeu {
+    /* REAL 3D bevel: 4 different border edges drawn in 4 colors */
+    height: 3; min-height: 3; max-height: 3;
+    padding: 0 2;
+    min-width: 10;
+    background: $surface-alt;
+    color: $text;
+    text-style: bold;
+    content-align: center middle;
+    border: tall;
+    /* top + left = light coming from above-left (highlight) */
+    border-top: tall $surface-highlight;
+    border-left: tall $surface-highlight;
+    /* bottom + right = shadow falling away */
+    border-bottom: tall $surface-dark;
+    border-right: tall $surface-dark;
+    /* subtle inner sheen — visible on the body */
+    tint: $surface-highlight 8%;
+    /* crisp motion */
+    transition: background 90ms, offset 70ms, tint 120ms;
+}
+
+.cct-btn-3d-skeu:hover,
+Button.cct-btn-3d-skeu:hover,
+Screen Button.cct-btn-3d-skeu:hover {
+    /* LIFT: bevel flips brighter, button physically rises 1 row */
+    offset-y: -1;
+    background: $accent 24%;
+    color: #ffffff;
+    text-style: bold;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall $accent-highlight;
+    border-bottom: tall $accent;
+    border-right: tall $accent;
+    tint: $accent 12%;
+}
+
+.cct-btn-3d-skeu:focus,
+Button.cct-btn-3d-skeu:focus,
+Screen Button.cct-btn-3d-skeu:focus {
+    /* FOCUS: same bevel as hover but no lift (keyboard focus only) */
+    background-tint: transparent;
+    background: $accent 14%;
+    color: #ffffff;
+    text-style: bold;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall $accent-highlight;
+    border-bottom: tall $accent;
+    border-right: tall $accent;
+    tint: $accent 8%;
+}
+
+.cct-btn-3d-skeu.-active,
+Button.cct-btn-3d-skeu.-active,
+Screen Button.cct-btn-3d-skeu.-active {
+    /* PRESS: bevel inverts — now top/left are dark, bottom/right light
+       — and the button sinks 1 row, so it visibly presses inward. */
+    offset-y: 1;
+    background: $accent;
+    color: #ffffff;
+    text-style: bold;
+    border: tall;
+    border-top: tall $accent-shadow;
+    border-left: tall $accent-shadow;
+    border-bottom: tall #ffffff;
+    border-right: tall #ffffff;
+    tint: $app-background 22%;
+}
+
+.cct-btn-3d-skeu:disabled,
+Button.cct-btn-3d-skeu:disabled,
+Screen Button.cct-btn-3d-skeu:disabled {
+    /* PRESSED-IN DISABLED: dim, sunken, no hover/focus affordance */
+    opacity: 0.50;
+    text-style: not bold;
+    background: $surface;
+    color: $text-muted;
+    border: tall;
+    border-top: tall $surface-shadow;
+    border-left: tall $surface-shadow;
+    border-bottom: tall $surface-highlight;
+    border-right: tall $surface-highlight;
+    tint: $surface-dark 18%;
+    offset-y: 1;
+}
+
+/* ---- v0.7.9.6: dashboard quick actions — heavier bevel + glow on
+   hover so they read as the primary call-to-action rather than just
+   another row of buttons. Replaces the old .cct-dash-action block. */
+Button.cct-dash-action,
+.cct-dash-action,
+Button.cct-dash-action.-style-default,
+Button.cct-dash-action:ansi.-style-default,
+Button.cct-dash-action:ansi.-style-flat,
+Screen Button.cct-dash-action {
+    height: 3; min-height: 3; max-height: 3;
+    padding: 0;
+    min-width: 14; max-width: 26; width: 1fr;
+    margin: 0 1;
+    color: #ffffff;
+    text-style: bold;
+    content-align: center middle;
+    /* DOUBLE BEVEL: outer light, inner darker — physical "raised" keycap */
+    background: $surface-alt;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall $accent-highlight;
+    border-bottom: tall $accent-shadow;
+    border-right: tall $accent-shadow;
+    tint: $accent 10%;
+    transition: background 90ms, offset 70ms, tint 140ms;
+}
+
+Button.cct-dash-action:hover,
+Screen Button.cct-dash-action:hover {
+    background: $accent;
+    color: #ffffff;
+    text-style: bold;
+    offset-y: -2;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall #ffffff;
+    border-bottom: tall $accent-highlight;
+    border-right: tall $accent-highlight;
+    tint: $accent 18%;
+}
+
+Button.cct-dash-action:focus,
+Screen Button.cct-dash-action:focus {
+    background: $accent 18%;
+    color: #ffffff;
+    text-style: bold;
+    background-tint: transparent;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall #ffffff;
+    border-bottom: tall $accent-highlight;
+    border-right: tall $accent-highlight;
+    tint: $accent 12%;
+    offset-y: -1;
+}
+
+Button.cct-dash-action.-active,
+Screen Button.cct-dash-action.-active {
+    /* PRESS: sinks 2 rows — heavier than a regular button press */
+    offset-y: 2;
+    background: $accent-shadow;
+    color: #ffffff;
+    text-style: bold;
+    border: tall;
+    border-top: tall $accent-shadow;
+    border-left: tall $accent-shadow;
+    border-bottom: tall #ffffff;
+    border-right: tall #ffffff;
+    tint: $app-background 22%;
+}
+
+Button.cct-dash-action:disabled,
+Screen Button.cct-dash-action:disabled {
+    opacity: 0.45;
+    text-style: not bold;
+    background: $surface;
+    color: $text-muted;
+    offset-y: 1;
+    border: tall;
+    border-top: tall $surface-shadow;
+    border-left: tall $surface-shadow;
+    border-bottom: tall $surface-highlight;
+    border-right: tall $surface-highlight;
+}
+
+/* ---- v0.7.9.6: 3D SKEU DASHBOARD CARDS — the dashboard's three
+   columns render through this rule. Two-tone border = physical card
+   sitting on the dashboard surface. On hover a faint accent glow
+   appears so the user can tell where focus lives. */
+.cct-dash-card-3d,
+.cct-panel-3d-card {
+    background: $surface;
+    color: $text;
+    padding: 1 2;
+    margin: 0 1 1 1;
+    border: tall;
+    border-top: tall $surface-highlight;
+    border-left: tall $surface-highlight;
+    border-bottom: tall $surface-dark;
+    border-right: tall $surface-dark;
+    tint: $surface-highlight 5%;
+    transition: background 100ms, tint 120ms;
+}
+
+.cct-dash-card-3d:hover,
+.cct-panel-3d-card:hover,
+.cct-dash-card-3d:focus-within,
+.cct-panel-3d-card:focus-within {
+    background: $surface;
+    tint: $accent 5%;
+    border: tall;
+    border-top: tall $accent-highlight;
+    border-left: tall $accent-highlight;
+    border-bottom: tall $accent-shadow;
+    border-right: tall $accent-shadow;
+}
+
+/* v0.7.9.6: dashboard header bar (the title row above the columns) —
+   inset look with light coming from below. */
+.cct-dash-header-3d {
+    background: $surface-alt;
+    border: tall;
+    border-top: tall $surface-shadow;
+    border-left: tall $surface-shadow;
+    border-bottom: tall $surface-highlight;
+    border-right: tall $surface-highlight;
+    tint: $accent 5%;
+    padding: 1 2;
+}
+
+/* v0.7.9.6: 3D SKEU INPUTS — sunken text inputs. Top/left dark
+   (inside the panel), bottom/right light (rim of the panel). */
+.cct-input-3d-skeu {
+    background: $app-background;
+    color: $text;
+    border: tall;
+    border-top: tall $surface-shadow;
+    border-left: tall $surface-shadow;
+    border-bottom: tall $surface-highlight;
+    border-right: tall $surface-highlight;
+    padding: 0 1;
+    text-style: none;
+    transition: background 90ms;
+}
+
+.cct-input-3d-skeu:focus {
+    background: $app-background;
+    border: tall;
+    border-top: tall $surface-shadow;
+    border-left: tall $surface-shadow;
+    border-bottom: tall $accent-highlight;
+    border-right: tall $accent-highlight;
+    color: $text;
+    text-style: none;
 }
 
 /* ==================================================== v0.7.8.1 ======
@@ -387,50 +710,76 @@ Toast.-information {
    - disabled buttons dim without losing their label.
    The `Button:ansi.-style-default/-style-flat` duplicates keep this
    block winning over Textual's widget defaults even in setups where
-   the `:ansi` pseudo-class matches. ---- */
+   the `:ansi` pseudo-class matches. ----
+
+   v0.7.9.6: Every bare `Button` in the app now inherits the full
+   3D skeuomorphic bevel — taller borders, real lift on hover, real
+   press on activation, sunken disabled state. The earlier 'heavy'
+   borders read more like outlines; `tall` borders give the buttons
+   a 2-cell-thick bevel so they look physically raised off the
+   panel surface, which is the whole point of skeuomorphism. */
 Button, Button:ansi.-style-default, Button:ansi.-style-flat, .cct-btn {
     height: 3; min-height: 3; max-height: 3; padding: 0 2;
     min-width: 10;
-    border: heavy;
-    border-top: heavy $surface-highlight;
-    border-left: heavy $surface-highlight;
-    border-bottom: heavy $surface-dark;
-    border-right: heavy $surface-dark;
     background: $surface-alt;
     color: $text;
     text-style: bold;
     content-align: center middle;
-    transition: background 80ms, color 80ms, border 80ms, offset 80ms;
+    border: tall;
+    border-top: tall $surface-highlight;
+    border-left: tall $surface-highlight;
+    border-bottom: tall $surface-dark;
+    border-right: tall $surface-dark;
+    tint: $surface-highlight 6%;
+    transition: background 90ms, offset 70ms, tint 120ms;
 }
 Button:hover, .cct-btn:hover {
-    background: $accent 24%;
-    border: heavy;
-    border-top: heavy #ffffff;
-    border-left: heavy $accent-highlight;
-    border-bottom: heavy $accent;
-    border-right: heavy $accent;
-    color: $text;
+    background: $accent 26%;
+    color: #ffffff;
     text-style: bold;
-    offset-y: 0;
+    offset-y: -1;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall $accent-highlight;
+    border-bottom: tall $accent;
+    border-right: tall $accent;
+    tint: $accent 10%;
 }
 Button:focus, .cct-btn:focus {
-    border: heavy;
-    border-top: heavy #ffffff;
-    border-left: heavy $accent-highlight;
-    border-bottom: heavy $accent;
-    border-right: heavy $accent;
+    color: #ffffff;
     text-style: bold;
     background-tint: transparent;
+    background: $accent 14%;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall $accent-highlight;
+    border-bottom: tall $accent;
+    border-right: tall $accent;
+    tint: $accent 7%;
 }
-Button:disabled, .cct-btn:disabled { opacity: 0.45; text-style: not bold; }
+Button:disabled, .cct-btn:disabled {
+    opacity: 0.50; text-style: not bold;
+    background: $surface;
+    color: $text-muted;
+    border: tall;
+    border-top: tall $surface-shadow;
+    border-left: tall $surface-shadow;
+    border-bottom: tall $surface-highlight;
+    border-right: tall $surface-highlight;
+    tint: $surface-dark 18%;
+    offset-y: 1;
+}
 Button.-active, .cct-btn.-active {
     offset-y: 1;
-    border: heavy;
-    border-top: heavy $surface-dark;
-    border-left: heavy $surface-dark;
-    border-bottom: heavy $surface-highlight;
-    border-right: heavy $surface-highlight;
-    tint: $app-background 20%;
+    color: #ffffff;
+    background: $accent;
+    text-style: bold;
+    border: tall;
+    border-top: tall $accent-shadow;
+    border-left: tall $accent-shadow;
+    border-bottom: tall #ffffff;
+    border-right: tall #ffffff;
+    tint: $app-background 22%;
 }
 .chats-filter-btn.-active,
 Screen .chats-filter-btn.-active {
@@ -438,90 +787,130 @@ Screen .chats-filter-btn.-active {
     offset-x: 0;
     offset: 0 0;
 }
+/* v0.7.9.6: kept identical to the skeu block above so theme-shape
+   variants (rounded/pill/square/ghost/outlined/filled/minimal) and
+   older widget lookups still resolve to the same 3D skeu look. */
 Button.cct-dash-action, .cct-dash-action,
 Button.cct-dash-action.-style-default,
 Button.cct-dash-action:ansi.-style-default,
 Button.cct-dash-action:ansi.-style-flat,
 Screen Button.cct-dash-action {
-    height: 3; min-height: 3; max-height: 3; padding: 0;
-    min-width: 14; max-width: 24; width: 1fr; margin: 0 1;
+    height: 3; min-height: 3; max-height: 3;
+    padding: 0;
+    min-width: 14; max-width: 26; width: 1fr; margin: 0 1;
     background: $surface-alt;
     color: #ffffff;
     text-style: bold;
     content-align: center middle;
-    border: heavy;
-    border-top: heavy #ffffff;
-    border-left: heavy #ffffff;
-    border-bottom: heavy $accent-shadow;
-    border-right: heavy $accent-shadow;
-    transition: background 80ms, color 80ms, border 80ms, offset 80ms;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall $accent-highlight;
+    border-bottom: tall $accent-shadow;
+    border-right: tall $accent-shadow;
+    tint: $accent 10%;
+    transition: background 90ms, offset 70ms, tint 140ms;
 }
 Button.cct-dash-action:hover, .cct-dash-action:hover,
-Button.cct-dash-action:focus, .cct-dash-action:focus,
-Screen Button.cct-dash-action:hover, Screen Button.cct-dash-action:focus {
-    background: $accent 35%;
+Screen Button.cct-dash-action:hover {
+    background: $accent;
     color: #ffffff;
-    border: heavy;
-    border-top: heavy #ffffff;
-    border-left: heavy #ffffff;
-    border-bottom: heavy $accent-highlight;
-    border-right: heavy $accent-highlight;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall #ffffff;
+    border-bottom: tall $accent-highlight;
+    border-right: tall $accent-highlight;
     text-style: bold;
-    offset-y: 0;
+    offset-y: -2;
+    tint: $accent 18%;
+}
+Button.cct-dash-action:focus, .cct-dash-action:focus,
+Screen Button.cct-dash-action:focus {
+    background-tint: transparent;
+    background: $accent 18%;
+    color: #ffffff;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall #ffffff;
+    border-bottom: tall $accent-highlight;
+    border-right: tall $accent-highlight;
+    text-style: bold;
+    tint: $accent 12%;
+    offset-y: -1;
 }
 Button.cct-dash-action.-active, .cct-dash-action.-active,
 Screen Button.cct-dash-action.-active {
-    offset-y: 1;
-    background: $accent 50%;
+    offset-y: 2;
+    background: $accent-shadow;
     color: #ffffff;
-    border: heavy;
-    border-top: heavy $accent-shadow;
-    border-left: heavy $accent-shadow;
-    border-bottom: heavy #ffffff;
-    border-right: heavy #ffffff;
+    border: tall;
+    border-top: tall $accent-shadow;
+    border-left: tall $accent-shadow;
+    border-bottom: tall #ffffff;
+    border-right: tall #ffffff;
+    text-style: bold;
+    tint: $app-background 22%;
 }
-.cct-btn-3d {
-    height: 3; min-height: 3; max-height: 3; padding: 0 2;
+
+/* v0.7.9.6: also upgraded to the strong-tall 3D skeu metrics so any
+   `Button.cct-btn-3d` (without the `-skeu` suffix) also picks up the
+   new bevel + press-down affordance. Identical metrics to the primary
+   Button rule — both classes are interchangeable from a visual
+   standpoint. */
+.cct-btn-3d,
+Button.cct-btn-3d {
+    height: 3; min-height: 3; max-height: 3;
+    padding: 0 2;
     min-width: 10;
-    border: heavy;
-    border-top: heavy $accent-highlight;
-    border-left: heavy $accent-highlight;
-    border-bottom: heavy $accent-shadow;
-    border-right: heavy $accent-shadow;
     background: $surface-alt;
     color: $text;
     text-style: bold;
     content-align: center middle;
-    transition: background 80ms, color 80ms, border 80ms, offset 80ms;
+    border: tall;
+    border-top: tall $accent-highlight;
+    border-left: tall $accent-highlight;
+    border-bottom: tall $accent-shadow;
+    border-right: tall $accent-shadow;
+    tint: $accent 6%;
+    transition: background 90ms, offset 70ms, tint 120ms;
 }
-.cct-btn-3d:hover {
-    background: $accent 24%;
-    border: heavy;
-    border-top: heavy #ffffff;
-    border-left: heavy #ffffff;
-    border-bottom: heavy $accent;
-    border-right: heavy $accent;
+.cct-btn-3d:hover,
+Button.cct-btn-3d:hover {
+    background: $accent 28%;
     color: #ffffff;
     text-style: bold;
-    offset-y: 0;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall #ffffff;
+    border-bottom: tall $accent;
+    border-right: tall $accent;
+    offset-y: -1;
+    tint: $accent 12%;
 }
-.cct-btn-3d:focus {
-    border: heavy;
-    border-top: heavy #ffffff;
-    border-left: heavy #ffffff;
-    border-bottom: heavy $accent-highlight;
-    border-right: heavy $accent-highlight;
+.cct-btn-3d:focus,
+Button.cct-btn-3d:focus {
+    color: #ffffff;
     text-style: bold;
     background-tint: transparent;
+    background: $accent 16%;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall #ffffff;
+    border-bottom: tall $accent-highlight;
+    border-right: tall $accent-highlight;
+    tint: $accent 8%;
 }
-.cct-btn-3d.-active {
+.cct-btn-3d.-active,
+Button.cct-btn-3d.-active {
     offset-y: 1;
-    border: heavy;
-    border-top: heavy $accent-shadow;
-    border-left: heavy $accent-shadow;
-    border-bottom: heavy $accent-highlight;
-    border-right: heavy $accent-highlight;
-    tint: $app-background 20%;
+    background: $accent;
+    color: #ffffff;
+    text-style: bold;
+    border: tall;
+    border-top: tall $accent-shadow;
+    border-left: tall $accent-shadow;
+    border-bottom: tall #ffffff;
+    border-right: tall #ffffff;
+    tint: $app-background 22%;
 }
 
 /* Universal 3D Skeuomorphic Button Keycaps */
@@ -534,7 +923,8 @@ Button.cct-btn, Button.cct-modal-btn, Button.cct-btn-sm, Button.cct-btn-primary 
     background: $surface;
     color: $text;
     text-style: bold;
-    transition: background 80ms, color 80ms, border 80ms, offset 60ms;
+    tint: $surface-highlight 4%;
+    transition: background 80ms, offset 60ms;
 }
 Button.cct-btn:hover, Button.cct-modal-btn:hover, Button.cct-btn-sm:hover {
     border: tall;
@@ -562,6 +952,7 @@ Button.cct-btn.-active, Button.cct-modal-btn.-active, Button.cct-btn-sm.-active 
     border-bottom: tall $surface-highlight;
     border-right: tall $surface-highlight;
     background: $surface-dark;
+    tint: $app-background 18%;
 }
 Button.cct-btn-primary, Button.-primary {
     border: tall;
@@ -594,7 +985,7 @@ Input.cct-search-input, .cct-input-3d, #search-input, #model-search, #pc-search 
     border-right: tall $surface-highlight;
     background: $app-background;
     color: $text;
-    transition: border 80ms, background 80ms;
+    transition: background 80ms;
 }
 Input.cct-search-input:focus, .cct-input-3d:focus, #search-input:focus, #model-search:focus, #pc-search Input:focus, #ext-search Input:focus, #cust-search Input:focus, #mcp-search Input:focus {
     border: tall;
@@ -612,7 +1003,7 @@ Button.cct-ctrl:ansi.-style-flat {
     background: transparent; color: $text-faint;
     border: none;
     content-align: center middle;
-    transition: color 80ms, background 80ms, offset 60ms;
+    transition: background 80ms, offset 60ms;
 }
 Button.cct-ctrl:hover, .cct-ctrl:hover {
     color: $error; background: transparent; border: none;
@@ -631,7 +1022,8 @@ Button.cct-ctrl:hover, .cct-ctrl:hover {
     align-horizontal: right;
     margin: 0;
     padding: 0;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: hidden;
     background: transparent;
 }
 
@@ -958,7 +1350,7 @@ Button.cct-toggle-3d {
     content-align: center middle;
     text-style: bold;
     border: none;
-    transition: background 100ms, color 100ms, offset 60ms;
+    transition: background 100ms, offset 60ms;
 }
 Button.cct-toggle-3d.-on {
     background: #047857;
@@ -1058,13 +1450,14 @@ Input:focus {
     width: auto; height: auto; max-width: 100%; max-height: 100%;
     background: $surface;
     border: heavy;
-    border-top: heavy $surface-highlight;
+    border-top: heavy #ffffff;
     border-left: heavy $surface-highlight;
     border-bottom: heavy $surface-shadow;
     border-right: heavy $surface-shadow;
+    tint: $surface-highlight 5%;
     padding: 0;
     opacity: 0; offset-y: 1;
-    transition: opacity 140ms, offset 160ms;
+    transition: opacity 180ms, offset 200ms;
 }
 .cct-popup-box.open { opacity: 1; offset-y: 0; }
 

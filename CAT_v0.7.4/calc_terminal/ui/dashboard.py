@@ -57,8 +57,13 @@ except Exception:
 if TEXTUAL_AVAILABLE:
 
     class _QuickAction(Button):
+        """v0.7.9.6: Quick-action button on the dashboard — picks up the
+        full 3D-skeuomorphic system (tall bevel borders, real lift on
+        hover, real press on activation) so it reads as a hardware key
+        rather than a flat label."""
         def __init__(self, label, action_id):
-            super().__init__(label, id=action_id, classes="cct-dash-action cct-btn-3d")
+            super().__init__(label, id=action_id,
+                             classes="cct-dash-action cct-btn-3d-skeu")
 
     class WelcomeDashboard(Vertical):
         """spec v0.7 Welcome Dashboard — v0.7.9.0: THE PRIMARY STARTUP
@@ -96,23 +101,51 @@ if TEXTUAL_AVAILABLE:
             self._workspace_root = workspace_root
             self._mode_key = mode_key
             self._ai_state = None   # live state text pushed by CCTApp
+            self._last_resize_w = None  # (width, height) of last handled resize
 
         # ----------------------------------------------------- artwork --
         def _art_lines(self):
             """Pick the largest CAT word-art variant that fits the LIVE
-            chat-pane width — full block letters, compact half-block, or
-            a text wordmark on very narrow panes. Never overflows."""
+            dashboard width — full block letters, semi, compact half-block,
+            or one of the mini cat faces on a narrow pane. Never overflows.
+
+            v0.7.9.6: this used to be a private 3-rung ladder (text < 22,
+            compact < 34, else full) that bypassed the empty-state's own
+            ladder — so the two screens disagreed about what "narrow"
+            means and every face variant added over there had to be
+            hand-copied here. It now delegates to the shared, pure
+            `empty_state._pick_art_variant()`, which means the whole
+            face family (mini/tiny/micro/nano) lights up on the dashboard
+            too, and the height-aware short-pane downgrade comes along
+            for free.
+
+            Returns None when the pane is too narrow for any art (caller
+            renders a text wordmark instead)."""
             try:
-                from .empty_state import _full_art, _COMPACT_ART
-                w = 0
+                from .empty_state import (
+                    _COMPACT_ART, _MINI_CAT_ART, _MINI_CAT_ART_2ROW,
+                    _MICRO_CAT_ART, _NANO_CAT_ART, _SEMI_ART,
+                    _TINY_CAT_ART, _full_art, _pick_art_variant)
                 try:
-                    w = self.size.width or 0
+                    size = self.size
+                    w = size.width or 0
+                    h = size.height or 0
                 except Exception:
-                    w = 0
-                if w and w < 22:
+                    w = h = 0
+                variant = _pick_art_variant(w, h)
+                if variant == "text":
                     return None                      # text-only wordmark
-                if w and w < 34:
-                    return list(_COMPACT_ART)        # compact variant
+                face = {
+                    "nanoface": _NANO_CAT_ART,
+                    "microface": _MICRO_CAT_ART,
+                    "tinyface": _TINY_CAT_ART,
+                    "miniface": _MINI_CAT_ART,
+                    "miniface2": _MINI_CAT_ART_2ROW,
+                    "compact": _COMPACT_ART,
+                    "semi": _SEMI_ART,
+                }.get(variant)
+                if face is not None:
+                    return list(face)
                 return [line.rstrip() for line in
                         (self._logo_lines or _full_art())]
             except Exception:
@@ -207,7 +240,7 @@ if TEXTUAL_AVAILABLE:
                 yield _QuickAction("\U0001f4d6 Documentation", "dash-docs")
 
             with Horizontal(id="cct-dash-columns"):
-                with Vertical(classes="cct-dash-col"):
+                with Vertical(classes="cct-dash-col cct-dash-card-3d"):
                     yield Static("[b]Recent Projects[/b]", classes="cct-dash-col-title")
                     try:
                         recent = projects.recent()[:6]
@@ -220,7 +253,7 @@ if TEXTUAL_AVAILABLE:
                     else:
                         yield Static(f"[{faint}]No projects opened yet.[/]", classes="cct-dash-row")
 
-                with Vertical(classes="cct-dash-col"):
+                with Vertical(classes="cct-dash-col cct-dash-card-3d"):
                     yield Static("[b]Session Notebooks[/b]", classes="cct-dash-col-title")
                     yield Static(f"  {self._notebook_count} solved this session", classes="cct-dash-row")
                     # v0.7.9.0 fix: workspace data collection is guarded —
@@ -240,7 +273,7 @@ if TEXTUAL_AVAILABLE:
                         yield Static(f"[{faint}]No generated files yet.[/]", classes="cct-dash-row")
 
                 if self._workspace_root:
-                    with Vertical(classes="cct-dash-col"):
+                    with Vertical(classes="cct-dash-col cct-dash-card-3d"):
                         yield Static("[b]Project & Workspace[/b]", classes="cct-dash-col-title")
                         try:
                             stats_markup = self._stats_markup()
@@ -377,26 +410,69 @@ if TEXTUAL_AVAILABLE:
 
         def on_resize(self, event):
             """Terminal / pane resized: re-pick art + make actions responsive
-            (Horizontal → Vertical stack when chat gets narrow from editor stretch)."""
+            (Horizontal → Vertical stack when chat gets narrow from editor stretch).
+
+            v0.7.9.6 stability pass:
+            * Guards on `is_attached` so a resize event arriving during
+              teardown or screen swap is a cheap no-op.
+            * Width-change guard: when the width is unchanged (the common
+              case — a height-only resize, or the app's own debounced
+              cascade firing after the event already landed) this returns
+              immediately instead of rebuilding the art markup and running
+              two widget queries for nothing.
+            * Coalesces stacked-class add/remove into one decision per
+              pass — the previous code could add and remove the same
+              class back-to-back if width hovered at the 72-col boundary.
+            * The `#cct-empty-art` lookup is captured from the SIZE rather
+              than re-derived, so a mid-drag resize can't observe a stale
+              width."""
+            if not self.is_attached:
+                return
+            size = getattr(event, "size", None)
+            if size is not None:
+                w = size.width
+                h = size.height
+            else:
+                w = h = None
+            if not w:
+                try:
+                    w = self.size.width or 0
+                    h = self.size.height or 0
+                except Exception:
+                    w = h = 0
+            if not w:
+                return
+            # Cheap early-out: re-fit only on a REAL layout change. The
+            # v0.7.9.6 art ladder is height-aware (short panes drop to the
+            # 2-row cat), so the key is the (width, height) pair — keying on
+            # width alone would miss a height-only drag and leave a 3-row
+            # face clipped in a short pane.
+            key = (w, h)
+            if key == getattr(self, "_last_resize_w", None):
+                return
+            self._last_resize_w = key
             try:
                 self.query_one("#cct-empty-art", Static).update(
                     self._art_markup())
             except Exception:
                 pass
             try:
-                w = self.size.width or 0
-                # When dashboard gets narrower than ~72 cols (editor stretched or sidebar open),
-                # stack quick-action buttons and columns vertically so they never overflow.
+                # Stack quick actions & columns when dashboard narrows
+                # below ~72 cols (editor stretched or sidebar open).
+                # Both containers move together, so decide once.
+                stack_now = w < 72
                 actions = self.query_one("#cct-dash-actions")
-                if w and w < 72:
-                    actions.add_class("stacked")
-                else:
-                    actions.remove_class("stacked")
                 columns = self.query_one("#cct-dash-columns")
-                if w and w < 72:
-                    columns.add_class("stacked")
+                if stack_now:
+                    if not actions.has_class("stacked"):
+                        actions.add_class("stacked")
+                    if not columns.has_class("stacked"):
+                        columns.add_class("stacked")
                 else:
-                    columns.remove_class("stacked")
+                    if actions.has_class("stacked"):
+                        actions.remove_class("stacked")
+                    if columns.has_class("stacked"):
+                        columns.remove_class("stacked")
             except Exception:
                 pass
 
