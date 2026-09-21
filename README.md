@@ -44,7 +44,7 @@ If you are developing or running from source:
 ```bash
 git clone https://github.com/kazizillani-oss/CAT_v0.7.9.git
 cd CAT_v0.7.9
-pip install -e .
+python -m pip install -e .
 cat
 ```
 
