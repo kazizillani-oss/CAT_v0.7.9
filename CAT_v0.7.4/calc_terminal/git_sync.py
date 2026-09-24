@@ -334,6 +334,8 @@ def sync_and_publish(
     repo_path: Optional[str] = None,
     message: Optional[str] = None,
     remote: str = "origin",
+    branch: Optional[str] = None,
+    dry_run: bool = False,
 ) -> int:
     """Execute the complete GitHub update & verification workflow:
         Check repository
@@ -387,9 +389,9 @@ def sync_and_publish(
         fail(f"Repository check failed: {status.error}")
         return 1
 
-    branch = status.current_branch or "main"
+    target_branch = branch or status.current_branch or "main"
     print(f"  Repository : {cwd}")
-    print(f"  Branch     : {branch}")
+    print(f"  Branch     : {target_branch}")
     print(f"  Remote     : {status.remote_url or remote}")
     print(f"  HEAD       : {status.head_commit}")
     print("-" * 60)
@@ -398,8 +400,8 @@ def sync_and_publish(
     if not status.has_changes:
         print("  Working tree clean — checking if local branch is ahead of remote...")
         # Check if local has unpushed commits
-        ok_fetch, _, _, _ = _run_git_cmd(["fetch", remote, branch], cwd, timeout=20.0)
-        ok_count, count_out, _, _ = _run_git_cmd(["rev-list", f"{remote}/{branch}..{branch}", "--count"], cwd)
+        ok_fetch, _, _, _ = _run_git_cmd(["fetch", remote, target_branch], cwd, timeout=20.0)
+        ok_count, count_out, _, _ = _run_git_cmd(["rev-list", f"{remote}/{target_branch}..{target_branch}", "--count"], cwd)
         unpushed_count = int(count_out.strip()) if (ok_count and count_out.isdigit()) else 0
 
         if unpushed_count == 0:
@@ -430,6 +432,11 @@ def sync_and_publish(
             fail(f"Invalid commit message: {valid_message}")
             return 1
 
+        if dry_run:
+            print(f"\n  [DRY-RUN] Validated commit message: \"{valid_message}\"")
+            print("  [DRY-RUN] No commits created or pushed.\n")
+            return 0
+
         # Step 5: Create commit
         commit_ok, commit_hash, commit_err = create_commit(cwd, valid_message)
         if not commit_ok:
@@ -439,7 +446,7 @@ def sync_and_publish(
         ok(f"Commit created ({commit_hash[:7]})")
 
     # Step 6: Push to correct remote/branch
-    push_ok, push_out, push_err = push_to_remote(cwd, remote=remote, branch=branch)
+    push_ok, push_out, push_err = push_to_remote(cwd, remote=remote, branch=target_branch)
 
     if not push_ok:
         fail("Commit created locally")
