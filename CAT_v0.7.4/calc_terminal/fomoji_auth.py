@@ -294,6 +294,14 @@ def status() -> str:
     local = _load_local()
     if not local or not local.get("token"):
         return "not_connected"
+
+    # Enforce strict 2-hour guest limit locally
+    if local.get("is_guest") or (local.get("identity", {}) and local["identity"].get("identityType") == "TEMPORARY"):
+        exp = local.get("expires_at")
+        if exp and time.time() >= exp:
+            _clear_local()
+            return "expired"
+
     token = local["token"]
     try:
         result = _request(
@@ -317,11 +325,108 @@ def status() -> str:
             return "expired"
         # not_connected — also clear stale file
         if s == "not_connected":
-            # Only clear if we had a token but server says not connected
-            # (could be revoked server-side).
-            pass
+            _clear_local()
+            return s
         return s
     return "connected"
+
+
+def guest_login(timeout: int = 15) -> Dict[str, Any]:
+    """Create and activate a 2-hour guest session with automatic 2-hour expiration."""
+    ensure_fomoji_server(auto_start=True, timeout=timeout)
+    result = _request(
+        "POST",
+        "/api/connector/guest",
+        {"applicationId": APPLICATION_ID},
+        timeout=timeout,
+    )
+    token = result.get("token") or result.get("connectorToken")
+    identity = result.get("identity", {})
+    now = time.time()
+    expires_at = now + 7200  # exactly 2 hours (7200 seconds)
+    data = {
+        "token": token,
+        "identity": identity,
+        "is_guest": True,
+        "issued_at": now,
+        "expires_at": expires_at,
+        "expires_at_iso": result.get("expiresAt"),
+    }
+    _save_local(data)
+    return identity
+
+
+def get_guest_remaining_seconds() -> Optional[float]:
+    local = _load_local()
+    if not local or not local.get("is_guest"):
+        return None
+    exp = local.get("expires_at")
+    if not exp:
+        return None
+    rem = exp - time.time()
+    return max(0.0, rem)
+
+
+def start_guest_watchdog(on_expire=None):
+    """Starts a background daemon thread that monitors the 2-hour guest session limit.
+    When 2 hours elapse, it clears credentials and terminates cleanly."""
+    local = _load_local()
+    if not local or not local.get("is_guest"):
+        return None
+
+    import threading
+
+    def _watch():
+        while True:
+            time.sleep(15)
+            rem = get_guest_remaining_seconds()
+            if rem is not None and rem <= 0:
+                _clear_local()
+                if on_expire:
+                    try:
+                        on_expire()
+                    except Exception:
+                        pass
+                else:
+                    try:
+                        from . import theme
+                        theme.enable_windows_ansi()
+                        print(theme.red("\n\n  [CAT Guest Session Expired] 2-hour guest limit reached. Automatically signing out...\n", bold=True))
+                    except Exception:
+                        print("\n\n  [CAT Guest Session Expired] 2-hour guest limit reached. Automatically signing out...\n")
+                    os._exit(0)
+                break
+
+    t = threading.Thread(target=_watch, daemon=True, name="cat_guest_watchdog")
+    t.start()
+    return t
+
+
+def get_oauth_config() -> Dict[str, Any]:
+    """Fetch OAuth provider configuration status from Fomoji server."""
+    ensure_fomoji_server(auto_start=True, timeout=8)
+    return _request("GET", "/api/oauth/config", timeout=8)
+
+
+def set_oauth_credentials(provider: str, client_id: str, client_secret: str) -> Dict[str, Any]:
+    """Configure Client ID and Client Secret for an OAuth provider."""
+    ensure_fomoji_server(auto_start=True, timeout=8)
+    return _request(
+        "POST",
+        f"/api/oauth/config/{provider.strip().lower()}",
+        {"clientId": client_id.strip(), "clientSecret": client_secret.strip()},
+        timeout=8,
+    )
+
+
+def delete_oauth_credentials(provider: str) -> Dict[str, Any]:
+    """Remove configured credentials for an OAuth provider."""
+    ensure_fomoji_server(auto_start=True, timeout=8)
+    return _request(
+        "DELETE",
+        f"/api/oauth/config/{provider.strip().lower()}",
+        timeout=8,
+    )
 
 
 def is_authenticated() -> bool:
@@ -854,17 +959,19 @@ def _auth_cli(argv=None) -> int:
 
     Usage:
       cat --auth status
-      cat --auth login [--permissions ID,PROFILE,...]
+      cat --auth login [--guest | --passkey | --permissions ID,...]
+      cat --auth guest
+      cat --auth passkey
+      cat --auth config [--provider <name> --client-id <id> --client-secret <sec>]
       cat --auth logout
       cat --auth whoami
-      python -m calc_terminal.fomoji_auth status|login|logout|whoami
+      python -m calc_terminal.fomoji_auth status|login|guest|passkey|config|logout|whoami
     """
     import argparse
 
     argv = list(argv if argv is not None else sys.argv[1:])
-    # Drop a leading --auth if present (so `cat --auth login` and
-    # direct `login` both work).
-    if argv and argv[0] == "--auth":
+    # Drop a leading --auth or auth if present
+    if argv and argv[0] in ("--auth", "auth"):
         argv = argv[1:]
 
     # No args -> status
@@ -891,20 +998,139 @@ def _auth_cli(argv=None) -> int:
                 ident = get_identity()
                 name = ident.get("name", "?") if ident else "?"
                 fid = ident.get("fomojiId", "?") if ident else "?"
-                print(theme.green(f"  ✓ Connected as {name} ({fid})", bold=True))
+                itype = ident.get("identityType", "PERSON") if ident else "PERSON"
+                is_gst = ident.get("isGuest") or itype == "TEMPORARY"
+                print(theme.green(f"  ✓ Connected as {name} ({fid}) [{itype}]", bold=True))
                 print(theme.dim(f"    Status: {st}"))
                 print(theme.dim(f"    Token:  {TOKEN_PATH}"))
+                if is_gst:
+                    rem_sec = get_guest_remaining_seconds()
+                    if rem_sec is not None:
+                        mins = int(rem_sec // 60)
+                        hrs = mins // 60
+                        rem_m = mins % 60
+                        time_str = f"{hrs}h {rem_m}m" if hrs > 0 else f"{mins}m"
+                        print(theme.orange(f"    ⏱ Guest Limit: {time_str} remaining (auto-signs out after 2 hours)", bold=True))
                 if ident and ident.get("permissions"):
                     print(theme.dim(f"    Permissions: {', '.join(ident['permissions'])}"))
             elif st == "server_unreachable":
                 print(theme.red(f"  ✗ Fomoji server unreachable", bold=True))
                 print(theme.dim("    Start it: cd fomoji-updated/fomoji-server && npm start"))
+            elif st == "expired":
+                print(theme.orange(f"  ○ Session expired (2-hour limit reached or revoked)", bold=True))
+                print(theme.dim("    Run: cat --auth login  or  cat --auth guest"))
             else:
                 print(theme.orange(f"  ○ Not connected (status: {st})", bold=True))
-                print(theme.dim(f"    Run: cat --auth login"))
+                print(theme.dim(f"    Run: cat --auth login  or  cat --auth guest"))
         except Exception:
             print(st)
         return 0 if st == "connected" else 1
+
+    if action in ("guest", "--guest"):
+        if is_authenticated():
+            ident = get_identity()
+            name = ident.get("name", "?") if ident else "?"
+            print(f"  Already connected as {name}. Use `cat --auth logout` to switch.\n")
+            return 0
+        try:
+            ident = guest_login()
+            try:
+                from . import theme
+                theme.enable_windows_ansi()
+                print(theme.green("\n  ✓ Connected in Guest Mode (Temporary 2-Hour Session)", bold=True))
+                print(theme.dim(f"    Identifier: {ident.get('fomojiId')}"))
+                print(theme.orange("    ⏱ Note: Guest access automatically expires in 2 hours.", bold=True))
+                print(theme.dim("    After 2 hours, CAT CLI will automatically sign out.\n"))
+            except Exception:
+                print("\n  ✓ Connected in Guest Mode (Temporary 2-Hour Session)")
+                print(f"    Identifier: {ident.get('fomojiId')}")
+                print("    ⏱ Note: Guest access automatically expires in 2 hours.\n")
+            return 0
+        except Exception as e:
+            print(f"\n  ✗ Guest login failed: {e}\n")
+            return 1
+
+    if action in ("passkey", "--passkey"):
+        if not check_server_reachable():
+            ensure_fomoji_server(auto_start=True, timeout=12)
+        url = f"{get_fomoji_url()}/passkey.html"
+        print(f"\n  Opening Fomoji Passkey Authentication in browser...")
+        print(f"  URL: {url}\n")
+        try:
+            from .host.launcher import launch_cat_host, can_launch_host
+            if can_launch_host():
+                return launch_cat_host(start_browser_url=url, start_mode="browser")
+        except Exception:
+            pass
+        import webbrowser
+        webbrowser.open(url)
+        return 0
+
+    if action in ("config", "--config", "providers", "--providers", "oauth"):
+        p_name = None
+        c_id = None
+        c_sec = None
+        is_del = any(a in ("--delete", "--clear", "--remove", "-d") for a in rest)
+        for i, a in enumerate(rest):
+            if a in ("--provider", "-p") and i + 1 < len(rest):
+                p_name = rest[i + 1]
+            elif a in ("--client-id", "--id") and i + 1 < len(rest):
+                c_id = rest[i + 1]
+            elif a in ("--client-secret", "--secret") and i + 1 < len(rest):
+                c_sec = rest[i + 1]
+
+        if p_name and is_del:
+            try:
+                delete_oauth_credentials(p_name)
+                print(f"\n  ✓ Successfully removed OAuth credentials for {p_name.upper()}!\n")
+                return 0
+            except Exception as e:
+                print(f"\n  ✗ Failed to remove OAuth credentials: {e}\n")
+                return 1
+
+        if p_name and c_id and c_sec:
+            try:
+                set_oauth_credentials(p_name, c_id, c_sec)
+                print(f"\n  ✓ Successfully configured OAuth credentials for {p_name.upper()}!")
+                print(f"    Redirect URI: {get_fomoji_url()}/api/oauth/{p_name.lower()}/callback\n")
+                return 0
+            except Exception as e:
+                print(f"\n  ✗ Failed to save OAuth credentials: {e}\n")
+                return 1
+
+        try:
+            cfg = get_oauth_config()
+            providers = cfg.get("providers", [])
+            try:
+                from . import theme
+                theme.enable_windows_ansi()
+                print()
+                print(theme.text("  FOMOJI OAUTH AUTHENTICATION CONFIGURATIONS", bold=True))
+                print(theme.dim("  " + "─" * 68))
+                print(f"  {'Provider':<14} | {'Status':<16} | {'Client ID':<20} | {'Source'}")
+                print(theme.dim("  " + "─" * 68))
+                for p in providers:
+                    label = p.get("label", p.get("key"))
+                    sec = p.get("secretSet", False)
+                    status_str = theme.green("Configured") if sec else theme.dim("Not configured")
+                    cid = p.get("clientId", "") or "-"
+                    if len(cid) > 18:
+                        cid = cid[:15] + "..."
+                    src = p.get("source", "none")
+                    print(f"  {label:<14} | {status_str:<25} | {cid:<20} | {src}")
+                print(theme.dim("  " + "─" * 68))
+                print(theme.faint(f"\n  To configure a provider from CLI:"))
+                print(theme.cyan(f"    cat auth config --provider <google|github|microsoft|facebook|apple> --client-id <id> --client-secret <secret>"))
+                print(theme.faint(f"  Or open in browser: {get_fomoji_url()}/oauth-config.html\n"))
+            except Exception:
+                print("\n  OAuth Providers Status:")
+                for p in providers:
+                    print(f"  - {p.get('label')}: {'Configured' if p.get('secretSet') else 'Not configured'}")
+                print(f"\n  Configure via: {get_fomoji_url()}/oauth-config.html\n")
+            return 0
+        except Exception as e:
+            print(f"\n  ✗ Could not load OAuth configuration: {e}\n")
+            return 1
 
     if action in ("login", "connect", "auth"):
         if is_authenticated():
@@ -912,6 +1138,44 @@ def _auth_cli(argv=None) -> int:
             name = ident.get("name", "?") if ident else "?"
             print(f"  Already connected as {name}. Use `cat --auth logout` to switch identity.\n")
             return 0
+
+        # Shortcut flags
+        if "--guest" in rest or "-g" in rest:
+            return _auth_cli(["guest"])
+        if "--passkey" in rest:
+            return _auth_cli(["passkey"])
+
+        # Interactive selection if running in an interactive terminal
+        if sys.stdin.isatty() and sys.stdout.isatty() and not perms:
+            try:
+                from . import theme
+                theme.enable_windows_ansi()
+                print()
+                print(theme.text("  SELECT AUTHENTICATION METHOD FOR CAT", bold=True))
+                print(theme.dim("  " + "─" * 52))
+                print(theme.cyan("  [1] Passkey") + theme.dim(" (Face ID / Windows Hello / Security Key)"))
+                print(theme.cyan("  [2] OAuth") + theme.dim(" (Google, GitHub, Microsoft, Facebook, Apple)"))
+                print(theme.cyan("  [3] Device Approval") + theme.dim(" (Standard code approval in browser)"))
+                print(theme.cyan("  [4] Guest Access") + theme.orange(" (2 Hours Temporary — auto-signout)"))
+                print(theme.dim("  " + "─" * 52))
+                choice = input("  Select [1-4, default=3]: ").strip()
+                if choice == "1":
+                    return _auth_cli(["passkey"])
+                elif choice == "2":
+                    url = f"{get_fomoji_url()}/index.html"
+                    print(f"\n  Opening OAuth login at {url} ...")
+                    import webbrowser
+                    webbrowser.open(url)
+                    # And start device flow for completion
+                    choice = "3"
+                elif choice == "4":
+                    return _auth_cli(["guest"])
+            except (KeyboardInterrupt, EOFError):
+                print("\n  Cancelled.\n")
+                return 1
+            except Exception:
+                pass
+
         if not check_server_reachable():
             _print_unreachable_help()
             return 1
@@ -943,7 +1207,7 @@ def _auth_cli(argv=None) -> int:
         return 0
 
     print(f"  Unknown auth action: {action}")
-    print("  Usage: cat --auth <status|login|logout|whoami>")
+    print("  Usage: cat --auth <status|login|guest|passkey|config|logout|whoami>")
     return 2
 
 

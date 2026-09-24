@@ -202,6 +202,61 @@ router.post('/connect', requireAuth, (req, res) => {
 });
 
 // ---------------------------------------------------------------------
+// POST /api/connector/guest — Create a 2-hour temporary guest connection.
+// Grants immediate local access without credentials, strictly bounded to
+// 2 hours (7200s), after which it auto-expires and CAT auto-signs out.
+// ---------------------------------------------------------------------
+router.post('/guest', (req, res) => {
+  const { applicationId = 'cat' } = req.body || {};
+  let app = getApp(applicationId);
+  if (!app) {
+    app = getApp('cat');
+  }
+
+  const guestId = randomToken('usr_gst', 16);
+  const guestFomojiId = 'gst_' + crypto.randomBytes(4).toString('hex');
+  const guestUsername = 'guest_' + crypto.randomBytes(4).toString('hex');
+  const now = Date.now();
+  const expiresAt = new Date(now + 2 * 60 * 60 * 1000).toISOString(); // 2 hours
+
+  // Seed guest user
+  db.prepare(`
+    INSERT INTO users (id, fomoji_id, name, username, email, identity_type, expires_at)
+    VALUES (?, ?, 'Guest User', ?, NULL, 'TEMPORARY', ?)
+  `).run(guestId, guestFomojiId, guestUsername, expiresAt);
+
+  const token = randomToken('fct_guest');
+  const tokenHash = sha256Hex(token);
+  const connId = crypto.randomUUID();
+  const perms = ['IDENTITY', 'CAT_ACCESS'];
+
+  db.prepare(`
+    INSERT INTO connections (id, user_id, application_id, permissions_granted, connection_type, environment, status, connector_token_hash, last_used_at, expires_at)
+    VALUES (?, ?, ?, ?, 'guest', 'production', 'connected', ?, datetime('now'), ?)
+  `).run(connId, guestId, app ? app.application_id : 'cat', JSON.stringify(perms), tokenHash, expiresAt);
+
+  req.session.userId = guestId;
+
+  res.json({
+    connectorToken: token,
+    token,
+    expiresAt,
+    expiresInSeconds: 7200,
+    identity: {
+      fomojiId: guestFomojiId,
+      name: 'Guest User',
+      username: guestUsername,
+      identityType: 'TEMPORARY',
+      isGuest: true,
+      expiresAt,
+      expiresInSeconds: 7200,
+      permissions: perms,
+      applicationId: app ? app.application_id : 'cat',
+    },
+  });
+});
+
+// ---------------------------------------------------------------------
 // POST /api/connector/disconnect — revoke a connection (browser session).
 // ---------------------------------------------------------------------
 router.post('/disconnect', requireAuth, (req, res) => {

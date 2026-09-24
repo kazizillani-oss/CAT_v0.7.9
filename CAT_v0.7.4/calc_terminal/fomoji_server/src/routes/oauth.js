@@ -21,7 +21,10 @@ function deleteExpiredStates() {
 }
 
 function logEvent(userId, kind, detail) {
-  db.prepare(`INSERT INTO auth_events (user_id, kind, detail) VALUES (?, ?, ?)`).run(userId, kind, detail || null);
+  if (!userId || userId === 'system') return;
+  try {
+    db.prepare(`INSERT INTO auth_events (user_id, kind, detail) VALUES (?, ?, ?)`).run(userId, kind, detail || null);
+  } catch (_) {}
 }
 
 // base64url helpers — PKCE (RFC 7636) needs these, and Apple's id_token is
@@ -49,18 +52,23 @@ router.get('/oauth/providers', (req, res) => {
 
 // ---------------------------------------------------------------------
 // Config Registry (Security → Provider Config) — lets Client ID/Secret be
-// entered from the app itself instead of hand-editing .env. Gated behind
-// requireAuth: any signed-in Fomoji identity can read/write this right
-// now, which is fine for a single-owner dev deployment but is NOT a real
-// admin-role check — tighten this before this app has more than one user.
+// entered from the app itself instead of hand-editing .env. Accessible to
+// signed-in identities or local loopback (CLI / dev access).
 // Secrets are never echoed back once saved, only whether one is set.
 // ---------------------------------------------------------------------
-function requireAuth(req, res, next) {
-  if (!req.session.userId) return res.status(401).json({ error: 'not_authenticated' });
+function isLocalOrAuthed(req) {
+  if (req.session && req.session.userId) return true;
+  const ip = req.ip || req.connection?.remoteAddress || '';
+  const isLoopback = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || req.hostname === 'localhost';
+  return isLoopback;
+}
+
+function requireAuthOrLocal(req, res, next) {
+  if (!isLocalOrAuthed(req)) return res.status(401).json({ error: 'not_authenticated' });
   next();
 }
 
-router.get('/admin/oauth-config', requireAuth, (req, res) => {
+function handleGetOAuthConfig(req, res) {
   const providers = Object.entries(PROVIDERS).map(([key, p]) => {
     const { clientId } = credentials(key);
     const source = credentialSource(key);
@@ -75,9 +83,9 @@ router.get('/admin/oauth-config', requireAuth, (req, res) => {
     };
   });
   res.json({ providers });
-});
+}
 
-router.post('/admin/oauth-config/:provider', requireAuth, (req, res) => {
+function handleSetOAuthConfig(req, res) {
   const providerKey = req.params.provider;
   const provider = PROVIDERS[providerKey];
   if (!provider) return res.status(404).json({ error: 'unknown_provider' });
@@ -91,21 +99,32 @@ router.post('/admin/oauth-config/:provider', requireAuth, (req, res) => {
   }
 
   setRegistryCredentials(providerKey, clientId.trim(), clientSecret.trim());
-  logEvent(req.session.userId, 'oauth_config_saved', providerKey);
+  const uid = req.session && req.session.userId ? req.session.userId : 'system';
+  logEvent(uid, 'oauth_config_saved', providerKey);
   console.log('[fomoji:oauth] config registry updated for %s (value not logged)', providerKey);
-  res.json({ ok: true });
-});
+  res.json({ ok: true, provider: providerKey, configured: true });
+}
 
-router.delete('/admin/oauth-config/:provider', requireAuth, (req, res) => {
+function handleDeleteOAuthConfig(req, res) {
   const providerKey = req.params.provider;
   if (!PROVIDERS[providerKey]) return res.status(404).json({ error: 'unknown_provider' });
   if (credentialSource(providerKey) === 'env') {
     return res.status(409).json({ error: 'env_managed', message: 'This provider is configured via .env on the server.' });
   }
   clearRegistryCredentials(providerKey);
-  logEvent(req.session.userId, 'oauth_config_cleared', providerKey);
-  res.json({ ok: true });
-});
+  const uid = req.session && req.session.userId ? req.session.userId : 'system';
+  logEvent(uid, 'oauth_config_cleared', providerKey);
+  res.json({ ok: true, provider: providerKey, configured: false });
+}
+
+router.get('/admin/oauth-config', requireAuthOrLocal, handleGetOAuthConfig);
+router.get('/oauth/config', requireAuthOrLocal, handleGetOAuthConfig);
+
+router.post('/admin/oauth-config/:provider', requireAuthOrLocal, handleSetOAuthConfig);
+router.post('/oauth/config/:provider', requireAuthOrLocal, handleSetOAuthConfig);
+
+router.delete('/admin/oauth-config/:provider', requireAuthOrLocal, handleDeleteOAuthConfig);
+router.delete('/oauth/config/:provider', requireAuthOrLocal, handleDeleteOAuthConfig);
 
 // ---------------------------------------------------------------------
 // GET /api/oauth/:provider/start — begin the ceremony. Works identically

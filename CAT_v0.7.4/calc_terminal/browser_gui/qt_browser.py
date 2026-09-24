@@ -254,23 +254,24 @@ class _NewTabWidget(QWidget):
         search_frame = QFrame()
         search_frame.setStyleSheet(f"""
             QFrame {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c['sh']}, stop:0.18 {c['surface']}, stop:1 {c['surface']});
-                border-top: 1.5px solid {c['sh']};
-                border-left: 1.5px solid {c['sh']};
-                border-right: 1px solid {c['hi']};
-                border-bottom: 1px solid {c['hi']};
-                border-radius: 16px;
+                background: {c['surface']};
+                border: 1px solid {c['border']};
+                border-radius: 14px;
+            }}
+            QFrame:hover {{
+                border: 1px solid {c['accent']};
+                background: {c['surface_hover']};
             }}
             QFrame:focus-within {{
-                border: 2px solid {c['focus_ring']};
-                background: {c['surface']};
+                border: 1px solid {c['accent']};
+                background: {c['surface_hover']};
             }}
         """)
         sh = QHBoxLayout(search_frame)
-        sh.setContentsMargins(12, 6, 12, 6)
-        sh.setSpacing(6)
-        search_icon = QLabel("🔍")
-        search_icon.setStyleSheet(f"color: {c['text_muted']}; font-size: 13px; background: transparent;")
+        sh.setContentsMargins(12, 4, 12, 4)
+        sh.setSpacing(8)
+        search_icon = QLabel("⌕")
+        search_icon.setStyleSheet(f"color: {c['text_muted']}; font-size: 15px; font-weight: bold; background: transparent; border: none;")
         sh.addWidget(search_icon)
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Search the web or enter a URL...")
@@ -377,6 +378,26 @@ class CATBrowserWindow(QMainWindow):
         self.setWindowTitle("CAT Browser")
         self.resize(1280, 860)
         self.setMinimumSize(960, 640)
+
+        if sys.platform == "win32":
+            try:
+                import ctypes
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("kazizillani.cat.browser.v08")
+            except Exception:
+                pass
+
+        try:
+            from ..terminal_identity import get_browser_icon_path
+            from PySide6.QtGui import QIcon
+            ico = get_browser_icon_path()
+            if ico and os.path.isfile(ico):
+                br_icon = QIcon(ico)
+                self.setWindowIcon(br_icon)
+                qapp = QApplication.instance()
+                if qapp:
+                    qapp.setWindowIcon(br_icon)
+        except Exception:
+            pass
 
         c = _cat_theme_colors()
         self._colors = c
@@ -607,38 +628,38 @@ class CATBrowserWindow(QMainWindow):
 
         toolbar.addSpacing(4)
 
-        # Address bar — sunken 3D well with accessible focus
+        # Address bar — minimal sleek pill
         addr_frame = QFrame()
         addr_frame.setStyleSheet(f"""
             QFrame {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c['sh']}, stop:0.2 {c['surface']}, stop:1 {c['surface']});
-                border-top: 1.5px solid {c['sh']};
-                border-left: 1.5px solid {c['sh']};
-                border-right: 1px solid {c['hi']};
-                border-bottom: 1px solid {c['hi']};
-                border-radius: 12px;
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.09);
+                border-radius: 13px;
+            }}
+            QFrame:hover {{
+                background: rgba(255, 255, 255, 0.07);
+                border: 1px solid rgba(255, 255, 255, 0.16);
             }}
             QFrame:focus-within {{
-                border: 2px solid {c['focus_ring']};
+                border: 1px solid {c['accent']};
                 background: {c['surface']};
             }}
         """)
         addr_layout = QHBoxLayout(addr_frame)
-        addr_layout.setContentsMargins(8, 1, 8, 1)
-        addr_layout.setSpacing(4)
+        addr_layout.setContentsMargins(8, 0, 8, 0)
+        addr_layout.setSpacing(6)
 
-        self.lock_label = QLabel("🔒")
-        self.lock_label.setFixedWidth(20)
+        self.lock_label = QLabel("⌕")
+        self.lock_label.setFixedWidth(16)
         self.lock_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.lock_label.setToolTip("Security Status")
+        self.lock_label.setToolTip("Security & Search")
         self.lock_label.setAccessibleName("Security connection status")
         self.lock_label.setStyleSheet(f"""
-            color: {c['accent']};
-            font-size: 11px;
-            background: {c['accent_soft']};
-            border: 1px solid {c['hi']};
-            border-radius: 6px;
-            padding: 1px 2px;
+            color: {c['text_muted']};
+            font-size: 13px;
+            background: transparent;
+            border: none;
+            padding: 0;
         """)
         addr_layout.addWidget(self.lock_label)
 
@@ -658,11 +679,27 @@ class CATBrowserWindow(QMainWindow):
         toolbar.addWidget(addr_frame, 1)
 
         self.menu_btn = QPushButton("⋮")
-        self.menu_btn.setFixedSize(26, 22)
+        self.menu_btn.setFixedSize(24, 22)
         self.menu_btn.setToolTip("Menu")
         self.menu_btn.setAccessibleName("Menu")
         self.menu_btn.setAccessibleDescription("Browser settings and options")
-        self.menu_btn.setStyleSheet(nav_btn_style)
+        self.menu_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: transparent;
+                border: none;
+                border-radius: 6px;
+                color: {c['text_muted']};
+                font-size: 14px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background: rgba(255, 255, 255, 0.08);
+                color: {c['text']};
+            }}
+            QPushButton:pressed {{
+                background: rgba(255, 255, 255, 0.14);
+            }}
+        """)
         self.menu_btn.clicked.connect(self.show_menu)
         toolbar.addWidget(self.menu_btn)
 
@@ -999,7 +1036,15 @@ class CATBrowserWindow(QMainWindow):
             if idx == self.tab_bar.currentIndex():
                 display = _friendly_url(url)
                 self.address_input.setText(display)
-                self.lock_label.setText("🔒" if url.startswith("https://") else "🌐")
+                if url.startswith("https://"):
+                    self.lock_label.setText("🔒")
+                    self.lock_label.setStyleSheet("color: #10b981; font-size: 11px; background: transparent; border: none; padding: 0;")
+                elif url.startswith("about:") or not url:
+                    self.lock_label.setText("⌕")
+                    self.lock_label.setStyleSheet(f"color: {self._colors.get('text_muted', '#8d92be')}; font-size: 13px; background: transparent; border: none; padding: 0;")
+                else:
+                    self.lock_label.setText("🌐")
+                    self.lock_label.setStyleSheet(f"color: {self._colors.get('text_muted', '#8d92be')}; font-size: 11px; background: transparent; border: none; padding: 0;")
                 self._update_bookmark_star()
         except (ValueError, IndexError):
             pass
@@ -1093,7 +1138,15 @@ class CATBrowserWindow(QMainWindow):
             display = _friendly_url(tab.url)
             if self.address_input.text() != display:
                 self.address_input.setText(display)
-            lock = "🔒" if tab.url.startswith("https") else "🌐"
+            if tab.url.startswith("https"):
+                lock = "🔒"
+                self.lock_label.setStyleSheet("color: #10b981; font-size: 11px; background: transparent; border: none; padding: 0;")
+            elif tab.url.startswith("about:") or not tab.url:
+                lock = "⌕"
+                self.lock_label.setStyleSheet(f"color: {self._colors.get('text_muted', '#8d92be')}; font-size: 13px; background: transparent; border: none; padding: 0;")
+            else:
+                lock = "🌐"
+                self.lock_label.setStyleSheet(f"color: {self._colors.get('text_muted', '#8d92be')}; font-size: 11px; background: transparent; border: none; padding: 0;")
             if self.lock_label.text() != lock:
                 self.lock_label.setText(lock)
             self.back_btn.setEnabled(self.state.can_go_back())

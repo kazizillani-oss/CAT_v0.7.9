@@ -4,6 +4,15 @@
      <script src="vendor/simplewebauthn-browser.min.js"></script>
    loaded first, which exposes window.SimpleWebAuthnBrowser.
    ========================================================================== */
+// WebAuthn requires hostname 'localhost', not '127.0.0.1' (IP addresses are rejected by navigator.credentials)
+if (typeof window !== 'undefined' && window.location.hostname === '127.0.0.1') {
+  try {
+    const newUrl = new URL(window.location.href);
+    newUrl.hostname = 'localhost';
+    window.location.replace(newUrl.toString());
+  } catch (_) {}
+}
+
 const FomojiWebAuthn = (() => {
   async function postJSON(url, body) {
     const res = await fetch(url, {
@@ -32,38 +41,38 @@ const FomojiWebAuthn = (() => {
   return {
     // Create a brand-new Fomoji identity + its first passkey in one ceremony.
     async createIdentity({ name, username, email }) {
-      const { options } = await postJSON('/api/webauthn/register/start', { name, username, email });
+      const { options, challengeId } = await postJSON('/api/webauthn/register/start', { name, username, email });
       let attResp;
       try {
         attResp = await SimpleWebAuthnBrowser.startRegistration({ optionsJSON: options });
       } catch (err) {
         throw new FomojiWebAuthnError(browserErrorMessage(err), 'browser_error');
       }
-      return postJSON('/api/webauthn/register/finish', attResp);
+      return postJSON('/api/webauthn/register/finish', { ...attResp, challengeId });
     },
 
     // Add an additional passkey to the currently signed-in identity.
     async addPasskey() {
-      const { options } = await postJSON('/api/webauthn/register/start', null);
+      const { options, challengeId } = await postJSON('/api/webauthn/register/start', null);
       let attResp;
       try {
         attResp = await SimpleWebAuthnBrowser.startRegistration({ optionsJSON: options });
       } catch (err) {
         throw new FomojiWebAuthnError(browserErrorMessage(err), 'browser_error');
       }
-      return postJSON('/api/webauthn/register/finish', attResp);
+      return postJSON('/api/webauthn/register/finish', { ...attResp, challengeId });
     },
 
     // Usernameless sign-in — the browser's own passkey picker does the work.
     async login() {
-      const { options } = await postJSON('/api/webauthn/login/start', null);
+      const { options, challengeId } = await postJSON('/api/webauthn/login/start', null);
       let asseResp;
       try {
         asseResp = await SimpleWebAuthnBrowser.startAuthentication({ optionsJSON: options });
       } catch (err) {
         throw new FomojiWebAuthnError(browserErrorMessage(err), 'browser_error');
       }
-      return postJSON('/api/webauthn/login/finish', asseResp);
+      return postJSON('/api/webauthn/login/finish', { ...asseResp, challengeId });
     },
 
     async session() {

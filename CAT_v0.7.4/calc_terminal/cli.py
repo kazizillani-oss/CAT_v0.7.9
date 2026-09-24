@@ -1215,6 +1215,14 @@ def _launch_cat_terminal():
         init_terminal_identity()
     except Exception:
         pass
+
+    # Enforce 2-hour guest watchdog if running in guest mode
+    try:
+        from .fomoji_auth import start_guest_watchdog
+        start_guest_watchdog()
+    except Exception:
+        pass
+
     from .app import App
     from .ui.app import launch_chat_app
     repl = App()
@@ -1289,7 +1297,18 @@ def bootstrap():
             ident = get_identity()
             name = ident.get("name", "?") if ident else "?"
             fid = ident.get("fomojiId", "?") if ident else "?"
-            print(theme.green(f"\n  ✓ Already authenticated as {name} ({fid})", bold=True))
+            itype = ident.get("identityType", "PERSON") if ident else "PERSON"
+            is_gst = ident.get("isGuest") or itype == "TEMPORARY"
+            print(theme.green(f"\n  ✓ Authenticated as {name} ({fid}) [{itype}]", bold=True))
+            if is_gst:
+                from .fomoji_auth import get_guest_remaining_seconds
+                rem_sec = get_guest_remaining_seconds()
+                if rem_sec is not None:
+                    mins = int(rem_sec // 60)
+                    hrs = mins // 60
+                    rem_m = mins % 60
+                    time_str = f"{hrs}h {rem_m}m" if hrs > 0 else f"{mins}m"
+                    print(theme.orange(f"    ⏱ Guest Session: {time_str} remaining (auto-signs out after 2 hours)", bold=True))
             print(theme.dim("    Launching CAT CLI..."))
             print()
         except Exception:

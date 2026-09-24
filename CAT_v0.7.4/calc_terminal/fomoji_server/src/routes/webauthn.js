@@ -11,11 +11,28 @@ const {
 
 const db = require('../db');
 const { randomFomojiId, randomInternalId } = require('../id');
-const { RP_ID, RP_NAME, ORIGIN } = require('../config');
+const { RP_ID, RP_NAME, ORIGIN, PORT } = require('../config');
 
 const router = express.Router();
 
 const CHALLENGE_TTL_MS = 5 * 60 * 1000; // 5 minutes to complete a ceremony
+
+function getAllowedOrigins(req) {
+  const list = new Set([
+    ORIGIN,
+    `http://localhost:${PORT || 3000}`,
+    `http://127.0.0.1:${PORT || 3000}`,
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:8765',
+    'http://127.0.0.1:8765',
+  ]);
+  const reqOrigin = req.get('origin');
+  if (reqOrigin) {
+    list.add(reqOrigin);
+  }
+  return Array.from(list);
+}
 
 function expiryFromNow() {
   return new Date(Date.now() + CHALLENGE_TTL_MS).toISOString();
@@ -118,15 +135,15 @@ router.post('/register/start', async (req, res) => {
 
   req.session.pendingChallengeId = challengeId;
   console.log('[fomoji:webauthn] register/start ok — mode=%s rpID=%s challengeId=%s', payload.mode, RP_ID, challengeId);
-  res.json({ options });
+  res.json({ options, challengeId });
 });
 
 router.post('/register/finish', async (req, res) => {
   deleteExpiredChallenges();
 
-  const challengeId = req.session.pendingChallengeId;
+  const challengeId = (req.body && req.body.challengeId) || req.session.pendingChallengeId;
   if (!challengeId) {
-    console.warn('[fomoji:webauthn] register/finish: no pendingChallengeId on session (cookie not sent, or session lost between /start and /finish)');
+    console.warn('[fomoji:webauthn] register/finish: no pending challenge found on request or session');
     return res.status(400).json({ error: 'no_pending_challenge' });
   }
 
@@ -143,7 +160,7 @@ router.post('/register/finish', async (req, res) => {
     verification = await verifyRegistrationResponse({
       response: req.body,
       expectedChallenge: row.challenge,
-      expectedOrigin: ORIGIN,
+      expectedOrigin: getAllowedOrigins(req),
       expectedRPID: RP_ID,
     });
   } catch (err) {
@@ -217,15 +234,15 @@ router.post('/login/start', async (req, res) => {
 
   req.session.pendingChallengeId = challengeId;
   console.log('[fomoji:webauthn] login/start ok — rpID=%s challengeId=%s', RP_ID, challengeId);
-  res.json({ options });
+  res.json({ options, challengeId });
 });
 
 router.post('/login/finish', async (req, res) => {
   deleteExpiredChallenges();
 
-  const challengeId = req.session.pendingChallengeId;
+  const challengeId = (req.body && req.body.challengeId) || req.session.pendingChallengeId;
   if (!challengeId) {
-    console.warn('[fomoji:webauthn] login/finish: no pendingChallengeId on session (cookie not sent, or session lost between /start and /finish)');
+    console.warn('[fomoji:webauthn] login/finish: no pending challenge found on request or session');
     return res.status(400).json({ error: 'no_pending_challenge' });
   }
 
@@ -253,7 +270,7 @@ router.post('/login/finish', async (req, res) => {
     verification = await verifyAuthenticationResponse({
       response: req.body,
       expectedChallenge: row.challenge,
-      expectedOrigin: ORIGIN,
+      expectedOrigin: getAllowedOrigins(req),
       expectedRPID: RP_ID,
       credential: toWebAuthnCredential(credRow),
     });

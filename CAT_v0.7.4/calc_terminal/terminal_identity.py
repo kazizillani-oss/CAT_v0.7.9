@@ -91,10 +91,47 @@ def get_icon_path() -> Optional[str]:
     return None
 
 
-def apply_console_icon(ico_path: Optional[str] = None) -> bool:
-    """Set the Windows console window icon via Win32 WM_SETICON."""
+def set_process_app_user_model_id(app_id: str = "kazizillani.cat.cli.v08") -> bool:
+    """Explicitly set Windows AppUserModelID so the Windows taskbar displays our custom icon
+    rather than Python's default interpreter icon."""
     if sys.platform != "win32":
         return False
+    try:
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(str(app_id))
+        return True
+    except Exception:
+        return False
+
+
+def get_browser_icon_path() -> Optional[str]:
+    """Return the absolute path to the multi-resolution CAT Browser .ico file."""
+    local_dir = _get_local_appdata_dir()
+    local_ico = os.path.join(local_dir, "cat_browser.ico")
+    if os.path.isfile(local_ico) and os.path.getsize(local_ico) > 0:
+        return os.path.abspath(local_ico)
+
+    pkg_dir = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        os.path.join(pkg_dir, "cat_browser.ico"),
+        os.path.join(pkg_dir, "web", "static", "icons", "cat_browser.ico"),
+    ]
+    for c in candidates:
+        if os.path.isfile(c) and os.path.getsize(c) > 0:
+            try:
+                import shutil
+                shutil.copy2(c, local_ico)
+                return os.path.abspath(local_ico)
+            except Exception:
+                return os.path.abspath(c)
+    return None
+
+
+def apply_console_icon(ico_path: Optional[str] = None) -> bool:
+    """Set the Windows console window and taskbar icon via Win32 WM_SETICON and AppUserModelID."""
+    if sys.platform != "win32":
+        return False
+    set_process_app_user_model_id("kazizillani.cat.cli.v08")
     try:
         import ctypes
         kernel32 = ctypes.windll.kernel32
