@@ -255,8 +255,9 @@ if TEXTUAL_AVAILABLE:
                 available = max(20, main.region.height)
             except Exception:
                 available = 20
-            # Leave at least 10 rows for chat column / dashboard
-            max_h = min(14, max(COMPOSER_MIN_HEIGHT + 2, min(int(available * COMPOSER_MAX_FRACTION), available - 10)))
+            # Leave at least 15 rows for chat column / dashboard so it never overlaps or gets cut off
+            max_chat_room = max(15, int(available * 0.55))
+            max_h = min(10, max(COMPOSER_MIN_HEIGHT, available - max_chat_room))
             return COMPOSER_MIN_HEIGHT, max(COMPOSER_MIN_HEIGHT, max_h)
 
         def _apply(self, event):

@@ -43,7 +43,7 @@ from .. import project_stats
 from .. import timeline
 from .. import todos
 from .. import aicore
-from .events import FolderOpened, FileOpenRequested, CommandExecuted
+from .events import FolderOpened, FileOpenRequested, CommandExecuted, MessageSubmitted
 
 TEXTUAL_AVAILABLE = True
 try:
@@ -52,6 +52,91 @@ try:
     from . import theme_css
 except Exception:
     TEXTUAL_AVAILABLE = False
+
+
+# ─── 5 RESPONSIVE ASCII WORDMARK LOGO VARIANTS ───────────────────────────────
+_ACTIVE_LOGO_VARIANT = 0
+
+LOGO_VARIANTS = [
+    {
+        "id": "cyber3d",
+        "name": "3D ANSI Block",
+        "art": [
+            " ██████╗  █████╗ ████████╗",
+            "██╔════╝ ██╔══██╗╚══██╔══╝",
+            "██║      ███████║   ██║   ",
+            "██║      ██╔══██║   ██║   ",
+            "╚██████╗ ██║  ██║   ██║   ",
+            " ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ",
+        ],
+        "compact": [
+            "█▀▀▀ █▀▀█ ▀█▀",
+            "█    █▄▄█  █ ",
+            "▀▀▀▀ ▀  ▀  ▀ ",
+        ],
+    },
+    {
+        "id": "retro",
+        "name": "Classic Retro BBS",
+        "art": [
+            "   ____    ___   ______",
+            "  / __/   / _ | /_  __/",
+            " / /__   / __ |  / /   ",
+            " \\___/  /_/ |_| /_/    ",
+        ],
+        "compact": [
+            " / _/ / _ | /_  _/",
+            "/ /_ / __ |  / /  ",
+            "\\__/ /_/ |_| /_/  ",
+        ],
+    },
+    {
+        "id": "matrix",
+        "name": "Matrix Glitch",
+        "art": [
+            " ▄████▄   ▄▄▄     ▄▄▄█████▓",
+            "▒██▀ ▀█  ▒████▄   ▓  ██▒ ▓▒",
+            "▒▓█    ▄ ▒██  ▀█▄ ▒ ▓██░ ▒░",
+            "▒▓▓▄ ▄██▒░██▄▄▄▄██░ ▓██▓ ░ ",
+            "▒ ▓███▀ ░ ▓█   ▓██▒ ▒██▒ ░ ",
+        ],
+        "compact": [
+            "▄██▄ ▄▄▄  ███",
+            "█    █  █  █ ",
+            "▀██▀ ▀  ▀  ▀ ",
+        ],
+    },
+    {
+        "id": "synthwave",
+        "name": "Isometric Synthwave",
+        "art": [
+            "  ______   ___   ______ ",
+            " / ____/  /   | /_  __/ ",
+            "/ /      / /| |  / /    ",
+            "/ /___  / ___ | / /     ",
+            "\\____/ /_/  |_|/_/      ",
+        ],
+        "compact": [
+            "/ ___/ /   | /_  _/",
+            "/ /__ / /| |  / /  ",
+            "\\___/ /_/ |_| /_/  ",
+        ],
+    },
+    {
+        "id": "pixel",
+        "name": "Compact Pixel Mini",
+        "art": [
+            "┌─┐┌─┐┌┬┐",
+            "│  ├─┤ │ ",
+            "└─┘┴ ┴ ┴ ",
+        ],
+        "compact": [
+            "┌─┐┌─┐┌┬┐",
+            "│  ├─┤ │ ",
+            "└─┘┴ ┴ ┴ ",
+        ],
+    },
+]
 
 
 if TEXTUAL_AVAILABLE:
@@ -72,23 +157,6 @@ if TEXTUAL_AVAILABLE:
         the composition opens with the large CAT block-art hero +
         identity/ready lines (the branded centerpiece), then quick
         actions, then the real-data columns.
-
-        State inputs handed in by CCTApp (this widget never reads
-        app/session state directly, same convention as BrandHeader/
-        StatusLine): logo_lines / version / model_label / notebook_count.
-        `workspace_root`, added for the v0.7.2 roadmap's Project &
-        Workspace Dashboard, is the one exception — real filesystem/git
-        stats need a real path.
-
-        v0.7.9.0 additions (spec: 'Dashboard and Welcome Screen always
-        available'):
-          * CAT ASCII hero replaces the old one-line text hero.
-          * Mode-aware ready line (set_mode) — always names the ACTUAL
-            persona.
-          * Live AI STATUS block (update_ai_status): Initializing /
-            Working… / Ready / Not configured. Model starts/reloads
-            NEVER open another dashboard — the existing one is updated
-            in place (requirement: prevent duplicate windows).
         """
 
         def __init__(self, logo_lines, version, model_label, notebook_count,
@@ -102,25 +170,13 @@ if TEXTUAL_AVAILABLE:
             self._mode_key = mode_key
             self._ai_state = None   # live state text pushed by CCTApp
             self._last_resize_w = None  # (width, height) of last handled resize
+            self._logo_variant_idx = _ACTIVE_LOGO_VARIANT
 
         # ----------------------------------------------------- artwork --
         def _art_lines(self):
             """Pick the largest CAT word-art variant that fits the LIVE
-            dashboard width — full block letters, semi, compact half-block,
-            or one of the mini cat faces on a narrow pane. Never overflows.
-
-            v0.7.9.6: this used to be a private 3-rung ladder (text < 22,
-            compact < 34, else full) that bypassed the empty-state's own
-            ladder — so the two screens disagreed about what "narrow"
-            means and every face variant added over there had to be
-            hand-copied here. It now delegates to the shared, pure
-            `empty_state._pick_art_variant()`, which means the whole
-            face family (mini/tiny/micro/nano) lights up on the dashboard
-            too, and the height-aware short-pane downgrade comes along
-            for free.
-
-            Returns None when the pane is too narrow for any art (caller
-            renders a text wordmark instead)."""
+            dashboard width — respecting the selected LOGO_VARIANT, or
+            falling back through compact / cat faces when narrow. Never overflows."""
             try:
                 from .empty_state import (
                     _COMPACT_ART, _MINI_CAT_ART, _MINI_CAT_ART_2ROW,
@@ -152,29 +208,35 @@ if TEXTUAL_AVAILABLE:
                     app_w = self.app.size.width
                     if app_w and w and w < (app_w - 5):
                         is_split = True
-                # In split pane or constrained vertical space (< 24 rows), prefer 3-row combo art
                 if h is not None and h < 24:
                     is_split = True
+
                 variant = _pick_art_variant(w, h, prefer_combo=is_split)
-                # Only downgrade to 2-row miniface2 in extreme vertical constraint (h < 8)
                 if h is not None and h < 8 and variant in ("full", "combo", "semi", "compact", "miniface", "tinyface"):
                     variant = "miniface2"
                 if variant == "text":
-                    return None                      # text-only wordmark
+                    return None
+
+                active_var = LOGO_VARIANTS[self._logo_variant_idx]
+                if variant == "full":
+                    return list(active_var["art"])
+                if variant in ("semi", "compact"):
+                    return list(active_var.get("compact") or _SEMI_ART)
+                if variant == "combo":
+                    if w and w >= 36:
+                        return list(_COMBO_CAT_ART)
+                    return list(active_var.get("compact") or _COMPACT_ART)
+
                 face = {
                     "nanoface": _NANO_CAT_ART,
                     "microface": _MICRO_CAT_ART,
                     "tinyface": _TINY_CAT_ART,
                     "miniface": _MINI_CAT_ART,
                     "miniface2": _MINI_CAT_ART_2ROW,
-                    "compact": _COMPACT_ART,
-                    "semi": _SEMI_ART,
-                    "combo": _COMBO_CAT_ART,
                 }.get(variant)
                 if face is not None:
                     return list(face)
-                return [line.rstrip() for line in
-                        (self._logo_lines or _full_art())]
+                return list(active_var["art"])
             except Exception:
                 return ["CAT"]
 
@@ -202,6 +264,37 @@ if TEXTUAL_AVAILABLE:
                 return "\n".join(lines)
             except Exception:
                 return "[b]CAT[/]"
+
+        def set_logo_variant(self, idx: int):
+            """Switch to one of the 5 responsive ASCII logo variants."""
+            global _ACTIVE_LOGO_VARIANT
+            self._logo_variant_idx = max(0, min(len(LOGO_VARIANTS) - 1, int(idx)))
+            _ACTIVE_LOGO_VARIANT = self._logo_variant_idx
+            try:
+                self.query_one("#cct-empty-art", Static).update(self._art_markup())
+                for i in range(len(LOGO_VARIANTS)):
+                    try:
+                        btn = self.query_one(f"#dash-logo-{i}", Button)
+                        if i == self._logo_variant_idx:
+                            btn.add_class("active")
+                        else:
+                            btn.remove_class("active")
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+        def cycle_logo_variant(self):
+            """Cycle to next ASCII logo variant."""
+            next_idx = (self._logo_variant_idx + 1) % len(LOGO_VARIANTS)
+            self.set_logo_variant(next_idx)
+
+        def on_click(self, event):
+            """Click on ASCII art cycles through the 5 logo styles."""
+            target = getattr(event, "target", None)
+            target_id = getattr(target, "id", None)
+            if target_id == "cct-empty-art" or getattr(getattr(target, "parent", None), "id", None) == "cct-empty-art":
+                self.cycle_logo_variant()
 
         def _ready_markup(self):
             faint = theme_css.current_hex("text-faint")
@@ -242,8 +335,12 @@ if TEXTUAL_AVAILABLE:
             faint = theme_css.current_hex("text-faint")
             muted = theme_css.current_hex("text-muted")
 
-            # --- CAT hero: block art + identity + ready (branded) ------
+            # --- CAT hero: block art + selector pills + identity + ready (centered) ---
             yield Static(self._art_markup(), id="cct-empty-art")
+            with Horizontal(id="cct-dash-logo-bar"):
+                for idx, v in enumerate(LOGO_VARIANTS):
+                    cls = "cct-logo-pill active" if idx == self._logo_variant_idx else "cct-logo-pill"
+                    yield Button(f"{idx+1}:{v['name'].split()[0]}", id=f"dash-logo-{idx}", classes=cls)
             yield Static(f"[{muted} b]CAT v{self._version}[/]",
                          id="cct-empty-version", classes="cct-dash-line")
             yield Static(
@@ -260,12 +357,14 @@ if TEXTUAL_AVAILABLE:
             yield Static(self._ai_status_markup(), id="cct-dash-ai-status",
                          classes="cct-dash-line")
 
+            # --- Centered Quick Action Buttons -------------------------
             with Horizontal(id="cct-dash-actions"):
                 yield _QuickAction("\U0001f4c1 Open", "dash-open-folder")
                 yield _QuickAction("\U0001f4dd New Chat", "dash-new-chat")
                 yield _QuickAction("\u2699 Settings", "dash-settings")
                 yield _QuickAction("\U0001f4d6 Docs", "dash-docs")
 
+            # --- 3-Column Responsive Dashboard Cards -------------------
             with Horizontal(id="cct-dash-columns"):
                 with Vertical(classes="cct-dash-col cct-dash-card-3d"):
                     yield Static("[b]Recent Projects[/b]", classes="cct-dash-col-title")
@@ -280,24 +379,31 @@ if TEXTUAL_AVAILABLE:
                     else:
                         yield Static(f"[{faint}]No projects opened yet.[/]", classes="cct-dash-row")
 
-                with Vertical(classes="cct-dash-col cct-dash-card-3d"):
+                with Vertical(classes="cct-dash-col cct-dash-card-3d", id="cct-dash-col-notebooks"):
                     yield Static("[b]Session Notebooks[/b]", classes="cct-dash-col-title")
-                    yield Static(f"  {self._notebook_count} solved this session", classes="cct-dash-row")
-                    # v0.7.9.0 fix: workspace data collection is guarded —
-                    # a read-only/protected root (e.g. launching `cat`
-                    # from C:\WINDOWS\System32) must degrade to an honest
-                    # 'unavailable' line, never PermissionError the whole
-                    # startup compose.
+                    solved_count = self._notebook_count or 0
+                    if hasattr(self, "app") and hasattr(self.app, "_history"):
+                        solved_count = max(solved_count, len(self.app._history))
+                    yield Static(f"  \u26a1 [b]{solved_count}[/b] solved this session", classes="cct-dash-row")
                     try:
                         summary = cct_workspace.summary()
                     except Exception:
                         summary = []
                     if summary:
-                        for cat, count, newest, when in summary[:5]:
-                            yield Static(f"  \U0001f4c4 {cat}: {count} ({newest}, {when})",
+                        for cat, count, newest, when in summary[:3]:
+                            yield Static(f"  \U0001f4c4 {cat}: {count} ({newest})",
                                          classes="cct-dash-row")
                     else:
-                        yield Static(f"[{faint}]No generated files yet.[/]", classes="cct-dash-row")
+                        yield Static(f"  [{faint}]No generated exports yet.[/]", classes="cct-dash-row")
+
+                    # Working Quick-Solve Notebook Launchers
+                    yield Static("  [b]Quick Solve & Derive:[/b]", classes="cct-dash-nb-subtitle")
+                    with Horizontal(classes="cct-dash-nb-actions"):
+                        yield Button("\u26a1 Kinetics", id="dash-solve-kinetics", classes="cct-nb-chip-btn")
+                        yield Button("\u26a1 Arrhenius", id="dash-solve-arrhenius", classes="cct-nb-chip-btn")
+                    with Horizontal(classes="cct-dash-nb-actions"):
+                        yield Button("\u26a1 Nernst", id="dash-solve-nernst", classes="cct-nb-chip-btn")
+                        yield Button("\u26a1 Gibbs", id="dash-solve-gibbs", classes="cct-nb-chip-btn")
 
                 if self._workspace_root:
                     with Vertical(classes="cct-dash-col cct-dash-card-3d"):
@@ -313,10 +419,8 @@ if TEXTUAL_AVAILABLE:
 
         def _stats_markup(self):
             """The whole Project & Workspace column body as one markup
-            string, shared by compose() and refresh_stats() so the two
-            can never drift into showing different formatting for the
-            same numbers. (compose() wraps this in its own guard — a
-            failing scan degrades to an 'unavailable' line.)"""
+            string, formatted cleanly with responsive path shortening and
+            separate lines for Memory and CPU so content is never cut off."""
             from . import theme_css
             faint = theme_css.current_hex("text-faint")
             root = self._workspace_root
@@ -327,27 +431,45 @@ if TEXTUAL_AVAILABLE:
             cpu = project_stats.cpu_percent()
             config = aicore.load_config()
             frac, done, total = todos.progress(root)
-            recent_events = timeline.events()[:5]
+            recent_events = timeline.events()[:3]
 
+            def _truncate_path(p: str, max_chars: int = 24) -> str:
+                if not p or len(p) <= max_chars:
+                    return p
+                norm = p.replace("\\", "/")
+                parts = [part for part in norm.split("/") if part]
+                if len(parts) >= 2:
+                    cand = f"{parts[0]}/.../{parts[-1]}"
+                    if len(cand) <= max_chars:
+                        return cand
+                return "..." + p[-(max_chars - 3):]
+
+            folder_name = os.path.basename(root.rstrip(os.sep)) or root
+            short_root = _truncate_path(root, 22)
             lines = [
-                f"  [b]{os.path.basename(root.rstrip(os.sep)) or root}[/]  [{faint}]{root}[/]",
-                f"  {project_stats.human_size(stats['total_size'])}"
-                f"{'+' if stats['truncated'] else ''}  \u00b7  "
-                f"{stats['total_files'] if stats['total_files'] is not None else '\u2014'} files",
+                f"  [b]{folder_name}[/]  [{faint}]({short_root})[/]",
+                f"  {project_stats.human_size(stats['total_size'])}{'+' if stats['truncated'] else ''}  \u00b7  {stats['total_files'] if stats['total_files'] is not None else '\u2014'} files",
             ]
             if stats["languages"]:
-                langs = ", ".join(f"{lang} ({n})" for lang, n in stats["languages"].items())
+                top_langs = list(stats["languages"].items())[:2]
+                langs = ", ".join(f"{lang} ({n})" for lang, n in top_langs)
+                if len(stats["languages"]) > 2:
+                    langs += f" +{len(stats['languages']) - 2}"
                 lines.append(f"  [{faint}]Languages:[/] {langs}")
-            lines.append(f"  [{faint}]Git branch:[/] {branch or '\u2014 (not a git repo)'}")
+            lines.append(f"  [{faint}]Git branch:[/] {branch or '\u2014 (not a repo)'}")
             if deps:
-                lines.append(f"  [{faint}]Dependencies:[/] {', '.join(deps[:6])}"
-                              + (f" +{len(deps) - 6} more" if len(deps) > 6 else ""))
+                dep_str = ", ".join(deps[:3])
+                if len(deps) > 3:
+                    dep_str += f" +{len(deps) - 3}"
+                lines.append(f"  [{faint}]Dependencies:[/] {dep_str}")
             lines.append(f"  [{faint}]Last modified:[/] {project_stats.human_age(stats['last_modified'])}")
-            lines.append(f"  [{faint}]AI:[/] {config.get('provider', '\u2014')} "
-                          f"({config.get('model', '\u2014')})")
-            lines.append(f"  [{faint}]Memory:[/] "
-                          f"{f'{mem:.0f} MB' if mem is not None else 'unavailable on this platform'}"
-                          f"   [{faint}]CPU:[/] {f'{cpu:.0f}%' if cpu is not None else 'unavailable'}")
+            provider = config.get('provider', '\u2014')
+            model = config.get('model', '\u2014')
+            lines.append(f"  [{faint}]AI:[/] {provider} ({model})")
+            mem_str = f"{mem:.0f} MB" if mem is not None else "unavailable"
+            cpu_str = f"{cpu:.0f}%" if cpu is not None else "unavailable"
+            lines.append(f"  [{faint}]Memory:[/] {mem_str}")
+            lines.append(f"  [{faint}]CPU:[/]    {cpu_str}")
             if total:
                 lines.append(f"  [{faint}]Todos:[/] {done}/{total} complete")
             if recent_events:
@@ -360,10 +482,7 @@ if TEXTUAL_AVAILABLE:
             """Called from ui/app.py after an eventbus publish (file
             saved, AI reply finished, workspace opened/closed, todo
             changed) — recomputes and repaints just the stats column,
-            not the whole dashboard. No-op if this dashboard has no
-            workspace column (nothing to refresh) or isn't mounted
-            (e.g. a chat has since started and the dashboard was
-            already torn down — see conversation.py's hide_welcome)."""
+            not the whole dashboard."""
             if not self._workspace_root:
                 return
             try:
@@ -372,11 +491,6 @@ if TEXTUAL_AVAILABLE:
                 pass
 
         # ------------------------------------- v0.7.9.0 live state APIs --
-        # Duck-typed by ConversationView.update_empty_state_mode /
-        # repaint_empty_state_theme / update_ai_status, so whichever
-        # welcome-slot widget is visible (this dashboard or the bare
-        # empty-state centerpiece) reacts to the same calls.
-
         def set_mode(self, mode_key):
             """The ACTUAL active AI mode changed: repaint the ready line
             and the hero art tint (mode gradient) in place."""
@@ -409,10 +523,7 @@ if TEXTUAL_AVAILABLE:
                 pass
 
         def update_ai_status(self, state=None, model_label=None):
-            """Live model-state line inside THIS dashboard (spec: model
-            starts/reloads must never open another dashboard). `state`
-            is e.g. 'Initializing', 'Loading model', 'Working\u2026',
-            'Ready'; pass None to recompute from config."""
+            """Live model-state line inside THIS dashboard."""
             if state is not None:
                 self._ai_state = state
             if model_label is not None:
@@ -425,7 +536,15 @@ if TEXTUAL_AVAILABLE:
 
         def on_button_pressed(self, event: Button.Pressed):
             bid = event.button.id
-            if bid == "dash-open-folder":
+            if not bid:
+                return
+            if bid.startswith("dash-logo-"):
+                try:
+                    idx = int(bid.replace("dash-logo-", ""))
+                    self.set_logo_variant(idx)
+                except Exception:
+                    pass
+            elif bid == "dash-open-folder":
                 self.post_message(FileOpenRequested("__open_folder_prompt__"))
             elif bid == "dash-new-chat":
                 self.post_message(CommandExecuted("/clear"))
@@ -433,25 +552,19 @@ if TEXTUAL_AVAILABLE:
                 self.post_message(CommandExecuted("/settings"))
             elif bid == "dash-docs":
                 self.post_message(CommandExecuted("/help"))
+            elif bid == "dash-solve-kinetics":
+                self.post_message(MessageSubmitted("derive the first order rate law step by step"))
+            elif bid == "dash-solve-arrhenius":
+                self.post_message(MessageSubmitted("derive arrhenius equation step by step"))
+            elif bid == "dash-solve-nernst":
+                self.post_message(MessageSubmitted("derive nernst equation step by step"))
+            elif bid == "dash-solve-gibbs":
+                self.post_message(MessageSubmitted("derive gibbs free energy equation step by step"))
 
         def on_resize(self, event):
-            """Terminal / pane resized: re-pick art + make actions responsive
-            (Horizontal → Vertical stack when chat gets narrow from editor stretch).
-
-            v0.7.9.6 stability pass:
-            * Guards on `is_attached` so a resize event arriving during
-              teardown or screen swap is a cheap no-op.
-            * Width-change guard: when the width is unchanged (the common
-              case — a height-only resize, or the app's own debounced
-              cascade firing after the event already landed) this returns
-              immediately instead of rebuilding the art markup and running
-              two widget queries for nothing.
-            * Coalesces stacked-class add/remove into one decision per
-              pass — the previous code could add and remove the same
-              class back-to-back if width hovered at the 72-col boundary.
-            * The `#cct-empty-art` lookup is captured from the SIZE rather
-              than re-derived, so a mid-drag resize can't observe a stale
-              width."""
+            """Terminal / pane resized: re-pick art + make actions and cards responsive
+            (Horizontal → Vertical stack when chat gets narrow or short).
+            """
             if not self.is_attached:
                 return
             size = getattr(event, "size", None)
@@ -483,36 +596,35 @@ if TEXTUAL_AVAILABLE:
                 h = h or max(1, self.app.size.height - 7)
             if not w:
                 return
-            # Cheap early-out: re-fit only on a REAL layout change. The
-            # v0.7.9.6 art ladder is height-aware (short panes drop to the
-            # 2-row cat), so the key is the (width, height) pair — keying on
-            # width alone would miss a height-only drag and leave a 3-row
-            # face clipped in a short pane.
+
             key = (w, h)
             if key == getattr(self, "_last_resize_w", None):
                 return
             self._last_resize_w = key
+
             try:
                 self.query_one("#cct-empty-art", Static).update(
                     self._art_markup())
             except Exception:
                 pass
+
             try:
                 # On compact vertical layouts, hide tagline & suggestion lines
                 # so quick actions and cards never get pushed off screen or cut off
-                compact_vert = (h is not None and h < 22)
-                for line_id in ("#cct-empty-tagline", "#cct-empty-suggest"):
+                compact_vert = (h is not None and h < 24)
+                for line_id in ("#cct-empty-tagline", "#cct-empty-suggest", "#cct-dash-logo-bar"):
                     try:
-                        self.query_one(line_id, Static).display = not compact_vert
+                        self.query_one(line_id).display = not compact_vert
                     except Exception:
                         pass
             except Exception:
                 pass
+
             try:
-                # Stack quick actions & columns when dashboard narrows
-                # below ~72 cols (editor stretched or sidebar open).
-                # Both containers move together, so decide once.
-                stack_now = w < 72
+                # Responsive stacking: stack cards and buttons whenever width < 96
+                # or height is short (< 26 rows). At 80-92 cols, stacking guarantees
+                # all cards have full width and content is never cut off.
+                stack_now = (w < 96) or (h is not None and h < 26)
                 actions = self.query_one("#cct-dash-actions")
                 columns = self.query_one("#cct-dash-columns")
                 if stack_now:

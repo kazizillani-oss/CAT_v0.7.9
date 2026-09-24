@@ -1609,10 +1609,86 @@ Button.cct-switch.-active {
 .cct-cmd-category { color: $text-faint; }
 
 /* ------------------------------------------------------------ dashboard -- */
-.cct-dashboard { width: 100%; height: auto; padding: 2 2; overflow-y: auto; overflow-x: hidden; }
+.cct-dashboard {
+    width: 100%;
+    height: auto;
+    padding: 1 2;
+    overflow-y: auto;
+    overflow-x: hidden;
+    align-horizontal: center;
+}
+#cct-empty-art {
+    width: 100%;
+    text-align: center;
+    content-align: center middle;
+    min-height: 1;
+    margin: 0 0 1 0;
+}
+.cct-dash-line {
+    width: 100%;
+    text-align: center;
+    content-align: center middle;
+    min-height: 1;
+    padding: 0 1;
+}
+#cct-dash-logo-bar {
+    height: auto;
+    width: 100%;
+    max-width: 84;
+    layout: horizontal;
+    align: center middle;
+    align-horizontal: center;
+    margin: 0 auto 1 auto;
+}
+.cct-logo-pill, Button.cct-logo-pill {
+    height: 3;
+    min-height: 3;
+    max-height: 3;
+    min-width: 10;
+    max-width: 15;
+    padding: 0;
+    margin: 0 1;
+    background: $surface-alt;
+    color: $text-muted;
+    border: tall $surface-dark;
+    border-top: tall $surface-highlight;
+    content-align: center middle;
+    text-style: none;
+    transition: background 100ms, color 100ms, border 100ms;
+}
+.cct-logo-pill:hover, Button.cct-logo-pill:hover,
+.cct-logo-pill:focus, Button.cct-logo-pill:focus {
+    background: $accent 30%;
+    color: #ffffff;
+    text-style: bold;
+    border-top: tall #ffffff;
+}
+.cct-logo-pill.active, Button.cct-logo-pill.active {
+    background: $accent 45%;
+    color: #ffffff;
+    text-style: bold;
+    border: tall $accent;
+    border-top: tall #ffffff;
+}
 #cct-dash-hero { text-align: center; padding-bottom: 1; }
-#cct-dash-actions { height: auto; width: 100%; padding: 1 0; layout: horizontal; }
-#cct-dash-actions.stacked { layout: vertical; height: auto; }
+#cct-dash-actions {
+    height: auto;
+    width: 100%;
+    max-width: 90;
+    padding: 1 0;
+    layout: horizontal;
+    align: center middle;
+    align-horizontal: center;
+    margin: 0 auto;
+}
+#cct-dash-actions.stacked {
+    layout: vertical;
+    height: auto;
+    width: 100%;
+    max-width: 48;
+    margin: 0 auto;
+    align-horizontal: center;
+}
 #cct-dash-actions.stacked .cct-dash-action { width: 100%; max-width: 100%; margin: 1 0; }
 .cct-dash-action, Button.cct-dash-action,
 Button.cct-dash-action.-style-default,
@@ -1621,7 +1697,7 @@ Button.cct-dash-action:ansi.-style-flat,
 Screen Button.cct-dash-action {
     width: 1fr;
     min-width: 14;
-    max-width: 24;
+    max-width: 22;
     height: 3;
     min-height: 3;
     max-height: 3;
@@ -1662,20 +1738,27 @@ Screen Button.cct-dash-action.-active {
     border-bottom: tall #ffffff;
     border-right: tall #ffffff;
 }
-#cct-dash-columns { height: auto; width: 100%; padding-top: 1; layout: horizontal; overflow: hidden; }
-#cct-dash-columns.stacked { layout: vertical; }
+#cct-dash-columns {
+    height: auto;
+    width: 100%;
+    max-width: 110;
+    padding-top: 1;
+    layout: horizontal;
+    overflow: hidden;
+    align-horizontal: center;
+    margin: 0 auto;
+}
+#cct-dash-columns.stacked {
+    layout: vertical;
+    width: 100%;
+    max-width: 86;
+    margin: 0 auto;
+    align-horizontal: center;
+}
 #cct-dash-columns.stacked .cct-dash-col { width: 100%; margin: 1 0; }
-/* v0.7.9.6: LAYOUT ONLY. The card's 3D skeuomorphic look (bevel borders,
-   background, tint, hover glow) is owned by `.cct-dash-card-3d` in
-   theme_css.BASE_CSS — the single source of truth. This rule used to
-   redeclare border/background/padding at EQUAL specificity, and because
-   _COMPONENT_CSS is concatenated after BASE_CSS it silently won: the
-   accent bevel here replaced the neutral bevel there, `tint` survived
-   from the other rule but its `transition` did not, so the glass wash
-   snapped instead of animating. Two rules fighting over one card.
-   Splitting them — geometry here, skin there — removes the conflict. */
 .cct-dash-col {
     width: 1fr;
+    min-width: 24;
     height: auto;
 }
 .cct-dash-col-title {
@@ -1695,6 +1778,46 @@ Screen Button.cct-dash-action.-active {
 .cct-dash-row:hover {
     color: #ffffff;
     background: $surface-alt;
+}
+.cct-dash-nb-subtitle {
+    color: $accent;
+    text-style: bold;
+    margin-top: 1;
+    padding: 0 1;
+}
+.cct-dash-nb-actions {
+    layout: horizontal;
+    width: 100%;
+    height: auto;
+    margin-top: 0;
+    padding: 0;
+    align-horizontal: center;
+}
+.cct-nb-chip-btn, Button.cct-nb-chip-btn {
+    width: 1fr;
+    height: 3;
+    min-height: 3;
+    max-height: 3;
+    margin: 0 1 1 1;
+    padding: 0;
+    background: $surface-alt;
+    color: $text;
+    border: tall $surface-dark;
+    border-top: tall $surface-highlight;
+    content-align: center middle;
+    text-style: bold;
+    transition: background 80ms, color 80ms, border 80ms;
+}
+.cct-nb-chip-btn:hover, Button.cct-nb-chip-btn:hover {
+    background: $accent 35%;
+    color: #ffffff;
+    border-top: tall #ffffff;
+    border-bottom: tall $accent-highlight;
+}
+.cct-nb-chip-btn.-active, Button.cct-nb-chip-btn.-active {
+    offset-y: 1;
+    background: $accent 50%;
+    color: #ffffff;
 }
 #cct-dash-stats-body { color: $text-muted; height: auto; }
 #cct-workspace { overflow: hidden; }
@@ -6751,6 +6874,49 @@ if TEXTUAL_AVAILABLE:
                 return
             if word == "/touch":
                 self.action_toggle_touch_mode()
+                return
+            if word == "/logo":
+                try:
+                    from .dashboard import WelcomeDashboard, LOGO_VARIANTS
+                    welcome = getattr(getattr(self, "conversation", None), "_welcome", None)
+                    if not arg or arg.lower() in ("next", "cycle"):
+                        if isinstance(welcome, WelcomeDashboard):
+                            welcome.cycle_logo_variant()
+                            curr = LOGO_VARIANTS[welcome._logo_variant_idx]
+                            self._system_note(f"Switched logo to Variant {welcome._logo_variant_idx + 1}: **{curr['name']}**")
+                        else:
+                            self._system_note("Switched ASCII logo style. View on dashboard (/clear).")
+                        return
+                    if arg.isdigit():
+                        idx = int(arg) - 1
+                        if 0 <= idx < len(LOGO_VARIANTS):
+                            if isinstance(welcome, WelcomeDashboard):
+                                welcome.set_logo_variant(idx)
+                                curr = LOGO_VARIANTS[idx]
+                                self._system_note(f"Switched logo to Variant {idx + 1}: **{curr['name']}**")
+                            else:
+                                from . import dashboard
+                                dashboard._ACTIVE_LOGO_VARIANT = idx
+                                self._system_note(f"Selected logo Variant {idx + 1}: **{LOGO_VARIANTS[idx]['name']}**")
+                            return
+                    matched = None
+                    for i, v in enumerate(LOGO_VARIANTS):
+                        if arg.lower() in v["id"].lower() or arg.lower() in v["name"].lower():
+                            matched = i
+                            break
+                    if matched is not None:
+                        if isinstance(welcome, WelcomeDashboard):
+                            welcome.set_logo_variant(matched)
+                            curr = LOGO_VARIANTS[matched]
+                            self._system_note(f"Switched logo to Variant {matched + 1}: **{curr['name']}**")
+                        else:
+                            from . import dashboard
+                            dashboard._ACTIVE_LOGO_VARIANT = matched
+                            self._system_note(f"Selected logo Variant {matched + 1}: **{LOGO_VARIANTS[matched]['name']}**")
+                        return
+                    self._system_note("Usage: `/logo <1-5|next|retro|cyber3d|matrix|synthwave|pixel>`")
+                except Exception as e:
+                    self._system_note(f"Error switching logo: {e}")
                 return
             if word == "/tokens":
                 usage = aicore.get_session_usage()

@@ -572,13 +572,13 @@ if TEXTUAL_AVAILABLE:
                     except Exception:
                         pass
                     return
-                hi = max(COMPOSER_MIN_HEIGHT + 4,
-                         int(self.screen.size.height * 0.7))
+                hi = min(10, max(COMPOSER_MIN_HEIGHT + 2,
+                                 int(self.screen.size.height * 0.38)))
                 height = max(COMPOSER_MIN_HEIGHT, min(hi, int(height)))
                 self._explicit_height = height
                 self.styles.height = height
                 self.styles.min_height = height
-                self.styles.max_height = "80%"
+                self.styles.max_height = "40%"
                 try:
                     editor = self.query_one("#cct-input", ComposerInput)
                     stack = self.query_one("#cct-editor-stack", Container)
