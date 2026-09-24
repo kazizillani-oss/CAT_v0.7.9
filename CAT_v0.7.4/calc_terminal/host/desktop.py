@@ -607,6 +607,7 @@ if _QT_AVAILABLE:
                 self._views.append(w)
                 fav = "○"
                 title = "New Tab"
+            else:
                 view = SecureWebEngineView()
                 try:
                     page = SecureWebEnginePage(self.profile, view)
