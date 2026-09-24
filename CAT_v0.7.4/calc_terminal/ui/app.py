@@ -1638,7 +1638,7 @@ Button.cct-switch.-active {
     layout: horizontal;
     align: center middle;
     align-horizontal: center;
-    margin: 0 auto 1 auto;
+    margin: 0 0 1 0;
 }
 .cct-logo-pill, Button.cct-logo-pill {
     height: 3;
@@ -1679,14 +1679,14 @@ Button.cct-switch.-active {
     layout: horizontal;
     align: center middle;
     align-horizontal: center;
-    margin: 0 auto;
+    margin: 0 0;
 }
 #cct-dash-actions.stacked {
     layout: vertical;
     height: auto;
     width: 100%;
     max-width: 48;
-    margin: 0 auto;
+    margin: 0 0;
     align-horizontal: center;
 }
 #cct-dash-actions.stacked .cct-dash-action { width: 100%; max-width: 100%; margin: 1 0; }
@@ -1746,13 +1746,13 @@ Screen Button.cct-dash-action.-active {
     layout: horizontal;
     overflow: hidden;
     align-horizontal: center;
-    margin: 0 auto;
+    margin: 0 0;
 }
 #cct-dash-columns.stacked {
     layout: vertical;
     width: 100%;
     max-width: 86;
-    margin: 0 auto;
+    margin: 0 0;
     align-horizontal: center;
 }
 #cct-dash-columns.stacked .cct-dash-col { width: 100%; margin: 1 0; }
