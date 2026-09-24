@@ -87,15 +87,21 @@ def _ensure_qt_app():
     _cache_path = os.path.join(tempfile.gettempdir(), "cat_qt_cache")
     os.makedirs(_cache_path, exist_ok=True)
     os.environ["QTWEBENGINE_CACHE_PATH"] = _cache_path
-    # Performance: keep GPU enabled for smooth rendering, eliminate window occlusion flicker,
-    # bound memory to 4 processes for low-end 4GB-8GB PCs, and enable smooth 60fps scrolling
-    os.environ.setdefault("QTWEBENGINE_CHROMIUM_FLAGS",
-                          "--disable-dev-shm-usage --enable-gpu-rasterization "
-                          "--ignore-gpu-blocklist --enable-zero-copy "
-                          "--disable-background-networking --disable-default-apps "
-                          "--disable-features=CalculateNativeWinOcclusion "
-                          "--renderer-process-limit=4 --smooth-scrolling "
-                          "--disable-gpu-watchdog --num-raster-threads=2")
+    # Performance: Hardware acceleration, smooth 60fps scrolling, zero-copy rasterization
+    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
+        "--enable-gpu-rasterization "
+        "--ignore-gpu-blocklist "
+        "--enable-zero-copy "
+        "--enable-features=VaapiVideoDecoder,CanvasOopRasterization "
+        "--disable-features=CalculateNativeWinOcclusion "
+        "--disable-gpu-driver-bug-workarounds "
+        "--enable-accelerated-video-decode "
+        "--enable-smooth-scrolling "
+        "--disable-dev-shm-usage "
+        "--renderer-process-limit=6 "
+        "--num-raster-threads=4 "
+        "--no-sandbox"
+    )
     os.environ.setdefault("QTWEBENGINE_DISABLE_SANDBOX", "1")
 
     try:
@@ -105,10 +111,12 @@ def _ensure_qt_app():
         from PyQt6.QtCore import QCoreApplication, Qt  # type: ignore
         from PyQt6.QtWidgets import QApplication  # type: ignore
 
-    # AA_ShareOpenGLContexts MUST be set before QApplication is instantiated to prevent surface tearing/flickering
+    # AA_ShareOpenGLContexts + AA_UseDesktopOpenGL prevent surface tearing and flicker
     try:
         if hasattr(Qt.ApplicationAttribute, "AA_ShareOpenGLContexts"):
             QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts, True)
+        if hasattr(Qt.ApplicationAttribute, "AA_UseDesktopOpenGL"):
+            QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_UseDesktopOpenGL, True)
     except Exception:
         pass
 

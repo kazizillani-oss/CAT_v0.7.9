@@ -639,6 +639,14 @@ class App:
         if easter_eggs.check(low, self):
             return
 
+        if low.startswith("/"):
+            tok = low.split()[0] if low.split() else low
+            print()
+            print(theme.red(f"  ✗ Unknown command '{tok}'. Type /help for a list of available commands."))
+            print()
+            return
+
+
         # free-text chemistry question
         self.handle_question(raw)
 

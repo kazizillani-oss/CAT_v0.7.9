@@ -48,6 +48,25 @@ app.use('/api/connector', connectorRouter);
 app.use('/api/groups', groupsRouter);
 app.use('/api/fatty', fattyRouter);
 
+// Launch real OS browser (Edge/Chrome on Windows) for WebAuthn passkey ceremony
+app.all('/api/open-system-browser', (req, res) => {
+  const target = (req.body && req.body.url) || req.query.url || `${ORIGIN}/passkey.html`;
+  try {
+    const { exec } = require('child_process');
+    const safeTarget = String(target).replace(/["`$;]/g, '');
+    if (process.platform === 'win32') {
+      exec(`start "" "${safeTarget}"`);
+    } else if (process.platform === 'darwin') {
+      exec(`open "${safeTarget}"`);
+    } else {
+      exec(`xdg-open "${safeTarget}"`);
+    }
+    return res.json({ ok: true, opened: safeTarget });
+  } catch (err) {
+    return res.status(500).json({ error: 'failed_to_open', message: err.message });
+  }
+});
+
 // The existing Fomoji static front-end (the zip you already have) — drop
 // its contents into /public and every page + the passkey JS below load
 // from the same origin as the API, which WebAuthn requires anyway.

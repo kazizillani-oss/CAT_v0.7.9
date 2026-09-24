@@ -81,9 +81,23 @@ def _install_cat_browser_redirect(app):
             _CAT_ORIG_WEBBROWSER_OPEN = _wb.open
 
         def _cat_open(url, new=0, autoraise=True):
-            # Route every web/browser open through CAT Browser (http/https/file)
+            # Route web/browser opens:
+            # Passkey / WebAuthn / Windows Hello authentication MUST use the OS default
+            # system browser (Edge / Chrome) because QtWebEngine lacks platform authenticators.
             try:
                 u = str(url or "").strip()
+                lu = u.lower()
+                if any(k in lu for k in ("passkey", "webauthn", "fomoji_auth", "windows-hello")):
+                    import sys, os
+                    if sys.platform == "win32":
+                        try:
+                            os.startfile(u)
+                            return True
+                        except Exception:
+                            pass
+                    if _CAT_ORIG_WEBBROWSER_OPEN is not None:
+                        return _CAT_ORIG_WEBBROWSER_OPEN(u, new=new, autoraise=autoraise)
+
                 if u.startswith("http://") or u.startswith("https://") or u.startswith("file://") or u.startswith("about:"):
                     from ..host.launcher import launch_cat_host, can_launch_host
                     if can_launch_host():
@@ -112,7 +126,6 @@ def _install_cat_browser_redirect(app):
                             return True
             except Exception:
                 pass
-            # Never fallback to external OS browsers (Chrome/Edge) in CAT CLI
             return True
 
         _wb.open = _cat_open
@@ -7067,8 +7080,13 @@ if TEXTUAL_AVAILABLE:
                 self._summarize_chat()
                 return
 
-            # Every other command: suspend to terminal
-            self._run_in_suspended_terminal(raw)
+            # Known classic terminal commands can suspend to terminal
+            from .. import registry as _cmd_reg
+            reg = _cmd_reg.get_registry()
+            if word in reg or word.lstrip("/") in reg:
+                self._run_in_suspended_terminal(raw)
+            else:
+                self._system_note(f"Unknown command '{parts[0]}'. Type /help for a list of available commands.")
 
         def _switch_mode_command(self, target):
             from ..core.mode_registry import mode_registry

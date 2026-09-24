@@ -127,7 +127,9 @@ const FomojiWebAuthn = (() => {
     // the friendly strings below collapse several distinct causes into one
     // line on purpose, which is exactly what makes them hard to debug blind.
     console.error('[fomoji:webauthn] browser threw during ceremony —', err && err.name, err && err.message, err);
-    if (err && err.name === 'NotAllowedError') return 'Cancelled, or your device did not respond in time.';
+    if (err && err.name === 'NotAllowedError') {
+      return 'Passkey was cancelled or this browser does not support Windows Hello / platform authenticators. Use Edge / Chrome or sign in with your password / guest mode.';
+    }
     if (err && err.name === 'InvalidStateError') return 'This device already has a passkey for Fomoji.';
     if (err && err.name === 'SecurityError') return 'The page origin does not match what this passkey was registered for.';
     return (err && err.message) || 'Your browser could not complete that passkey request.';

@@ -44,8 +44,10 @@
       <aside id="cct-sidebar">
         <div class="cct-sidebar-scroll">
           <div class="cct-sidebar-top">
-            <span class="cct-sidebar-chevron" onclick="FATTY.toggleSidebar()">▾</span>
-            <button class="cct-open-folder-btn" onclick="FATTY.openFolderDialog()">Open Folder</button>
+            <div class="cct-explorer-header" onclick="FATTY.toggleSidebar()">
+              <span class="cct-explorer-title">▸ Explorer</span>
+            </div>
+            <button class="cct-open-folder-btn" onclick="FATTY.openFolderDialog()">📁 Open Folder</button>
           </div>
 
           <!-- Active Workspace Info -->
@@ -85,55 +87,76 @@
 
           <!-- State A: Welcome Dashboard (Screenshot 1) -->
           <div id="cct-welcome-view">
-            <!-- CAT ASCII Art -->
-            <pre class="cct-ascii-hero">  ██████╗  █████╗ ████████╗
- ██╔════╝ ██╔══██╗╚══██╔══╝
- ██║      ███████║   ██║   
- ██║      ██╔══██║   ██║   
- ╚██████╗ ██║  ██║   ██║   
-  ╚═════╝ ╚═╝  ╚═╝   ╚═╝   </pre>
+            <!-- CAT ASCII Art & Cat Mascot (Photos 1, 2, 3) -->
+            <div class="cct-ascii-hero-wrap">
+              <pre class="cct-cat-ascii">  /\_/\   <span class="cct-cat-glitch">CAT</span>
+ ( o.o )
+  > ^ <   </pre>
+            </div>
 
             <div class="cct-hero-info">
               <div class="cct-version-row">CAT v0.7.9.0</div>
               <div class="cct-tagline-row">Chemistry • Coding • Intelligence</div>
               <div class="cct-ready-row">
                 <span class="cct-ready-dot">●</span>
-                <span>CAT Build</span>
+                <span class="cct-ready-mode">CAT Research</span>
                 <span class="cct-ready-faint">ready · type to start, / for commands</span>
               </div>
               <div class="cct-suggest-row">Create · Analyze · Build · Debug · Research</div>
               <div class="cct-ai-status-row">
                 <span class="cct-ready-dot">●</span>
                 <span>AI STATUS — </span>
-                <span class="cct-ai-status-model" id="cct-welcome-model">ollama deepseek-r1</span>
+                <span class="cct-ai-status-model" id="cct-welcome-model">ollama deepseek-r1:latest</span>
                 <span class="cct-ready-faint">· Ready</span>
               </div>
             </div>
 
-            <!-- 4 Action Buttons -->
+            <!-- 4 Action Buttons with Neon Cyan Border (Photos 1, 3) -->
             <div class="cct-welcome-actions">
-              <button class="cct-action-btn" onclick="FATTY.openFolderDialog()">📁 Open Folder</button>
-              <button class="cct-action-btn" onclick="FATTY.newChat()">📝 New Chat</button>
-              <button class="cct-action-btn" onclick="FATTY.openSettings()">⚙ Settings</button>
-              <button class="cct-action-btn" onclick="FATTY.openDocs()">📖 Documentation</button>
+              <button class="cct-action-btn" onclick="FATTY.openFolderDialog()"><span class="cct-btn-icon">📁</span> Open</button>
+              <button class="cct-action-btn" onclick="FATTY.newChat()"><span class="cct-btn-icon">📝</span> New Chat</button>
+              <button class="cct-action-btn" onclick="FATTY.openSettings()"><span class="cct-btn-icon">⚙</span> Settings</button>
+              <button class="cct-action-btn" onclick="FATTY.openDocs()"><span class="cct-btn-icon">📖</span> Docs</button>
             </div>
 
-            <!-- 2 Columns -->
+            <!-- 3 Columns / Cards in Grid (Photos 1, 3) -->
             <div class="cct-welcome-columns">
-              <div class="cct-column">
+              <div class="cct-column cct-card-box">
                 <div class="cct-column-title">Recent Projects</div>
-                <div class="cct-column-item" onclick="FATTY.openRecentPath('ADMIN')">📁 ADMIN</div>
-                <div class="cct-column-item" onclick="FATTY.openRecentPath('compressed')">📁 compressed</div>
-                <div class="cct-column-item" onclick="FATTY.openRecentPath('CAT_v0.7.9')">📁 CAT_v0.7.9</div>
-                <div class="cct-column-item" onclick="FATTY.openRecentPath('Downloads')">📁 Downloads</div>
-                <div class="cct-column-item" onclick="FATTY.openRecentPath('Scripts')">📁 Scripts</div>
+                <div class="cct-card-content-list" id="cct-recent-welcome-list">
+                  <div class="cct-column-item" onclick="FATTY.openRecentPath('ADMIN')">📁 ADMIN</div>
+                  <div class="cct-column-item" onclick="FATTY.openRecentPath('storeflow')">📁 storeflow</div>
+                  <div class="cct-column-item" onclick="FATTY.openRecentPath('Scripts')">📁 Scripts</div>
+                  <div class="cct-column-item" onclick="FATTY.openRecentPath('CAT_v0.7.9')">📁 CAT_v0.7.9</div>
+                  <div class="cct-column-item" onclick="FATTY.openRecentPath('compressed')">📁 compressed</div>
+                  <div class="cct-column-item" onclick="FATTY.openRecentPath('scratch')">📁 scratch</div>
+                </div>
               </div>
 
-              <div class="cct-column">
+              <div class="cct-column cct-card-box">
                 <div class="cct-column-title">Session Notebooks</div>
-                <div class="cct-column-item" id="cct-session-count">0 solved this session</div>
-                <div class="cct-column-faint">No generated files yet.</div>
+                <div class="cct-card-content-list">
+                  <div class="cct-column-item" id="cct-session-count">0 solved this session</div>
+                  <div class="cct-column-faint">No generated files yet.</div>
+                </div>
               </div>
+
+              <div class="cct-column cct-card-box">
+                <div class="cct-column-title">Project & Workspace</div>
+                <div class="cct-card-content-list cct-ws-stats-box">
+                  <div class="cct-stat-row"><b id="cct-ws-card-user">ADMIN</b> <span class="cct-faint" id="cct-ws-card-path">C:\Users\ADMIN</span></div>
+                  <div class="cct-stat-row cct-faint">6.6 GB+ · 20000 files</div>
+                  <div class="cct-stat-row">Git: <span class="cct-cyan">—</span>  AI: <span class="cct-pink">ollama (deepseek-r1:latest)</span></div>
+                  <div class="cct-stat-row cct-faint">Languages: JSON, Lua, JavaScript, CSS +1</div>
+                  <div class="cct-stat-row">Todos: <span class="cct-cyan">0/2 complete</span>  CPU: <span class="cct-green">OK</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Live Web Preview Notification (Photo 4) -->
+            <div id="cct-preview-banner" class="cct-preview-banner" style="display: none;">
+              <span class="cct-preview-icon">ℹ</span>
+              <span class="cct-preview-text">✓ Live Web Preview opened in CAT Browser — <a id="cct-preview-url-link" href="#" target="_blank">http://127.0.0.1:63295/index.html</a></span>
             </div>
 
             <!-- Divider -->

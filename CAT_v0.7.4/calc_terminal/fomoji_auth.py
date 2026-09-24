@@ -86,9 +86,14 @@ def _load_local() -> Optional[Dict[str, Any]]:
         return None
 
 
+_STATUS_CACHE = {"status": None, "ts": 0.0}
+
+
 def _save_local(data: Dict[str, Any]) -> None:
     CONNECTOR_DIR.mkdir(parents=True, exist_ok=True)
     TOKEN_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    _STATUS_CACHE["status"] = None
+    _STATUS_CACHE["ts"] = 0.0
     try:
         os.chmod(TOKEN_PATH, stat.S_IRUSR | stat.S_IWUSR)
     except OSError:
@@ -96,6 +101,8 @@ def _save_local(data: Dict[str, Any]) -> None:
 
 
 def _clear_local() -> None:
+    _STATUS_CACHE["status"] = None
+    _STATUS_CACHE["ts"] = 0.0
     try:
         TOKEN_PATH.unlink()
     except FileNotFoundError:
@@ -286,20 +293,29 @@ def check_server_reachable(timeout: int = 4) -> bool:
         return False
 
 
-def status() -> str:
+def status(force_refresh: bool = False) -> str:
     """
     Returns: 'connected' | 'not_connected' | 'expired' | 'server_unreachable'
     Never raises just because there is no local connection yet.
+    Uses a 5-second cache to prevent network latency and UI stuttering/flicker.
     """
+    now = time.time()
+    if not force_refresh and _STATUS_CACHE["status"] is not None and (now - _STATUS_CACHE["ts"]) < 5.0:
+        return _STATUS_CACHE["status"]
+
     local = _load_local()
     if not local or not local.get("token"):
+        _STATUS_CACHE["status"] = "not_connected"
+        _STATUS_CACHE["ts"] = now
         return "not_connected"
 
     # Enforce strict 2-hour guest limit locally
     if local.get("is_guest") or (local.get("identity", {}) and local["identity"].get("identityType") == "TEMPORARY"):
         exp = local.get("expires_at")
-        if exp and time.time() >= exp:
+        if exp and now >= exp:
             _clear_local()
+            _STATUS_CACHE["status"] = "expired"
+            _STATUS_CACHE["ts"] = now
             return "expired"
 
     token = local["token"]
@@ -309,26 +325,25 @@ def status() -> str:
             "/api/connector/status",
             auth_token=token,
             query={"applicationId": APPLICATION_ID},
-            timeout=8,
+            timeout=4,
         )
     except FomojiAuthError as e:
         msg = str(e)
-        if "Could not reach Fomoji" in msg:
-            return "server_unreachable"
-        return "not_connected"
+        st = "server_unreachable" if "Could not reach Fomoji" in msg else "not_connected"
+        _STATUS_CACHE["status"] = st
+        _STATUS_CACHE["ts"] = now
+        return st
     s = result.get("status", "not_connected")
     if s != "connected":
-        # Token is stale — clean up so the next launch re-prompts instead
-        # of looping on an expired token forever.
-        if s == "expired":
+        if s in ("expired", "not_connected"):
             _clear_local()
-            return "expired"
-        # not_connected — also clear stale file
-        if s == "not_connected":
-            _clear_local()
-            return s
+        _STATUS_CACHE["status"] = s
+        _STATUS_CACHE["ts"] = now
         return s
+    _STATUS_CACHE["status"] = "connected"
+    _STATUS_CACHE["ts"] = now
     return "connected"
+
 
 
 def guest_login(timeout: int = 15) -> Dict[str, Any]:
@@ -1056,14 +1071,25 @@ def _auth_cli(argv=None) -> int:
         url = f"{get_fomoji_url()}/passkey.html"
         print(f"\n  Opening Fomoji Passkey Authentication in browser...")
         print(f"  URL: {url}\n")
-        try:
-            from .host.launcher import launch_cat_host, can_launch_host
-            if can_launch_host():
-                return launch_cat_host(start_browser_url=url, start_mode="browser")
-        except Exception:
-            pass
         import webbrowser
-        webbrowser.open(url)
+        print(f"  Launching system browser (Edge/Chrome) for Windows Hello / Passkey support...")
+        opened = False
+        if sys.platform == "win32":
+            try:
+                os.startfile(url)
+                opened = True
+            except Exception:
+                try:
+                    import subprocess
+                    subprocess.Popen(["cmd", "/c", "start", "", url], shell=True)
+                    opened = True
+                except Exception:
+                    pass
+        if not opened:
+            try:
+                webbrowser.open(url)
+            except Exception:
+                pass
         return 0
 
     if action in ("config", "--config", "providers", "--providers", "oauth"):

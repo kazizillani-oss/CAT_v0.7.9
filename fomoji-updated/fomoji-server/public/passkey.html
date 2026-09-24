@@ -40,6 +40,12 @@
 
     <div class="alert alert-error" id="pkAlert" role="alert" aria-live="assertive"></div>
 
+    <div style="margin-bottom:16px;">
+      <button type="button" onclick="openInSystemBrowser()" class="btn" style="width:100%; background:linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color:#fff; font-weight:bold; font-size:13px; text-decoration:none; justify-content:center; padding:10px 14px; border-radius:6px; box-shadow:0 2px 8px rgba(2,132,199,0.3); border:none; cursor:pointer; display:flex; align-items:center; gap:8px;">
+        <span>🚀</span> <span>Open in Edge / Chrome (for Windows Hello)</span>
+      </button>
+    </div>
+
     <!-- SIGN IN -->
     <div class="pk-panel is-active" id="panelSignin">
       <div class="card-head">
@@ -87,8 +93,10 @@
       <a href="home.html" class="btn btn-primary" style="margin-top:22px; justify-content:center;">Continue to Fomoji</a>
     </div>
 
-    <div class="card-foot-links" style="margin-top:20px;">
-      <a href="index.html">Back to sign-in options</a>
+    <div class="card-foot-links" style="margin-top:20px; display:flex; flex-direction:column; gap:8px;">
+      <a href="index.html" class="btn" style="background:rgba(255,255,255,0.06); font-size:13px; text-decoration:none; justify-content:center; padding:8px 12px; border-radius:6px; color:#e0f2fe;">🔑 Sign in with Email / Password</a>
+      <a href="oauth-config.html" class="btn" style="background:rgba(255,255,255,0.06); font-size:13px; text-decoration:none; justify-content:center; padding:8px 12px; border-radius:6px; color:#a78bfa;">🌐 OAuth Providers (Google, GitHub...)</a>
+      <a href="index.html" style="font-size:12px; margin-top:4px; opacity:0.8;">Back to all sign-in options</a>
     </div>
   </div>
 </div>
@@ -107,9 +115,33 @@
     hideAlert();
   }));
 
+  window.openInSystemBrowser = async function() {
+    try {
+      await fetch('/api/open-system-browser', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: window.location.href })
+      });
+    } catch (_) {}
+    try {
+      window.open('microsoft-edge:' + window.location.href, '_blank');
+    } catch (_) {}
+  };
+
   const alertBox = document.getElementById('pkAlert');
-  function showAlert(msg) { alertBox.textContent = msg; alertBox.classList.add('is-visible'); }
-  function hideAlert() { alertBox.classList.remove('is-visible'); alertBox.textContent = ''; }
+  function showAlert(msg) {
+    alertBox.innerHTML = msg;
+    if (msg.includes('Windows Hello') || msg.includes('support') || msg.includes('NotAllowedError')) {
+      alertBox.innerHTML += `
+        <div style="margin-top:10px; font-size:12px; font-weight:normal; line-height:1.5; background:rgba(255,255,255,0.06); padding:10px; border-radius:6px; border:1px solid rgba(255,255,255,0.1);">
+          <b>Windows Hello Passkey Tip:</b><br>
+          Qt/embedded browsers do not bridge to Windows Hello hardware authenticators.<br>
+          <button type="button" onclick="openInSystemBrowser()" style="margin-top:8px; padding:6px 14px; background:#0284c7; color:#fff; border:none; border-radius:4px; cursor:pointer; font-weight:bold; display:inline-flex; align-items:center; gap:6px;">🚀 Open in Edge / Chrome</button>
+        </div>`;
+    }
+    alertBox.classList.add('is-visible');
+  }
+  function hideAlert() { alertBox.classList.remove('is-visible'); alertBox.innerHTML = ''; }
 
   function setBusy(btn, busy) {
     btn.disabled = busy;

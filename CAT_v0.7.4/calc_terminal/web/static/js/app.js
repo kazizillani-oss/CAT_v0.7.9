@@ -527,8 +527,15 @@
         const res = await api.post('/api/preview/start?workspace_id=' + encodeURIComponent(state.workspaceId || 'current'), {
           file_path: state.currentFile.path
         });
-        if (res && res.url && preview) {
-          preview.src = res.url;
+        if (res && res.url) {
+          if (preview) preview.src = res.url;
+          const banner = document.getElementById('cct-preview-banner');
+          const link = document.getElementById('cct-preview-url-link');
+          if (banner && link) {
+            link.href = res.url;
+            link.textContent = res.url;
+            banner.style.display = 'inline-flex';
+          }
           return;
         }
       } catch (e) {
@@ -539,6 +546,105 @@
       if (preview && textarea) {
         preview.srcdoc = textarea.value;
       }
+    },
+
+    escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    },
+
+    executeSlashCommand(cmdText) {
+      const parts = cmdText.trim().split(/\s+/);
+      const cmd = parts[0].toLowerCase();
+      const arg = parts.slice(1).join(' ').trim();
+
+      const welcome = document.getElementById('cct-welcome-view');
+      const turnsBox = document.getElementById('cct-chat-turns');
+      if (welcome) welcome.style.display = 'none';
+      if (turnsBox) turnsBox.style.display = 'flex';
+
+      this.appendUserMessage(cmdText);
+
+      switch (cmd) {
+        case '/clear':
+          if (turnsBox) turnsBox.innerHTML = '';
+          if (welcome) welcome.style.display = 'flex';
+          state.chatId = null;
+          return;
+        case '/new':
+        case '/chat':
+        case '/newchat':
+          this.newChat();
+          this.appendSystemNotice('Started a new conversation session.');
+          return;
+        case '/help':
+          this.appendSystemNotice(
+            '<div style="line-height: 1.6;">' +
+            '<b style="color: #ff79c6;">CAT Terminal Commands:</b><br>' +
+            '• <code>/clear</code> — Clear current conversation<br>' +
+            '• <code>/new</code> — Start a fresh chat session<br>' +
+            '• <code>/mode &lt;name&gt;</code> — Switch active mode (build, agent, research, code)<br>' +
+            '• <code>/settings</code> — Open configuration dialog<br>' +
+            '• <code>/docs</code> — Open documentation<br>' +
+            '• <code>/cat</code> or <code>/browse</code> — Launch CAT Browser<br>' +
+            '• <code>/status</code> — Display AI and workspace status' +
+            '</div>'
+          );
+          return;
+        case '/mode':
+          if (arg) {
+            this.setAiMode(arg.toLowerCase());
+            this.appendSystemNotice(`Switched active persona to <b style="color: #38bdf8;">${this.escapeHtml(arg)}</b> mode.`);
+          } else {
+            this.appendSystemNotice('Usage: <code>/mode &lt;build|agent|research|notebook&gt;</code>');
+          }
+          return;
+        case '/settings':
+          this.openSettings();
+          return;
+        case '/docs':
+          this.openDocs();
+          return;
+        case '/cat':
+        case '/browse':
+        case '/browser':
+          api.post('/api/browser/open', { url: arg || 'about:home' }).catch(() => {});
+          this.appendSystemNotice('Launching CAT Browser…');
+          return;
+        case '/status':
+          this.appendSystemNotice(
+            `<div style="line-height: 1.6;">` +
+            `<b>Workspace</b>: ${this.escapeHtml(state.workspaceRoot || 'Default')}<br>` +
+            `<b>Active Mode</b>: <span style="color: #ff79c6;">${this.escapeHtml(state.activeMode)}</span><br>` +
+            `<b>Provider</b>: ${this.escapeHtml(state.provider)}<br>` +
+            `<b>Model</b>: ${this.escapeHtml(state.model)}` +
+            `</div>`
+          );
+          return;
+        default:
+          this.appendSystemNotice(
+            `<span style="color: #ff5555;">Unknown command <code>${this.escapeHtml(cmd)}</code>.</span> Type <code>/help</code> for available commands.`
+          );
+          return;
+      }
+    },
+
+    appendSystemNotice(htmlContent) {
+      const turnsBox = document.getElementById('cct-chat-turns');
+      if (!turnsBox) return;
+      const card = document.createElement('div');
+      card.className = 'cct-response-card';
+      card.innerHTML = `
+        <div class="cct-card-header" style="color: #ff79c6;">⚙ System Notice</div>
+        <div class="cct-card-content" style="padding: 6px 0;">${htmlContent}</div>
+      `;
+      turnsBox.appendChild(card);
+      this.scrollToBottom();
     },
 
     // ─────────────────────────────────────────────────────────────────────

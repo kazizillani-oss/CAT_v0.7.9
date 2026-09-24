@@ -89,6 +89,72 @@ except ImportError:
 
 
 if _QT_AVAILABLE:
+    try:
+        if _QT_BINDING == "PySide6":
+            from PySide6.QtWebEngineCore import QWebEngineSettings
+        else:
+            from PyQt6.QtWebEngineCore import QWebEngineSettings
+    except Exception:
+        QWebEngineSettings = None
+
+    class SecureWebEnginePage(QWebEnginePage):
+        """Secure web page with DevTools and Inspect Element completely disabled."""
+
+        def __init__(self, profile=None, parent=None):
+            if profile is not None:
+                super().__init__(profile, parent)
+            else:
+                super().__init__(parent)
+            self._apply_optimal_settings()
+
+        def _apply_optimal_settings(self):
+            if QWebEngineSettings:
+                try:
+                    s = self.settings()
+                    s.setAttribute(QWebEngineSettings.WebAttribute.Accelerated2dCanvasEnabled, True)
+                    s.setAttribute(QWebEngineSettings.WebAttribute.WebGLEnabled, True)
+                    s.setAttribute(QWebEngineSettings.WebAttribute.ScrollAnimatorEnabled, True)
+                    s.setAttribute(QWebEngineSettings.WebAttribute.LocalStorageEnabled, True)
+                    s.setAttribute(QWebEngineSettings.WebAttribute.JavascriptCanOpenWindows, True)
+                    s.setAttribute(QWebEngineSettings.WebAttribute.DnsPrefetchEnabled, True)
+                except Exception:
+                    pass
+
+        def triggerAction(self, action, checked=False):
+            if action == QWebEnginePage.WebAction.InspectElement:
+                return
+            super().triggerAction(action, checked)
+
+    class SecureWebEngineView(QWebEngineView):
+        """Custom view with inspect code disabled and smooth hardware rendering."""
+
+        def contextMenuEvent(self, event):
+            menu = self.createStandardContextMenu()
+            if menu:
+                for act in list(menu.actions()):
+                    txt = (act.text() or "").lower()
+                    if any(k in txt for k in ("inspect", "developer", "view source", "view page source", "devtools")):
+                        menu.removeAction(act)
+                        act.setEnabled(False)
+                        act.setVisible(False)
+                menu.exec(event.globalPos())
+
+        def keyPressEvent(self, event):
+            key = event.key()
+            if key == Qt.Key.Key_F12:
+                event.accept()
+                return
+            mods = event.modifiers()
+            ctrl = bool(mods & Qt.KeyboardModifier.ControlModifier)
+            shift = bool(mods & Qt.KeyboardModifier.ShiftModifier)
+            if ctrl and shift and key in (Qt.Key.Key_I, Qt.Key.Key_C, Qt.Key.Key_J):
+                event.accept()
+                return
+            if ctrl and key == Qt.Key.Key_U:
+                event.accept()
+                return
+            super().keyPressEvent(event)
+
     # Reuse existing CAT state + theme helpers
     try:
         from ..browser.browser_state import BrowserState  # type: ignore
@@ -541,10 +607,13 @@ if _QT_AVAILABLE:
                 self._views.append(w)
                 fav = "○"
                 title = "New Tab"
-            else:
-                view = QWebEngineView()
+                view = SecureWebEngineView()
                 try:
-                    page = QWebEnginePage(self.profile, view)
+                    page = SecureWebEnginePage(self.profile, view)
+                    try:
+                        page.setDevToolsPage(None)
+                    except Exception:
+                        pass
                     view.setPage(page)
                     view.titleChanged.connect(lambda t, v=view: self._on_title(v, t))
                     view.urlChanged.connect(lambda q, v=view: self._on_url(v, q))
