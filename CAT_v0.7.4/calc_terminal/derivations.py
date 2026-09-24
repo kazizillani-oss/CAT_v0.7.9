@@ -151,3 +151,33 @@ DERIVATION_KEYWORDS = [
     (r"half.?life", "halflife"),
     (r"first\s*order", "first"),
 ]
+
+
+def get_derivation(keyword: str):
+    """Retrieve and format a derivation dictionary by keyword."""
+    import re
+    if not keyword:
+        return None
+    kw = str(keyword).lower().strip()
+    key = None
+    if kw in DERIVATIONS:
+        key = kw
+    else:
+        for pat, k in DERIVATION_KEYWORDS:
+            if re.search(pat, kw, re.I):
+                key = k
+                break
+    if not key and any(w in kw for w in ("kinetics", "order", "rate")):
+        key = "first"
+    if key and key in DERIVATIONS:
+        data = DERIVATIONS[key]()
+        lines = [f"# {data['topic']}", "", f"**Goal**: {data['goal']}", "", "## Step-by-Step Derivation:"]
+        for step_label, parts in data.get("steps", []):
+            part_str = " ".join(str(p) for p in parts)
+            lines.append(f"- **{step_label}**:\n  `{part_str}`")
+        lines.append("")
+        lines.append(f"**Result**: {data.get('result', '')}")
+        if data.get("note"):
+            lines.append(f"\n> {data['note']}")
+        return "\n".join(lines)
+    return None

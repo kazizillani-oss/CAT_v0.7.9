@@ -87,11 +87,19 @@
 
           <!-- State A: Welcome Dashboard (Screenshot 1) -->
           <div id="cct-welcome-view">
-            <!-- CAT ASCII Art & Cat Mascot (Photos 1, 2, 3) -->
+            <!-- CAT ASCII Art & Cat Mascot with 5 Switchable Variants -->
             <div class="cct-ascii-hero-wrap">
-              <pre class="cct-cat-ascii">  /\_/\   <span class="cct-cat-glitch">CAT</span>
- ( o.o )
-  > ^ <   </pre>
+              <div class="cct-logo-selector-bar" id="cct-logo-selector-bar" title="Select ASCII Logo Variant">
+                <button class="cct-logo-pill active" onclick="FATTY.setLogoVariant(0)">1: Retro</button>
+                <button class="cct-logo-pill" onclick="FATTY.setLogoVariant(1)">2: Cyber 3D</button>
+                <button class="cct-logo-pill" onclick="FATTY.setLogoVariant(2)">3: Matrix</button>
+                <button class="cct-logo-pill" onclick="FATTY.setLogoVariant(3)">4: Synthwave</button>
+                <button class="cct-logo-pill" onclick="FATTY.setLogoVariant(4)">5: Pixel Mini</button>
+              </div>
+              <pre class="cct-cat-ascii" id="cct-cat-ascii-logo" title="Click to cycle ASCII logo style" onclick="FATTY.cycleLogoVariant()">  /\_/\     ____ ___  ______
+ ( o.o )   / __// _ |/_  __/
+  > ^ <   / /__/ __ | / /   
+          \___/_/ |_|/_/    </pre>
             </div>
 
             <div class="cct-hero-info">
@@ -122,7 +130,7 @@
             <!-- 3 Columns / Cards in Grid (Photos 1, 3) -->
             <div class="cct-welcome-columns">
               <div class="cct-column cct-card-box">
-                <div class="cct-column-title">Recent Projects</div>
+                <div class="cct-column-title"><span>Recent Projects</span></div>
                 <div class="cct-card-content-list" id="cct-recent-welcome-list">
                   <div class="cct-column-item" onclick="FATTY.openRecentPath('ADMIN')">📁 ADMIN</div>
                   <div class="cct-column-item" onclick="FATTY.openRecentPath('storeflow')">📁 storeflow</div>
@@ -134,21 +142,31 @@
               </div>
 
               <div class="cct-column cct-card-box">
-                <div class="cct-column-title">Session Notebooks</div>
-                <div class="cct-card-content-list">
-                  <div class="cct-column-item" id="cct-session-count">0 solved this session</div>
-                  <div class="cct-column-faint">No generated files yet.</div>
+                <div class="cct-column-title">
+                  <span>Session Notebooks</span>
+                  <button class="cct-nb-new-btn" onclick="FATTY.promptNewNotebook()" title="Create new notebook">+ New</button>
+                </div>
+                <div class="cct-card-content-list" id="cct-session-notebooks-list">
+                  <div class="cct-column-item" id="cct-session-count"><span class="cct-green">●</span> 0 solved this session</div>
+                  <div class="cct-column-faint" id="cct-nb-empty-note">Instant derivation &amp; calculation templates:</div>
+                  <div class="cct-nb-quick-chips" id="cct-nb-quick-chips">
+                    <button class="cct-nb-chip" onclick="FATTY.runNotebookSolve('kinetics')" title="First-order integrated rate law">⚡ Kinetics</button>
+                    <button class="cct-nb-chip" onclick="FATTY.runNotebookSolve('arrhenius')" title="Arrhenius activation energy">⚡ Arrhenius</button>
+                    <button class="cct-nb-chip" onclick="FATTY.runNotebookSolve('nernst')" title="Nernst cell potential">⚡ Nernst</button>
+                    <button class="cct-nb-chip" onclick="FATTY.runNotebookSolve('gibbs')" title="Gibbs free energy">⚡ Gibbs</button>
+                    <button class="cct-nb-chip" onclick="FATTY.runNotebookSolve('ideal_gas')" title="Ideal gas law">⚡ Gas Law</button>
+                  </div>
                 </div>
               </div>
 
               <div class="cct-column cct-card-box">
-                <div class="cct-column-title">Project & Workspace</div>
+                <div class="cct-column-title"><span>Project &amp; Workspace</span></div>
                 <div class="cct-card-content-list cct-ws-stats-box">
-                  <div class="cct-stat-row"><b id="cct-ws-card-user">ADMIN</b> <span class="cct-faint" id="cct-ws-card-path">C:\Users\ADMIN</span></div>
-                  <div class="cct-stat-row cct-faint">6.6 GB+ · 20000 files</div>
-                  <div class="cct-stat-row">Git: <span class="cct-cyan">—</span>  AI: <span class="cct-pink">ollama (deepseek-r1:latest)</span></div>
-                  <div class="cct-stat-row cct-faint">Languages: JSON, Lua, JavaScript, CSS +1</div>
-                  <div class="cct-stat-row">Todos: <span class="cct-cyan">0/2 complete</span>  CPU: <span class="cct-green">OK</span></div>
+                  <div class="cct-stat-row"><b id="cct-ws-card-user">ADMIN</b> <span class="cct-faint cct-path-truncate" id="cct-ws-card-path" title="C:\Users\ADMIN">C:\Users\ADMIN</span></div>
+                  <div class="cct-stat-row cct-faint" id="cct-ws-stats-line">6.6 GB+ · 20000 files</div>
+                  <div class="cct-stat-row">Git: <span class="cct-cyan" id="cct-ws-git-status">—</span>  AI: <span class="cct-pink" id="cct-ws-ai-status">ollama (deepseek-r1:latest)</span></div>
+                  <div class="cct-stat-row cct-faint" id="cct-ws-languages-line">Languages: JSON, Lua, JavaScript, CSS +1</div>
+                  <div class="cct-stat-row">Todos: <span class="cct-cyan" id="cct-ws-todos-line">0/2 complete</span>  CPU: <span class="cct-green">OK</span></div>
                 </div>
               </div>
             </div>

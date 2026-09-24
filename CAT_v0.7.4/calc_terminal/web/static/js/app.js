@@ -43,6 +43,8 @@
       { name: 'Scripts', path: 'C:\\Users\\ADMIN\\Downloads\\Scripts' }
     ],
     sessionCount: 0,
+    logoVariant: 0,
+    sessionNotebooks: [],
     commands: [],
     filteredCommands: [],
     paletteSelectedIndex: 0,
@@ -53,6 +55,53 @@
     memoryFacts: [],
     extensions: []
   };
+
+  // ─── 5 RESPONSIVE ASCII WORDMARK LOGO VARIANTS ──────────────────────────
+  const ASCII_LOGO_VARIANTS = [
+    {
+      id: 'retro',
+      name: 'Classic Retro',
+      art: `  /\\_/\\     ____ ___  ______
+ ( o.o )   / __// _ |/_  __/
+  > ^ <   / /__/ __ | / /   
+          \\___/_/ |_|/_/    `
+    },
+    {
+      id: 'cyber3d',
+      name: 'Cyberpunk 3D ANSI',
+      art: `  /\\_/\\   ██████╗  █████╗ ████████╗
+ ( o.o ) ██╔════╝ ██╔══██╗╚══██╔══╝
+  > ^ <  ██║      ███████║   ██║   
+         ██║      ██╔══██║   ██║   
+         ╚██████╗ ██║  ██║   ██║   
+          ╚═════╝ ╚═╝  ╚═╝   ╚═╝   `
+    },
+    {
+      id: 'matrix',
+      name: 'Matrix Glitch',
+      art: `  /\\_/\\   ▄████▄   ▄▄▄     ▄▄▄█████▓
+ ( =.= ) ▒██▀ ▀█  ▒████▄   ▓  ██▒ ▓▒
+  >^<    ▒▓█    ▄ ▒██  ▀█▄ ▒ ▓██░ ▒░
+         ▒▓▓▄ ▄██▒░██▄▄▄▄██░ ▓██▓ ░ 
+         ▒ ▓███▀ ░ ▓█   ▓██▒ ▒██▒ ░ `
+    },
+    {
+      id: 'synthwave',
+      name: 'Isometric Synthwave',
+      art: `  /\\_/\\    ______  ___  ______
+ ( •.• )  / ____/ /   |/_  __/
+  (   )  / /     / /| | / /   
+  > ^ < / /___  / ___ |/ /    
+        \\____/ /_/  |_/_/     `
+    },
+    {
+      id: 'pixel',
+      name: 'Compact Pixel Mini',
+      art: `  /\\_/\\   ┌─┐┌─┐┌┬┐
+ ( ^.^ )  │  ├─┤ │ 
+  > ^ <   └─┘┴ ┴ ┴ `
+    }
+  ];
 
   // ─── API CLIENT ────────────────────────────────────────────────────────
   const api = {
@@ -103,6 +152,12 @@
 
       // 6. Update line numbers for editor
       this.updateLineNumbers();
+
+      // 7. Initialize ASCII wordmark logo variant
+      this.initLogo();
+
+      // 8. Load active session notebooks
+      await this.loadSessionNotebooks();
     },
 
     bindDOM() {
@@ -298,6 +353,19 @@
       const sideWs = document.getElementById('cct-ws-folder-name');
       if (sideWs) sideWs.textContent = state.workspaceName;
 
+      // Update dashboard opened folder tag and workspace card
+      const openedTag = document.getElementById('cct-opened-folder-tag');
+      if (openedTag) openedTag.textContent = `Opened folder: ${state.workspaceRoot}`;
+
+      const wsCardPath = document.getElementById('cct-ws-card-path');
+      if (wsCardPath) {
+        wsCardPath.textContent = state.workspaceRoot;
+        wsCardPath.title = state.workspaceRoot;
+      }
+
+      const wsCardUser = document.getElementById('cct-ws-card-user');
+      if (wsCardUser) wsCardUser.textContent = state.workspaceName || 'ADMIN';
+
       // Fetch Tree
       try {
         const treeData = await api.get('/api/workspace/current/tree');
@@ -305,6 +373,12 @@
           if (treeData.summary && treeData.summary.summary_line) {
             const sub = document.getElementById('cct-ws-folder-sub');
             if (sub) sub.textContent = treeData.summary.summary_line;
+            const statsLine = document.getElementById('cct-ws-stats-line');
+            if (statsLine) statsLine.textContent = treeData.summary.summary_line;
+          }
+          if (treeData.summary && treeData.summary.languages_line) {
+            const langLine = document.getElementById('cct-ws-languages-line');
+            if (langLine) langLine.textContent = treeData.summary.languages_line;
           }
           this.renderTree(treeData.children);
           if (treeData.recent && treeData.recent.length) {
@@ -588,13 +662,59 @@
             '<b style="color: #ff79c6;">CAT Terminal Commands:</b><br>' +
             '• <code>/clear</code> — Clear current conversation<br>' +
             '• <code>/new</code> — Start a fresh chat session<br>' +
-            '• <code>/mode &lt;name&gt;</code> — Switch active mode (build, agent, research, code)<br>' +
+            '• <code>/mode &lt;name&gt;</code> — Switch active mode (build, agent, research, notebook)<br>' +
+            '• <code>/logo &lt;1-5|next&gt;</code> — Switch dashboard ASCII wordmark logo style (5 variants)<br>' +
+            '• <code>/notebook &lt;solve|new|list&gt;</code> — Session notebooks & chemistry derivations<br>' +
             '• <code>/settings</code> — Open configuration dialog<br>' +
             '• <code>/docs</code> — Open documentation<br>' +
             '• <code>/cat</code> or <code>/browse</code> — Launch CAT Browser<br>' +
             '• <code>/status</code> — Display AI and workspace status' +
             '</div>'
           );
+          return;
+        case '/logo':
+          if (!arg || arg === 'next') {
+            this.cycleLogoVariant();
+            const current = ASCII_LOGO_VARIANTS[state.logoVariant];
+            this.appendSystemNotice(`Switched ASCII Wordmark Logo to Variant ${state.logoVariant + 1}: <b style="color: #00f0ff;">${this.escapeHtml(current.name)}</b>`);
+          } else {
+            const num = parseInt(arg, 10);
+            if (!isNaN(num) && num >= 1 && num <= ASCII_LOGO_VARIANTS.length) {
+              this.setLogoVariant(num - 1);
+              const current = ASCII_LOGO_VARIANTS[num - 1];
+              this.appendSystemNotice(`Switched ASCII Wordmark Logo to Variant ${num}: <b style="color: #00f0ff;">${this.escapeHtml(current.name)}</b>`);
+            } else {
+              const matched = ASCII_LOGO_VARIANTS.findIndex(v => v.id.includes(arg.toLowerCase()) || v.name.toLowerCase().includes(arg.toLowerCase()));
+              if (matched >= 0) {
+                this.setLogoVariant(matched);
+                this.appendSystemNotice(`Switched ASCII Wordmark Logo to Variant ${matched + 1}: <b style="color: #00f0ff;">${this.escapeHtml(ASCII_LOGO_VARIANTS[matched].name)}</b>`);
+              } else {
+                this.appendSystemNotice('Usage: <code>/logo &lt;1-5|next|retro|cyber|matrix|synthwave|pixel&gt;</code>');
+              }
+            }
+          }
+          return;
+        case '/notebook':
+        case '/notebooks':
+          if (arg.startsWith('solve') || arg.startsWith('run')) {
+            const topic = arg.replace(/^(solve|run)\s*/, '') || 'kinetics';
+            this.runNotebookSolve(topic);
+          } else if (arg.startsWith('new') || arg.startsWith('create')) {
+            const title = arg.replace(/^(new|create)\s*/, '') || 'Chemistry Derivation';
+            this.createNotebook(title);
+          } else {
+            const nbs = state.sessionNotebooks || [];
+            let listHtml = `<b>Session Notebooks (${nbs.length} solved):</b><br>`;
+            if (nbs.length === 0) {
+              listHtml += '<span style="color: #6272a4;">No calculations solved yet this session.</span><br>';
+            } else {
+              nbs.forEach((n, idx) => {
+                listHtml += `• <b>${idx + 1}. ${this.escapeHtml(n.title)}</b> [${this.escapeHtml(n.category)}] — <code>${this.escapeHtml(n.result)}</code> <button class="cct-nb-open-btn" style="margin-left: 6px;" onclick="FATTY.openNotebook('${n.id}')">[Open]</button><br>`;
+              });
+            }
+            listHtml += '<div style="margin-top: 6px;">Quick commands: <code>/notebook solve kinetics</code> · <code>/notebook new &lt;title&gt;</code></div>';
+            this.appendSystemNotice(listHtml);
+          }
           return;
         case '/mode':
           if (arg) {
@@ -2474,6 +2594,205 @@
       });
       const menu = document.getElementById('cct-main-menu-popup');
       if (menu) menu.style.display = 'none';
+    },
+
+    // ─────────────────────────────────────────────────────────────────────
+    // ASCII WORDMARK LOGO (5 RESPONSIVE VARIANTS)
+    // ─────────────────────────────────────────────────────────────────────
+    initLogo() {
+      let saved = localStorage.getItem('cat_ascii_variant');
+      let idx = saved !== null ? parseInt(saved, 10) : 0;
+      if (isNaN(idx) || idx < 0 || idx >= ASCII_LOGO_VARIANTS.length) {
+        idx = 0;
+      }
+      this.setLogoVariant(idx, false);
+    },
+
+    setLogoVariant(idx, playAnimation = true) {
+      if (idx < 0 || idx >= ASCII_LOGO_VARIANTS.length) return;
+      state.logoVariant = idx;
+      localStorage.setItem('cat_ascii_variant', String(idx));
+
+      const logoEl = document.getElementById('cct-cat-ascii-logo');
+      if (logoEl) {
+        logoEl.textContent = ASCII_LOGO_VARIANTS[idx].art;
+        logoEl.title = `ASCII Wordmark: ${ASCII_LOGO_VARIANTS[idx].name} (Click to cycle)`;
+        if (playAnimation) {
+          logoEl.classList.remove('cct-ascii-glitch-anim');
+          void logoEl.offsetWidth; // Trigger reflow for restart
+          logoEl.classList.add('cct-ascii-glitch-anim');
+        }
+      }
+
+      // Update pills
+      const bar = document.getElementById('cct-logo-selector-bar');
+      if (bar) {
+        const pills = bar.querySelectorAll('.cct-logo-pill');
+        pills.forEach((p, i) => {
+          if (i === idx) p.classList.add('active');
+          else p.classList.remove('active');
+        });
+      }
+    },
+
+    cycleLogoVariant() {
+      const nextIdx = ((state.logoVariant || 0) + 1) % ASCII_LOGO_VARIANTS.length;
+      this.setLogoVariant(nextIdx, true);
+    },
+
+    // ─────────────────────────────────────────────────────────────────────
+    // SESSION NOTEBOOKS (CALCULATIONS & DERIVATIONS)
+    // ─────────────────────────────────────────────────────────────────────
+    async loadSessionNotebooks() {
+      try {
+        const res = await api.get('/api/session/notebooks');
+        if (res && res.notebooks) {
+          state.sessionNotebooks = res.notebooks;
+          state.sessionCount = res.count || res.notebooks.length;
+          this.renderSessionNotebooksList();
+        }
+      } catch (err) {
+        console.warn('Could not load session notebooks:', err);
+      }
+    },
+
+    renderSessionNotebooksList() {
+      const countEl = document.getElementById('cct-session-count');
+      const listEl = document.getElementById('cct-session-notebooks-list');
+      if (!listEl) return;
+
+      const solvedCount = (state.sessionNotebooks && state.sessionNotebooks.length) || state.sessionCount || 0;
+      if (countEl) {
+        countEl.innerHTML = `<span class="cct-green">●</span> <b>${solvedCount}</b> solved this session`;
+      }
+
+      const chipsHtml = `
+        <div class="cct-column-faint" id="cct-nb-empty-note" style="margin-top: 4px;">Instant derivation &amp; solve:</div>
+        <div class="cct-nb-quick-chips" id="cct-nb-quick-chips">
+          <button class="cct-nb-chip" onclick="FATTY.runNotebookSolve('kinetics')" title="First-order integrated rate law">⚡ Kinetics</button>
+          <button class="cct-nb-chip" onclick="FATTY.runNotebookSolve('arrhenius')" title="Arrhenius activation energy">⚡ Arrhenius</button>
+          <button class="cct-nb-chip" onclick="FATTY.runNotebookSolve('nernst')" title="Nernst cell potential">⚡ Nernst</button>
+          <button class="cct-nb-chip" onclick="FATTY.runNotebookSolve('gibbs')" title="Gibbs free energy">⚡ Gibbs</button>
+          <button class="cct-nb-chip" onclick="FATTY.runNotebookSolve('ideal_gas')" title="Ideal gas law">⚡ Gas Law</button>
+        </div>
+      `;
+
+      if (!state.sessionNotebooks || state.sessionNotebooks.length === 0) {
+        listEl.innerHTML = `
+          <div class="cct-column-item" id="cct-session-count"><span class="cct-green">●</span> 0 solved this session</div>
+          <div class="cct-column-faint">No generated files yet.</div>
+          ${chipsHtml}
+        `;
+        return;
+      }
+
+      let itemsHtml = `
+        <div class="cct-column-item" id="cct-session-count"><span class="cct-green">●</span> <b>${solvedCount}</b> solved this session</div>
+      `;
+
+      state.sessionNotebooks.slice(0, 3).forEach(nb => {
+        const titleSafe = this.escapeHtml(nb.title || nb.topic || 'Notebook');
+        const badgeSafe = this.escapeHtml(nb.category || 'Science');
+        itemsHtml += `
+          <div class="cct-nb-item">
+            <span class="cct-nb-item-title" onclick="FATTY.openNotebook('${nb.id}')" title="View notebook: ${titleSafe}">📘 ${titleSafe}</span>
+            <span class="cct-nb-item-badge">${badgeSafe}</span>
+            <button class="cct-nb-open-btn" onclick="FATTY.openNotebook('${nb.id}')">View</button>
+          </div>
+        `;
+      });
+
+      itemsHtml += chipsHtml;
+      listEl.innerHTML = itemsHtml;
+    },
+
+    async runNotebookSolve(topic) {
+      try {
+        const res = await api.post('/api/session/notebooks/solve', { topic: topic, create_file: true });
+        if (res && res.success && res.notebook) {
+          if (!state.sessionNotebooks) state.sessionNotebooks = [];
+          state.sessionNotebooks.unshift(res.notebook);
+          state.sessionCount = res.total_count || state.sessionNotebooks.length;
+          this.renderSessionNotebooksList();
+
+          const nb = res.notebook;
+          const noticeHtml = 
+            `<div style="line-height: 1.6;">` +
+            `📘 <b style="color: #50fa7b;">Session Notebook Solved: ${this.escapeHtml(nb.title)}</b><br>` +
+            `<b>Category</b>: <span style="color: #7aa2f7;">${this.escapeHtml(nb.category)}</span> · <b>Equation</b>: <code>${this.escapeHtml(nb.equation)}</code><br>` +
+            `<b>Result</b>: <b style="color: #00f0ff;">${this.escapeHtml(nb.result)}</b><br>` +
+            (nb.file_path ? `<span style="color: #6272a4; font-size: 11px;">Saved to workspace: ${this.escapeHtml(nb.file_path)}</span><br>` : '') +
+            `<button class="cct-nb-new-btn" style="margin-top: 6px;" onclick="FATTY.openNotebook('${nb.id}')">Open Full Derivation</button>` +
+            `</div>`;
+
+          const welcome = document.getElementById('cct-welcome-view');
+          const turnsBox = document.getElementById('cct-chat-turns');
+          if (welcome && welcome.style.display !== 'none') {
+            const countEl = document.getElementById('cct-session-count');
+            if (countEl) {
+              countEl.style.transition = 'color 0.2s ease';
+              countEl.style.color = '#50fa7b';
+              setTimeout(() => { countEl.style.color = ''; }, 1000);
+            }
+          } else {
+            this.appendSystemNotice(noticeHtml);
+          }
+        }
+      } catch (err) {
+        alert('Notebook solve failed: ' + err.message);
+      }
+    },
+
+    promptNewNotebook(prefilledTitle = '') {
+      const title = prompt('Enter title for the new Session Notebook:', prefilledTitle || 'Chemical Kinetics Derivation');
+      if (!title || !title.trim()) return;
+      this.createNotebook(title.trim());
+    },
+
+    async createNotebook(title) {
+      try {
+        const res = await api.post('/api/session/notebooks/create', { title: title, ext: '.md' });
+        if (res && res.success && res.notebook) {
+          if (!state.sessionNotebooks) state.sessionNotebooks = [];
+          state.sessionNotebooks.unshift(res.notebook);
+          state.sessionCount = res.total_count || state.sessionNotebooks.length;
+          this.renderSessionNotebooksList();
+
+          if (res.notebook.file_path) {
+            const fname = res.notebook.file_path.split(/[\\/]/).pop();
+            this.openFile(res.notebook.file_path, fname);
+          } else {
+            this.openNotebook(res.notebook.id);
+          }
+        }
+      } catch (err) {
+        alert('Could not create notebook: ' + err.message);
+      }
+    },
+
+    openNotebook(id) {
+      const nb = (state.sessionNotebooks || []).find(n => n.id === id);
+      if (!nb) return;
+
+      if (nb.file_path) {
+        const fname = nb.file_path.split(/[\\/]/).pop();
+        this.openFile(nb.file_path, fname);
+        return;
+      }
+
+      const editorPane = document.getElementById('cct-editor-pane');
+      const resizer = document.getElementById('cct-editor-resizer');
+      const titleEl = document.getElementById('cct-editor-filename');
+      const textarea = document.getElementById('cct-code-editor');
+
+      if (titleEl) titleEl.textContent = `${nb.title}.md`;
+      if (textarea) {
+        textarea.value = `# ${nb.title}\n\n**Category**: ${nb.category}\n**Equation**: ${nb.equation}\n**Timestamp**: ${nb.date} ${nb.timestamp}\n**Status**: ${nb.status}\n\n## Content / Derivation\n\n${nb.content}\n\n**Result**: ${nb.result}\n`;
+      }
+      if (editorPane) editorPane.style.display = 'flex';
+      if (resizer) resizer.style.display = 'block';
+      state.editorOpen = true;
+      this.updateLineNumbers();
     },
 
     // ─────────────────────────────────────────────────────────────────────
