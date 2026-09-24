@@ -56,19 +56,11 @@
     extensions: []
   };
 
-  // ─── 5 RESPONSIVE ASCII WORDMARK LOGO VARIANTS ──────────────────────────
+  // ─── 5 RESPONSIVE LAYOUT VARIANTS OF THE CAT WORDMARK LOGO ──────────────
   const ASCII_LOGO_VARIANTS = [
     {
-      id: 'retro',
-      name: 'Classic Retro',
-      art: `  /\\_/\\     ____ ___  ______
- ( o.o )   / __// _ |/_  __/
-  > ^ <   / /__/ __ | / /   
-          \\___/_/ |_|/_/    `
-    },
-    {
-      id: 'cyber3d',
-      name: 'Cyberpunk 3D ANSI',
+      id: 'tier1',
+      name: 'Tier 1: 3D Block (Desktop)',
       art: `  /\\_/\\   ██████╗  █████╗ ████████╗
  ( o.o ) ██╔════╝ ██╔══██╗╚══██╔══╝
   > ^ <  ██║      ███████║   ██║   
@@ -77,29 +69,32 @@
           ╚═════╝ ╚═╝  ╚═╝   ╚═╝   `
     },
     {
-      id: 'matrix',
-      name: 'Matrix Glitch',
-      art: `  /\\_/\\   ▄████▄   ▄▄▄     ▄▄▄█████▓
- ( =.= ) ▒██▀ ▀█  ▒████▄   ▓  ██▒ ▓▒
-  >^<    ▒▓█    ▄ ▒██  ▀█▄ ▒ ▓██░ ▒░
-         ▒▓▓▄ ▄██▒░██▄▄▄▄██░ ▓██▓ ░ 
-         ▒ ▓███▀ ░ ▓█   ▓██▒ ▒██▒ ░ `
+      id: 'tier2',
+      name: 'Tier 2: Retro BBS (Standard)',
+      art: `  /\\_/\\     ____ ___  ______
+ ( o.o )   / __// _ |/_  __/
+  > ^ <   / /__/ __ | / /   
+          \\___/_/ |_|/_/    `
     },
     {
-      id: 'synthwave',
-      name: 'Isometric Synthwave',
-      art: `  /\\_/\\    ______  ___  ______
- ( •.• )  / ____/ /   |/_  __/
-  (   )  / /     / /| | / /   
-  > ^ < / /___  / ___ |/ /    
-        \\____/ /_/  |_/_/     `
+      id: 'tier3',
+      name: 'Tier 3: Cat Combo (Medium)',
+      art: `  /\\_/\\   █████  █████  ██████
+ ( o.o )  ██     ██▄▄█    ██  
+  > ^ <   █████  ██  █    ██  `
     },
     {
-      id: 'pixel',
-      name: 'Compact Pixel Mini',
-      art: `  /\\_/\\   ┌─┐┌─┐┌┬┐
- ( ^.^ )  │  ├─┤ │ 
-  > ^ <   └─┘┴ ┴ ┴ `
+      id: 'tier4',
+      name: 'Tier 4: Compact Bevel (Narrow)',
+      art: `█▀▀▀ █▀▀█ ▀█▀
+█    █▄▄█  █ 
+▀▀▀▀ ▀  ▀  ▀ `
+    },
+    {
+      id: 'tier5',
+      name: 'Tier 5: Nano Banner (Micro)',
+      art: `/\\_/\\ (o.o)  [CAT]
+ > ^ <  CAT Intelligence`
     }
   ];
 
@@ -2597,45 +2592,42 @@
     },
 
     // ─────────────────────────────────────────────────────────────────────
-    // ASCII WORDMARK LOGO (5 RESPONSIVE VARIANTS)
+    // ASCII WORDMARK LOGO (5 DYNAMIC RESPONSIVE TIERS)
     // ─────────────────────────────────────────────────────────────────────
     initLogo() {
-      let saved = localStorage.getItem('cat_ascii_variant');
-      let idx = saved !== null ? parseInt(saved, 10) : 0;
-      if (isNaN(idx) || idx < 0 || idx >= ASCII_LOGO_VARIANTS.length) {
-        idx = 0;
-      }
-      this.setLogoVariant(idx, false);
+      const applyResponsiveLogo = () => {
+        if (state.manualLogoOverride) return;
+        const w = window.innerWidth;
+        let tier = 0;
+        if (w >= 900) tier = 0;       // Tier 1: 3D Block
+        else if (w >= 750) tier = 1;  // Tier 2: Retro BBS
+        else if (w >= 560) tier = 2;  // Tier 3: Cat Combo
+        else if (w >= 380) tier = 3;  // Tier 4: Compact Bevel
+        else tier = 4;                // Tier 5: Nano Banner
+        this.setLogoVariant(tier, false);
+      };
+      window.addEventListener('resize', applyResponsiveLogo);
+      applyResponsiveLogo();
     },
 
     setLogoVariant(idx, playAnimation = true) {
       if (idx < 0 || idx >= ASCII_LOGO_VARIANTS.length) return;
       state.logoVariant = idx;
-      localStorage.setItem('cat_ascii_variant', String(idx));
 
       const logoEl = document.getElementById('cct-cat-ascii-logo');
       if (logoEl) {
         logoEl.textContent = ASCII_LOGO_VARIANTS[idx].art;
-        logoEl.title = `ASCII Wordmark: ${ASCII_LOGO_VARIANTS[idx].name} (Click to cycle)`;
+        logoEl.title = `CAT Wordmark: ${ASCII_LOGO_VARIANTS[idx].name}`;
         if (playAnimation) {
           logoEl.classList.remove('cct-ascii-glitch-anim');
           void logoEl.offsetWidth; // Trigger reflow for restart
           logoEl.classList.add('cct-ascii-glitch-anim');
         }
       }
-
-      // Update pills
-      const bar = document.getElementById('cct-logo-selector-bar');
-      if (bar) {
-        const pills = bar.querySelectorAll('.cct-logo-pill');
-        pills.forEach((p, i) => {
-          if (i === idx) p.classList.add('active');
-          else p.classList.remove('active');
-        });
-      }
     },
 
     cycleLogoVariant() {
+      state.manualLogoOverride = true;
       const nextIdx = ((state.logoVariant || 0) + 1) % ASCII_LOGO_VARIANTS.length;
       this.setLogoVariant(nextIdx, true);
     },

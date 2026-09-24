@@ -255,9 +255,9 @@ if TEXTUAL_AVAILABLE:
                 available = max(20, main.region.height)
             except Exception:
                 available = 20
-            # Leave at least 15 rows for chat column / dashboard so it never overlaps or gets cut off
-            max_chat_room = max(15, int(available * 0.55))
-            max_h = min(10, max(COMPOSER_MIN_HEIGHT, available - max_chat_room))
+            # Reserve at least 18 rows for chat column / dashboard so it never overlaps or gets cut off
+            max_chat_room = max(18, int(available * 0.65))
+            max_h = max(COMPOSER_MIN_HEIGHT, min(8, available - max_chat_room))
             return COMPOSER_MIN_HEIGHT, max(COMPOSER_MIN_HEIGHT, max_h)
 
         def _apply(self, event):
@@ -292,7 +292,7 @@ if TEXTUAL_AVAILABLE:
             try:
                 conv = self._shell.query_one("#cct-conversation")
                 if conv and getattr(conv, "_dashboard", None):
-                    conv._dashboard.on_resize()
+                    conv._dashboard.on_resize(event=None)
             except Exception:
                 pass
 

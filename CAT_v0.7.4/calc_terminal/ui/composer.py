@@ -560,25 +560,25 @@ if TEXTUAL_AVAILABLE:
                     self._explicit_height = None
                     self.styles.height = "auto"
                     self.styles.min_height = COMPOSER_MIN_HEIGHT
-                    self.styles.max_height = "75%"
+                    self.styles.max_height = "32%"
                     try:
                         editor = self.query_one("#cct-input", ComposerInput)
                         stack = self.query_one("#cct-editor-stack", Container)
                         row = self.query_one("#cct-prompt-row")
-                        line_count = max(2, min(8, editor.text.count("\n") + 1))
+                        line_count = max(2, min(5, editor.text.count("\n") + 1))
                         editor.styles.height = line_count
                         stack.styles.height = line_count
                         row.styles.height = "auto"
                     except Exception:
                         pass
                     return
-                hi = min(10, max(COMPOSER_MIN_HEIGHT + 2,
-                                 int(self.screen.size.height * 0.38)))
+                hi = min(8, max(COMPOSER_MIN_HEIGHT + 1,
+                                 int(self.screen.size.height * 0.28)))
                 height = max(COMPOSER_MIN_HEIGHT, min(hi, int(height)))
                 self._explicit_height = height
                 self.styles.height = height
                 self.styles.min_height = height
-                self.styles.max_height = "40%"
+                self.styles.max_height = "32%"
                 try:
                     editor = self.query_one("#cct-input", ComposerInput)
                     stack = self.query_one("#cct-editor-stack", Container)

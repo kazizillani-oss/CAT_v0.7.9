@@ -1631,62 +1631,23 @@ Button.cct-switch.-active {
     min-height: 1;
     padding: 0 1;
 }
-#cct-dash-logo-bar {
-    height: auto;
-    width: 100%;
-    max-width: 84;
-    layout: horizontal;
-    align: center middle;
-    align-horizontal: center;
-    margin: 0 0 1 0;
-}
-.cct-logo-pill, Button.cct-logo-pill {
-    height: 3;
-    min-height: 3;
-    max-height: 3;
-    min-width: 10;
-    max-width: 15;
-    padding: 0;
-    margin: 0 1;
-    background: $surface-alt;
-    color: $text-muted;
-    border: tall $surface-dark;
-    border-top: tall $surface-highlight;
-    content-align: center middle;
-    text-style: none;
-    transition: background 100ms, color 100ms, border 100ms;
-}
-.cct-logo-pill:hover, Button.cct-logo-pill:hover,
-.cct-logo-pill:focus, Button.cct-logo-pill:focus {
-    background: $accent 30%;
-    color: #ffffff;
-    text-style: bold;
-    border-top: tall #ffffff;
-}
-.cct-logo-pill.active, Button.cct-logo-pill.active {
-    background: $accent 45%;
-    color: #ffffff;
-    text-style: bold;
-    border: tall $accent;
-    border-top: tall #ffffff;
-}
 #cct-dash-hero { text-align: center; padding-bottom: 1; }
 #cct-dash-actions {
     height: auto;
-    width: 100%;
-    max-width: 90;
-    padding: 1 0;
+    width: auto;
+    max-width: 96;
+    padding: 0;
     layout: horizontal;
     align: center middle;
     align-horizontal: center;
-    margin: 0 0;
+    margin: 1 0;
 }
 #cct-dash-actions.stacked {
     layout: vertical;
     height: auto;
     width: 100%;
     max-width: 48;
-    margin: 0 0;
+    margin: 1 0;
     align-horizontal: center;
 }
 #cct-dash-actions.stacked .cct-dash-action { width: 100%; max-width: 100%; margin: 1 0; }
@@ -1695,7 +1656,7 @@ Button.cct-dash-action.-style-default,
 Button.cct-dash-action:ansi.-style-default,
 Button.cct-dash-action:ansi.-style-flat,
 Screen Button.cct-dash-action {
-    width: 1fr;
+    width: 18;
     min-width: 14;
     max-width: 22;
     height: 3;
@@ -1740,11 +1701,12 @@ Screen Button.cct-dash-action.-active {
 }
 #cct-dash-columns {
     height: auto;
-    width: 100%;
-    max-width: 110;
+    width: 108;
+    max-width: 100%;
     padding-top: 1;
     layout: horizontal;
     overflow: hidden;
+    align: center middle;
     align-horizontal: center;
     margin: 0 0;
 }
@@ -1785,38 +1747,42 @@ Screen Button.cct-dash-action.-active {
     margin-top: 1;
     padding: 0 1;
 }
-.cct-dash-nb-actions {
+.cct-dash-nb-chips, .cct-dash-nb-actions {
     layout: horizontal;
     width: 100%;
-    height: auto;
-    margin-top: 0;
+    height: 2;
+    min-height: 2;
+    max-height: 2;
+    margin: 0 0 1 0;
     padding: 0;
-    align-horizontal: center;
+    align: center middle;
 }
+.cct-nb-chip, Button.cct-nb-chip,
 .cct-nb-chip-btn, Button.cct-nb-chip-btn {
     width: 1fr;
-    height: 3;
-    min-height: 3;
-    max-height: 3;
-    margin: 0 1 1 1;
-    padding: 0;
+    height: 2;
+    min-height: 2;
+    max-height: 2;
+    margin: 0 1;
+    padding: 0 1;
     background: $surface-alt;
     color: $text;
-    border: tall $surface-dark;
-    border-top: tall $surface-highlight;
+    border: none;
+    border-left: solid $accent;
     content-align: center middle;
     text-style: bold;
-    transition: background 80ms, color 80ms, border 80ms;
+    transition: background 80ms, color 80ms;
 }
-.cct-nb-chip-btn:hover, Button.cct-nb-chip-btn:hover {
+.cct-nb-chip:hover, Button.cct-nb-chip:hover,
+.cct-nb-chip:focus, Button.cct-nb-chip:focus,
+.cct-nb-chip-btn:hover, Button.cct-nb-chip-btn:hover,
+.cct-nb-chip-btn:focus, Button.cct-nb-chip-btn:focus {
     background: $accent 35%;
     color: #ffffff;
-    border-top: tall #ffffff;
-    border-bottom: tall $accent-highlight;
 }
+.cct-nb-chip.-active, Button.cct-nb-chip.-active,
 .cct-nb-chip-btn.-active, Button.cct-nb-chip-btn.-active {
-    offset-y: 1;
-    background: $accent 50%;
+    background: $accent 55%;
     color: #ffffff;
 }
 #cct-dash-stats-body { color: $text-muted; height: auto; }
@@ -6877,44 +6843,50 @@ if TEXTUAL_AVAILABLE:
                 return
             if word == "/logo":
                 try:
-                    from .dashboard import WelcomeDashboard, LOGO_VARIANTS
+                    from .dashboard import WelcomeDashboard, RESPONSIVE_LOGO_TIERS
                     welcome = getattr(getattr(self, "conversation", None), "_welcome", None)
-                    if not arg or arg.lower() in ("next", "cycle"):
+                    if not arg or arg.lower() in ("auto", "responsive"):
+                        if isinstance(welcome, WelcomeDashboard):
+                            welcome.set_logo_variant(None)
+                        self._system_note(
+                            "\U0001f3a8 **CAT Wordmark Logo is now fully auto-responsive!**\n"
+                            "It dynamically adapts across 5 layout tiers based on viewport geometry:\n"
+                            "- **Tier 1**: 3D Block (w \u2265 80, h \u2265 24)\n"
+                            "- **Tier 2**: Retro BBS Slanted (w \u2265 64, h \u2265 20)\n"
+                            "- **Tier 3**: Cat Combo (w \u2265 46, h \u2265 15)\n"
+                            "- **Tier 4**: Compact Bevel (w \u2265 28, h \u2265 11)\n"
+                            "- **Tier 5**: Nano Banner (Micro / Short)"
+                        )
+                        return
+                    if arg.lower() in ("next", "cycle"):
                         if isinstance(welcome, WelcomeDashboard):
                             welcome.cycle_logo_variant()
-                            curr = LOGO_VARIANTS[welcome._logo_variant_idx]
-                            self._system_note(f"Switched logo to Variant {welcome._logo_variant_idx + 1}: **{curr['name']}**")
+                            curr_tier = welcome._manual_override_tier if welcome._manual_override_tier is not None else 0
+                            curr = RESPONSIVE_LOGO_TIERS[curr_tier]
+                            self._system_note(f"Switched logo to Tier {curr_tier + 1}: **{curr['name']}**")
                         else:
-                            self._system_note("Switched ASCII logo style. View on dashboard (/clear).")
+                            self._system_note("Switched logo layout tier. View on dashboard (/clear).")
                         return
                     if arg.isdigit():
                         idx = int(arg) - 1
-                        if 0 <= idx < len(LOGO_VARIANTS):
+                        if 0 <= idx < len(RESPONSIVE_LOGO_TIERS):
                             if isinstance(welcome, WelcomeDashboard):
                                 welcome.set_logo_variant(idx)
-                                curr = LOGO_VARIANTS[idx]
-                                self._system_note(f"Switched logo to Variant {idx + 1}: **{curr['name']}**")
-                            else:
-                                from . import dashboard
-                                dashboard._ACTIVE_LOGO_VARIANT = idx
-                                self._system_note(f"Selected logo Variant {idx + 1}: **{LOGO_VARIANTS[idx]['name']}**")
+                                curr = RESPONSIVE_LOGO_TIERS[idx]
+                                self._system_note(f"Set logo override to Tier {idx + 1}: **{curr['name']}**")
                             return
                     matched = None
-                    for i, v in enumerate(LOGO_VARIANTS):
+                    for i, v in enumerate(RESPONSIVE_LOGO_TIERS):
                         if arg.lower() in v["id"].lower() or arg.lower() in v["name"].lower():
                             matched = i
                             break
                     if matched is not None:
                         if isinstance(welcome, WelcomeDashboard):
                             welcome.set_logo_variant(matched)
-                            curr = LOGO_VARIANTS[matched]
-                            self._system_note(f"Switched logo to Variant {matched + 1}: **{curr['name']}**")
-                        else:
-                            from . import dashboard
-                            dashboard._ACTIVE_LOGO_VARIANT = matched
-                            self._system_note(f"Selected logo Variant {matched + 1}: **{LOGO_VARIANTS[matched]['name']}**")
+                            curr = RESPONSIVE_LOGO_TIERS[matched]
+                            self._system_note(f"Set logo override to Tier {matched + 1}: **{curr['name']}**")
                         return
-                    self._system_note("Usage: `/logo <1-5|next|retro|cyber3d|matrix|synthwave|pixel>`")
+                    self._system_note("Usage: `/logo <auto|1-5|next|tier1|tier2|tier3|tier4|tier5>`")
                 except Exception as e:
                     self._system_note(f"Error switching logo: {e}")
                 return
