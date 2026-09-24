@@ -1,21 +1,31 @@
 [build-system]
-requires = ["setuptools>=64"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-# Distribution name. The CLI command is `cat` (and alias `cct`).
-# The bare PyPI name "cct" is taken on PyPI by an unrelated tool, so
-# "cct-ai-ide" is the distribution package name.
-name = "cct-ai-ide"
-version = "0.7.9.0"
-description = "CAT v0.7.9.0 — Coding Agent Terminal / terminal AI coding agent"
-readme = "CAT_v0.7.4/README.md"
+# PyPI distribution name is `cct-cli` (CLI command stays `cat`):
+#
+#     python -m pip install cct-cli
+#     cat
+#
+# History: `cat-cli` was the first choice (PyPI JSON 404) but PyPI's
+# upload-time similarity check rejected it as too similar to the existing
+# `catcli` project — a 404 does NOT guarantee upload acceptance. `cct-cli`
+# returns 404 (no exact match, checked 2026-09-21); acceptance is proven
+# only by a successful upload. Bare `cat` is TAKEN (unrelated project).
+# NEVER publish under `cot-ai-ide` (typo) — branding is CAT.
+name = "cct-cli"
+version = "0.8.b"
+description = "CAT CLI v0.8.b [beta version] — Coding Agent Terminal / terminal AI coding agent"
+readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+# SPDX identifier (setuptools>=77). License text lives in LICENSE.
+license = "MIT"
+license-files = ["LICENSE*"]
 authors = [
     { name = "Kazi Zillani" }
 ]
-keywords = ["cat", "cct", "ai", "agent", "terminal", "tui", "cli", "coding-agent"]
+keywords = ["cat", "cct-cli", "cct", "ai", "agent", "terminal", "tui", "cli", "coding-agent"]
 classifiers = [
     "Environment :: Console",
     "Intended Audience :: Developers",
@@ -32,13 +42,30 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
+    # Core TUI: primary chat UI (calc_terminal/ui/) + fallback REPL both need
+    # these. textual[syntax] (not plain textual) is REQUIRED: it pulls in
+    # tree-sitter grammars used by the editor's syntax highlighting.
     "textual[syntax]>=0.60",
-    "platformdirs>=4.4",
+    # Direct `from rich` / `import rich` in ~34 modules (bubbles, panels).
+    # (textual also depends on rich, but CAT imports it directly.)
     "rich>=13.0",
-    "colorama>=0.4.6; sys_platform == 'win32'",
+    # AI providers, model discovery, websearch/research (aicore + adapters).
+    # Import is guarded (degrades without it), but provider/model
+    # functionality is core, so this stays required.
     "requests>=2.31.0",
+    # Legacy Windows cmd.exe background-highlight fallback (theme.py, guarded
+    # import — no-op elsewhere).
+    "colorama>=0.4.6; sys_platform == 'win32'",
+    # Live File Explorer push events (fs_watcher.py). Has a stdlib
+    # snapshot-poll fallback, but shipped as required so the default install
+    # gets real OS events without a second pip step.
     "watchdog>=4.0",
+    # Desktop notifications (platform/desktop.py, function-level import with
+    # console fallback). Small, pure-Python, kept required for full UX.
     "plyer>=2.1",
+    # NOTE: `platformdirs` was previously listed but is NOT imported anywhere
+    # in calc_terminal (verified by AST scan) — removed. App-data paths use
+    # first_run.data_dir() (CCT_DATA_DIR override + OS conventions) instead.
 ]
 
 [project.optional-dependencies]
@@ -46,6 +73,7 @@ web = [
     "fastapi>=0.100.0",
     "uvicorn>=0.20.0",
     "pydantic>=2.0",
+    "python-multipart>=0.0.6",
 ]
 science = [
     "sympy>=1.12",
@@ -56,23 +84,29 @@ science = [
     "prompt_toolkit>=3.0.43",
 ]
 host = [
-    "PySide6>=6.6",  # Qt WebEngine — true embedded browser INSIDE CAT Host window
+    "PySide6>=6.6",
 ]
 browser = [
     "PySide6>=6.6",
-    "pywebview>=4.4",  # lightweight WebView2 fallback (uses Edge WebView2 Runtime)
-    "playwright>=1.40",  # Chromium fallback (already required for Preview, but external)
+    "pywebview>=4.4",
+    "playwright>=1.40",
 ]
 all = [
-    "cct-ai-ide[web,science,browser]",
+    "cct-cli[web,science,browser]",
 ]
 
 [project.urls]
-Homepage = "https://github.com/cct-ai/cat"
-Changelog = "https://github.com/cct-ai/cat/blob/main/CHANGELOG_v0.7.9.md"
+Homepage = "https://github.com/kazizillani-oss/CAT_v0.7.9"
+Repository = "https://github.com/kazizillani-oss/CAT_v0.7.9"
+Issues = "https://github.com/kazizillani-oss/CAT_v0.7.9/issues"
+Changelog = "https://github.com/kazizillani-oss/CAT_v0.7.9/blob/main/CAT_v0.7.4/CHANGELOG_v0.7.9.md"
 
 [project.scripts]
+# Canonical command is `cat`. `cct` is the historic alias (kept so existing
+# installs/docs keep working); `catx` avoids the GNU coreutils `cat`
+# collision on Unix and PowerShell alias quirks on Windows (see README).
 cat = "calc_terminal.cli:main"
+catx = "calc_terminal.cli:main"
 cct = "calc_terminal.cli:main"
 
 [tool.setuptools]
@@ -81,9 +115,31 @@ package-dir = {"" = "CAT_v0.7.4"}
 [tool.setuptools.packages.find]
 where = ["CAT_v0.7.4"]
 include = ["calc_terminal*"]
+exclude = ["calc_terminal.tests*"]
 
-# Non-.py resources that MUST ship inside the wheel/sdist: first-run
-# seeding copies these into the user's app-data dir (first_run.py).
+# Non-.py resources that MUST ship inside the wheel/sdist: first-run seeding
+# copies models/providers JSON into the user's app-data dir (first_run.py),
+# the Fatty CAT server serves web/static/*, and terminal_identity needs the
+# icons. Without this block `pip install .` silently drops them.
 [tool.setuptools.package-data]
+"calc_terminal" = ["cat.ico", "*.ico"]
 "calc_terminal.models" = ["*.json"]
 "calc_terminal.providers" = ["*.json"]
+"calc_terminal.fomoji_server" = [
+    "package.json",
+    "package-lock.json",
+    "README.md",
+    ".env.example",
+    "src/*",
+    "src/**/*",
+    "public/*",
+    "public/**/*",
+]
+"calc_terminal.web" = [
+    "static/*",
+    "static/**/*",
+    "static/css/*",
+    "static/js/*",
+    "static/icons/*",
+]
+

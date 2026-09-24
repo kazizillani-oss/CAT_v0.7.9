@@ -248,6 +248,33 @@ suite('catLauncher (pure)', () => {
 			assert.ok(/cat\.EXE$/i.test(out.file));
 		});
 
+		test('Windows resolves configured "cat" to "cat.exe" to avoid PowerShell alias collision', () => {
+			const out = resolveCatLauncher({
+				command: 'cat --debug',
+				workspaceRoot: 'C:\\proj',
+				platform: 'win32',
+				which: () => null,
+				existsSync: () => false,
+			});
+			assert.strictEqual(out.kind, 'configured');
+			assert.strictEqual(out.tokens[0], 'cat.exe');
+		});
+
+		test('Windows finds cat.exe in verified Python interpreter Scripts directory', () => {
+			const pyExe = 'C:\\Users\\User\\AppData\\Local\\Programs\\Python\\Python312\\python.exe';
+			const catExe = 'C:\\Users\\User\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\cat.exe';
+			const out = resolveCatLauncher({
+				command: 'cat',
+				workspaceRoot: 'C:\\proj',
+				python: { candidate: { command: pyExe, args: [] } },
+				platform: 'win32',
+				which: () => null,
+				existsSync: (p) => p === catExe,
+			});
+			assert.strictEqual(out.kind, 'python-script');
+			assert.strictEqual(out.file, catExe);
+		});
+
 		test('POSIX: bare `cat` is NOT used (coreutils shadow), catx/cct are', () => {
 			const out = resolveCatLauncher({
 				command: 'cat',

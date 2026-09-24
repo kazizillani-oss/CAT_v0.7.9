@@ -194,9 +194,24 @@ def _fix_spacing(text):
     return rejoined.strip()
 
 
-# ── Debug logging (appends to startup.log alongside model.py) ──────────────
-_LOG_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "startup.log")
+# ── Debug logging (user app-data logs dir when installed; legacy
+# repo-root startup.log as fallback for source checkouts) ──────────────
+def _resolve_log_file() -> str:
+    try:
+        from calc_terminal.first_run import logs_dir as _logs_dir
+
+        import os as _os
+
+        _d = _logs_dir()
+        _os.makedirs(_d, exist_ok=True)
+        return _os.path.join(_d, "startup.log")
+    except Exception:
+        pass
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__)))), "startup.log")
+
+
+_LOG_FILE = _resolve_log_file()
 
 
 def _log(msg: str, exc_info: bool = False):

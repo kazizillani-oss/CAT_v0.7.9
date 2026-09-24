@@ -248,16 +248,22 @@ if _QT_AVAILABLE:
             )
             tab_row.addWidget(self.tab_bar, 1)
 
+            hi = c.get('hi', '#334155')
+            sh = c.get('sh', '#090d16')
+            btn_skeu_style = (
+                f"QPushButton {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c['surface_hover']}, stop:1 {c['surface']}); "
+                f"color: {c['text']}; border-top: 1px solid {hi}; border-left: 1px solid {hi}; "
+                f"border-bottom: 1px solid {sh}; border-right: 1px solid {sh}; "
+                f"border-radius: 4px; font-size: 15px; font-weight: bold; margin: 0 4px 0 2px; }}"
+                f"QPushButton:hover {{ color: {c['accent']}; background: {c['surface_hover']}; border-top: 1px solid {c['accent']}; border-left: 1px solid {c['accent']}; }}"
+                f"QPushButton:pressed {{ border-top: 1px solid {sh}; border-left: 1px solid {sh}; border-bottom: 1px solid {hi}; border-right: 1px solid {hi}; padding-top: 2px; padding-left: 2px; }}"
+            )
+
             self.new_tab_btn = QPushButton("+")
             self.new_tab_btn.setFixedSize(24, 24)
             self.new_tab_btn.setCursor(Qt.CursorShape.PointingHandCursor)
             self.new_tab_btn.setToolTip("New tab (Ctrl+T)")
-            self.new_tab_btn.setStyleSheet(
-                f"QPushButton {{ background: transparent; color: {c['text_muted']}; "
-                f"border: none; border-radius: 4px; font-size: 16px; font-weight: 500; "
-                f"margin: 0 4px 0 2px; }}"
-                f"QPushButton:hover {{ color: {c['accent']}; background: {c['surface']}; }}"
-            )
+            self.new_tab_btn.setStyleSheet(btn_skeu_style)
             self.new_tab_btn.clicked.connect(lambda: self.new_tab())
             tab_row.addWidget(self.new_tab_btn, 0)
 
@@ -270,15 +276,18 @@ if _QT_AVAILABLE:
             # ---- Toolbar row (nav + address + menu) --------------------------
             toolbar = QHBoxLayout()
             toolbar.setContentsMargins(6, 2, 6, 4)
-            toolbar.setSpacing(2)
+            toolbar.setSpacing(3)
 
             nav_btn_style = (
-                f"QPushButton {{ background: transparent; color: {c['text_muted']}; "
-                f"border: none; border-radius: 4px; font-size: 14px; "
-                f"padding: 2px 6px; min-width: 24px; max-width: 28px; "
+                f"QPushButton {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c['surface_hover']}, stop:1 {c['surface']}); "
+                f"color: {c['text']}; border-top: 1px solid {hi}; border-left: 1px solid {hi}; "
+                f"border-bottom: 1px solid {sh}; border-right: 1px solid {sh}; "
+                f"border-radius: 4px; font-size: 13px; font-weight: bold; "
+                f"padding: 1px 4px; min-width: 24px; max-width: 28px; "
                 f"min-height: 22px; max-height: 22px; }}"
-                f"QPushButton:hover {{ color: {c['text']}; background: {c['surface']}; }}"
-                f"QPushButton:disabled {{ color: {c['border']}; }}"
+                f"QPushButton:hover {{ color: #ffffff; background: {c['surface_hover']}; border-top: 1px solid {c['accent']}; border-left: 1px solid {c['accent']}; }}"
+                f"QPushButton:pressed {{ border-top: 1px solid {sh}; border-left: 1px solid {sh}; border-bottom: 1px solid {hi}; border-right: 1px solid {hi}; padding-top: 2px; padding-left: 2px; }}"
+                f"QPushButton:disabled {{ color: {c['border']}; background: transparent; border: 1px solid transparent; }}"
             )
 
             self.back_btn = QPushButton("◀")
@@ -304,7 +313,7 @@ if _QT_AVAILABLE:
 
             toolbar.addSpacing(4)
 
-            # Address bar — compact pill
+            # Address bar — sunken 3D well
             addr_frame = QWidget()
             addr_layout = QHBoxLayout(addr_frame)
             addr_layout.setContentsMargins(8, 1, 8, 1)
@@ -327,7 +336,8 @@ if _QT_AVAILABLE:
             addr_layout.addWidget(self.address_input, 1)
 
             addr_frame.setStyleSheet(
-                f"background: {c['surface']}; border: 1px solid {c['border']}; "
+                f"background: {c['surface']}; border-top: 1px solid {sh}; border-left: 1px solid {sh}; "
+                f"border-bottom: 1px solid {hi}; border-right: 1px solid {hi}; "
                 f"border-radius: 12px;"
             )
             toolbar.addWidget(addr_frame, 1)
@@ -335,11 +345,7 @@ if _QT_AVAILABLE:
             self.menu_btn = QPushButton("⋮")
             self.menu_btn.setFixedSize(24, 22)
             self.menu_btn.setToolTip("Menu")
-            self.menu_btn.setStyleSheet(
-                f"QPushButton {{ background: transparent; color: {c['text_muted']}; "
-                f"border: none; border-radius: 4px; font-size: 14px; }}"
-                f"QPushButton:hover {{ color: {c['text']}; background: {c['surface']}; }}"
-            )
+            self.menu_btn.setStyleSheet(btn_skeu_style)
             self.menu_btn.clicked.connect(self.show_menu)
             toolbar.addWidget(self.menu_btn)
 
@@ -1157,14 +1163,13 @@ if _QT_AVAILABLE:
                 QTimer.singleShot(150, lambda: self.navigate(start_browser_url))
 
             # Recurring heartbeat and IPC check for real-time pop-up and URL redirects
+            self._last_hb_ts = 0.0
             self._pending_timer = QTimer(self)
             self._pending_timer.setInterval(250)
             self._pending_timer.timeout.connect(self._check_pending_url)
             self._pending_timer.start()
-            QTimer.singleShot(200, self._check_pending_url)
+            QTimer.singleShot(100, self._check_pending_url)
             QTimer.singleShot(250, self._bring_to_front)
-            QTimer.singleShot(600, self._bring_to_front)
-            QTimer.singleShot(1200, self._bring_to_front)
 
         def _center_on_screen(self):
             try:
@@ -1290,21 +1295,12 @@ if _QT_AVAILABLE:
                         hwnd = int(self.winId()) if hasattr(self, "winId") else 0
                         if hwnd > 0:
                             user32 = ctypes.windll.user32
-                            kernel32 = ctypes.windll.kernel32
                             user32.ShowWindow(hwnd, 9)  # SW_RESTORE
-                            fg_hwnd = user32.GetForegroundWindow()
-                            fg_thread = user32.GetWindowThreadProcessId(fg_hwnd, None) if fg_hwnd else 0
-                            cur_thread = kernel32.GetCurrentThreadId()
-                            attached = False
-                            if fg_thread and fg_thread != cur_thread:
-                                attached = bool(user32.AttachThreadInput(cur_thread, fg_thread, True))
-                            swp_flags = 0x0001 | 0x0002 | 0x0040  # SWP_NOSIZE | SWP_NOMOVE | SWP_SHOWWINDOW
-                            user32.SetWindowPos(hwnd, -1, 0, 0, 0, 0, swp_flags)  # HWND_TOPMOST
-                            user32.SetWindowPos(hwnd, -2, 0, 0, 0, 0, swp_flags)  # HWND_NOTOPMOST
+                            # Smooth window activation without DWM surface recreation flicker
+                            if hasattr(user32, "SwitchToThisWindow"):
+                                user32.SwitchToThisWindow(hwnd, True)
                             user32.BringWindowToTop(hwnd)
                             user32.SetForegroundWindow(hwnd)
-                            if attached:
-                                user32.AttachThreadInput(cur_thread, fg_thread, False)
                     except Exception:
                         pass
             except Exception:
@@ -1314,14 +1310,17 @@ if _QT_AVAILABLE:
             try:
                 import json, time, os
                 from pathlib import Path as _P
-                # Heartbeat with PID and HWND so launcher accurately tracks this window
-                hb_path = _P.home() / ".cat_browser_heartbeat"
-                try:
-                    hwnd = int(self.winId()) if hasattr(self, "winId") else 0
-                    hb_data = json.dumps({"pid": os.getpid(), "ts": time.time(), "hwnd": hwnd})
-                    hb_path.write_text(hb_data, encoding="utf-8")
-                except Exception:
-                    pass
+                now = time.time()
+                # Heartbeat with PID and HWND throttled to 1.5s (eliminates disk I/O stutter on low-end PCs)
+                if now - getattr(self, "_last_hb_ts", 0.0) >= 1.5:
+                    self._last_hb_ts = now
+                    hb_path = _P.home() / ".cat_browser_heartbeat"
+                    try:
+                        hwnd = int(self.winId()) if hasattr(self, "winId") else 0
+                        hb_data = json.dumps({"pid": os.getpid(), "ts": now, "hwnd": hwnd})
+                        hb_path.write_text(hb_data, encoding="utf-8")
+                    except Exception:
+                        pass
 
                 pending_path = _P.home() / ".cat_pending_verification.json"
                 if pending_path.exists():
@@ -1332,15 +1331,13 @@ if _QT_AVAILABLE:
                             url = data.get("url")
                             ts = float(data.get("ts", 0))
                             # Accept pending requests from the last 60 seconds
-                            if url and (time.time() - ts) < 60:
+                            if url and (now - ts) < 60:
                                 try:
                                     pending_path.unlink(missing_ok=True)
                                 except Exception:
                                     pass
                                 self.navigate(url)
                                 self._bring_to_front()
-                                QTimer.singleShot(150, self._bring_to_front)
-                                QTimer.singleShot(400, self._bring_to_front)
                     except Exception:
                         pass
             except Exception:

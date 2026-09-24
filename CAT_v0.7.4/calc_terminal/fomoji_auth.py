@@ -157,36 +157,27 @@ def is_skip_enabled() -> bool:
 
 
 def _find_fomoji_server_dir() -> Optional[Path]:
-    """Locate the fomoji-server directory for auto-start."""
+    """Locate the fomoji-server directory using robust relative and package paths."""
+    try:
+        from .fomoji_manager import locate_fomoji_server_dir
+        return locate_fomoji_server_dir()
+    except Exception:
+        pass
     candidates: List[Path] = []
     env_dir = os.environ.get("FOMOJI_SERVER_DIR", "").strip()
     if env_dir:
         candidates.append(Path(env_dir))
-    # Relative to this file's repo layout (source checkout)
     try:
         here = Path(__file__).resolve()
-        # calc_terminal/fomoji_auth.py -> parents[1] = CAT_v0.7.x
-        repo_root = here.parents[1]
-        candidates.append(repo_root.parent / "fomoji-updated" / "fomoji-server")
-        candidates.append(repo_root / "fomoji-updated" / "fomoji-server")
-        candidates.append(repo_root / ".." / "fomoji-updated" / "fomoji-server")
-    except Exception:
-        pass
-    candidates.append(Path.cwd() / "fomoji-updated" / "fomoji-server")
-    candidates.append(Path.cwd() / "fomoji-server")
-    candidates.append(Path.home() / "fomoji-server")
-    # Also check sibling of CAT_v0.7.9 folder (common download layout)
-    try:
-        dl_root = Path(__file__).resolve().parents[2]
-        candidates.append(dl_root / "fomoji-updated" / "fomoji-server")
+        candidates.append(here.parent / "fomoji_server")
+        candidates.append(here.parents[1].parent / "fomoji-updated" / "fomoji-server")
+        candidates.append(here.parents[2] / "fomoji-updated" / "fomoji-server")
     except Exception:
         pass
     for cand in candidates:
         try:
             c = cand.resolve()
-            if (c / "package.json").exists() and (c / "src" / "server.js").exists():
-                return c
-            if (c / "src" / "server.js").exists():
+            if (c / "package.json").exists():
                 return c
         except Exception:
             continue
@@ -266,11 +257,8 @@ def _show_server_loading(quiet: bool = False):
 
 def ensure_fomoji_server(auto_start: bool = True, timeout: int = 18) -> bool:
     """Ensure Fomoji server is reachable. If not and auto_start is True,
-    try to spawn `npm start` / `node src/server.js` from the located
-    server dir and wait for it to become reachable.
-
-    Returns True if reachable (already or after auto-start), False otherwise.
-    Never raises."""
+    use the robust fomoji_manager to check dependencies, handle ports,
+    and start the server. Never raises."""
     if check_server_reachable(timeout=3):
         return True
     if not auto_start:
@@ -278,91 +266,9 @@ def ensure_fomoji_server(auto_start: bool = True, timeout: int = 18) -> bool:
     env_url = os.environ.get("FOMOJI_URL", "").strip()
     if env_url and "localhost" not in env_url and "127.0.0.1" not in env_url:
         return False
-    server_dir = _find_fomoji_server_dir()
-    if not server_dir:
-        return False
-    marker = Path.home() / ".cat_fomoji_autostart.pid"
     try:
-        if marker.exists():
-            try:
-                age = time.time() - marker.stat().st_mtime
-                if age < 30 and check_server_reachable(timeout=2):
-                    return True
-                if age < 10:
-                    advance, finish = _show_server_loading()
-                    advance()
-                    for _ in range(6):
-                        time.sleep(1)
-                        advance()
-                        if check_server_reachable(timeout=2):
-                            finish(True)
-                            return True
-                    finish(False)
-                    return False
-            except Exception:
-                pass
-    except Exception:
-        pass
-    try:
-        import subprocess
-        import shutil
-        try:
-            (server_dir / "data").mkdir(exist_ok=True)
-        except Exception:
-            pass
-        node = shutil.which("node")
-        npm = shutil.which("npm")
-        cmd = None
-        # Prefer `node` directly over `npm` to avoid Windows popup windows.
-        # npm spawns cmd.exe which shows a console even with hidden flags.
-        if node:
-            if (server_dir / "src" / "server.js").exists():
-                cmd = [node, "src/server.js"]
-            elif (server_dir / "server.js").exists():
-                cmd = [node, "server.js"]
-        if not cmd and npm and (server_dir / "package.json").exists():
-            cmd = [npm, "start", "--silent"]
-        if not cmd:
-            return False
-        log_file = Path.home() / ".cat_fomoji_server.log"
-        try:
-            lf = open(log_file, "ab")
-        except Exception:
-            lf = subprocess.DEVNULL  # type: ignore
-        kwargs: Dict[str, Any] = {"cwd": str(server_dir), "stdout": lf, "stderr": lf}
-        if sys.platform == "win32":
-            si = subprocess.STARTUPINFO()
-            si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            si.wShowWindow = 0  # SW_HIDE
-            kwargs["startupinfo"] = si
-            # CREATE_NO_WINDOW alone prevents any console popup.
-            # DETACHED_PROCESS + CREATE_NO_WINDOW can conflict and show
-            # a brief flash — use only CREATE_NO_WINDOW for clean background.
-            kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-        else:
-            kwargs["start_new_session"] = True
-        try:
-            subprocess.Popen(cmd, **kwargs)  # type: ignore
-        except Exception:
-            try:
-                lf.close()  # type: ignore
-            except Exception:
-                pass
-            return False
-        try:
-            marker.write_text(str(time.time()))
-        except Exception:
-            pass
-        advance, finish = _show_server_loading()
-        advance()
-        for i in range(timeout):
-            time.sleep(1)
-            advance()
-            if check_server_reachable(timeout=2):
-                finish(True)
-                return True
-        finish(False)
-        return False
+        from .fomoji_manager import initialize_fomoji_subsystem
+        return initialize_fomoji_subsystem(interactive=False)
     except Exception:
         return False
 
@@ -419,6 +325,8 @@ def status() -> str:
 
 
 def is_authenticated() -> bool:
+    if is_skip_enabled():
+        return True
     return status() == "connected"
 
 

@@ -95,6 +95,16 @@ if TEXTUAL_AVAILABLE:
                 self._act_mod = None
             self._timer = self.set_interval(0.1, self._refresh)
 
+        def on_unmount(self):
+            # Mirror ActivityStreamPanel: the 100ms refresh ticker is
+            # owned by this screen and must stop when it closes.
+            try:
+                if getattr(self, "_timer", None) is not None:
+                    self._timer.stop()
+            except Exception:
+                pass
+            self._timer = None
+
         def on_resize(self, event):
             self._fit()
 

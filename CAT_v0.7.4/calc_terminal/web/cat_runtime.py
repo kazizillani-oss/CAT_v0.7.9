@@ -17,10 +17,14 @@ import time
 from pathlib import Path
 from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
 
-# Ensure package is on sys.path
-_CAT_ROOT = Path(__file__).parent.parent
-if str(_CAT_ROOT) not in sys.path:
-    sys.path.insert(0, str(_CAT_ROOT))
+# Ensure package is on sys.path (source-checkout only; pip-installed CAT
+# already has `calc_terminal` importable).
+try:
+    import calc_terminal as _ct_check  # noqa: F401
+except Exception:
+    _CAT_ROOT = Path(__file__).parent.parent
+    if str(_CAT_ROOT) not in sys.path:
+        sys.path.insert(0, str(_CAT_ROOT))
 
 # CAT Core Imports
 from calc_terminal import aicore, ai_modes, commands_data, config as cct_config, identity

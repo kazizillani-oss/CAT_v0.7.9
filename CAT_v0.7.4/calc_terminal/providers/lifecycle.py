@@ -34,9 +34,25 @@ from dataclasses import dataclass, field
 
 
 # ── Logging ────────────────────────────────────────────────────────────────
+# User app-data logs dir first (pip-installed site-packages is read-only);
+# legacy repo-root startup.log as fallback. Best-effort only.
 
-_LOG_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "startup.log")
+def _resolve_log_file() -> str:
+    try:
+        from calc_terminal.first_run import logs_dir as _logs_dir
+
+        import os as _os
+
+        _d = _logs_dir()
+        _os.makedirs(_d, exist_ok=True)
+        return _os.path.join(_d, "startup.log")
+    except Exception:
+        pass
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__)))), "startup.log")
+
+
+_LOG_FILE = _resolve_log_file()
 
 
 def _log(msg: str, exc_info: bool = False):

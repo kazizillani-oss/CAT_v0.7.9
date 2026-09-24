@@ -134,7 +134,11 @@ class CatTerminalManager {
 		// Add user-specified launch arguments
 		const extraArgs = Array.isArray(config.launchArguments) ? config.launchArguments : [];
 		if (launcher && launcher.tokens) {
-			return { command: launcher.tokens[0], args: [...launcher.tokens.slice(1), ...extraArgs, ...args] };
+			let command = launcher.tokens[0];
+			if (process.platform === 'win32' && command.toLowerCase() === 'cat') {
+				command = 'cat.exe';
+			}
+			return { command, args: [...launcher.tokens.slice(1), ...extraArgs, ...args] };
 		}
 		// python -m calc_terminal is the real documented fallback
 		// (calc_terminal/__main__.py exists and delegates to cli:main).
@@ -194,6 +198,7 @@ class CatTerminalManager {
 		const launcher = resolveCatLauncher({
 			command: commandOverride,
 			workspaceRoot,
+			python,
 			platform: process.platform,
 		});
 		const launch = this.buildLaunchArgs(python, launcher, workspaceRoot);
@@ -209,7 +214,11 @@ class CatTerminalManager {
 			isTransient: false,
 		});
 		terminal.show();
-		terminal.sendText([launch.command, ...launch.args].map((t) => quoteToken(t)).join(' '), true);
+		let command = launch.command;
+		if (process.platform === 'win32' && command.toLowerCase() === 'cat') {
+			command = 'cat.exe';
+		}
+		terminal.sendText([command, ...launch.args].map((t) => quoteToken(t)).join(' '), true);
 
 		const key = this.terminalKey(config.terminalName, cwd);
 		this._terminals.set(key, { terminal, at: Date.now() });
@@ -257,17 +266,29 @@ class CatTerminalManager {
 		);
 		if (action === 'Install CAT') {
 			// User asked for it. Open a terminal at the workspace and type
-			// the install command VISIBLY — the user sees and can edit it
-			// before it runs. No background process, no silent download.
+			// the GitHub source install flow VISIBLY in order:
+			// 1. Clone CAT
+			// 2. Enter CAT directory
+			// 3. Install CAT locally
+			// 4. Run CAT
 			const cwd = this.resolveCwd();
 			const terminal = vscode.window.createTerminal({
-				name: 'CAT CLI — install',
+				name: 'Install CAT — Coding Agent Terminal',
 				cwd: cwd || undefined,
 			});
 			terminal.show();
-			const pip = process.platform === 'win32' ? 'pip' : 'pip3';
-			terminal.sendText(`${pip} install cct-ai-ide`, true);
-			this.output.appendLine('user chose Install CAT: typed pip command into a visible terminal');
+			const isWin = process.platform === 'win32';
+			const runCmd = isWin ? 'cat.exe' : 'cat';
+			this.log('User initiated CAT installation from official GitHub repository:');
+			this.log('  1. git clone https://github.com/kazizillani-oss/CAT_v0.7.9.git');
+			this.log('  2. cd CAT_v0.7.9');
+			this.log('  3. python -m pip install -e .');
+			this.log(`  4. ${runCmd}`);
+			terminal.sendText('git clone https://github.com/kazizillani-oss/CAT_v0.7.9.git');
+			terminal.sendText('cd CAT_v0.7.9');
+			terminal.sendText('python -m pip install -e .');
+			terminal.sendText(runCmd);
+			this.output.appendLine('user chose Install CAT: typed GitHub clone and install flow into visible terminal');
 		} else if (action === 'Open Documentation') {
 			vscode.env.openExternal(vscode.Uri.parse(DOC_URL));
 		}
@@ -297,7 +318,7 @@ class CatTerminalManager {
 		const cwd = this.resolveCwd();
 		const workspaceRoot = cwd;
 
-		this.log('Checking CAT installation...');
+		this.log('Checking CAT — Coding Agent Terminal installation...');
 
 		const candidates = pythonCandidates({
 			platform: process.platform,
@@ -316,6 +337,7 @@ class CatTerminalManager {
 		const launcher = resolveCatLauncher({
 			command: config.executable,
 			workspaceRoot,
+			python,
 			platform: process.platform,
 		});
 
@@ -324,9 +346,9 @@ class CatTerminalManager {
 			: `${python.candidate.command} ${python.candidate.args.join(' ')} -m calc_terminal`;
 
 		vscode.window.showInformationMessage(
-			`CAT is installed (${python.candidate.kind}). Command: ${describe}`
+			`CAT — Coding Agent Terminal is installed (${python.candidate.kind}). Command: ${describe}`
 		);
-		this.log(`CAT check passed: ${describe}`);
+		this.log(`CAT — Coding Agent Terminal check passed: ${describe}`);
 	}
 
 	dispose() {

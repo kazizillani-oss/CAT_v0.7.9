@@ -50,7 +50,7 @@ Remove-Item Alias:cat -Force -ErrorAction SilentlyContinue
 
 
 def _dist_version():
-    for dist in ("cct-ai-ide", "cat-ai", "cct"):
+    for dist in ("cct-cli", "cat-cli", "cct-ai-ide", "cat-ai", "cct"):
         try:
             from importlib.metadata import version
             return version(dist)
@@ -433,7 +433,39 @@ def report(fix=False):
                 print("    Win Terminal: settings.json not found (default conhost or not installed)")
         print(f"    Default Title: {terminal_identity.DEFAULT_TITLE}")
     except Exception as e:
-        print(f"    Terminal ID : diagnostics failed ({e})")
+        print(f"    Terminal Tab: {e}")
+
+    print("Fomoji Identity & Dependencies:")
+    try:
+        from .fomoji_manager import detect_nodejs, locate_fomoji_server_dir, check_server_reachable
+        node_env = detect_nodejs()
+        if node_env.installed:
+            print(f"    Node.js     : {node_env.node_version} ({node_env.node_path})")
+            print(f"    npm         : v{node_env.npm_version} ({node_env.npm_path})")
+        else:
+            print(f"    Node.js     : Missing (Fomoji offline: {node_env.error})")
+        server_dir = locate_fomoji_server_dir()
+        if server_dir:
+            print(f"    Server Path : {server_dir}")
+        else:
+            print("    Server Path : Not located")
+        is_running = check_server_reachable(timeout=1.5)
+        print(f"    Server State: {'Running / Active' if is_running else 'Offline (will auto-start when needed)'}")
+    except Exception as e:
+        print(f"    Fomoji Check: {e}")
+
+    print("Git Synchronization:")
+    try:
+        from .git_sync import inspect_repository
+        repo_info = inspect_repository()
+        if repo_info.is_repo:
+            print(f"    Git Branch  : {repo_info.current_branch}")
+            print(f"    Git Remote  : {repo_info.remote_url or 'None'}")
+            print(f"    Worktree    : {'Changes detected (cat push to sync)' if repo_info.has_changes else 'Clean / In sync'}")
+        else:
+            print(f"    Git Status  : {repo_info.error}")
+    except Exception as e:
+        print(f"    Git Status  : {e}")
 
     print("=" * 60)
     if ok:

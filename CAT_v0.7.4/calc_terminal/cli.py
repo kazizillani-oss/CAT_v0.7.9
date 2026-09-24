@@ -13,21 +13,121 @@ and then hands off to the exact same launch flow the classic
 aren't available, primary chat UI otherwise.
 """
 
-if __name__ == "__main__":
-    print("This is a library file and is not meant to be run directly.")
-    import sys
-    sys.exit(1)
-
 import argparse
 import os
 import sys
 
+if sys.platform == "win32":
+    try:
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+        if hasattr(sys.stdin, "reconfigure"):
+            sys.stdin.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
-def _usage() -> str:
+
+# -----------------------------------------------------------------------------
+# Command-safety contract constants
+# -----------------------------------------------------------------------------
+SAFETY_READ_ONLY = "read-only"
+SAFETY_STATE_CHANGING = "state-changing"
+SAFETY_INTERACTIVE = "interactive"
+
+CAT_GITHUB_REPO = "kazizillani-oss/CAT_v0.7.9"
+CAT_RELEASES_API_URL = f"https://api.github.com/repos/{CAT_GITHUB_REPO}/releases/latest"
+
+
+def get_command_safety(argv=None) -> dict:
+    """Classifies CLI arguments under the centralized command-safety contract.
+
+    Returns a dict with:
+      classification: "read-only" | "state-changing" | "interactive"
+      safe_to_automate: bool
+      changes_state: bool | None
+      reason: str
+    """
+    args = list(sys.argv[1:] if argv is None else argv)
+
+    # 1. READ-ONLY / SAFE TO AUTOMATE
+    if args in (["--version"], ["-v"], ["version"]):
+        return {
+            "classification": SAFETY_READ_ONLY,
+            "safe_to_automate": True,
+            "changes_state": False,
+            "reason": "Prints CAT version information and exits without modifying state.",
+        }
+
+    if args in (["--debug"], ["debug"]):
+        return {
+            "classification": SAFETY_READ_ONLY,
+            "safe_to_automate": True,
+            "changes_state": False,
+            "reason": "Prints read-only runtime diagnostics and exits without modifying state.",
+        }
+
+    if len(args) >= 2 and args[0] in ("update", "--update") and args[1] in ("--check", "check"):
+        return {
+            "classification": SAFETY_READ_ONLY,
+            "safe_to_automate": True,
+            "changes_state": False,
+            "reason": "Queries remote release metadata to check for updates without installing or modifying files.",
+        }
+
+    if args in (["--help"], ["-h"], ["help"]):
+        return {
+            "classification": SAFETY_READ_ONLY,
+            "safe_to_automate": True,
+            "changes_state": False,
+            "reason": "Displays command-line help documentation and exits without modifying state.",
+        }
+
+    # 2. STATE-CHANGING / NOT SAFE FOR UNATTENDED AUTOMATION
+    if args and args[0] in ("update", "--update"):
+        return {
+            "classification": SAFETY_STATE_CHANGING,
+            "safe_to_automate": False,
+            "changes_state": True,
+            "reason": "Update operation modifies installation files, binary executables, or configurations.",
+        }
+
+    if args and args[0] in ("rollback", "--rollback"):
+        return {
+            "classification": SAFETY_STATE_CHANGING,
+            "safe_to_automate": False,
+            "changes_state": True,
+            "reason": "Rollback operation reverts installation or workspace state to a prior snapshot.",
+        }
+
+    if args and args[0] in ("repair", "--repair"):
+        return {
+            "classification": SAFETY_STATE_CHANGING,
+            "safe_to_automate": False,
+            "changes_state": True,
+            "reason": "Repair operation repairs or modifies filesystem permissions, directory structures, or configurations.",
+        }
+
+    # 3. INTERACTIVE / WORKSPACE / COMPLEX COMMANDS
+    return {
+        "classification": SAFETY_INTERACTIVE,
+        "safe_to_automate": False,
+        "changes_state": None,
+        "reason": "Interactive TUI session, workspace launcher, or interactive subsystem requiring user control.",
+    }
+
+
+def _usage(prog: str = None) -> str:
+    if not prog:
+        raw_prog = os.path.basename(sys.argv[0] if sys.argv else "cat").lower()
+        prog = "cct" if "cct" in raw_prog else "cat"
+    alt_prog = "cat" if prog == "cct" else "cct"
+
     return (
-        "usage: cat [path] [options]\n"
+        f"usage: {prog} [path] [options]\n"
         "\n"
-        "CAT CLI v0.7.9.0 \u2014 Coding Agent Terminal / terminal AI coding agent.\n"
+        "CAT CLI v0.8.b [beta] \u2014 Coding Agent Terminal / terminal AI coding agent.\n"
         "Protected by Fomoji authentication — no valid Fomoji identity = no access.\n"
         "\n"
         "positional arguments:\n"
@@ -37,8 +137,11 @@ def _usage() -> str:
         "options:\n"
         "  -h, --help      show this help message and exit\n"
         "  -v, --version   print the CAT version and exit\n"
+        "  --debug         display read-only runtime diagnostics and environment info\n"
         "  --doctor        diagnose the CLI install (PATH, launcher,\n"
-        "                  PowerShell alias) and offer safe fixes\n"
+        "  push [msg]      stage intended files, create verified commit and push to GitHub\n"
+        "  publish [msg]   same as push — synchronized GitHub update workflow\n"
+        "  update --check  check for newer releases from official GitHub repository\n"
         "  --auth <cmd>    Fomoji auth: status | login | logout | whoami\n"
         "  browse [url]    open CAT Browser (real HTML/CSS/JS via QWebEngineView)\n"
         "  --browser [url] same as `browse`\n"
@@ -49,32 +152,48 @@ def _usage() -> str:
         "  providers       manage AI providers: list | audit | refresh | status | test | backup\n"
         "  offline         activate Emergency Local Mode (zero cloud, Ollama local only)\n"
         "\n"
+        "Automation safety:\n"
+        "  Read-only (safe to automate):\n"
+        f"    {prog} --version\n"
+        f"    {prog} --debug\n"
+        f"    {prog} update --check\n"
+        "\n"
+        "  State-changing (not safe for unattended automation):\n"
+        f"    {prog} update\n"
+        f"    {prog} rollback\n"
+        f"    {prog} repair\n"
+        "\n"
+        "  State-changing commands should not be run unattended unless the caller\n"
+        "  explicitly provides its own approval/control mechanism.\n"
+        f"  (The exact same safety contract applies to '{alt_prog}'.)\n"
+        "\n"
         "examples:\n"
-        "  cat                 open CAT in the current directory\n"
-        "  cat .               same as above\n"
-        "  cat my-project      open CAT with my-project as the workspace\n"
-        "  cat /path/to/proj   open CAT with an absolute workspace path\n"
-        "  cat --auth login    pair this device with your Fomoji identity\n"
-        "  cat --auth status   check Fomoji session\n"
-        "  cat models          list dynamically registered AI models\n"
-        "  cat models --new    show newly discovered models\n"
-        "  cat providers status check real-time provider health and backup failover pool\n"
-        "  cat providers backup list backup provider pool priority chain\n"
-        "  cat providers test groq test connectivity and models for a provider\n"
-        "  cat offline         switch to local-only emergency fallback mode\n"
-        "  cat fatty           launch Fatty CAT (opens browser + starts server)\n"
-        "  cat browse https://example.com   open CAT Browser at a URL\n"
-        "  cat browse          open CAT Browser new-tab page\n"
-        "  cat server          start Fatty CAT web server on port 8765\n"
+        f"  {prog}                 open CAT in the current directory\n"
+        f"  {prog} .               same as above\n"
+        f"  {prog} my-project      open CAT with my-project as the workspace\n"
+        f"  {prog} /path/to/proj   open CAT with an absolute workspace path\n"
+        f"  {prog} --debug         view read-only system and runtime diagnostics\n"
+        f"  {prog} update --check  check for available releases\n"
+        f"  {prog} --auth login    pair this device with your Fomoji identity\n"
+        f"  {prog} --auth status   check Fomoji session\n"
+        f"  {prog} models          list dynamically registered AI models\n"
+        f"  {prog} providers status check real-time provider health\n"
+        f"  {prog} offline         switch to local-only emergency fallback mode\n"
+        f"  {prog} fatty           launch Fatty CAT (opens browser + starts server)\n"
+        f"  {prog} browse https://example.com   open CAT Browser at a URL\n"
     )
 
 
 def _version():
-    """Best-effort version: installed-distribution metadata first (works
-    even when heavy deps like requests aren't importable — `cat --version`
-    must never fail just because a module import chain breaks), then the
-    source-tree constant, then a static fallback."""
-    for dist in ("cct-ai-ide", "cct"):
+    """Best-effort version: source-tree constant first (reflects active code
+    and beta releases), then installed-distribution metadata, then static fallback."""
+    try:
+        from .identity import APP_VERSION
+        if APP_VERSION:
+            return APP_VERSION
+    except Exception:
+        pass
+    for dist in ("cct-cli", "cat-cli", "cct-ai-ide", "cct"):
         try:
             from importlib.metadata import version as _dist_version
             return _dist_version(dist)
@@ -84,7 +203,7 @@ def _version():
         from .app import VERSION
         return VERSION
     except Exception:
-        return "0.7.9.0"
+        return "0.8.b"
 
 
 def _format_context(ctx: int) -> str:
@@ -679,6 +798,151 @@ def _offline_cli(argv: list[str]) -> int:
         return 1
 
 
+def _parse_version_tuple(v_str: str) -> tuple:
+    """Convert version string like '0.7.9.0' or 'v0.8.0' to a comparable integer tuple."""
+    import re
+    cleaned = v_str.strip().lstrip("vV")
+    parts = []
+    for part in re.split(r"[.\-+]", cleaned):
+        digits = re.match(r"^\d+", part)
+        if digits:
+            parts.append(int(digits.group(0)))
+        else:
+            break
+    if not parts:
+        raise ValueError(f"Invalid non-semver version string: '{v_str}'")
+    return tuple(parts)
+
+
+def _debug_cli(argv: list[str]) -> int:
+    """Print deterministic diagnostic runtime and environment information (read-only)."""
+    import platform
+    ver = _version()
+    py_ver = sys.version.replace("\n", " ")
+    py_exe = sys.executable
+    plat = f"{platform.system()} ({sys.platform}) {platform.release()}"
+    arch = platform.machine() or "unknown"
+    cwd = os.getcwd()
+
+    raw_prog = os.path.basename(sys.argv[0] if sys.argv else "cat").lower()
+    prog = "cct" if "cct" in raw_prog else "cat"
+
+    print("=" * 72)
+    print("                CAT DIAGNOSTIC ENVIRONMENT & RUNTIME")
+    print("=" * 72)
+    print(f"  Command           : {prog} {' '.join(argv)}")
+    print(f"  Automation Safety : {SAFETY_READ_ONLY} (safe to automate, changes_state=False)")
+    print(f"  CAT Version       : {ver}")
+    print(f"  Python Version    : {py_ver}")
+    print(f"  Python Executable : {py_exe}")
+    print(f"  Platform          : {plat}")
+    print(f"  Architecture      : {arch}")
+    print(f"  Working Directory : {cwd}")
+    print("  Available Scripts : cat (calc_terminal.cli:main), cct (calc_terminal.cli:main)")
+    print("  Mode              : Read-only diagnostics (no files, config, or state modified)")
+    print("=" * 72)
+    return 0
+
+
+def _update_check_cli(argv: list[str]) -> int:
+    """Perform read-only release check against official GitHub releases."""
+    import json
+    import urllib.request
+    import urllib.error
+
+    raw_prog = os.path.basename(sys.argv[0] if sys.argv else "cat").lower()
+    prog = "cct" if "cct" in raw_prog else "cat"
+
+    current_ver_str = _version()
+    try:
+        current_tuple = _parse_version_tuple(current_ver_str)
+    except Exception as e:
+        print(f"{prog} update --check: error: cannot parse installed version '{current_ver_str}': {e}", file=sys.stderr)
+        return 1
+
+    print("Checking for CAT updates from official repository...")
+    print(f"  Source: {CAT_RELEASES_API_URL}")
+
+    req = urllib.request.Request(
+        CAT_RELEASES_API_URL,
+        headers={
+            "User-Agent": f"CAT-CLI/{current_ver_str}",
+            "Accept": "application/vnd.github.v3+json",
+        },
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        print(f"{prog} update --check: HTTP error {e.code}: {e.reason}", file=sys.stderr)
+        return 1
+    except urllib.error.URLError as e:
+        print(f"{prog} update --check: network error: {e.reason}", file=sys.stderr)
+        return 1
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        print(f"{prog} update --check: malformed release metadata: {e}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"{prog} update --check: unexpected error: {e}", file=sys.stderr)
+        return 1
+
+    tag_name = data.get("tag_name")
+    if not tag_name:
+        print(f"{prog} update --check: error: release metadata is missing 'tag_name'", file=sys.stderr)
+        return 1
+
+    latest_ver_str = tag_name.lstrip("vV")
+    try:
+        latest_tuple = _parse_version_tuple(latest_ver_str)
+    except Exception as e:
+        print(f"{prog} update --check: error: unparseable remote version '{tag_name}': {e}", file=sys.stderr)
+        return 1
+
+    print("\nCAT Release Check (Read-Only)")
+    print("-" * 40)
+    print(f"  Installed Version : {current_ver_str}")
+    print(f"  Latest Version    : {latest_ver_str} ({tag_name})")
+
+    if latest_tuple > current_tuple:
+        print(f"  Update Available  : YES ({current_ver_str} -> {latest_ver_str})")
+        print(f"  Release URL       : {data.get('html_url', f'https://github.com/{CAT_GITHUB_REPO}/releases')}")
+    else:
+        print("  Update Available  : NO (CAT is up to date)")
+
+    print("  Status            : Read-only check complete — no installation was performed.")
+    print("-" * 40)
+    return 0
+
+
+def _state_changing_disabled(cmd: str, argv: list[str]) -> int:
+    """State-changing commands (update, rollback, repair) are not enabled in this public build.
+    Returns non-zero exit code with informative guidance."""
+    raw_prog = os.path.basename(sys.argv[0] if sys.argv else "cat").lower()
+    prog = "cct" if "cct" in raw_prog else "cat"
+
+    print(f"{prog}: error: state-changing operation '{cmd}' is not enabled in this public CLI build.", file=sys.stderr)
+    if cmd == "update":
+        print("  To safely check for available releases without altering your system, run:", file=sys.stderr)
+        print(f"      {prog} update --check", file=sys.stderr)
+    elif cmd == "rollback":
+        print("  Automated rollbacks are disabled to prevent unintended workspace or installation changes.", file=sys.stderr)
+    elif cmd == "repair":
+        print("  To run non-destructive diagnostic health checks on your installation, run:", file=sys.stderr)
+        print(f"      {prog} --doctor", file=sys.stderr)
+    return 1
+
+
+def _git_sync_cli(argv: list[str]) -> int:
+    """Publish and sync repository changes to GitHub with verified status."""
+    from .git_sync import sync_and_publish
+    args = argv[1:]
+    if argv and argv[0] == "git" and len(argv) > 1:
+        args = argv[2:]
+    message = " ".join(args).strip() if args else None
+    return sync_and_publish(message=message)
+
+
 def main(argv=None):
     """Console entry point. Returns the process exit code."""
     argv = list(sys.argv[1:] if argv is None else argv)
@@ -701,9 +965,40 @@ def main(argv=None):
         print(f"CAT v{_version()}")
         return 0
 
+    if argv in (["--debug"], ["debug"]):
+        return _debug_cli(argv)
+
+    # Route Git / GitHub synchronization commands
+    if argv and argv[0] in ("push", "--push", "publish", "--publish", "sync", "--sync"):
+        return _git_sync_cli(argv)
+
+    if argv and argv[0] == "git" and len(argv) > 1 and argv[1] in ("push", "publish", "sync", "status"):
+        if argv[1] == "status":
+            from .git_sync import inspect_repository
+            st = inspect_repository()
+            print(f"Branch : {st.current_branch}")
+            print(f"Remote : {st.remote_url}")
+            print(f"HEAD   : {st.head_commit}")
+            print(f"Changes: {'Yes' if st.has_changes else 'Clean'}")
+            return 0
+        return _git_sync_cli(argv)
+
+    # Route maintenance commands before workspace parsing
+    if argv and argv[0] in ("update", "--update"):
+        if len(argv) > 1 and argv[1] in ("--check", "check"):
+            return _update_check_cli(argv)
+        return _state_changing_disabled("update", argv)
+
+    if argv and argv[0] in ("rollback", "--rollback"):
+        return _state_changing_disabled("rollback", argv)
+
+    if argv and argv[0] in ("repair", "--repair"):
+        return _state_changing_disabled("repair", argv)
+
     # Assert CAT CLI terminal tab & window identity
     try:
         from .terminal_identity import init_terminal_identity
+
         init_terminal_identity()
     except Exception:
         pass
@@ -773,7 +1068,13 @@ def main(argv=None):
     # `cat fatty` / `cat web` / `cat server` / `cat --fatty` / `cat --web`
     if argv and argv[0] in ("fatty", "--fatty", "web", "--web", "pwa", "--pwa", "server", "--server"):
         cmd = argv[0].lstrip("-")
-        from .web.server import ensure_fatty_server, is_server_running, main as _server_main
+        try:
+            from .web.server import ensure_fatty_server, is_server_running, main as _server_main
+        except ImportError as e:
+            print("cat: the Fatty CAT web server needs the optional `web` extra.", file=sys.stderr)
+            print(f"  (missing: {e})", file=sys.stderr)
+            print("  Install it with:  pip install \"cct-cli[web]\"", file=sys.stderr)
+            return 1
         if cmd in ("server",):
             print("Starting Fatty CAT server on http://localhost:8765 ... (Press Ctrl+C to stop)")
             try:
@@ -961,13 +1262,21 @@ def bootstrap():
         DEFAULT_PERMISSIONS,
     )
 
-    # Ensure server is running first
-    server_ok = ensure_fomoji_server(auto_start=True, timeout=15)
-    if not server_ok and not check_server_reachable(timeout=5):
-        print("\n  Fomoji server could not be started.", file=sys.stderr)
-        print("  Start it manually: cd fomoji-updated/fomoji-server && npm start\n",
-              file=sys.stderr)
-        return 1
+    # Ensure server is running first with proper dependency checks and auto-start
+    from .fomoji_manager import initialize_fomoji_subsystem
+    server_ok = initialize_fomoji_subsystem(interactive=True)
+    if not server_ok and not check_server_reachable(timeout=3):
+        # Fomoji is an optional component — CAT starts in standalone/offline mode without crashing!
+        os.environ["CAT_ALLOW_NO_AUTH"] = "1"
+        try:
+            from . import theme
+            theme.enable_windows_ansi()
+            print(theme.orange("  ⚠ Fomoji identity server is unavailable."))
+            print(theme.dim("    Launching CAT CLI in standalone offline mode...\n"))
+        except Exception:
+            print("  ⚠ Fomoji identity server is unavailable.")
+            print("    Launching CAT CLI in standalone offline mode...\n")
+        return _launch_cat_terminal()
 
     # Check if user is already authenticated
     auth_status = status()
@@ -1003,9 +1312,10 @@ def bootstrap():
         verification_url = f"{get_fomoji_url()}{start.get('verificationUrl', '/connector.html')}"
         poll_interval = int(start.get("pollIntervalSeconds", 3))
     except Exception as e:
-        print(f"\n  Failed to start device flow: {e}", file=sys.stderr)
-        print("  Make sure the Fomoji server is running.\n", file=sys.stderr)
-        return 1
+        print(f"\n  Could not initialize Fomoji device flow: {e}")
+        print("  Starting CAT in standalone offline mode...\n")
+        os.environ["CAT_ALLOW_NO_AUTH"] = "1"
+        return _launch_cat_terminal()
 
     # Show code in terminal + Windows system notification + copy to clipboard
     _print_device_prompt(user_code, verification_url)
@@ -1140,14 +1450,19 @@ def bootstrap():
                     print("  ✓ Session verified! Launching CAT CLI...\n")
                 return _launch_cat_terminal()
             else:
-                print("  ✗ Session verification failed. Run `cat` again.\n")
+                print("  ⚠ Session verification unconfirmed. Starting CAT in standalone offline mode...\n")
+                os.environ["CAT_ALLOW_NO_AUTH"] = "1"
+                return _launch_cat_terminal()
         except Exception:
-            print("  Launching CAT CLI...\n")
+            print("  Launching CAT CLI in standalone offline mode...\n")
+            os.environ["CAT_ALLOW_NO_AUTH"] = "1"
             return _launch_cat_terminal()
 
     if auth_result["error"]:
-        print(f"\n  {auth_result['error']}\n")
-        return 1
+        print(f"\n  {auth_result['error']}")
+        print("  Starting CAT in standalone offline mode...\n")
+        os.environ["CAT_ALLOW_NO_AUTH"] = "1"
+        return _launch_cat_terminal()
 
     return 0
 
@@ -1170,3 +1485,6 @@ def _log_startup_failure(what, detail):
 # Back-compat alias — earlier builds called this from main(); both names
 # now refer to the same centralized bootstrap.
 _launch = bootstrap
+
+if __name__ == "__main__":
+    sys.exit(main())

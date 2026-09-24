@@ -313,52 +313,60 @@ Button.cct-msg-btn:hover, .cct-msg-btn:hover {
     max-width: 100%;
     background: $surface-alt;
     color: $text;
-    border: heavy;
-    border-top: heavy $accent-highlight;
-    border-left: heavy $accent-highlight;
-    border-right: heavy $surface-dark;
-    border-bottom: heavy $surface-dark;
+    border: tall;
+    border-top: tall $accent-highlight;
+    border-left: tall $accent-highlight;
+    border-right: tall $surface-dark;
+    border-bottom: tall $surface-dark;
     padding: 1 2;
     transition: background 150ms, border 150ms;
 }
 .cct-bubble-user:hover {
     background: $surface-highlight;
-    border-top: heavy #ffffff;
-    border-left: heavy $accent-highlight;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall $accent-highlight;
+    border-right: tall $surface-dark;
+    border-bottom: tall $surface-dark;
     offset-y: 0;
 }
 .cct-bubble-user.-active {
     offset-y: 0;
-    border-top: heavy $surface-dark;
-    border-left: heavy $surface-dark;
-    border-bottom: heavy $accent-highlight;
-    border-right: heavy $accent-highlight;
+    border: tall;
+    border-top: tall $surface-dark;
+    border-left: tall $surface-dark;
+    border-bottom: tall $accent-highlight;
+    border-right: tall $accent-highlight;
 }
 .cct-bubble-assistant {
     width: 100%;
     max-width: 100%;
     background: $surface;
     color: $text;
-    border: heavy;
-    border-top: heavy $surface-highlight;
-    border-left: heavy $surface-highlight;
-    border-right: heavy $surface-dark;
-    border-bottom: heavy $surface-dark;
+    border: tall;
+    border-top: tall $surface-highlight;
+    border-left: tall $surface-highlight;
+    border-right: tall $surface-dark;
+    border-bottom: tall $surface-dark;
     padding: 1 2;
     transition: background 150ms, border 150ms;
 }
 .cct-bubble-assistant:hover {
     background: $surface-alt;
-    border-top: heavy #ffffff;
-    border-left: heavy $accent-highlight;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall $accent-highlight;
+    border-right: tall $surface-dark;
+    border-bottom: tall $surface-dark;
     offset-y: 0;
 }
 .cct-bubble-assistant.-active {
     offset-y: 0;
-    border-top: heavy $surface-dark;
-    border-left: heavy $surface-dark;
-    border-bottom: heavy $surface-highlight;
-    border-right: heavy $surface-highlight;
+    border: tall;
+    border-top: tall $surface-dark;
+    border-left: tall $surface-dark;
+    border-bottom: tall $surface-highlight;
+    border-right: tall $surface-highlight;
 }
 .cct-bubble-system {
     width: auto;
@@ -366,11 +374,11 @@ Button.cct-msg-btn:hover, .cct-msg-btn:hover {
     max-width: 95%;
     background: $surface-alt;
     color: $text;
-    border: heavy;
-    border-top: heavy $accent-highlight;
-    border-left: heavy $accent-highlight;
-    border-bottom: heavy $surface-dark;
-    border-right: heavy $surface-dark;
+    border: tall;
+    border-top: tall $accent-highlight;
+    border-left: tall $accent-highlight;
+    border-bottom: tall $surface-dark;
+    border-right: tall $surface-dark;
     padding: 0 2;
     margin: 1 0;
     content-align: center middle;
@@ -378,18 +386,20 @@ Button.cct-msg-btn:hover, .cct-msg-btn:hover {
 }
 .cct-bubble-system:hover {
     background: $surface-highlight;
-    border-top: heavy #ffffff;
-    border-left: heavy $accent-highlight;
-    border-bottom: heavy $surface-dark;
-    border-right: heavy $surface-dark;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall $accent-highlight;
+    border-bottom: tall $surface-dark;
+    border-right: tall $surface-dark;
     offset-y: 0;
 }
 .cct-bubble-system.-active {
     offset-y: 0;
-    border-top: heavy $surface-dark;
-    border-left: heavy $surface-dark;
-    border-bottom: heavy $accent-highlight;
-    border-right: heavy $accent-highlight;
+    border: tall;
+    border-top: tall $surface-dark;
+    border-left: tall $surface-dark;
+    border-bottom: tall $accent-highlight;
+    border-right: tall $accent-highlight;
 }
 
 LiveActivitiesBlock, .live-activities-block {
@@ -635,9 +645,9 @@ LiveActivitiesBlock.collapsed #live-header, .live-activities-block.collapsed #li
 #cct-footer-spacer-right { width: 1fr; height: 1; }
 #cct-right-controls {
     dock: right;
-    width: 12;
+    width: auto;
     min-width: 12;
-    max-width: 12;
+    max-width: 20;
     height: 1;
     min-height: 1;
     max-height: 1;
@@ -656,43 +666,30 @@ LiveActivitiesBlock.collapsed #live-header, .live-activities-block.collapsed #li
 #badge-notebook { color: $accent; }
 
 Button.cct-icon-btn,
-Button.cct-icon-btn:hover,
-Button.cct-icon-btn:focus,
-Button.cct-icon-btn.-active,
 Button#btn-permissions,
-Button#btn-permissions:hover,
-Button#btn-permissions:focus,
-Button#btn-permissions.-active,
 Button#btn-attach,
-Button#btn-attach:hover,
-Button#btn-attach:focus,
-Button#btn-attach.-active,
 Button.cct-icon-send,
-Button.cct-icon-send:hover,
-Button.cct-icon-send:focus,
-Button.cct-icon-send.-active,
-Button#btn-send,
-Button#btn-send:hover,
-Button#btn-send:focus,
-Button#btn-send.-active {
-    border: none;
+Button#btn-send {
     offset: 0 0;
     offset-x: 0;
     offset-y: 0;
     transition: none;
+    border: none;
+    height: 1;
+    min-height: 1;
+    max-height: 1;
 }
 
 Button.cct-icon-btn, Button#btn-permissions {
     background: transparent;
     color: $text;
     border: none;
-    min-width: 3;
-    max-width: 3;
-    width: 3;
-    min-height: 1;
+    min-width: 4;
+    width: auto;
     height: 1;
+    min-height: 1;
     max-height: 1;
-    padding: 0;
+    padding: 0 1;
     margin: 0;
     content-align: center middle;
     text-style: bold;
@@ -702,19 +699,18 @@ Button#btn-attach {
     color: $text;
     border: none;
     min-width: 4;
-    max-width: 4;
-    width: 4;
-    min-height: 1;
+    width: auto;
     height: 1;
+    min-height: 1;
     max-height: 1;
-    padding: 0;
-    margin: 0 0 0 1;
+    padding: 0 1;
+    margin: 0;
     content-align: center middle;
     text-style: bold;
 }
 Button.cct-icon-btn:hover, Button#btn-permissions:hover, Button#btn-attach:hover {
-    color: $accent-highlight;
-    background: $surface-highlight 40%;
+    color: #ffffff;
+    background: $accent 35%;
     text-style: bold;
     border: none;
 }
@@ -725,7 +721,7 @@ Button.cct-icon-btn:focus, Button#btn-permissions:focus, Button#btn-attach:focus
     border: none;
 }
 Button.cct-icon-btn.-active, Button#btn-permissions.-active, Button#btn-attach.-active {
-    background: $surface-highlight 70%;
+    background: $accent;
     color: #ffffff;
     border: none;
     offset: 0 0;
@@ -735,20 +731,19 @@ Button.cct-icon-send, Button#btn-send {
     color: $accent;
     text-style: bold;
     border: none;
-    min-width: 3;
-    max-width: 3;
-    width: 3;
+    min-width: 4;
+    width: auto;
     height: 1;
     min-height: 1;
     max-height: 1;
-    padding: 0;
-    margin: 0 0 0 1;
+    padding: 0 1;
+    margin: 0;
     background: transparent;
     content-align: center middle;
 }
 Button.cct-icon-send:hover, Button#btn-send:hover {
     color: #ffffff;
-    background: $accent 60%;
+    background: $accent;
     text-style: bold;
     border: none;
 }
@@ -759,7 +754,7 @@ Button.cct-icon-send:focus, Button#btn-send:focus {
     border: none;
 }
 Button.cct-icon-send.-active, Button#btn-send.-active {
-    background: $surface-highlight 70%;
+    background: $accent-shadow;
     color: #ffffff;
     border: none;
     offset: 0 0;
@@ -776,24 +771,28 @@ Button.cct-icon-send.-active, Button#btn-send.-active {
 Button.cct-btn-interrupt, Button#btn-send.cct-btn-interrupt {
     background: transparent;
     color: #ef4444;
+    border: none;
     text-style: bold;
 }
 #cct-composer Button#btn-send.cct-btn-interrupt:hover,
 Button.cct-btn-interrupt:hover, Button#btn-send.cct-btn-interrupt:hover {
-    background: #ef4444 25%;
-    color: #f87171;
+    background: #ef4444;
+    color: #ffffff;
+    border: none;
     text-style: bold;
 }
 #cct-composer Button#btn-send.cct-btn-interrupt:focus,
 Button.cct-btn-interrupt:focus, Button#btn-send.cct-btn-interrupt:focus {
-    background: #ef4444 25%;
-    color: #f87171;
+    background: #ef4444 30%;
+    color: #ffffff;
+    border: none;
     text-style: bold;
 }
 #cct-composer Button#btn-send.cct-btn-interrupt.-active,
 Button.cct-btn-interrupt.-active, Button#btn-send.cct-btn-interrupt.-active {
-    background: #ef4444 45%;
-    color: #fca5a5;
+    background: #b91c1c;
+    color: #ffffff;
+    border: none;
 }
 
 #cct-streaming-status {
@@ -808,15 +807,18 @@ Button.cct-btn-interrupt.-active, Button#btn-send.cct-btn-interrupt.-active {
 #cct-streaming-row.active { height: 1; min-height: 1; max-height: 1; display: block; layout: horizontal; align-vertical: middle; }
 #cct-streaming-row.active #cct-streaming-status { width: 1fr; height: 1; min-height: 1; display: block; }
 Button.cct-stop-btn {
-    height: 1; min-width: 9; padding: 0 2; display: none;
-    background: $surface; color: $error; border: none;
-    /* min-height:1 is required (same mechanism as cct-icon-btn /
-       cct-popup-close): with the shared Button min-height:3 still
-       active, a height:1 button's label silently disappears. */
-    min-height: 1;
+    height: 1; min-height: 1; max-height: 1; min-width: 8; width: auto; padding: 0 1; display: none;
+    background: $surface; color: $error;
+    border: none;
+    text-style: bold;
+    content-align: center middle;
+    offset: 0 0;
 }
-Button.cct-stop-btn:hover { background: $error; color: $app-background; }
-#cct-streaming-row.active Button.cct-stop-btn { width: auto; height: 1; min-height: 1; display: block; }
+Button.cct-stop-btn:hover {
+    background: $error; color: #ffffff;
+    border: none;
+}
+#cct-streaming-row.active Button.cct-stop-btn { width: auto; min-width: 8; height: 1; min-height: 1; max-height: 1; display: block; }
 
 #cct-edit-banner {
     height: 0; color: $accent; padding: 0 1; display: none;
@@ -829,18 +831,22 @@ Button.cct-stop-btn:hover { background: $error; color: $app-background; }
 #cct-latex-preview.active { height: 1; display: block; }
 
 Button.cct-ctrl {
-    background: $surface; color: $text; border: none;
+    background: $surface; color: $text;
+    border: none;
+    border-left: tall $surface-highlight;
+    border-right: tall $surface-dark;
     min-width: 3; height: 1; padding: 0 1;
-    /* min-height:1 is required: without it the shared Button
-       min-height:3 turns every height:1 button's label invisible
-       (region taller than the rendered content — the same bug class
-       as the v0.7.8.45 cct-icon-btn fix). v0.7.8.61. */
-    min-height: 1;
+    min-height: 1; max-height: 1;
+    content-align: center middle;
 }
 Button.cct-ctrl:hover { background: $surface-alt; }
 Button.cct-send {
     background: $accent; color: $app-background; text-style: bold;
-    border: none; min-width: 3; height: 1; min-height: 1;
+    border: none;
+    border-left: tall $accent-highlight;
+    border-right: tall $accent-shadow;
+    min-width: 4; height: 1; min-height: 1; max-height: 1;
+    content-align: center middle;
 }
 Button.cct-send:hover { background: $accent-secondary; }
 
@@ -857,20 +863,36 @@ Button.cct-send:hover { background: $accent-secondary; }
 #cct-perm-icon { color: $accent; text-style: bold; margin-right: 1; }
 #cct-perm-title { color: $text; text-style: bold; }
 #cct-perm-mode-btn {
-    height: 1; min-height: 1; padding: 0 1; margin-left: 2;
-    background: $surface-alt; color: $text; text-style: bold; border: none;
+    height: 1; min-height: 1; max-height: 1; padding: 0 1; margin-left: 2;
+    background: $surface-alt; color: $text; text-style: bold;
+    border: none;
+    border-left: tall $surface-highlight;
+    border-right: tall $surface-dark;
     content-align: center middle;
 }
-Button#cct-perm-mode-btn:hover { background: $accent 25%; color: $accent-highlight; }
-Button#cct-perm-mode-btn.-active { offset-y: 1; }
+Button#cct-perm-mode-btn:hover {
+    background: $accent 25%; color: $accent-highlight;
+    border: none;
+    border-left: tall #ffffff;
+    border-right: tall $surface-dark;
+}
+Button#cct-perm-mode-btn.-active { offset: 0 0; }
 #cct-perm-spacer { width: 1fr; }
 Button#cct-perm-close {
-    height: 1; min-height: 1; width: 3; min-width: 3; padding: 0; margin: 0;
-    color: $text-muted; background: transparent; border: none;
+    height: 1; min-height: 1; max-height: 1; width: 3; min-width: 3; padding: 0; margin: 0;
+    color: $text-muted; background: transparent;
+    border: none;
+    border-left: tall $surface-highlight;
+    border-right: tall $surface-dark;
     content-align: center middle;
 }
-Button#cct-perm-close:hover { color: $error; background: $error 20%; text-style: bold; }
-Button#cct-perm-close.-active { offset-y: 1; }
+Button#cct-perm-close:hover {
+    color: $error; background: $error 20%; text-style: bold;
+    border: none;
+    border-left: tall #ffffff;
+    border-right: tall $surface-dark;
+}
+Button#cct-perm-close.-active { offset: 0 0; }
 
 #cct-perm-grid {
     height: auto; layout: horizontal;
@@ -894,12 +916,19 @@ Button#cct-perm-close.-active { offset-y: 1; }
 /* 3D Toggle Switch */
 Button.cct-toggle-3d {
     height: 1; min-height: 1; max-height: 1;
-    width: 9; min-width: 9; max-width: 9;
+    width: 11; min-width: 11; max-width: 11;
     padding: 0; margin: 0;
     content-align: center middle;
     text-style: bold;
     border: none;
-    transition: background 100ms, color 100ms, offset 60ms;
+    border-left: tall $surface-highlight;
+    border-right: tall $surface-dark;
+    transition: background 100ms, color 100ms;
+}
+Button.cct-toggle-3d:hover {
+    border: none;
+    border-left: tall #ffffff;
+    border-right: tall $surface-dark;
 }
 Button.cct-toggle-3d.-on {
     background: #047857;
@@ -918,7 +947,7 @@ Button.cct-toggle-3d.-off:hover {
     color: #f1f5f9;
 }
 Button.cct-toggle-3d.-active {
-    offset-y: 1;
+    offset: 0 0;
 }
 
 .cct-permcard {
@@ -971,7 +1000,7 @@ Button.cct-toggle-3d.-active {
     border-right: tall $surface-dark;
 }
 .cct-menu-btn.-active {
-    offset-y: 1;
+    offset: 0 0;
     border-top: tall $surface-dark;
     border-left: tall $surface-dark;
     border-bottom: tall $surface-highlight;
@@ -999,7 +1028,7 @@ Button.cct-toggle-3d.-active {
     border-right: tall $surface-dark;
     text-style: bold;
     color: $text;
-    transition: border 120ms, color 120ms, background 120ms, offset 80ms;
+    transition: border 120ms, color 120ms, background 120ms;
 }
 .cct-perm-pill:hover {
     background: $accent 24%;
@@ -1010,7 +1039,7 @@ Button.cct-toggle-3d.-active {
     color: $text;
 }
 .cct-perm-pill.-active {
-    offset-y: 1;
+    offset: 0 0;
     border-top: tall $surface-dark;
     border-left: tall $surface-dark;
     border-bottom: tall $surface-highlight;
@@ -1074,7 +1103,11 @@ Button.cct-toggle-3d.-active {
     width: auto; max-width: 32; content-align: center middle;
     padding: 0 2; height: 3;
     background: $surface-alt;
-    border: tall $border;
+    border: tall;
+    border-top: tall $surface-highlight;
+    border-left: tall $surface-highlight;
+    border-bottom: tall $surface-dark;
+    border-right: tall $surface-dark;
     overflow: hidden;
     text-overflow: ellipsis;
     text-style: bold;
@@ -1083,8 +1116,13 @@ Button.cct-toggle-3d.-active {
 }
 #cct-header-right:hover {
     background: $accent 20%;
-    border: tall $accent;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall $accent-highlight;
+    border-bottom: tall $accent-shadow;
+    border-right: tall $accent-shadow;
     color: #ffffff;
+    offset: 0 0;
 }
 .cct-menu-btn:focus { color: $accent; text-style: bold; }
 .cct-perm-pill:focus { border: tall $accent; }
@@ -1093,7 +1131,7 @@ Button.cct-toggle-3d.-active {
 #cct-sidebar {
     width: 32; min-width: 0; max-width: 60; height: 100%;
     background: $surface;
-    border-right: solid $surface-dark;
+    border-right: none;
     transition: width 150ms;
 }
 #cct-sidebar.cct-sidebar-collapsed { border-right: none; }
@@ -1102,18 +1140,26 @@ Button.cct-toggle-3d.-active {
     background: $surface-alt;
     border-top: solid $surface-highlight;
     border-bottom: solid $surface-dark;
+    overflow: hidden;
 }
 #cct-sidebar-title { height: 1; padding: 0 1; width: 1fr; color: $text; text-style: bold; }
-Button#cct-sidebar-collapse-btn, Button#cct-sidebar-menu-btn, .cct-sidebar-titlebar-btn {
+Button#cct-sidebar-collapse-btn, Button#cct-sidebar-expand-btn, Button#cct-sidebar-menu-btn, .cct-sidebar-titlebar-btn {
     width: 3; min-width: 3; max-width: 3;
     height: 1; min-height: 1; max-height: 1;
     margin: 0; padding: 0;
-    background: transparent; border: none; color: $accent;
+    background: transparent;
+    border: none;
+    color: $accent;
     content-align: center middle;
     text-style: bold;
+    offset: 0 0;
 }
-Button#cct-sidebar-collapse-btn:hover, Button#cct-sidebar-menu-btn:hover, .cct-sidebar-titlebar-btn:hover {
-    color: #ffffff; background: $accent 40%;
+Button#cct-sidebar-collapse-btn:hover, Button#cct-sidebar-expand-btn:hover, Button#cct-sidebar-menu-btn:hover, .cct-sidebar-titlebar-btn:hover {
+    color: #ffffff; background: $accent;
+    border: none;
+}
+Button#cct-sidebar-collapse-btn:focus, Button#cct-sidebar-expand-btn:focus {
+    border: none;
 }
 
 /* Open Folder button — tactile 3D rounded button without tall brackets */
@@ -1132,11 +1178,11 @@ Screen Button#cct-open-folder-btn {
     background: $accent 25%;
     color: #ffffff;
     text-style: bold;
-    border: heavy;
-    border-top: heavy #ffffff;
-    border-left: heavy #ffffff;
-    border-bottom: heavy $accent-shadow;
-    border-right: heavy $accent-shadow;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall #ffffff;
+    border-bottom: tall $accent-shadow;
+    border-right: tall $accent-shadow;
     content-align: center middle;
     transition: background 120ms, border 120ms, color 120ms, offset 80ms;
 }
@@ -1144,21 +1190,21 @@ Button#cct-open-folder-btn:hover, Button#cct-open-folder-btn:focus,
 .cct-sidebar-open-btn:hover, .cct-sidebar-open-btn:focus,
 Screen Button#cct-open-folder-btn:hover, Screen Button#cct-open-folder-btn:focus {
     background: $accent;
-    border: heavy;
-    border-top: heavy #ffffff;
-    border-left: heavy #ffffff;
-    border-bottom: heavy $accent-highlight;
-    border-right: heavy $accent-highlight;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall #ffffff;
+    border-bottom: tall $accent-highlight;
+    border-right: tall $accent-highlight;
     color: #ffffff;
 }
 Button#cct-open-folder-btn.-active, .cct-sidebar-open-btn.-active,
 Screen Button#cct-open-folder-btn.-active {
     offset-y: 1;
-    border: heavy;
-    border-top: heavy $accent-shadow;
-    border-left: heavy $accent-shadow;
-    border-bottom: heavy #ffffff;
-    border-right: heavy #ffffff;
+    border: tall;
+    border-top: tall $accent-shadow;
+    border-left: tall $accent-shadow;
+    border-bottom: tall #ffffff;
+    border-right: tall #ffffff;
     background: $accent 50%;
 }
 
@@ -1291,38 +1337,39 @@ Screen Button#cct-open-folder-btn.-active {
 Button#cct-chat-sidebar-toggle, .cct-chat-nav-btn {
     width: auto; min-width: 12; max-width: 16;
     height: 1; min-height: 1; max-height: 1;
-    border: none; padding: 0 1; margin: 0 0 0 1;
+    border: none;
+    padding: 0 1; margin: 0 0 0 1;
     color: $accent; background: $surface;
     text-style: bold;
     content-align: center middle;
+    offset: 0 0;
     transition: color 100ms, background 100ms;
 }
 Button#cct-chat-sidebar-toggle:hover, .cct-chat-nav-btn:hover {
     color: #ffffff;
     background: $accent;
+    border: none;
     text-style: bold;
 }
 Button.cct-chat-nav-action {
     width: auto; min-width: 8;
     height: 1; min-height: 1; max-height: 1;
-    border-top: solid $surface-highlight;
-    border-bottom: solid $surface-dark;
-    border-left: solid $border;
-    border-right: solid $border;
+    border: none;
     padding: 0 1; margin-left: 1;
     color: $text-muted; background: $surface;
     text-style: bold;
     content-align: center middle;
-    transition: color 100ms, background 100ms, border 100ms;
+    offset: 0 0;
+    transition: color 100ms, background 100ms;
 }
 Button.cct-chat-nav-action:hover {
     color: #ffffff;
     background: $accent;
-    border-top: solid #ffffff;
+    border: none;
     text-style: bold;
 }
 Button.cct-chat-nav-action.-active {
-    offset-y: 1;
+    offset: 0 0;
 }
 /* Explicit default: an `auto` column containing 100%-width children
    collapses to zero — the pane owns a real width (restored from
@@ -1342,11 +1389,33 @@ Button.cct-chat-nav-action.-active {
 }
 Button.cct-switch {
     width: auto; height: 1; min-height: 1; min-width: 8;
-    background: transparent; color: $text-muted; border: none;
+    background: transparent; color: $text-muted;
+    border: tall;
+    border-top: tall $surface-highlight;
+    border-left: tall $surface-highlight;
+    border-bottom: tall $surface-dark;
+    border-right: tall $surface-dark;
     padding: 0 2;
 }
-Button.cct-switch:hover { color: $text; background: transparent; }
-Button.cct-switch.-active { color: $accent; background: transparent; text-style: bold; }
+Button.cct-switch:hover {
+    color: $text;
+    background: $surface-alt;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall $surface-highlight;
+    border-bottom: tall $surface-dark;
+    border-right: tall $surface-dark;
+}
+Button.cct-switch.-active {
+    color: $accent;
+    background: $surface-alt;
+    border: tall;
+    border-top: tall $accent-shadow;
+    border-left: tall $accent-shadow;
+    border-bottom: tall #ffffff;
+    border-right: tall #ffffff;
+    text-style: bold;
+}
 
 /* --------------------------------------------------------------- editor -- */
 #cct-editor {
@@ -1457,7 +1526,13 @@ Button.cct-switch.-active { color: $accent; background: transparent; text-style:
 }
 .cct-bv-btn {
     width: 3; min-width: 3; min-height: 1; height: 1; margin-right: 1;
-    background: transparent; border: none; padding: 0;
+    background: transparent;
+    border: tall;
+    border-top: tall $surface-highlight;
+    border-left: tall $surface-highlight;
+    border-bottom: tall $surface-dark;
+    border-right: tall $surface-dark;
+    padding: 0;
     color: $text-muted; content-align: center middle;
 }
 .cct-bv-btn:hover { color: $accent; text-style: bold; }
@@ -1492,7 +1567,12 @@ Button.cct-switch.-active { color: $accent; background: transparent; text-style:
     padding: 0 1;
 }
 .cct-dev-tab {
-    height: 1; min-height: 1; border: none;
+    height: 1; min-height: 1;
+    border: tall;
+    border-top: tall $surface-highlight;
+    border-left: tall $surface-highlight;
+    border-bottom: tall $surface-dark;
+    border-right: tall $surface-dark;
     background: transparent; color: $text-muted;
     padding: 0 1; margin-right: 1;
 }
@@ -1538,11 +1618,11 @@ Screen Button.cct-dash-action {
     color: #ffffff;
     text-style: bold;
     content-align: center middle;
-    border: heavy;
-    border-top: heavy #ffffff;
-    border-left: heavy #ffffff;
-    border-bottom: heavy $accent-shadow;
-    border-right: heavy $accent-shadow;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall #ffffff;
+    border-bottom: tall $accent-shadow;
+    border-right: tall $accent-shadow;
     transition: background 80ms, color 80ms, border 80ms, offset 80ms;
 }
 .cct-dash-action:hover, Button.cct-dash-action:hover,
@@ -1550,11 +1630,11 @@ Screen Button.cct-dash-action {
 Screen Button.cct-dash-action:hover, Screen Button.cct-dash-action:focus {
     background: $accent 35%;
     color: #ffffff;
-    border: heavy;
-    border-top: heavy #ffffff;
-    border-left: heavy #ffffff;
-    border-bottom: heavy $accent-highlight;
-    border-right: heavy $accent-highlight;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall #ffffff;
+    border-bottom: tall $accent-highlight;
+    border-right: tall $accent-highlight;
     text-style: bold;
     offset-y: 0;
 }
@@ -1563,40 +1643,35 @@ Screen Button.cct-dash-action.-active {
     offset-y: 1;
     background: $accent 50%;
     color: #ffffff;
-    border: heavy;
-    border-top: heavy $accent-shadow;
-    border-left: heavy $accent-shadow;
-    border-bottom: heavy #ffffff;
-    border-right: heavy #ffffff;
+    border: tall;
+    border-top: tall $accent-shadow;
+    border-left: tall $accent-shadow;
+    border-bottom: tall #ffffff;
+    border-right: tall #ffffff;
 }
 #cct-dash-columns { height: auto; width: 100%; padding-top: 1; layout: horizontal; overflow: hidden; }
 #cct-dash-columns.stacked { layout: vertical; }
 #cct-dash-columns.stacked .cct-dash-col { width: 100%; margin: 1 0; }
+/* v0.7.9.6: LAYOUT ONLY. The card's 3D skeuomorphic look (bevel borders,
+   background, tint, hover glow) is owned by `.cct-dash-card-3d` in
+   theme_css.BASE_CSS — the single source of truth. This rule used to
+   redeclare border/background/padding at EQUAL specificity, and because
+   _COMPONENT_CSS is concatenated after BASE_CSS it silently won: the
+   accent bevel here replaced the neutral bevel there, `tint` survived
+   from the other rule but its `transition` did not, so the glass wash
+   snapped instead of animating. Two rules fighting over one card.
+   Splitting them — geometry here, skin there — removes the conflict. */
 .cct-dash-col {
     width: 1fr;
     height: auto;
-    padding: 1 2;
-    margin: 0 1;
-    background: $surface;
-    border: heavy;
-    border-top: heavy $accent-highlight;
-    border-left: heavy $accent-highlight;
-    border-bottom: heavy $surface-dark;
-    border-right: heavy $surface-dark;
-    transition: border 120ms;
-}
-.cct-dash-col:hover {
-    border-top: heavy #ffffff;
-    border-left: heavy #ffffff;
-    border-bottom: heavy $accent;
-    border-right: heavy $accent;
 }
 .cct-dash-col-title {
-    color: $text;
+    color: $accent;
     padding-bottom: 1;
     margin-bottom: 1;
     border-bottom: solid $surface-dark;
     text-style: bold;
+    content-align: center middle;
 }
 .cct-dash-row {
     color: $text-muted;
@@ -1645,6 +1720,8 @@ if TEXTUAL_AVAILABLE:
             ("ctrl+shift+b", "host_browser", "CAT Browser (Host)"),
             ("ctrl+shift+h", "host_toggle", "CAT Host"),
             ("ctrl+shift+t", "toggle_touch_mode", "Touch Mode"),
+            ("alt+a", "prompt_attach", "Attach File"),
+            ("alt+p", "toggle_permissions", "Permissions"),
         ]
         TITLE = f"CAT v{identity.APP_VERSION}"
         # v0.7.9.5: Textual 8 ships its own built-in command palette on
@@ -2128,18 +2205,31 @@ if TEXTUAL_AVAILABLE:
                 return v
             try:
                 from .. import app as _backend
-                return getattr(_backend, "VERSION", "0.7.9.0")
+                return getattr(_backend, "VERSION", "0.8.b")
             except Exception:
-                return "0.7.9.0"
+                return "0.8.b"
 
         def _tick_idle_animation(self):
+            """Cheap idle-heartbeat: paints the status bar once per cycle
+            when the agent isn't streaming. v0.7.9.6 stability pass:
+            short-circuits when the screen isn't actually attached
+            (during shutdown, on terminal teardown, while another
+            screen is being swapped in) — that was the source of the
+            intermittent "refresh of a detached widget" warnings that
+            showed up when the user hit Ctrl+Q mid-render."""
             self._idle_tick += 1
-            if not self._is_streaming:
-                try:
-                    self.status_line.refresh_status()
-                    self._refresh_header_right()
-                except Exception:
-                    pass
+            if self._is_streaming:
+                return
+            try:
+                if not self.is_mounted:
+                    return
+            except Exception:
+                return
+            try:
+                self.status_line.refresh_status()
+                self._refresh_header_right()
+            except Exception:
+                pass
 
         # ------------------------------------------------------- v0.7 IDE --
         def _ide_state(self):
@@ -3862,6 +3952,62 @@ if TEXTUAL_AVAILABLE:
             except Exception:
                 pass
 
+        def on_resize(self, event):
+            """Terminal resize: cascade a debounced fit pass to the
+            empty-state centerpiece + dashboard so every responsive
+            variant recomputes from the new pane width.
+
+            v0.7.9.6 stability pass: a single timer is reused — every
+            new resize cancels the previous one and only the LAST
+            resize actually triggers the downstream `on_resize` chain
+            (each child has its own per-instance 50ms debounce).
+            Without this, dragging the terminal width produces 30+
+            recompute passes per second and the UI feels laggy."""
+            try:
+                _timer = getattr(self, "_resize_cascade_timer", None)
+                if _timer is not None:
+                    try:
+                        _timer.stop()
+                    except Exception:
+                        pass
+                self._resize_cascade_timer = self.set_timer(
+                    0.05, self._cascade_resize)
+            except Exception:
+                pass
+
+        def _cascade_resize(self):
+            """Walk the tree once and invoke on_resize on the dashboard
+            + chat empty state (if mounted). Direct method calls — we
+            intentionally do NOT use `post_message` because every
+            child already implements its own debounce.
+
+            v0.7.9.6: `_dashboard` is a SUBSET of the welcome slot (a
+            WelcomeDashboard is mounted *as* the welcome widget), so the
+            two calls below used to hit the same object twice on every
+            resize — one redundant full art rebuild + 2 widget queries.
+            The identity check collapses that to a single pass."""
+            try:
+                conv = getattr(self, "conversation", None)
+                if conv is None:
+                    return
+                welcome = getattr(conv, "_welcome", None)
+                dash = getattr(conv, "_dashboard", None)
+                target = welcome if welcome is not None else dash
+                if target is not None and getattr(target, "is_attached", False):
+                    try:
+                        target.on_resize(None)
+                    except Exception:
+                        pass
+                # Only a *distinct* dashboard needs a second pass.
+                if (dash is not None and dash is not target
+                        and getattr(dash, "is_attached", False)):
+                    try:
+                        dash.on_resize(None)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
         def on_unmount(self):
             try:
                 from ..preview.dev_server import get_dev_server_manager
@@ -3994,6 +4140,19 @@ if TEXTUAL_AVAILABLE:
             else:
                 self._system_note("Open a folder first (/open <path>) to use the Explorer sidebar.")
 
+        def action_toggle_permissions(self):
+            if hasattr(self, "composer") and self.composer is not None:
+                from .permission_panel import PermissionsSettingsPanel
+                try:
+                    panel = self.composer.query_one(PermissionsSettingsPanel)
+                    is_now_open = not panel.has_class("open")
+                    panel.set_class(is_now_open, "open")
+                    if is_now_open:
+                        panel.refresh_rows()
+                    self.composer._on_permission_panel_toggled(is_now_open)
+                except Exception:
+                    pass
+
         def action_toggle_menu(self):
             """Ctrl+M: open/close the Main Menu (NavPanel), the keyboard
             twin of the MenuButton's click — dismiss() pops the screen
@@ -4065,7 +4224,16 @@ if TEXTUAL_AVAILABLE:
             del self._preview_events[:-400:]
 
         def _drain_preview_events(self):
-            """UI thread: apply queued controller events to widgets."""
+            """UI thread: apply queued controller events to widgets.
+
+            v0.7.9.6 perf hardening: skipped entirely when the queue
+            is empty. Previously we were still paying the cost of the
+            `with self._preview_events_lock:` block 5 times a second
+            (0.2s interval) forever, even on an idle session with no
+            preview subsystem activity. With the lock-free fast-path
+            an idle session burns effectively zero CPU here."""
+            if not self._preview_events:
+                return
             with self._preview_events_lock:
                 batch = self._preview_events
                 self._preview_events = []
@@ -5264,8 +5432,8 @@ if TEXTUAL_AVAILABLE:
                 return
             # v0.8.a: Check if user is authenticated before allowing messages
             try:
-                from ..fomoji_auth import is_authenticated
-                if not is_authenticated():
+                from ..fomoji_auth import is_authenticated, is_skip_enabled
+                if not is_authenticated() and not is_skip_enabled():
                     self._system_note(
                         "\u26a0\ufe0f  You are signed out.  "
                         "Please sign in to send messages.\n"

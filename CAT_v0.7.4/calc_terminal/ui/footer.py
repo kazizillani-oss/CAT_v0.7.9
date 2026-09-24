@@ -39,6 +39,15 @@ if TEXTUAL_AVAILABLE:
         return "#" + "".join(f"{int(round(x + (y - x) * t)):02x}"
                              for x, y in zip(a, b))
 
+    def _safe_glyph(emoji, fallback):
+        import sys
+        try:
+            enc = getattr(sys.stdout, "encoding", None) or "utf-8"
+            emoji.encode(enc)
+            return emoji
+        except Exception:
+            return fallback
+
     class _Badge(Static):
         """One flat, clickable text badge (no border/background chrome) —
         the `Notebook` / `provider model` / `Workspace` pieces of
@@ -98,9 +107,9 @@ if TEXTUAL_AVAILABLE:
             yield Static(self._status_text(), id="cct-center-status")
             yield Static(id="cct-footer-spacer-right")
             with Horizontal(id="cct-right-controls"):
-                yield Button("\U0001f6e1", id="btn-permissions", classes="cct-icon-btn", tooltip="Permissions & Security (🛡)")
-                yield Button("\U0001f4ce", id="btn-attach", classes="cct-icon-btn", tooltip="Attach file")
-                yield Button("\u27a4", id="btn-send", classes="cct-icon-btn cct-icon-send", tooltip="Send message (Enter)")
+                yield Button(_safe_glyph("🛡", "(P)"), id="btn-permissions", classes="cct-icon-btn", tooltip="Permissions & Security (Click / Alt+P)")
+                yield Button(_safe_glyph("📎", "(+)"), id="btn-attach", classes="cct-icon-btn", tooltip="Attach file (Click / Alt+A)")
+                yield Button(_safe_glyph("➤", ">"), id="btn-send", classes="cct-icon-btn cct-icon-send", tooltip="Send message (Enter)")
 
         def _status_text(self):
             return f"Context {self.context_tokens}K"

@@ -246,11 +246,10 @@ def ensure_first_run():
     runs the one-time initialization when needed. Returns an exit code
     (0 = continue to launch, non-zero = stop with an error)."""
     if is_initialized():
-        print("Starting CAT...")
         return 0
     print("CAT — Coding Agent Terminal")
     print("Creator: Kazi Zillani")
-    print("First-time initialization...")
+    print("\nInitializing CAT...")
     print_environment_card()
     print("Preparing required resources...")
     ok, msg = initialize_first_run()
@@ -259,7 +258,5 @@ def ensure_first_run():
         print("Nothing was marked as initialized — the next launch will retry.")
         print(f"Application data directory: {data_dir()}")
         return 1
-    print("Initialization complete.")
-    print()
-    print("Starting CAT...")
-    return 0
+    print("✓ CAT core initialized\n")
+    return 0

@@ -1,0 +1,61 @@
+# CAT — Python packaging / local dev ignores (never commit these).
+# The wheel/sdist are build artifacts: rebuild with `python -m build`.
+dist/
+build/
+*.egg-info/
+CAT_v0.7.4/*.egg-info/
+*.whl
+*.tar.gz
+*.vsix
+
+# VS Code extension development / testing
+node_modules/
+cat-cli/node_modules/
+cat-cli/.vscode-test/
+cat-cli/.tmp-workspace/
+.vscode-test/
+
+# Virtual environments (clean-venv tests create these; keep them local).
+.venv*/
+venv*/
+.env*/
+.env
+*.env
+*.env.*
+!*.env.example
+!*.env.sample
+
+# Bytecode / caches.
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+_pytest_out.txt
+*.tmp
+*.bak
+
+# CAT runtime / app-data (created by first-run seeding, not source).
+CAT_v0.7.4/cache/
+CAT_v0.7.4/staged/
+CAT_v0.7.4/workspaces/
+CAT_v0.7.4/startup.log
+*.log
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.db
+**/fomoji-server/data/*.sqlite*
+**/fomoji-server/node_modules/
+
+# OS / editor junk.
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+

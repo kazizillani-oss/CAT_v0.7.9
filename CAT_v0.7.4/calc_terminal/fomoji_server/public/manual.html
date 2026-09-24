@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="js/fomoji-theme.js"></script>
+<script src="js/fomoji-animated-bot.js"></script>
+<script src="js/fomoji-components.js"></script>
+<script src="js/fomoji-liquid-glass.js"></script>
+<script src="js/fomoji-fx.js"></script>
+<script src="js/fomoji-commands.js"></script>
+<script src="js/fomoji-tabbar.js"></script>
+<script src="js/fomoji-signout.js"></script>
+<script src="js/fomoji-gestures.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Manual · Fomoji</title>
+<link rel="stylesheet" href="css/fomoji-tokens.css">
+<link rel="stylesheet" href="css/fomoji.css">
+<link rel="stylesheet" href="css/fomoji-fx.css">
+<link rel="stylesheet" href="css/fomoji-animated-bot.css">
+<link rel="stylesheet" href="css/fomoji-liquid-glass.css">
+<link rel="stylesheet" href="css/fomoji-glow-engine.css">
+<link rel="stylesheet" href="css/fomoji-signout.css">
+<style>
+  .doc{ position:relative; z-index:1; max-width:720px; margin:0 auto; padding:28px 20px 0; }
+  @media (min-width:820px){ .doc{ padding:44px 40px 0; } }
+
+  .doc-head{ margin-bottom:22px; }
+  .doc-eyebrow{
+    font-family:var(--f-mono); font-size:11px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--putty); display:block; margin-bottom:10px;
+  }
+  .doc-title{ font-size:clamp(22px,3.6vw,30px); font-weight:600; }
+  .doc-sub{ margin-top:8px; font-size:13.5px; color:var(--ink-dim); line-height:1.6; max-width:560px; }
+
+  .doc-toc{ display:flex; gap:8px; flex-wrap:wrap; margin:20px 0 32px; }
+  .doc-toc a{
+    font-size:12px; font-family:var(--f-mono); color:var(--ink-dim);
+    border:1px solid var(--line); border-radius:999px; padding:6px 12px;
+  }
+  .doc-toc a:hover{ color:var(--sage); border-color:var(--sage-deep); }
+
+  .doc-section{ margin-bottom:34px; scroll-margin-top:24px; }
+  .doc-section h2{ font-size:16.5px; font-weight:600; color:var(--ink); margin-bottom:10px; display:flex; align-items:center; gap:8px; }
+  .doc-section h2 .step-num{
+    font-family:var(--f-mono); font-size:11px; color:var(--void);
+    background:var(--sage); width:20px; height:20px; border-radius:50%;
+    display:inline-flex; align-items:center; justify-content:center; flex:none;
+  }
+  .doc-section p{ font-size:13.5px; line-height:1.7; color:var(--ink-dim); }
+  .doc-section p + p{ margin-top:8px; }
+
+  .doc-steps{ list-style:none; margin:12px 0 0; padding:0; counter-reset:step; }
+  .doc-steps li{
+    counter-increment:step;
+    display:flex; gap:12px; align-items:flex-start;
+    padding:10px 0; border-top:1px solid var(--line-soft);
+    font-size:13.5px; color:var(--ink-dim); line-height:1.6;
+  }
+  .doc-steps li:first-child{ border-top:none; }
+  .doc-steps li::before{
+    content:counter(step);
+    font-family:var(--f-mono); font-size:11px; color:var(--sage);
+    background:var(--panel-2); border:1px solid var(--line);
+    width:20px; height:20px; border-radius:50%; flex:none;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .doc-steps strong{ color:var(--ink); }
+
+  .doc-note{
+    border:1px dashed var(--line); border-radius:var(--radius-s);
+    padding:12px 14px; font-size:12.5px; color:var(--ink-faint); margin-top:12px; line-height:1.6;
+  }
+  .doc-note.is-honest{ border-color:var(--line); background:var(--panel); }
+  .doc-note strong{ color:var(--ink-dim); }
+
+  .doc-link-row{ margin-top:12px; }
+  .doc-link-row a.btn{ margin-right:8px; margin-top:6px; }
+
+  .doc-status{
+    display:inline-flex; align-items:center; gap:5px;
+    font-family:var(--f-mono); font-size:10.5px; letter-spacing:0.04em; text-transform:uppercase;
+    padding:2px 8px; border-radius:999px; margin-left:6px; vertical-align:middle;
+  }
+  .doc-status.is-live{ background:rgba(154,160,133,0.16); color:var(--sage); }
+  .doc-status.is-partial{ background:rgba(201,160,74,0.14); color:var(--gold); }
+  .doc-status.is-planned{ background:var(--panel-2); color:var(--ink-faint); border:1px solid var(--line); }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a href="home.html"><img src="img/fomoji-logo.png" alt="Fomoji"></a>
+  <div class="topbar-user">
+    <span id="topbarName">—</span>
+    <div class="avatar" id="avatarInitial">·</div>
+  </div>
+</header>
+
+<main class="doc">
+  <div class="doc-head">
+    <span class="doc-eyebrow">Manual</span>
+    <h1 class="doc-title">How Fomoji works, end to end.</h1>
+    <p class="doc-sub">Every section below describes a feature that actually exists in this build and does what it says. Where something is only partly built or not built yet, it's labeled that way instead of pretending — see <a href="cat-manual.html">the CAT manual</a> for running CAT itself, or <a href="security.html">Security</a> for the deeper security walkthrough.</p>
+  </div>
+
+  <nav class="doc-toc">
+    <a href="#overview">Overview</a>
+    <a href="#account">Create an account</a>
+    <a href="#login">Login</a>
+    <a href="#guest">Guest mode</a>
+    <a href="#link">Fomoji Link</a>
+    <a href="#cat">CAT connection</a>
+    <a href="#devices">Devices</a>
+    <a href="#security">Security</a>
+    <a href="#privacy">Privacy</a>
+    <a href="#themes">Themes</a>
+    <a href="#theme-studio">Theme Studio</a>
+    <a href="#tabbar-studio">Tab Bar Studio</a>
+    <a href="#gesture-studio">Gesture Studio</a>
+    <a href="#shortcuts">Keyboard shortcuts</a>
+    <a href="#recovery">Account recovery</a>
+  </nav>
+
+  <section class="doc-section" id="overview">
+    <h2><span class="step-num">1</span>Fomoji overview</h2>
+    <p>Fomoji is a single identity you use to sign into other apps — starting with CAT — instead of managing separate accounts everywhere. It's also a personalization layer: themes, tab bar layout, gestures, and motion are all yours to configure and they persist per-browser.</p>
+    <p>Two honesty rules run through the whole app and this manual: nothing is stored on a server (everything lives in this browser's local storage), and no control exists in the UI unless it actually does something. If a feature isn't built yet, you'll see it marked <span class="doc-status is-planned">Planned</span> rather than a button that quietly does nothing.</p>
+  </section>
+
+  <section class="doc-section" id="account">
+    <h2><span class="step-num">2</span>Create an account <span class="doc-status is-live">Live</span></h2>
+    <p>Sign-up asks for a name, username, email, and password. Your password is hashed client-side before it's stored — there's no server, so "stored" means in this browser's local storage.</p>
+    <ol class="doc-steps">
+      <li><strong>Open Sign up</strong> from the welcome screen or <a href="signup.html">go there directly</a>.</li>
+      <li><strong>Fill in your details.</strong> Username and email can't be changed later in this build — changing either safely needs a real backend to migrate references, which this build doesn't have.</li>
+      <li><strong>Save your recovery code.</strong> It's shown once, right after signup, and it's the only way back into your account if you forget your password. There's no email-based reset — see <a href="#recovery">Account recovery</a>.</li>
+    </ol>
+  </section>
+
+  <section class="doc-section" id="login">
+    <h2><span class="step-num">3</span>Login <span class="doc-status is-live">Live</span></h2>
+    <p>Sign in with your username or email and password. Sessions persist across browser restarts until you sign out from <a href="settings.html#security">Settings → Security</a>. Repeated failed attempts trigger a short lockout on that identifier, so brute-forcing a password isn't free even in a client-only build.</p>
+  </section>
+
+  <section class="doc-section" id="guest">
+    <h2><span class="step-num">4</span>Guest mode <span class="doc-status is-live">Live</span></h2>
+    <p>Guest mode gives you a real, working session — you can browse the app and even connect CAT — without creating an account. The difference is durability: a guest session lives in this tab only and disappears when you close it, and profile or password fields are disabled because there's no account behind them to save to.</p>
+    <div class="doc-note">If you connect CAT as a guest and later decide to keep it, create an account before closing the tab — guest connections don't carry over automatically.</div>
+  </section>
+
+  <section class="doc-section" id="link">
+    <h2><span class="step-num">5</span>Fomoji Link <span class="doc-status is-live">Live</span></h2>
+    <p>"Fomoji Link" is the umbrella name for signing into a third-party app with your Fomoji identity instead of a separate password. Today that means CAT; the door is open for more apps, but they show as <span class="doc-status is-planned">Planned</span> under <a href="settings.html#connected">Connected applications</a> until something real is behind them.</p>
+  </section>
+
+  <section class="doc-section" id="cat">
+    <h2><span class="step-num">6</span>CAT connection <span class="doc-status is-partial">Partially built</span></h2>
+    <p>From Home or <a href="settings.html#connected">Settings → Connected apps</a>, "Connect" opens a consent modal describing exactly what CAT would get: identity verification, no password sharing, and one-tap future sign-ins. Confirming it genuinely saves the authorization to your account (or, as a guest, to the guest session).</p>
+    <p>What's not built yet: CAT itself doesn't call this flow, so there's no live redirect back into a running CAT session — see the <a href="cat-manual.html#auth">CAT manual's authentication section</a> for the current, honest limit.</p>
+  </section>
+
+  <section class="doc-section" id="devices">
+    <h2><span class="step-num">7</span>Devices <span class="doc-status is-planned">Planned</span></h2>
+    <p>There's no trusted-device list in this build. Because everything is stored per-browser with no server, there's nothing to sync across devices yet — signing in on a second browser or device just starts a separate, independent session there. A real "Devices" panel needs a backend to track sessions centrally, which is planned but not built.</p>
+  </section>
+
+  <section class="doc-section" id="security">
+    <h2><span class="step-num">8</span>Security <span class="doc-status is-live">Live</span></h2>
+    <p>Password changes, session info, and sign-out are real and live under <a href="settings.html#security">Settings → Security</a>. For the full picture — including what's genuinely built versus planned, like passkeys and 2FA — see the dedicated <a href="security.html">Security page</a>.</p>
+  </section>
+
+  <section class="doc-section" id="privacy">
+    <h2><span class="step-num">9</span>Privacy <span class="doc-status is-live">Live</span></h2>
+    <p>The <a href="privacy.html">Privacy Policy</a> explains what's collected (short answer: nothing leaves your browser in this build) and how third-party AI providers would be handled once that layer exists. Per-mode AI data preferences are <span class="doc-status is-planned">planned</span>, tracked alongside the AI connection modes work.</p>
+  </section>
+
+  <section class="doc-section" id="themes">
+    <h2><span class="step-num">10</span>Themes <span class="doc-status is-live">Live</span></h2>
+    <p>Themes live under <a href="settings.html#appearance">Settings → Appearance</a>. Every theme — dark or light — is generated from the same underlying color system, so switching modes doesn't just invert colors, it recomputes a full palette (background, surface, text, and accent) that's built to stay readable together.</p>
+    <p>Appearance also covers icon weight (outline, bold, duotone, ascii, or emoji), surface texture (Flat, Glass, Liquid Glass, Neumorphic, Skeuomorphic), glow effects, ambient parallax, and a global reduce-motion switch independent of your OS setting.</p>
+  </section>
+
+  <section class="doc-section" id="theme-studio">
+    <h2><span class="step-num">11</span>Theme Studio <span class="doc-status is-live">Live</span></h2>
+    <p>Theme Studio, at the bottom of <a href="settings.html#appearance">Appearance</a>, lets you pick nine individual colors (background, surface, primary, secondary, text, muted text, border, success, error), choose a dark/light group and a corner shape, then save it as a real custom theme you can select like any built-in one.</p>
+  </section>
+
+  <section class="doc-section" id="tabbar-studio">
+    <h2><span class="step-num">12</span>Tab Bar Studio <span class="doc-status is-live">Live</span></h2>
+    <p>Under <a href="settings.html#navigation">Settings → Navigation</a>, you can add a tab, rename it, change its icon, reassign what it points to, reorder tabs, hide or pin them, and switch the bar between floating-bottom and full-width-top layouts. Every custom tab points at one of a fixed set of real actions (open a page, open the command palette, sign out) — never arbitrary code — so a tab you build can't end up dead or fake.</p>
+    <p>Changes apply to the live tab bar immediately and persist across reloads. Home always stays visible and can't be removed — it's the guaranteed way back if you've hidden everything else.</p>
+    <div class="doc-link-row"><a href="settings.html#navigation" class="btn btn-ghost btn-inline">Open Tab Bar Studio</a></div>
+  </section>
+
+  <section class="doc-section" id="gesture-studio">
+    <h2><span class="step-num">13</span>Gesture Studio <span class="doc-status is-live">Live</span></h2>
+    <p>Under <a href="settings.html#gestures">Settings → Gestures</a>, you can bind swipes, taps, and long-presses to actions, toggle gestures on entirely, or switch to a reduced set (just swipe left/right and long-press on the tab bar). Every gesture mirrors a button or link that already exists elsewhere in the app — nothing here is gesture-only, so turning gestures off never removes functionality, just a shortcut to it.</p>
+  </section>
+
+  <section class="doc-section" id="shortcuts">
+    <h2><span class="step-num">14</span>Keyboard shortcuts <span class="doc-status is-live">Live</span></h2>
+    <p>Under <a href="settings.html#shortcuts">Settings → Shortcuts</a>, every global shortcut can be remapped: press the remap button, then press the new combo. The command palette itself (searchable list of every action in Fomoji) opens from there too, and shortcuts reset to defaults with one button if you want a clean slate.</p>
+  </section>
+
+  <section class="doc-section" id="recovery">
+    <h2><span class="step-num">15</span>Account recovery <span class="doc-status is-live">Live</span></h2>
+    <p>Recovery works entirely through the one-time recovery code shown at signup — there's no email-based reset in this build, since that needs a mail server this build doesn't have. On the login screen, "Forgot password?" opens a real reset form: enter your username or email and your recovery code, then set a new password.</p>
+    <ol class="doc-steps">
+      <li><strong>Lost your recovery code too?</strong> There's currently no way to recover the account without it — that gap closes once identity-verified support exists behind a real backend.</li>
+      <li><strong>After a successful reset</strong>, your recovery code is rotated automatically and the new one is shown once. The old code stops working immediately.</li>
+    </ol>
+    <div class="doc-note is-honest"><strong>Keep it somewhere safe.</strong> Treat your recovery code like a spare key — it's the only backup door this build has.</div>
+  </section>
+
+  <div class="tabbar-spacer"></div>
+</main>
+
+<nav class="tabbar" aria-label="Primary">
+  <a class="tab is-active" href="home.html" aria-current="page" data-ascii-glyph="[~]" data-emoji-glyph="🏠">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9h12v-9"/></svg>
+    <span class="tab-label">Home</span>
+  </a>
+  <a class="tab" href="settings.html" data-ascii-glyph="[@]" data-emoji-glyph="🙂">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.4"/><path d="M5 20c1.2-3.6 4-5.4 7-5.4s5.8 1.8 7 5.4"/></svg>
+    <span class="tab-label">Me</span>
+  </a>
+</nav>
+
+<script src="js/fomoji-auth.js"></script>
+<script src="js/connector.js"></script>
+<script src="js/fomoji-connect.js"></script>
+<script>
+(async () => {
+  const account = await requireSession();
+  if (!account) return;
+
+  document.getElementById('topbarName').textContent = account.username;
+  document.getElementById('avatarInitial').textContent = account.name.trim().charAt(0).toUpperCase() || '?';
+})();
+</script>
+</body>
+</html>

@@ -24,6 +24,7 @@ if __name__ == "__main__":
 import os
 import platform
 import shutil
+import threading
 import time
 
 from .. import permissions as perm
@@ -85,16 +86,45 @@ class StatusFields:
         self._version = version
         self._ollama_ok = None
         self._ollama_last_check = 0.0
+        self._ollama_lock = threading.Lock()
+        self._ollama_probing = False
 
     def _ollama_status(self):
-        # Probe at most once every 10s — a live network call on every
-        # single status-bar repaint (every idle tick) would be wasteful
-        # and would make the whole UI feel laggy on a slow network.
+        """Last-known Ollama reachability — NEVER blocks the UI thread.
+        A stale reading kicks one daemon-thread probe (guarded so
+        probes can't stack); the fresh value lands on the next repaint.
+        Until the first probe lands, None renders as '…' (unknown),
+        never a fabricated up/down."""
         now = time.time()
-        if now - self._ollama_last_check > 10:
-            self._ollama_ok = _ollama_reachable()
+        if now - self._ollama_last_check > 30:
             self._ollama_last_check = now
+            self._kick_ollama_probe()
         return self._ollama_ok
+
+    def _kick_ollama_probe(self):
+        try:
+            with self._ollama_lock:
+                if self._ollama_probing:
+                    return
+                self._ollama_probing = True
+        except Exception:
+            return
+        thread = threading.Thread(
+            target=self._probe_ollama_bg, daemon=True)
+        thread.start()
+
+    def _probe_ollama_bg(self):
+        try:
+            ok = _ollama_reachable()
+        except Exception:
+            ok = False
+        try:
+            with self._ollama_lock:
+                self._ollama_ok = ok
+                self._ollama_probing = False
+        except Exception:
+            self._ollama_ok = ok
+            self._ollama_probing = False
 
     def fields(self):
         state = self._get_state() or {}
@@ -112,7 +142,8 @@ class StatusFields:
             ("Mem", f"{mem_mb:.0f}MB" if mem_mb is not None else "n/a", ""),
             ("CPU", f"{cpu_pct:.0f}%" if cpu_pct is not None else "n/a", ""),
             ("API", "allowed" if net_ok else "blocked", "ready" if net_ok else "err"),
-            ("Ollama", "up" if ollama_ok else "down", "ready" if ollama_ok else ""),
+            ("Ollama", "up" if ollama_ok else ("…" if ollama_ok is None else "down"),
+             "ready" if ollama_ok else ""),
         ]
         sim = state.get("simulation")
         if sim:

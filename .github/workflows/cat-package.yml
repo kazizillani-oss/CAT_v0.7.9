@@ -1,0 +1,87 @@
+# CAT packaging validation — runs on every push/PR.
+# Builds the wheel/sdist, runs twine check, installs the wheel in a fresh
+# environment, and smoke-tests the `cat` console script.
+# NEVER publishes to PyPI (publishing is release-only via python-publish.yml
+# with PyPI trusted publishing / OIDC).
+name: CAT package validation
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install build tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine check-wheel-contents || python -m pip install build twine
+
+      - name: Build sdist + wheel (repo root pyproject.toml)
+        run: python -m build
+
+      - name: Twine metadata check
+        run: python -m twine check dist/*
+
+      - name: Verify dist artifacts exist
+        shell: python
+        run: |
+          import pathlib
+          whl = sorted(pathlib.Path("dist").glob("*.whl"))
+          sdist = sorted(pathlib.Path("dist").glob("*.tar.gz"))
+          assert whl, "no wheel built"
+          assert sdist, "no sdist built"
+          print("wheel:", whl[0].name)
+          print("sdist:", sdist[0].name)
+
+      - name: Verify wheel contents (code + assets + entry points)
+        shell: python
+        run: |
+          import pathlib, zipfile
+          w = sorted(pathlib.Path("dist").glob("*.whl"))[0]
+          names = zipfile.ZipFile(w).namelist()
+          checks = {
+            "calc_terminal/cli.py": any(n.endswith("calc_terminal/cli.py") for n in names),
+            "calc_terminal/__main__.py": any(n.endswith("calc_terminal/__main__.py") for n in names),
+            "cat.ico": any("cat.ico" in n for n in names),
+            "models/model_metadata.json": any("model_metadata.json" in n for n in names),
+            "providers/providers.json": any("providers/providers.json" in n for n in names),
+            "web/static/index.html": any("web/static/index.html" in n for n in names),
+            "entry_points": any("entry_points.txt" in n for n in names),
+          }
+          for k, ok in checks.items():
+              print(("OK  " if ok else "MISS"), k)
+          missing = [k for k, ok in checks.items() if not ok]
+          assert not missing, f"wheel missing: {missing}"
+          ep = [n for n in names if n.endswith("entry_points.txt")][0]
+          ep_text = zipfile.ZipFile(w).read(ep).decode()
+          print(ep_text)
+          assert "cat = calc_terminal.cli:main" in ep_text
+
+      - name: Install wheel in clean environment and smoke-test CLI
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install dist/*.whl
+          python -c "import calc_terminal, calc_terminal.cli; print('imports OK', calc_terminal.__version__)"
+          python -c "import pathlib, calc_terminal; p = pathlib.Path(calc_terminal.__file__).parent; assert (p / 'cat.ico').exists(), 'cat.ico missing'; assert (p / 'models' / 'model_metadata.json').exists(), 'models json missing'; assert (p / 'providers' / 'providers.json').exists(), 'providers json missing'; assert (p / 'web' / 'static' / 'index.html').exists(), 'static missing'; print('assets OK:', p)"
+          cat --version || cat.exe --version || cct --version
+          cat --help || cat.exe --help
+          python -m calc_terminal --help

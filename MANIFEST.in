@@ -1,0 +1,26 @@
+# Ensure runtime assets are included in the sdist in addition to the wheel.
+# (Wheels use [tool.setuptools.package-data] in pyproject.toml; the sdist
+# needs these explicit rules.)
+recursive-include CAT_v0.7.4/calc_terminal/models *.json
+recursive-include CAT_v0.7.4/calc_terminal/providers *.json
+recursive-include CAT_v0.7.4/calc_terminal/web/static *
+recursive-include CAT_v0.7.4/calc_terminal/fomoji_server *
+recursive-include fomoji-updated/fomoji-server *
+include CAT_v0.7.4/calc_terminal/cat.ico
+include CAT_v0.7.4/calc_terminal/web/static/icons/cat.ico
+include README.md LICENSE
+global-exclude __pycache__ *.pyc *.pyo *.pyd
+global-exclude .pytest_cache .venv-test .venv_test .venv-test314
+global-exclude .venv* venv* .tox .nox .coverage htmlcov
+# Never ship dev/test probes, local caches, node_modules, secrets, or OS junk in the sdist.
+global-exclude _probe_*.py _pilot_*.py _tmp_*.py *.sqlite* *.log .env
+prune CAT_v0.7.4/__pycache__
+prune CAT_v0.7.4/calc_terminal/__pycache__
+prune CAT_v0.7.4/cache
+prune CAT_v0.7.4/staged
+prune CAT_v0.7.4/workspaces
+prune fomoji-updated/fomoji-server/node_modules
+prune fomoji-updated/fomoji-server/data
+prune CAT_v0.7.4/calc_terminal/fomoji_server/node_modules
+prune CAT_v0.7.4/calc_terminal/fomoji_server/data
+

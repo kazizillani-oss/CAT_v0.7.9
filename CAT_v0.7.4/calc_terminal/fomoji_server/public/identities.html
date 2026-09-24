@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="js/fomoji-theme.js"></script>
+<script src="js/fomoji-animated-bot.js"></script>
+<script src="js/fomoji-components.js"></script>
+<script src="js/fomoji-liquid-glass.js"></script>
+<script src="js/fomoji-fx.js"></script>
+<script src="js/fomoji-commands.js"></script>
+<script src="js/fomoji-tabbar.js"></script>
+<script src="js/fomoji-signout.js"></script>
+<script src="js/fomoji-gestures.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Identities · Fomoji</title>
+<link rel="stylesheet" href="css/fomoji-tokens.css">
+<link rel="stylesheet" href="css/fomoji.css">
+<link rel="stylesheet" href="css/fomoji-fx.css">
+<link rel="stylesheet" href="css/fomoji-animated-bot.css">
+<link rel="stylesheet" href="css/fomoji-liquid-glass.css">
+<link rel="stylesheet" href="css/fomoji-glow-engine.css">
+<link rel="stylesheet" href="css/fomoji-signout.css">
+<link rel="stylesheet" href="css/fomoji-3d.css">
+<style>
+  .doc{ position:relative; z-index:1; max-width:720px; margin:0 auto; padding:28px 20px 0; }
+  @media (min-width:820px){ .doc{ padding:44px 40px 0; } }
+  .doc-head{ margin-bottom:22px; }
+  .doc-eyebrow{
+    font-family:var(--f-mono); font-size:11px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--putty); display:block; margin-bottom:10px;
+  }
+  .doc-title{ font-size:clamp(22px,3.6vw,30px); font-weight:600; }
+  .doc-sub{ margin-top:8px; font-size:13.5px; color:var(--ink-dim); line-height:1.6; max-width:560px; }
+
+  .id-tabs{ display:flex; gap:8px; margin:20px 0 18px; flex-wrap:wrap; }
+  .id-tab{
+    font-family:var(--f-mono); font-size:11.5px; letter-spacing:0.04em; text-transform:uppercase;
+    padding:8px 14px; border-radius:var(--fx-radius-pill); border:1px solid var(--line);
+    color:var(--ink-dim); background:var(--panel); cursor:pointer;
+  }
+  .id-tab.is-active{ color:var(--sage); border-color:rgba(154,160,133,0.4); background:rgba(154,160,133,0.08); }
+  .id-section{ display:none; }
+  .id-section.is-active{ display:block; }
+
+  /* ---- Group / Student / Temporary card shells ---- */
+  .id-card{
+    padding:20px; margin-bottom:16px; overflow:hidden;
+  }
+  .id-card-eyebrow{
+    font-family:var(--f-mono); font-size:10.5px; letter-spacing:0.12em; text-transform:uppercase;
+    color:var(--putty);
+  }
+  .id-card-name{ font-size:19px; font-weight:600; margin-top:4px; }
+  .id-card-meta{ font-size:12.5px; color:var(--ink-faint); margin-top:3px; }
+  .id-card-apps{ display:flex; gap:6px; flex-wrap:wrap; margin-top:12px; }
+  .id-app-chip{
+    font-family:var(--f-mono); font-size:10px; letter-spacing:0.03em;
+    padding:3px 8px; border-radius:999px; border:1px solid var(--line); color:var(--sage);
+    background:rgba(154,160,133,0.06);
+  }
+  .id-card-actions{ display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; }
+  .id-card-avatar{
+    width:44px; height:44px; border-radius:var(--fx-radius-md); flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center; font-weight:600; font-size:16px;
+    background:var(--panel-2); border:1px solid var(--line); color:var(--sage);
+  }
+  .id-card-top{ display:flex; gap:12px; align-items:flex-start; }
+
+  .surface-picker{ display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+  .surface-swatch{
+    font-family:var(--f-mono); font-size:9.5px; text-transform:uppercase; letter-spacing:0.03em;
+    padding:5px 9px; border-radius:8px; border:1px solid var(--line); color:var(--ink-faint); cursor:pointer;
+    background:var(--panel-2);
+  }
+  .surface-swatch.is-selected{ color:var(--sage); border-color:rgba(154,160,133,0.5); }
+
+  .member-row{ display:flex; align-items:center; gap:10px; padding:9px 0; border-top:1px solid var(--line-soft); }
+  .member-row:first-child{ border-top:none; }
+  .member-row .row-main{ flex:1; min-width:0; }
+  .role-chip{
+    font-family:var(--f-mono); font-size:10px; text-transform:uppercase; letter-spacing:0.04em;
+    padding:2px 8px; border-radius:999px; border:1px solid var(--line); color:var(--ink-faint);
+  }
+  .role-chip.is-owner{ color:var(--gold); border-color:rgba(201,160,74,0.4); }
+  .role-chip.is-admin{ color:var(--sage); border-color:rgba(154,160,133,0.4); }
+
+  .empty-state{ text-align:center; padding:30px 14px; color:var(--ink-faint); font-size:13px; }
+  .inline-form{ display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .inline-form input{
+    flex:1; min-width:140px; background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius-s);
+    padding:9px 11px; color:var(--ink); font-size:13.5px;
+  }
+  .inline-form input:focus{ outline:none; border-color:var(--sage-deep); }
+
+  .expiry-note{
+    font-family:var(--f-mono); font-size:11px; letter-spacing:0.03em; color:var(--gold);
+    margin-top:10px; padding:6px 10px; border:1px dashed rgba(201,160,74,0.4); border-radius:8px; display:inline-block;
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a href="home.html"><img src="img/fomoji-logo.png" alt="Fomoji"></a>
+  <div class="topbar-user">
+    <span id="topbarName">—</span>
+    <div class="avatar" id="avatarInitial">·</div>
+  </div>
+</header>
+
+<div class="doc">
+
+  <div class="doc-head">
+    <span class="doc-eyebrow">Fomoji &middot; Identities</span>
+    <div class="doc-title">Groups, students &amp; temporary access</div>
+    <div class="doc-sub">One identity system, several kinds of identity. Groups and students still sign in as you — nothing here replaces your personal Fomoji identity, it just extends what it can act as.</div>
+  </div>
+
+  <div class="id-tabs" role="tablist">
+    <button type="button" class="id-tab is-active" data-target="groups-section">Groups</button>
+    <button type="button" class="id-tab" data-target="student-section">Student</button>
+    <button type="button" class="id-tab" data-target="temp-section">Temporary</button>
+  </div>
+
+  <!-- ============================= GROUPS ============================= -->
+  <section class="id-section is-active" id="groups-section">
+
+    <section class="panel">
+      <div class="panel-head">
+        <div class="panel-title">Create a group</div>
+        <div class="panel-sub">You become its owner. Members authenticate through their own Fomoji identity, then continue as the group.</div>
+      </div>
+      <div class="inline-form">
+        <input type="text" id="newGroupName" placeholder="Group name — e.g. Quantum Research Team" autocomplete="off">
+        <button type="button" class="btn btn-primary btn-inline" id="createGroupBtn">Create</button>
+      </div>
+      <div id="createGroupError" class="alert alert-error" style="margin-top:10px;"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div class="panel-title">Your groups</div>
+        <div class="panel-sub">Fomoji Group Authentication Cards — tap one to manage it.</div>
+      </div>
+      <div id="groupList"></div>
+      <div class="empty-state is-hidden" id="groupsEmpty">No groups yet. Create one above.</div>
+    </section>
+
+    <!-- Group detail (hidden until a card is opened) -->
+    <section class="panel is-hidden" id="groupDetail">
+      <div class="panel-head">
+        <div class="panel-title" id="gdTitle">Group</div>
+        <div class="panel-sub">Members, connections, and card appearance.</div>
+      </div>
+
+      <div id="gdMembers"></div>
+
+      <div class="inline-form" id="gdAddMemberForm">
+        <input type="text" id="gdAddFomojiId" placeholder="Add member by Fomoji ID — FJ-XXXXXXXX" autocomplete="off">
+        <button type="button" class="btn btn-ghost btn-inline" id="gdAddMemberBtn">Add</button>
+      </div>
+      <div id="gdMemberError" class="alert alert-error" style="margin-top:10px;"></div>
+
+      <div style="margin-top:18px;">
+        <div class="row-label">Card surface</div>
+        <div class="surface-picker" id="gdSurfacePicker">
+          <span class="surface-swatch" data-surface="smooth">Smooth</span>
+          <span class="surface-swatch" data-surface="matte">Matte</span>
+          <span class="surface-swatch" data-surface="gloss">Gloss</span>
+          <span class="surface-swatch" data-surface="frosted">Frosted</span>
+          <span class="surface-swatch" data-surface="glass">Glass</span>
+          <span class="surface-swatch" data-surface="metallic">Metallic</span>
+          <span class="surface-swatch" data-surface="plastic">Plastic</span>
+          <span class="surface-swatch" data-surface="soft-clay">Soft clay</span>
+          <span class="surface-swatch" data-surface="pixel">Pixel</span>
+          <span class="surface-swatch" data-surface="grid">Grid</span>
+          <span class="surface-swatch" data-surface="technical">Technical</span>
+          <span class="surface-swatch" data-surface="organic">Organic</span>
+          <span class="surface-swatch" data-surface="crystal">Crystal</span>
+        </div>
+      </div>
+
+      <div class="id-card-actions">
+        <button type="button" class="btn btn-primary btn-inline" id="gdContinueBtn">Continue as group</button>
+        <button type="button" class="btn btn-ghost btn-inline" id="gdCloseBtn">Close</button>
+      </div>
+    </section>
+
+  </section>
+
+  <!-- ============================= STUDENT ============================= -->
+  <section class="id-section" id="student-section">
+    <section class="panel">
+      <div class="panel-head">
+        <div class="panel-title">Fomoji Student</div>
+        <div class="panel-sub">Marks your existing identity as a student identity. Institution is optional — Fomoji never requires an institutional email.</div>
+      </div>
+      <div id="studentCardHost"></div>
+      <div id="studentError" class="alert alert-error" style="margin-top:10px;"></div>
+    </section>
+  </section>
+
+  <!-- ============================= TEMPORARY ============================= -->
+  <section class="id-section" id="temp-section">
+    <section class="panel">
+      <div class="panel-head">
+        <div class="panel-title">Temporary identity</div>
+        <div class="panel-sub">No email, no password. Expires automatically. Useful for a quick, low-permission session you can upgrade later.</div>
+      </div>
+      <div id="tempCardHost"></div>
+      <div id="tempError" class="alert alert-error" style="margin-top:10px;"></div>
+    </section>
+  </section>
+
+</div>
+<div class="tabbar-spacer"></div>
+
+<nav class="tabbar" aria-label="Primary">
+  <a class="tab" href="home.html" data-ascii-glyph="[~]" data-emoji-glyph="🏠">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9h12v-9"/></svg>
+    <span class="tab-label">Home</span>
+  </a>
+  <a class="tab" href="connector.html" data-ascii-glyph="[+]" data-emoji-glyph="🔗">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h6"/><path d="M10 8H7a4 4 0 0 0 0 8h3"/><path d="M14 8h3a4 4 0 0 1 0 8h-3"/></svg>
+    <span class="tab-label">Connect</span>
+  </a>
+  <a class="tab is-active" href="identities.html" data-ascii-glyph="[&]" data-emoji-glyph="🧑‍🤝‍🧑">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.6"/><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><path d="M15 15.2c2.4.2 4 1.8 4 3.8"/></svg>
+    <span class="tab-label">Identities</span>
+  </a>
+  <a class="tab" href="settings.html" data-ascii-glyph="[@]" data-emoji-glyph="🙂">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.4"/><path d="M5 20c1.2-3.6 4-5.4 7-5.4s5.8 1.8 7 5.4"/></svg>
+    <span class="tab-label">Me</span>
+  </a>
+</nav>
+
+<script src="js/fomoji-auth.js"></script>
+<script src="js/fomoji-groups.js"></script>
+<script src="js/fomoji-3d.js"></script>
+<script>
+(async () => {
+  const account = await requireSession();
+  if (!account) return;
+
+  document.getElementById('topbarName').textContent = account.username || account.name;
+  document.getElementById('avatarInitial').textContent = (account.name || '?').trim().charAt(0).toUpperCase() || '?';
+
+  if (account.isGuest) {
+    document.querySelectorAll('.panel button').forEach((b) => {});
+  }
+
+  // ---- tab switching ----
+  document.querySelectorAll('.id-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.id-tab').forEach((t) => t.classList.remove('is-active'));
+      document.querySelectorAll('.id-section').forEach((s) => s.classList.remove('is-active'));
+      tab.classList.add('is-active');
+      document.getElementById(tab.dataset.target).classList.add('is-active');
+    });
+  });
+
+  function initials(name) {
+    return (name || '?').trim().charAt(0).toUpperCase() || '?';
+  }
+
+  // ======================= GROUP AUTHENTICATION CARD =======================
+  function renderGroupCard(group) {
+    const el = document.createElement('div');
+    el.className = 'panel id-card card-3d';
+    el.setAttribute('data-fx', 'card-3d');
+    el.setAttribute('data-tilt', 'pointer');
+    el.setAttribute('data-surface', (group.cardStyle && group.cardStyle.surface) || 'smooth');
+    el.style.cursor = 'pointer';
+    el.innerHTML = `
+      <div class="id-card-top">
+        <div class="id-card-avatar card-3d-layer">${initials(group.name)}</div>
+        <div style="flex:1; min-width:0;">
+          <div class="id-card-eyebrow">Fomoji Group</div>
+          <div class="id-card-name">${group.name}</div>
+          <div class="id-card-meta">${group.memberCount} member${group.memberCount === 1 ? '' : 's'} &middot; you're ${group.myRole || 'a member'}</div>
+        </div>
+      </div>
+      <div class="id-card-apps" id="apps-${group.id}"></div>
+    `;
+    el.addEventListener('click', () => openGroupDetail(group.id));
+    return el;
+  }
+
+  async function renderGroups() {
+    const list = document.getElementById('groupList');
+    const empty = document.getElementById('groupsEmpty');
+    list.innerHTML = '';
+    let groups = [];
+    try { groups = await FomojiGroups.listGroups(); } catch { /* not signed in server-side */ }
+    if (!groups.length) { empty.classList.remove('is-hidden'); return; }
+    empty.classList.add('is-hidden');
+    groups.forEach((g) => list.appendChild(renderGroupCard(g)));
+  }
+
+  document.getElementById('createGroupBtn').addEventListener('click', async () => {
+    const input = document.getElementById('newGroupName');
+    const err = document.getElementById('createGroupError');
+    err.classList.remove('is-visible');
+    if (!input.value.trim()) return;
+    try {
+      await FomojiGroups.createGroup(input.value.trim());
+      input.value = '';
+      await renderGroups();
+    } catch (e) {
+      err.textContent = e.message;
+      err.classList.add('is-visible');
+    }
+  });
+
+  let openGroupId = null;
+
+  async function openGroupDetail(id) {
+    openGroupId = id;
+    const { group, members, connections } = await FomojiGroups.getGroup(id);
+    document.getElementById('gdTitle').textContent = group.name;
+    const membersHost = document.getElementById('gdMembers');
+    membersHost.innerHTML = '';
+    members.forEach((m) => {
+      const row = document.createElement('div');
+      row.className = 'member-row';
+      row.innerHTML = `
+        <div class="id-card-avatar" style="width:32px;height:32px;font-size:13px;">${initials(m.name)}</div>
+        <div class="row-main">
+          <div class="row-label">${m.name || m.fomojiId}</div>
+          <div class="row-sub">${m.fomojiId}</div>
+        </div>
+        <span class="role-chip ${m.role === 'owner' ? 'is-owner' : m.role === 'admin' ? 'is-admin' : ''}">${m.role}</span>
+      `;
+      membersHost.appendChild(row);
+    });
+    const appsHost = document.getElementById(`apps-${id}`);
+    if (appsHost) {
+      appsHost.innerHTML = '';
+      connections.forEach((c) => {
+        const chip = document.createElement('span');
+        chip.className = 'id-app-chip';
+        chip.textContent = c.name + ' ✓';
+        appsHost.appendChild(chip);
+      });
+    }
+    const picker = document.getElementById('gdSurfacePicker');
+    picker.querySelectorAll('.surface-swatch').forEach((s) => {
+      s.classList.toggle('is-selected', s.dataset.surface === ((group.cardStyle && group.cardStyle.surface) || 'smooth'));
+    });
+    document.getElementById('groupDetail').classList.remove('is-hidden');
+    document.getElementById('groupDetail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  document.getElementById('gdCloseBtn').addEventListener('click', () => {
+    document.getElementById('groupDetail').classList.add('is-hidden');
+    openGroupId = null;
+  });
+
+  document.getElementById('gdAddMemberBtn').addEventListener('click', async () => {
+    const input = document.getElementById('gdAddFomojiId');
+    const err = document.getElementById('gdMemberError');
+    err.classList.remove('is-visible');
+    if (!openGroupId || !input.value.trim()) return;
+    try {
+      await FomojiGroups.addMember(openGroupId, input.value.trim());
+      input.value = '';
+      await openGroupDetail(openGroupId);
+    } catch (e) {
+      err.textContent = e.message;
+      err.classList.add('is-visible');
+    }
+  });
+
+  document.getElementById('gdSurfacePicker').addEventListener('click', async (e) => {
+    const swatch = e.target.closest('.surface-swatch');
+    if (!swatch || !openGroupId) return;
+    await FomojiGroups.updateGroup(openGroupId, { cardStyle: { surface: swatch.dataset.surface } });
+    await openGroupDetail(openGroupId);
+    await renderGroups();
+  });
+
+  document.getElementById('gdContinueBtn').addEventListener('click', async () => {
+    if (!openGroupId) return;
+    try {
+      await FomojiGroups.continueAsGroup(openGroupId);
+      window.FomojiCompanion?.react('success');
+    } catch (e) {
+      alert(e.message);
+    }
+  });
+
+  // ======================= STUDENT AUTHENTICATION CARD =======================
+  function renderStudentCard(session) {
+    const host = document.getElementById('studentCardHost');
+    host.innerHTML = '';
+    const isStudent = session.identityType === 'STUDENT';
+    const card = document.createElement('div');
+    card.className = 'id-card card-3d';
+    card.setAttribute('data-fx', 'card-3d');
+    card.setAttribute('data-surface', 'frosted');
+    card.innerHTML = `
+      <div class="id-card-top">
+        <div class="id-card-avatar card-3d-layer">${initials(session.name)}</div>
+        <div style="flex:1; min-width:0;">
+          <div class="id-card-eyebrow">Fomoji Student</div>
+          <div class="id-card-name">${session.name || session.fomojiId}</div>
+          <div class="id-card-meta">${isStudent ? (session.institution ? session.institution : 'No institution set') : 'Not a student identity'}</div>
+        </div>
+      </div>
+      ${isStudent ? '' : `
+        <div class="inline-form">
+          <input type="text" id="institutionInput" placeholder="Institution (optional)" autocomplete="off">
+          <button type="button" class="btn btn-primary btn-inline" id="enrollStudentBtn">Continue as student</button>
+        </div>
+      `}
+      ${isStudent ? '<div class="id-card-actions"><button type="button" class="btn btn-ghost btn-inline" id="leaveStudentBtn">Leave student identity</button></div>' : ''}
+    `;
+    host.appendChild(card);
+
+    const enrollBtn = document.getElementById('enrollStudentBtn');
+    if (enrollBtn) {
+      enrollBtn.addEventListener('click', async () => {
+        const err = document.getElementById('studentError');
+        err.classList.remove('is-visible');
+        try {
+          const institution = document.getElementById('institutionInput').value.trim();
+          const user = await FomojiGroups.enrollStudent(institution || undefined);
+          renderStudentCard(user);
+        } catch (e) {
+          err.textContent = e.message;
+          err.classList.add('is-visible');
+        }
+      });
+    }
+    const leaveBtn = document.getElementById('leaveStudentBtn');
+    if (leaveBtn) {
+      leaveBtn.addEventListener('click', async () => {
+        const user = await FomojiGroups.leaveStudent();
+        renderStudentCard(user);
+      });
+    }
+  }
+
+  // ======================= TEMPORARY IDENTITY CARD =======================
+  function renderTempCard(session) {
+    const host = document.getElementById('tempCardHost');
+    host.innerHTML = '';
+    const isTemp = session.identityType === 'TEMPORARY';
+    const card = document.createElement('div');
+    card.className = 'id-card card-3d';
+    card.setAttribute('data-fx', 'card-3d');
+    card.setAttribute('data-surface', 'glass');
+    if (isTemp) {
+      card.innerHTML = `
+        <div class="id-card-eyebrow">Temporary account</div>
+        <div class="id-card-name">${session.name || session.fomojiId}</div>
+        <div class="expiry-note">Expires: ${session.expiresAt ? new Date(session.expiresAt).toLocaleString() : '—'}</div>
+        <div class="id-card-actions">
+          <button type="button" class="btn btn-primary btn-inline" id="upgradeTempBtn">Upgrade account</button>
+        </div>
+        <div class="inline-form is-hidden" id="upgradeForm">
+          <input type="text" id="upgradeUsername" placeholder="Username" autocomplete="off">
+          <input type="password" id="upgradePassword" placeholder="Password (min 8 chars)" autocomplete="new-password">
+          <button type="button" class="btn btn-primary btn-inline" id="submitUpgradeBtn">Create account</button>
+        </div>
+      `;
+      host.appendChild(card);
+      document.getElementById('upgradeTempBtn').addEventListener('click', () => {
+        document.getElementById('upgradeForm').classList.remove('is-hidden');
+      });
+      document.getElementById('submitUpgradeBtn').addEventListener('click', async () => {
+        const err = document.getElementById('tempError');
+        err.classList.remove('is-visible');
+        try {
+          await FomojiAPI.upgradeTemporary({
+            username: document.getElementById('upgradeUsername').value.trim(),
+            password: document.getElementById('upgradePassword').value,
+          });
+          window.location.reload();
+        } catch (e) {
+          err.textContent = e.message || 'Could not upgrade.';
+          err.classList.add('is-visible');
+        }
+      });
+    } else {
+      card.innerHTML = `
+        <div class="id-card-eyebrow">Temporary account</div>
+        <div class="id-card-meta">You're signed in with a permanent identity. A temporary identity is a separate, expiring account — create one from the sign-in screen if you need a quick, low-permission session.</div>
+      `;
+      host.appendChild(card);
+    }
+  }
+
+  await renderGroups();
+  renderStudentCard(account);
+  renderTempCard(account);
+})();
+</script>
+</body>
+</html>

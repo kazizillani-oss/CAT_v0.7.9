@@ -1,27 +1,25 @@
 [build-system]
-requires = ["setuptools>=64"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-# Distribution name. The CLI command stays `cct` regardless.
-# The bare PyPI name "cct" is ALREADY TAKEN (CREDO Control Tool,
-# pypi.org/project/cct) — publishing CCT under it would fail or, worse,
-# collide with an unrelated scientific instrument tool. "cct-ai-ide" is
-# free and is the actual `pip install` command:
-#
-#     pip install cct-ai-ide
-#     cct
-#
-name = "cct-ai-ide"
-version = "0.7.9.0"
-description = "CAT v0.7.9.0 — Coding Agent Terminal / terminal AI coding agent"
+# Mirror of the root pyproject.toml (which is the canonical config).
+# Prefer installing from the repository root (`pip install .` there).
+# Kept in sync so `pip install ./CAT_v0.7.4` also works.
+# Distribution name `cct-cli` (no exact PyPI match, checked 2026-09-21;
+# bare `cat` is TAKEN — dist is `cct-cli`, command is `cat`.
+# (`cat-cli` was rejected at upload by PyPI's similarity check vs `catcli`.)
+name = "cct-cli"
+version = "0.8.b"
+description = "CAT CLI v0.8.b [beta version] — Coding Agent Terminal / terminal AI coding agent"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE*"]
 authors = [
     { name = "Kazi Zillani" }
 ]
-keywords = ["cat", "cct", "ai", "agent", "terminal", "tui", "cli", "coding-agent"]
+keywords = ["cat", "cct-cli", "cct", "ai", "agent", "terminal", "tui", "cli", "coding-agent"]
 classifiers = [
     "Environment :: Console",
     "Intended Audience :: Developers",
@@ -39,7 +37,6 @@ classifiers = [
 ]
 dependencies = [
     "textual[syntax]>=0.60",
-    "platformdirs>=4.4",
     "rich>=13.0",
     "colorama>=0.4.6; sys_platform == 'win32'",
     "requests>=2.31.0",
@@ -52,6 +49,7 @@ web = [
     "fastapi>=0.100.0",
     "uvicorn>=0.20.0",
     "pydantic>=2.0",
+    "python-multipart>=0.0.6",
 ]
 science = [
     "sympy>=1.12",
@@ -62,32 +60,42 @@ science = [
     "prompt_toolkit>=3.0.43",
 ]
 host = [
-    "PySide6>=6.6",  # Qt WebEngine — true embedded browser INSIDE CAT Host window
+    "PySide6>=6.6",
 ]
 browser = [
     "PySide6>=6.6",
-    "pywebview>=4.4",  # lightweight WebView2 fallback (uses Edge WebView2 Runtime)
-    "playwright>=1.40",  # Chromium fallback (already required for Preview, but external)
+    "pywebview>=4.4",
+    "playwright>=1.40",
 ]
 all = [
-    "cct-ai-ide[web,science,browser]",
+    "cct-cli[web,science,browser]",
 ]
 
 [project.urls]
-Homepage = "https://github.com/cct-ai/cat"
-Changelog = "https://github.com/cct-ai/cat/blob/main/CHANGELOG_v0.7.9.md"
+Homepage = "https://github.com/kazizillani-oss/CAT_v0.7.9"
+Repository = "https://github.com/kazizillani-oss/CAT_v0.7.9"
+Issues = "https://github.com/kazizillani-oss/CAT_v0.7.9/issues"
+Changelog = "https://github.com/kazizillani-oss/CAT_v0.7.9/blob/main/CAT_v0.7.4/CHANGELOG_v0.7.9.md"
 
 [project.scripts]
 cat = "calc_terminal.cli:main"
+catx = "calc_terminal.cli:main"
 cct = "calc_terminal.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["calc_terminal*"]
+exclude = ["calc_terminal.tests*"]
 
 # Non-.py resources that MUST ship inside the wheel/sdist: first-run
 # seeding copies these into the user's app-data dir (first_run.py).
-# Without this block a regular `pip install .` silently skips seeding.
 [tool.setuptools.package-data]
+"calc_terminal" = ["cat.ico", "*.ico"]
 "calc_terminal.models" = ["*.json"]
 "calc_terminal.providers" = ["*.json"]
-
+"calc_terminal.web" = [
+    "static/*",
+    "static/**/*",
+    "static/css/*",
+    "static/js/*",
+    "static/icons/*",
+]

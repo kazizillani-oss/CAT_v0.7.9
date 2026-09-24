@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="js/fomoji-theme.js"></script>
+<script src="js/fomoji-animated-bot.js"></script>
+<script src="js/fomoji-components.js"></script>
+<script src="js/fomoji-liquid-glass.js"></script>
+<script src="js/fomoji-fx.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Passkey · Fomoji</title>
+<link rel="stylesheet" href="css/fomoji-tokens.css">
+<link rel="stylesheet" href="css/fomoji.css">
+<link rel="stylesheet" href="css/fomoji-fx.css">
+<link rel="stylesheet" href="css/fomoji-animated-bot.css">
+<link rel="stylesheet" href="css/fomoji-liquid-glass.css">
+<link rel="stylesheet" href="css/fomoji-glow-engine.css">
+<style>
+  .pk-shell{ max-width:420px; margin:0 auto; padding:40px 20px 60px; }
+  .pk-tabs{ display:flex; gap:4px; padding:4px; background:var(--void); border:1px solid var(--line); border-radius:var(--radius-m); margin-bottom:22px; }
+  .pk-tab{ flex:1; padding:9px 0; text-align:center; border-radius:calc(var(--radius-m) - 4px); border:none; background:transparent; color:var(--ink-faint); font-size:13.5px; cursor:pointer; }
+  .pk-tab.is-active{ background:var(--panel); color:var(--ink); }
+  .pk-panel{ display:none; }
+  .pk-panel.is-active{ display:block; }
+  .pk-badge{ display:inline-flex; align-items:center; gap:6px; font-family:var(--f-mono); font-size:10.5px; letter-spacing:0.05em; text-transform:uppercase; color:var(--sage); border:1px solid var(--line); border-radius:999px; padding:4px 10px; margin-bottom:18px; }
+  .pk-fomoji-id{ font-family:var(--f-mono); font-size:14px; letter-spacing:0.04em; background:var(--void); border:1px solid var(--line); border-radius:var(--radius-s); padding:10px 12px; }
+</style>
+</head>
+<body>
+<div class="pk-shell">
+  <div class="hero-brand" style="margin-bottom:22px;"><a href="index.html"><img src="img/fomoji-logo.png" alt="Fomoji" style="height:28px;"></a></div>
+
+  <div class="pk-badge">● Real WebAuthn — not the browser-only demo</div>
+
+  <div class="card">
+    <div class="pk-tabs">
+      <button class="pk-tab is-active" data-tab="signin">Sign in</button>
+      <button class="pk-tab" data-tab="create">Create Fomoji ID</button>
+    </div>
+
+    <div class="alert alert-error" id="pkAlert" role="alert" aria-live="assertive"></div>
+
+    <!-- SIGN IN -->
+    <div class="pk-panel is-active" id="panelSignin">
+      <div class="card-head">
+        <h2 class="card-title">Sign in with your passkey</h2>
+        <p class="card-sub">Your device will show which Fomoji identities it has a passkey for.</p>
+      </div>
+      <button type="button" class="btn btn-primary" id="btnLogin" style="width:100%; justify-content:center;">
+        <span class="spinner"></span>
+        <span class="btn-label">Continue with Passkey</span>
+      </button>
+    </div>
+
+    <!-- CREATE -->
+    <div class="pk-panel" id="panelCreate">
+      <div class="card-head">
+        <h2 class="card-title">Create your Fomoji ID</h2>
+        <p class="card-sub">This registers a real passkey — Face ID, Touch ID, Windows Hello, or a security key.</p>
+      </div>
+      <form id="createForm" novalidate>
+        <div class="field">
+          <label for="pkName">Name</label>
+          <input type="text" id="pkName" placeholder="Your full name" autocomplete="name">
+        </div>
+        <div class="field">
+          <label for="pkUsername">Username</label>
+          <input type="text" id="pkUsername" placeholder="yourname" autocomplete="username" required>
+        </div>
+        <div class="field">
+          <label for="pkEmail">Email <span style="opacity:0.6;">(optional)</span></label>
+          <input type="email" id="pkEmail" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <button type="submit" class="btn btn-primary" id="btnCreate" style="width:100%; justify-content:center; margin-top:6px;">
+          <span class="spinner"></span>
+          <span class="btn-label">Create with Passkey</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- SUCCESS -->
+    <div class="success-view" id="panelSuccess" aria-live="polite" style="display:none;">
+      <div class="success-icon">&#10003;</div>
+      <h2 class="card-title" id="successTitle">You're in.</h2>
+      <p class="card-sub" id="successSub"></p>
+      <div class="pk-fomoji-id" id="successFomojiId"></div>
+      <a href="home.html" class="btn btn-primary" style="margin-top:22px; justify-content:center;">Continue to Fomoji</a>
+    </div>
+
+    <div class="card-foot-links" style="margin-top:20px;">
+      <a href="index.html">Back to sign-in options</a>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/simplewebauthn-browser.min.js"></script>
+<script src="js/fomoji-webauthn.js"></script>
+<script>
+(function () {
+  const tabs = document.querySelectorAll('.pk-tab');
+  const panels = { signin: document.getElementById('panelSignin'), create: document.getElementById('panelCreate') };
+  tabs.forEach((tab) => tab.addEventListener('click', () => {
+    tabs.forEach((t) => t.classList.remove('is-active'));
+    tab.classList.add('is-active');
+    Object.values(panels).forEach((p) => p.classList.remove('is-active'));
+    panels[tab.dataset.tab].classList.add('is-active');
+    hideAlert();
+  }));
+
+  const alertBox = document.getElementById('pkAlert');
+  function showAlert(msg) { alertBox.textContent = msg; alertBox.classList.add('is-visible'); }
+  function hideAlert() { alertBox.classList.remove('is-visible'); alertBox.textContent = ''; }
+
+  function setBusy(btn, busy) {
+    btn.disabled = busy;
+    btn.classList.toggle('is-loading', busy);
+  }
+
+  function showSuccess(user, title) {
+    document.querySelector('.card > .pk-tabs').style.display = 'none';
+    panels.signin.style.display = 'none';
+    panels.create.style.display = 'none';
+    hideAlert();
+    document.getElementById('successTitle').textContent = title;
+    document.getElementById('successSub').textContent = `Signed in as ${user.name || user.username}`;
+    document.getElementById('successFomojiId').textContent = user.fomojiId;
+    document.getElementById('panelSuccess').style.display = 'block';
+  }
+
+  document.getElementById('btnLogin').addEventListener('click', async () => {
+    const btn = document.getElementById('btnLogin');
+    hideAlert();
+    setBusy(btn, true);
+    try {
+      if (!window.PublicKeyCredential) throw new Error('This browser does not support passkeys.');
+      const { user } = await FomojiWebAuthn.login();
+      showSuccess(user, 'Welcome back.');
+    } catch (err) {
+      showAlert(err.message || 'Could not sign in with a passkey.');
+    } finally {
+      setBusy(btn, false);
+    }
+  });
+
+  document.getElementById('createForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('btnCreate');
+    hideAlert();
+    const name = document.getElementById('pkName').value.trim();
+    const username = document.getElementById('pkUsername').value.trim();
+    const email = document.getElementById('pkEmail').value.trim();
+    if (username.length < 3) { showAlert('Choose a username at least 3 characters long.'); return; }
+    setBusy(btn, true);
+    try {
+      if (!window.PublicKeyCredential) throw new Error('This browser does not support passkeys.');
+      const { user } = await FomojiWebAuthn.createIdentity({ name, username, email: email || undefined });
+      showSuccess(user, 'Fomoji ID created.');
+    } catch (err) {
+      showAlert(err.message || 'Could not create a passkey.');
+    } finally {
+      setBusy(btn, false);
+    }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="js/fomoji-theme.js"></script>
+<script src="js/fomoji-animated-bot.js"></script>
+<script src="js/fomoji-components.js"></script>
+<script src="js/fomoji-liquid-glass.js"></script>
+<script src="js/fomoji-fx.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Provider Config &middot; Fomoji</title>
+<link rel="stylesheet" href="css/fomoji-tokens.css">
+<link rel="stylesheet" href="css/fomoji.css">
+<link rel="stylesheet" href="css/fomoji-fx.css">
+<link rel="stylesheet" href="css/fomoji-animated-bot.css">
+<link rel="stylesheet" href="css/fomoji-liquid-glass.css">
+<link rel="stylesheet" href="css/fomoji-glow-engine.css">
+<style>
+  .cfg-shell{ max-width:640px; margin:0 auto; padding:28px 20px 60px; position:relative; z-index:1; }
+  .cfg-head{ margin-bottom:20px; }
+  .cfg-title{ font-size:clamp(20px,3.4vw,26px); font-weight:600; }
+  .cfg-sub{ margin-top:8px; font-size:13.5px; color:var(--ink-dim); line-height:1.6; }
+  .cfg-card{ border:1px solid var(--line); border-radius:var(--radius-m); background:var(--panel); padding:18px; margin-bottom:14px; }
+  .cfg-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
+  .cfg-name{ font-weight:600; font-size:15px; }
+  .cfg-badge{
+    font-family:var(--f-mono); font-size:10px; letter-spacing:0.06em; text-transform:uppercase;
+    padding:3px 9px; border-radius:999px; white-space:nowrap;
+  }
+  .cfg-badge.is-env{ background:rgba(154,160,133,0.16); color:var(--sage); }
+  .cfg-badge.is-registry{ background:rgba(154,160,133,0.16); color:var(--sage); }
+  .cfg-badge.is-none{ background:var(--panel-2); color:var(--ink-faint); border:1px solid var(--line); }
+  .cfg-redirect{ font-family:var(--f-mono); font-size:11.5px; color:var(--ink-faint); background:var(--void); border:1px solid var(--line); border-radius:var(--radius-s); padding:8px 10px; margin-bottom:12px; word-break:break-all; }
+  .cfg-env-note{ font-size:12.5px; color:var(--ink-faint); line-height:1.5; }
+  .cfg-actions{ display:flex; gap:8px; margin-top:12px; }
+  .cfg-actions .btn{ flex:1; justify-content:center; }
+  .cfg-status{ font-size:12.5px; margin-top:8px; display:none; }
+  .cfg-status.is-visible{ display:block; }
+  .cfg-status.is-ok{ color:var(--sage); }
+  .cfg-status.is-error{ color:#e08a7d; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a href="home.html"><img src="img/fomoji-logo.png" alt="Fomoji"></a>
+  <div class="topbar-user">
+    <span id="topbarName">—</span>
+    <div class="avatar" id="avatarInitial">·</div>
+  </div>
+</header>
+
+<div class="cfg-shell">
+  <div class="cfg-head">
+    <h1 class="cfg-title">Provider Config Registry</h1>
+    <p class="cfg-sub">
+      Client ID/Secret for each identity provider. Enter yours here from your phone instead of
+      hand-editing <code>.env</code>. An env var on the server always wins over what's saved here —
+      that's so a real deployment's configuration can never be silently overridden.
+    </p>
+  </div>
+
+  <div class="alert alert-error" id="cfgLoadError" role="alert" style="display:none;"></div>
+
+  <div id="cfgList"></div>
+</div>
+
+<script>
+(function () {
+  const list = document.getElementById('cfgList');
+  const loadError = document.getElementById('cfgLoadError');
+
+  function providerCard(p) {
+    const wrap = document.createElement('div');
+    wrap.className = 'cfg-card';
+
+    const badgeClass = p.source === 'none' ? 'is-none' : (p.source === 'env' ? 'is-env' : 'is-registry');
+    const badgeLabel = p.source === 'env' ? 'Set via .env' : (p.source === 'registry' ? 'Set here' : 'Not configured');
+
+    wrap.innerHTML = `
+      <div class="cfg-row">
+        <span class="cfg-name">${p.label}</span>
+        <span class="cfg-badge ${badgeClass}">${badgeLabel}</span>
+      </div>
+      <div class="cfg-redirect">Redirect URI: ${p.redirectUri}</div>
+    `;
+
+    if (!p.editable) {
+      const note = document.createElement('div');
+      note.className = 'cfg-env-note';
+      note.textContent = 'Managed by GOOGLE/APPLE/MICROSOFT/GITHUB/FACEBOOK_CLIENT_ID/SECRET in .env on the server. Remove those env vars to edit it here instead.';
+      wrap.appendChild(note);
+      list.appendChild(wrap);
+      return;
+    }
+
+    const form = document.createElement('form');
+    form.innerHTML = `
+      <div class="field">
+        <label>Client ID</label>
+        <input type="text" class="cfg-clientid" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" value="${p.clientId ? p.clientId.replace(/"/g, '&quot;') : ''}" placeholder="Client ID">
+      </div>
+      <div class="field">
+        <label>Client Secret ${p.secretSet ? '<span style="opacity:0.6;">(already set — leave blank to keep it)</span>' : ''}</label>
+        <input type="password" class="cfg-clientsecret" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="${p.secretSet ? '••••••••' : 'Client Secret'}">
+      </div>
+      <div class="cfg-actions">
+        <button type="submit" class="btn btn-primary">Save</button>
+        ${p.secretSet ? '<button type="button" class="btn btn-ghost cfg-clear">Clear</button>' : ''}
+      </div>
+      <div class="cfg-status"></div>
+    `;
+
+    const status = form.querySelector('.cfg-status');
+    function showStatus(msg, ok) {
+      status.textContent = msg;
+      status.className = 'cfg-status is-visible ' + (ok ? 'is-ok' : 'is-error');
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const clientId = form.querySelector('.cfg-clientid').value.trim();
+      const clientSecretInput = form.querySelector('.cfg-clientsecret').value.trim();
+      if (!clientId) return showStatus('Client ID is required.', false);
+      if (!clientSecretInput && !p.secretSet) return showStatus('Client Secret is required.', false);
+      if (!clientSecretInput && p.secretSet) return showStatus('Nothing changed — Client ID only edits are not supported without re-entering the secret (it is never sent back to the browser).', false);
+
+      try {
+        const res = await fetch(`/api/admin/oauth-config/${p.key}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ clientId, clientSecret: clientSecretInput }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Could not save.');
+        showStatus('Saved.', true);
+        loadProviders();
+      } catch (err) {
+        showStatus(err.message, false);
+      }
+    });
+
+    const clearBtn = form.querySelector('.cfg-clear');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', async () => {
+        try {
+          const res = await fetch(`/api/admin/oauth-config/${p.key}`, { method: 'DELETE', credentials: 'same-origin' });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.message || 'Could not clear.');
+          loadProviders();
+        } catch (err) {
+          showStatus(err.message, false);
+        }
+      });
+    }
+
+    wrap.appendChild(form);
+    list.appendChild(wrap);
+  }
+
+  async function loadProviders() {
+    list.innerHTML = '';
+    loadError.style.display = 'none';
+    try {
+      const res = await fetch('/api/admin/oauth-config', { credentials: 'same-origin' });
+      if (res.status === 401) {
+        loadError.textContent = 'Sign in to view or edit provider configuration.';
+        loadError.style.display = 'block';
+        return;
+      }
+      const data = await res.json();
+      data.providers.forEach(providerCard);
+    } catch (err) {
+      loadError.textContent = 'Could not load provider configuration.';
+      loadError.style.display = 'block';
+    }
+  }
+
+  loadProviders();
+})();
+</script>
+</body>
+</html>

@@ -56,9 +56,13 @@ if TEXTUAL_AVAILABLE:
             self._started = time.time()
             self._chunk_count = 0
             self._running = False
+            self._interval = None
 
         def on_mount(self):
             self._redraw()
+
+        def on_unmount(self):
+            self.stop()
 
         def start(self, stage=None):
             self._started = time.time()
@@ -68,14 +72,24 @@ if TEXTUAL_AVAILABLE:
                 self._stage = stage
             self._running = True
             self._redraw()
+            # Never stack a second 8Hz ticker on repeated start():
+            # stop the previous interval first (mirrors cat_agent's
+            # duplicate guard).
+            try:
+                if self._interval is not None:
+                    self._interval.stop()
+            except Exception:
+                pass
             self._interval = self.set_interval(1 / 8, self._on_tick)
 
         def stop(self):
             self._running = False
             try:
-                self._interval.stop()
+                if self._interval is not None:
+                    self._interval.stop()
             except Exception:
                 pass
+            self._interval = None
 
         def note_chunk(self):
             """Call once per streamed chunk so elapsed-time-based stage

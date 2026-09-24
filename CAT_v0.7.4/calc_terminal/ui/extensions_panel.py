@@ -556,11 +556,25 @@ if TEXTUAL_AVAILABLE:
                 self.query_one("#ext-search-input", Input).focus()
             except Exception:
                 pass
-            # start spinner tick for install animations
+            # start spinner tick for install animations (tracked so
+            # re-opening the panel cannot stack orphaned tickers).
             try:
-                self.set_interval(0.12, self._tick_spinner)
+                from . import design_system
+                design_system.stop_timer(getattr(self, "_spin_timer", None))
+                self._spin_timer = self.set_interval(0.12, self._tick_spinner)
+            except Exception:
+                try:
+                    self._spin_timer = self.set_interval(0.12, self._tick_spinner)
+                except Exception:
+                    self._spin_timer = None
+
+        def on_unmount(self):
+            try:
+                from . import design_system
+                design_system.stop_timer(getattr(self, "_spin_timer", None))
             except Exception:
                 pass
+            self._spin_timer = None
 
         def _filtered(self):
             try:

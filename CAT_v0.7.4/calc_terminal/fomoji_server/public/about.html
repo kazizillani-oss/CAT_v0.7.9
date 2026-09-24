@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="js/fomoji-theme.js"></script>
+<script src="js/fomoji-animated-bot.js"></script>
+<script src="js/fomoji-components.js"></script>
+<script src="js/fomoji-liquid-glass.js"></script>
+<script src="js/fomoji-fx.js"></script>
+<script src="js/fomoji-commands.js"></script>
+<script src="js/fomoji-tabbar.js"></script>
+<script src="js/fomoji-signout.js"></script>
+<script src="js/fomoji-gestures.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>About · Fomoji</title>
+<link rel="stylesheet" href="css/fomoji-tokens.css">
+<link rel="stylesheet" href="css/fomoji.css">
+<link rel="stylesheet" href="css/fomoji-fx.css">
+<link rel="stylesheet" href="css/fomoji-animated-bot.css">
+<link rel="stylesheet" href="css/fomoji-liquid-glass.css">
+<link rel="stylesheet" href="css/fomoji-glow-engine.css">
+<link rel="stylesheet" href="css/fomoji-signout.css">
+<style>
+  .about{ position:relative; z-index:1; max-width:680px; margin:0 auto; padding:28px 20px 0; }
+  @media (min-width:820px){ .about{ padding:44px 40px 0; } }
+
+  .about-head{ margin-bottom:30px; }
+  .about-eyebrow{
+    font-family:var(--f-mono); font-size:11px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--putty); display:block; margin-bottom:10px;
+  }
+  .about-title{ font-size:clamp(24px,4vw,32px); font-weight:600; line-height:1.15; }
+  .about-title em{
+    font-style:normal;
+    background:linear-gradient(100deg, var(--putty), var(--sage) 60%, var(--gold));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+
+  .about-section{ margin-bottom:34px; }
+  .about-section h2{ font-size:16px; font-weight:600; color:var(--ink); margin-bottom:10px; }
+  .about-section p{ font-size:14px; line-height:1.7; color:var(--ink-dim); }
+  .about-section p + p{ margin-top:10px; }
+
+  .flow{
+    display:flex; flex-direction:column; gap:0;
+    margin-top:16px;
+    border:1px solid var(--line); border-radius:var(--radius-m); overflow:hidden;
+  }
+  .flow-step{
+    display:flex; align-items:center; gap:12px;
+    padding:13px 16px;
+    background:rgba(20,21,15,0.5);
+    backdrop-filter:blur(14px) saturate(140%); -webkit-backdrop-filter:blur(14px) saturate(140%);
+    border-top:1px solid var(--line-soft);
+    font-size:13.5px; color:var(--ink);
+    transition:background .2s ease;
+  }
+  .flow-step:hover{ background:rgba(25,27,19,0.75); }
+  .flow-step:first-child{ border-top:none; }
+  .flow-dot{
+    width:8px; height:8px; border-radius:50%; flex:none;
+    background:var(--sage);
+  }
+
+  .mode-cards{ display:grid; gap:12px; grid-template-columns:1fr; margin-top:16px; }
+  @media (min-width:640px){ .mode-cards{ grid-template-columns:repeat(3,1fr); } }
+  .mode-card{
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.012)),
+      rgba(20,21,15,0.5);
+    backdrop-filter:blur(16px) saturate(150%); -webkit-backdrop-filter:blur(16px) saturate(150%);
+    border:1px solid rgba(239,236,224,0.09); border-radius:var(--radius-m);
+    padding:16px;
+    box-shadow:0 8px 20px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.04);
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .mode-card:hover{ transform:translateY(-2px); box-shadow:0 12px 28px rgba(0,0,0,0.3), 0 0 16px rgba(154,160,133,0.15), inset 0 1px 0 rgba(255,255,255,0.05); }
+  @media (prefers-reduced-motion:reduce){ .mode-card{ transition:none; } .mode-card:hover{ transform:none; } }
+  .mode-card-title{ font-size:13.5px; font-weight:600; color:var(--ink); margin-bottom:6px; }
+  .mode-card-sub{ font-size:12px; color:var(--ink-faint); line-height:1.5; }
+  .mode-card .pill{ margin-top:10px; display:inline-block; }
+
+  .about-footer{
+    margin-top:8px; padding:20px 0 40px;
+    border-top:1px solid var(--line-soft);
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .about-footer-row{ display:flex; justify-content:space-between; align-items:center; font-size:13px; }
+  .about-footer-row span{ color:var(--ink-faint); }
+  .about-footer-row a, .about-footer-row strong{ color:var(--ink); font-weight:500; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a href="home.html"><img src="img/fomoji-logo.png" alt="Fomoji"></a>
+  <div class="topbar-user">
+    <span id="topbarName">—</span>
+    <div class="avatar" id="avatarInitial">·</div>
+  </div>
+</header>
+
+<main class="about" style="position:relative; overflow:hidden;">
+  <div class="parallax-el" data-speed="0.12" aria-hidden="true" style="position:absolute; top:-40px; right:-60px; width:260px; height:260px; border-radius:50%; background:radial-gradient(circle, rgba(154,160,133,0.16), transparent 70%); filter:blur(10px); pointer-events:none; z-index:0;"></div>
+  <div class="about-head" style="position:relative; z-index:1;">
+    <span class="about-eyebrow">About</span>
+    <h1 class="about-title">One identity.<br>A <em>connected</em> ecosystem.</h1>
+  </div>
+
+  <div class="about-section reveal-on-scroll">
+    <h2>Why Fomoji</h2>
+    <p>Most software makes you create a separate account for every tool. Fomoji is built to make that unnecessary — one identity, created once, usable everywhere it's supported.</p>
+  </div>
+
+  <div class="about-section reveal-on-scroll">
+    <h2>Built for connected software</h2>
+    <p>Fomoji sits underneath the ecosystem, not inside any one app in it.</p>
+    <div class="flow">
+      <div class="flow-step"><span class="flow-dot"></span>Fomoji — your identity</div>
+      <div class="flow-step"><span class="flow-dot"></span>Authentication — proves it's really you</div>
+      <div class="flow-step"><span class="flow-dot"></span>Connected applications — apps you've authorized</div>
+      <div class="flow-step"><span class="flow-dot"></span>CAT, and whatever joins the ecosystem after it</div>
+    </div>
+  </div>
+
+  <div class="about-section reveal-on-scroll">
+    <h2>Choose how your AI connects</h2>
+    <p>CAT will support three ways of connecting to AI — none of them built into this identity layer yet, so nothing below is switched on. CAT's own model-switching already works today, independent of Fomoji — see the <a href="help.html">Help &amp; Manual</a>.</p>
+    <div class="mode-cards">
+      <div class="mode-card">
+        <div class="mode-card-title">API Mode</div>
+        <div class="mode-card-sub">109+ providers through CAT's existing model.py architecture.</div>
+        <span class="pill pill-off">Not yet built</span>
+      </div>
+      <div class="mode-card">
+        <div class="mode-card-title">Ollama / Cloud</div>
+        <div class="mode-card-sub">Local models, or Ollama Cloud when you want more reach.</div>
+        <span class="pill pill-off">Not yet built</span>
+      </div>
+      <div class="mode-card">
+        <div class="mode-card-title">Free AI</div>
+        <div class="mode-card-sub">Supported free providers, with their own limits and policies.</div>
+        <span class="pill pill-off">Not yet built</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="about-section reveal-on-scroll">
+    <h2>Privacy should be understandable</h2>
+    <p>Different AI providers handle your data differently. Once AI connection modes exist, Fomoji's job is to make those differences visible instead of hiding them behind one blanket privacy promise.</p>
+  </div>
+
+  <div class="about-section reveal-on-scroll">
+    <h2>Our direction</h2>
+    <p>Fomoji is being built as a simple connection layer for an ecosystem of software, AI tools, and developer experiences — create once, connect easily, choose how your AI works.</p>
+  </div>
+
+  <div class="about-footer reveal-on-scroll">
+    <div class="about-footer-row"><span>Version</span><strong>Fomoji v2 · auth foundation</strong></div>
+    <div class="about-footer-row"><span>Manual</span><a href="manual.html">View</a></div>
+    <div class="about-footer-row"><span>CAT Manual</span><a href="cat-manual.html">View</a></div>
+    <div class="about-footer-row"><span>Security</span><a href="security.html">View</a></div>
+    <div class="about-footer-row"><span>Terms of Use</span><a href="terms.html">View</a></div>
+    <div class="about-footer-row"><span>Privacy Policy</span><a href="privacy.html">View</a></div>
+    <div class="about-footer-row"><span>Creator</span><strong>Kazi Zillani</strong></div>
+  </div>
+
+  <div class="tabbar-spacer"></div>
+</main>
+
+<nav class="tabbar" aria-label="Primary">
+  <a class="tab" href="home.html" data-ascii-glyph="[~]" data-emoji-glyph="🏠">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9h12v-9"/></svg>
+    <span class="tab-label">Home</span>
+  </a>
+  <a class="tab is-active" href="settings.html" aria-current="page" data-ascii-glyph="[@]" data-emoji-glyph="🙂">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.4"/><path d="M5 20c1.2-3.6 4-5.4 7-5.4s5.8 1.8 7 5.4"/></svg>
+    <span class="tab-label">Me</span>
+  </a>
+</nav>
+
+<script src="js/fomoji-auth.js"></script>
+<script>
+(async () => {
+  const account = await requireSession();
+  if (!account) return;
+
+  document.getElementById('topbarName').textContent = account.username;
+  document.getElementById('avatarInitial').textContent = account.name.trim().charAt(0).toUpperCase() || '?';
+})();
+</script>
+</body>
+</html>

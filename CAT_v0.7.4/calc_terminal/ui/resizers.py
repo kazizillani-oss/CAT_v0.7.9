@@ -255,8 +255,9 @@ if TEXTUAL_AVAILABLE:
                 available = max(20, main.region.height)
             except Exception:
                 available = 20
-            max_h = min(14, max(COMPOSER_MIN_HEIGHT + 4, int(available * COMPOSER_MAX_FRACTION)))
-            return COMPOSER_MIN_HEIGHT, max_h
+            # Leave at least 10 rows for chat column / dashboard
+            max_h = min(14, max(COMPOSER_MIN_HEIGHT + 2, min(int(available * COMPOSER_MAX_FRACTION), available - 10)))
+            return COMPOSER_MIN_HEIGHT, max(COMPOSER_MIN_HEIGHT, max_h)
 
         def _apply(self, event):
             from .composer import StickyComposer
@@ -283,6 +284,16 @@ if TEXTUAL_AVAILABLE:
             else:
                 target = max(lo, min(hi, target))
                 composer.set_explicit_height(target)
+            try:
+                self._shell._do_resize_layout()
+            except Exception:
+                pass
+            try:
+                conv = self._shell.query_one("#cct-conversation")
+                if conv and getattr(conv, "_dashboard", None):
+                    conv._dashboard.on_resize()
+            except Exception:
+                pass
 
         def _persist(self):
             from .composer import StickyComposer

@@ -10,11 +10,12 @@ const assert = require('assert');
 const path = require('path');
 const vscode = require('vscode');
 
-const EXT_ID = 'kazizillani.cat-cli';
-const OPEN = 'kazizillani.cat-cli.open';
-const NEW_TERM = 'kazizillani.cat-cli.newTerminal';
-const REINSTALL = 'kazizillani.cat-cli.reinstall';
-const COMMANDS = [OPEN, NEW_TERM, REINSTALL];
+const EXT_ID = 'KaziZillani.cat-cli';
+const OPEN = 'kazizillani.cat.open';
+const RESTART = 'kazizillani.cat.restart';
+const CLOSE = 'kazizillani.cat.close';
+const CHECK = 'kazizillani.cat.checkInstallation';
+const COMMANDS = [OPEN, RESTART, CLOSE, CHECK];
 
 /** True when the real CAT CLI (or the module) is importable/launchable here. */
 let catAvailable = false;
@@ -74,38 +75,29 @@ suite('CAT CLI extension (integration)', () => {
 		}
 	});
 
-	test('3. contributes the CAT activity bar container + tree view', () => {
-		const pkg = vscode.extensions.getExtension(EXT_ID).packageJSON;
-		const container = pkg.contributes.viewsContainers.activitybar.find((c) => c.id === 'cat');
-		assert.ok(container, 'activitybar container "cat" missing');
-		assert.strictEqual(container.title, 'CAT');
-		const view = pkg.contributes.views.cat.find((v) => v.id === 'cat.launcher');
-		assert.ok(view, 'view "cat.launcher" missing');
-		assert.strictEqual(view.type, 'tree');
-	});
-
-	test('4. commands have correct titles for the palette', () => {
+	test('3. commands have correct titles for the palette', () => {
 		const pkg = vscode.extensions.getExtension(EXT_ID).packageJSON;
 		const titles = Object.fromEntries(pkg.contributes.commands.map((c) => [c.command, c.title]));
-		assert.strictEqual(titles[OPEN], 'CAT: Open CAT CLI');
-		assert.strictEqual(titles[NEW_TERM], 'CAT: New Terminal');
-		assert.strictEqual(titles[REINSTALL], 'CAT: Reinstall / Setup');
+		assert.strictEqual(titles[OPEN], 'CAT: Open');
+		assert.strictEqual(titles[RESTART], 'CAT: Restart');
+		assert.strictEqual(titles[CLOSE], 'CAT: Close');
+		assert.strictEqual(titles[CHECK], 'CAT: Check Installation');
 	});
 
-	test('5. keybinding is declared (no-conflict combo)', () => {
+	test('4. keybinding is declared (no-conflict combo)', () => {
 		const pkg = vscode.extensions.getExtension(EXT_ID).packageJSON;
 		const kb = (pkg.contributes.keybindings || []).find((k) => k.command === OPEN);
 		assert.ok(kb, 'keybinding for open missing');
 		assert.strictEqual(kb.key, 'ctrl+alt+c');
 	});
 
-	test('6. exposes the cat.cli.* configuration surface', () => {
-		const cfg = vscode.workspace.getConfiguration('cat.cli');
-		assert.strictEqual(cfg.get('command'), 'cat');
+	test('5. exposes the cat.* configuration surface', () => {
+		const cfg = vscode.workspace.getConfiguration('cat');
+		assert.strictEqual(cfg.get('executable'), 'cat');
 		assert.strictEqual(cfg.get('autoDetectPython'), true);
 		assert.strictEqual(cfg.get('reuseTerminal'), true);
-		assert.strictEqual(cfg.get('terminalName'), 'CAT CLI');
 	});
+
 
 
 	test('7. open command creates a CAT terminal at the workspace cwd', async function () {
@@ -182,7 +174,7 @@ suite('CAT CLI extension (integration)', () => {
 	// headless test runner would block until a human clicks it.
 	test('10. missing-CAT notification offers safe actions (message contract)', async () => {
 		const { CAT_MISSING_MESSAGE } = require('../catLauncher');
-		assert.strictEqual(CAT_MISSING_MESSAGE, 'CAT CLI is not installed or could not be detected.');
+		assert.strictEqual(CAT_MISSING_MESSAGE, 'CAT — Coding Agent Terminal is not installed or could not be detected.');
 		const { CatTerminalManager } = require('../catTerminal');
 		assert.strictEqual(typeof CatTerminalManager.prototype.handleMissingPython, 'function');
 		assert.strictEqual(typeof CatTerminalManager.prototype.notifyError, 'function');

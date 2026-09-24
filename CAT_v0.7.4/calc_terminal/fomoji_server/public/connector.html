@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="js/fomoji-theme.js"></script>
+<script src="js/fomoji-animated-bot.js"></script>
+<script src="js/fomoji-components.js"></script>
+<script src="js/fomoji-liquid-glass.js"></script>
+<script src="js/fomoji-fx.js"></script>
+<script src="js/fomoji-commands.js"></script>
+<script src="js/fomoji-tabbar.js"></script>
+<script src="js/fomoji-signout.js"></script>
+<script src="js/fomoji-gestures.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Connections · Fomoji</title>
+<link rel="stylesheet" href="css/fomoji-tokens.css">
+<link rel="stylesheet" href="css/fomoji.css">
+<link rel="stylesheet" href="css/fomoji-fx.css">
+<link rel="stylesheet" href="css/fomoji-animated-bot.css">
+<link rel="stylesheet" href="css/fomoji-liquid-glass.css">
+<link rel="stylesheet" href="css/fomoji-glow-engine.css">
+<link rel="stylesheet" href="css/fomoji-signout.css">
+<link rel="stylesheet" href="css/fomoji-3d.css">
+<style>
+  .doc{ position:relative; z-index:1; max-width:680px; margin:0 auto; padding:28px 20px 0; }
+  @media (min-width:820px){ .doc{ padding:44px 40px 0; } }
+  .doc-head{ margin-bottom:22px; }
+  .doc-eyebrow{
+    font-family:var(--f-mono); font-size:11px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--putty); display:block; margin-bottom:10px;
+  }
+  .doc-title{ font-size:clamp(22px,3.6vw,30px); font-weight:600; }
+  .doc-sub{ margin-top:8px; font-size:13.5px; color:var(--ink-dim); line-height:1.6; max-width:520px; }
+
+  .conn-app-icon{
+    width:38px; height:38px; border-radius:var(--radius-s); flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--panel-2); border:1px solid var(--line);
+    font-family:var(--f-mono); font-size:11px; text-transform:uppercase; color:var(--sage);
+  }
+  .conn-row{ display:flex; align-items:center; gap:12px; }
+  .conn-row .row-main{ flex:1; min-width:0; }
+  .conn-perms{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+  .conn-perm-chip{
+    font-family:var(--f-mono); font-size:10px; letter-spacing:0.04em; text-transform:uppercase;
+    padding:2px 7px; border-radius:999px; border:1px solid var(--line); color:var(--ink-faint);
+  }
+
+  .code-entry{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .code-entry input{
+    flex:1; min-width:160px; font-family:var(--f-mono); letter-spacing:0.08em; text-transform:uppercase;
+    background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius-s);
+    padding:10px 12px; color:var(--ink); font-size:14px;
+  }
+  .code-entry input:focus{ outline:none; border-color:var(--sage-deep); }
+
+  .pending-card{
+    border:1px solid var(--line); border-radius:var(--radius-m); padding:16px;
+    background:var(--panel); margin-top:14px;
+  }
+  .pending-card .pc-app{ font-weight:600; font-size:15px; }
+  .pending-card .pc-sub{ font-size:12.5px; color:var(--ink-dim); margin-top:2px; }
+  .pending-card .pc-actions{ display:flex; gap:10px; margin-top:14px; }
+
+  .empty-state{ text-align:center; padding:30px 14px; color:var(--ink-faint); font-size:13px; }
+
+  .doc .panel + .panel{ margin-top:16px; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a href="home.html"><img src="img/fomoji-logo.png" alt="Fomoji"></a>
+  <div class="topbar-user">
+    <span id="topbarName">—</span>
+    <div class="avatar" id="avatarInitial">·</div>
+  </div>
+</header>
+
+<div class="doc">
+
+  <div class="doc-head">
+    <span class="doc-eyebrow">Fomoji &middot; Connector</span>
+    <div class="doc-title">Connections</div>
+    <div class="doc-sub">Applications connected to your Fomoji identity. Approving a connection never shares your password or passkey &mdash; only your Fomoji ID and the specific permissions you approve.</div>
+  </div>
+
+  <!-- ENTER A CODE (device-flow approval, e.g. from connector.py / CAT) -->
+  <section class="panel card-3d" data-fx="card-3d" data-surface="glass" id="enter-code">
+    <div class="panel-head">
+      <div class="panel-title">Connect from another app</div>
+      <div class="panel-sub">If CAT or another project showed you a code, enter it here.</div>
+    </div>
+    <div class="row">
+      <div class="code-entry">
+        <input type="text" id="userCodeInput" placeholder="XXXX-XXXX" autocomplete="off" autocapitalize="characters" maxlength="9">
+        <button type="button" class="btn btn-primary btn-inline" id="lookupCodeBtn">Look up</button>
+        <button type="button" class="code-copy-btn" id="copyCodeBtn" title="Copy code" style="display:none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          Copy
+        </button>
+      </div>
+    </div>
+    <div id="codeError" class="alert alert-error" style="margin-top:10px;"></div>
+    <div class="pending-card is-hidden" id="pendingCard">
+      <div class="pc-app" id="pcAppName">—</div>
+      <div class="pc-sub" id="pcAppDesc">—</div>
+      <div class="conn-perms" id="pcPerms"></div>
+      <div class="pc-actions">
+        <button type="button" class="btn btn-primary btn-inline" id="pcApproveBtn">Approve</button>
+        <button type="button" class="btn btn-ghost btn-inline" id="pcDenyBtn">Deny</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONNECTED APPLICATIONS -->
+  <section class="panel card-3d" data-fx="card-3d" data-surface="frosted" id="connections">
+    <div class="panel-head">
+      <div class="panel-title">Connected applications</div>
+      <div class="panel-sub">What's currently connected, and its permissions.</div>
+    </div>
+    <div id="connList"></div>
+    <div class="empty-state is-hidden" id="connEmpty">Nothing connected yet.</div>
+  </section>
+
+  <!-- AVAILABLE APPLICATIONS -->
+  <section class="panel card-3d" data-fx="card-3d" data-surface="smooth" id="available">
+    <div class="panel-head">
+      <div class="panel-title">Available to connect</div>
+      <div class="panel-sub">Registered Fomoji-enabled applications.</div>
+    </div>
+    <div id="appList"></div>
+  </section>
+
+</div>
+<div class="tabbar-spacer"></div>
+
+<nav class="tabbar" aria-label="Primary">
+  <a class="tab" href="home.html" data-ascii-glyph="[~]" data-emoji-glyph="🏠">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9h12v-9"/></svg>
+    <span class="tab-label">Home</span>
+  </a>
+  <a class="tab is-active" href="connector.html" data-ascii-glyph="[+]" data-emoji-glyph="🔗">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h6"/><path d="M10 8H7a4 4 0 0 0 0 8h3"/><path d="M14 8h3a4 4 0 0 1 0 8h-3"/></svg>
+    <span class="tab-label">Connect</span>
+  </a>
+  <a class="tab" href="settings.html" data-ascii-glyph="[@]" data-emoji-glyph="🙂">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.4"/><path d="M5 20c1.2-3.6 4-5.4 7-5.4s5.8 1.8 7 5.4"/></svg>
+    <span class="tab-label">Me</span>
+  </a>
+</nav>
+
+<script src="js/fomoji-auth.js"></script>
+<script src="js/connector.js"></script>
+<script src="js/fomoji-3d.js"></script>
+<script>
+/* ---- toast notification system ---- */
+function showToast(message, type) {
+  type = type || 'info';
+  var container = document.querySelector('.toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.className = 'toast-container';
+    document.body.appendChild(container);
+  }
+  var toast = document.createElement('div');
+  toast.className = 'toast toast-' + type;
+  var iconText = type === 'success' ? '\u2713' : '\u2139';
+  toast.innerHTML = '<span class="toast-icon">' + iconText + '</span><span>' + message + '</span>';
+  container.appendChild(toast);
+  setTimeout(function () {
+    toast.classList.add('toast-out');
+    setTimeout(function () { toast.remove(); }, 250);
+  }, 2800);
+}
+
+function copyToClipboard(text, label) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function () {
+      showToast((label || 'Code') + ' copied to clipboard', 'success');
+    }).catch(function () {
+      fallbackCopy(text, label);
+    });
+  } else {
+    fallbackCopy(text, label);
+  }
+}
+
+function fallbackCopy(text, label) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    showToast((label || 'Code') + ' copied to clipboard', 'success');
+  } catch (e) {
+    showToast('Copy failed — try manually', 'info');
+  }
+  ta.remove();
+}
+</script>
+<script>
+(async () => {
+  const account = await requireSession();
+  if (!account) return;
+
+  document.getElementById('topbarName').textContent = account.username || account.name;
+  document.getElementById('avatarInitial').textContent = (account.name || '?').trim().charAt(0).toUpperCase() || '?';
+
+  const PERM_LABELS = {
+    IDENTITY: 'Identity', PROFILE: 'Profile', GROUP: 'Group', PROJECT: 'Project access',
+    FILES: 'Files', CAT_ACCESS: 'CAT access', AI_PROVIDER: 'AI provider', WORKSPACE: 'Workspace',
+  };
+
+  function permChip(p) {
+    const span = document.createElement('span');
+    span.className = 'conn-perm-chip';
+    span.textContent = PERM_LABELS[p] || p;
+    return span;
+  }
+
+  // ---- connected applications ----
+  async function renderConnections() {
+    const list = document.getElementById('connList');
+    const empty = document.getElementById('connEmpty');
+    list.innerHTML = '';
+    let connections = [];
+    try { connections = await FomojiConnector.listConnections(); } catch { /* not signed in server-side (guest) */ }
+
+    if (!connections.length) {
+      empty.classList.remove('is-hidden');
+      return;
+    }
+    empty.classList.add('is-hidden');
+
+    for (const c of connections) {
+      const row = document.createElement('div');
+      row.className = 'row conn-row';
+      row.innerHTML = `
+        <div class="conn-app-icon">${(c.applicationName || c.applicationId).charAt(0)}</div>
+        <div class="row-main">
+          <div class="row-label">${c.applicationName}</div>
+          <div class="row-sub">Connected ${new Date(c.createdAt).toLocaleDateString()}</div>
+          <div class="conn-perms"></div>
+        </div>
+        <span class="pill ${c.status === 'connected' ? 'pill-on' : 'pill-off'}">${c.status === 'connected' ? 'Connected' : 'Revoked'}</span>
+        <button type="button" class="btn btn-danger btn-inline" data-disconnect="${c.applicationId}">Disconnect</button>
+      `;
+      const permsEl = row.querySelector('.conn-perms');
+      c.permissions.forEach((p) => permsEl.appendChild(permChip(p)));
+      list.appendChild(row);
+    }
+
+    list.querySelectorAll('[data-disconnect]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          await FomojiConnector.disconnect(btn.dataset.disconnect);
+          await renderConnections();
+        } catch (err) {
+          alert(err.message);
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+
+  // ---- available applications ----
+  async function renderAvailable() {
+    const list = document.getElementById('appList');
+    list.innerHTML = '';
+    const apps = await FomojiConnector.listApplications();
+    let connected = [];
+    try { connected = (await FomojiConnector.listConnections()).filter(c => c.status === 'connected').map(c => c.applicationId); } catch {}
+
+    for (const app of apps) {
+      if (connected.includes(app.applicationId)) continue; // already shown above
+      const row = document.createElement('div');
+      row.className = 'row conn-row';
+      row.innerHTML = `
+        <div class="conn-app-icon">${app.name.charAt(0)}</div>
+        <div class="row-main">
+          <div class="row-label">${app.name}</div>
+          <div class="row-sub">${app.description || ''}</div>
+        </div>
+        <button type="button" class="btn btn-primary btn-inline" data-connect="${app.applicationId}" data-perms='${JSON.stringify(app.permissionsAvailable)}'>Connect</button>
+      `;
+      list.appendChild(row);
+    }
+    if (!list.children.length) {
+      list.innerHTML = '<div class="empty-state">Nothing else available right now.</div>';
+    }
+
+    list.querySelectorAll('[data-connect]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (account.isGuest) { alert('Create an account first — guest connections aren\u2019t supported here yet.'); return; }
+        btn.disabled = true;
+        try {
+          const perms = JSON.parse(btn.dataset.perms || '[]');
+          await FomojiConnector.connect(btn.dataset.connect, perms);
+          await renderConnections();
+          await renderAvailable();
+        } catch (err) {
+          alert(err.message);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+
+  // ---- enter-a-code (device flow approval) ----
+  const userCodeInput = document.getElementById('userCodeInput');
+  const lookupBtn = document.getElementById('lookupCodeBtn');
+  const copyCodeBtn = document.getElementById('copyCodeBtn');
+  const codeError = document.getElementById('codeError');
+  const pendingCard = document.getElementById('pendingCard');
+  let currentLookupCode = '';
+
+  // Auto-populate code from URL parameter (e.g. connector.html?code=XXXX-XXXX)
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlCode = urlParams.get('code');
+  if (urlCode) {
+    userCodeInput.value = urlCode.toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/^(.{4})(.{4})$/, '$1-$2');
+    // Auto-lookup after a short delay
+    setTimeout(() => lookupBtn.click(), 300);
+  }
+  // Always focus the code input for quick entry
+  setTimeout(() => userCodeInput.focus(), 100);
+
+  userCodeInput.addEventListener('input', () => {
+    let v = userCodeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (v.length > 4) v = v.slice(0, 4) + '-' + v.slice(4, 8);
+    userCodeInput.value = v;
+    copyCodeBtn.style.display = v.length >= 4 ? '' : 'none';
+  });
+
+  copyCodeBtn.addEventListener('click', () => {
+    const code = userCodeInput.value.trim();
+    if (code) copyToClipboard(code, 'Connector code');
+  });
+
+  lookupBtn.addEventListener('click', async () => {
+    codeError.classList.remove('is-visible');
+    pendingCard.classList.add('is-hidden');
+    const code = userCodeInput.value.trim();
+    if (!code) return;
+    lookupBtn.disabled = true;
+    try {
+      const { application, requestedPermissions } = await FomojiConnector.lookupDeviceCode(code);
+      currentLookupCode = code;
+      document.getElementById('pcAppName').textContent = application.name;
+      document.getElementById('pcAppDesc').textContent = application.description || '';
+      const permsEl = document.getElementById('pcPerms');
+      permsEl.innerHTML = '';
+      requestedPermissions.forEach((p) => permsEl.appendChild(permChip(p)));
+      pendingCard.classList.remove('is-hidden');
+    } catch (err) {
+      codeError.textContent = err.message;
+      codeError.classList.add('is-visible');
+    } finally {
+      lookupBtn.disabled = false;
+    }
+  });
+
+  document.getElementById('pcApproveBtn').addEventListener('click', async () => {
+    if (account.isGuest) { alert('Create an account first \u2014 guest sessions can\u2019t approve app connections.'); return; }
+    try {
+      await FomojiConnector.approveDeviceCode(currentLookupCode);
+      pendingCard.classList.add('is-hidden');
+      userCodeInput.value = '';
+      copyCodeBtn.style.display = 'none';
+      showToast('Connection approved successfully', 'success');
+      await renderConnections();
+      await renderAvailable();
+      window.FomojiCompanion?.react('success');
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  document.getElementById('pcDenyBtn').addEventListener('click', async () => {
+    try {
+      await FomojiConnector.denyDeviceCode(currentLookupCode);
+    } catch { /* best effort */ }
+    pendingCard.classList.add('is-hidden');
+    userCodeInput.value = '';
+    copyCodeBtn.style.display = 'none';
+    showToast('Connection denied', 'info');
+  });
+
+  await renderConnections();
+  await renderAvailable();
+})();
+</script>
+</body>
+</html>

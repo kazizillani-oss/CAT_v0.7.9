@@ -36,6 +36,15 @@ from .footer import ComposerFooter, TEXTUAL_AVAILABLE as _FOOTER_OK
 from .permission_panel import PermissionsSettingsPanel, TEXTUAL_AVAILABLE as _PERM_OK
 from .. import mathtext
 
+def _safe_glyph(emoji: str, fallback: str) -> str:
+    try:
+        import sys
+        enc = getattr(sys.stdout, "encoding", None) or "utf-8"
+        emoji.encode(enc)
+        return emoji
+    except Exception:
+        return fallback
+
 TEXTUAL_AVAILABLE = TEXTUAL_AVAILABLE and _PALETTE_OK and _ATTACH_OK and _FOOTER_OK and _PERM_OK
 
 # The input's one static hint, shown inside the TextArea itself while
@@ -263,6 +272,45 @@ if TEXTUAL_AVAILABLE:
                 except Exception:
                     pass
 
+            if event.key == "alt+a":
+                event.stop()
+                try:
+                    event.prevent_default()
+                except Exception:
+                    pass
+                if self._composer is not None:
+                    try:
+                        self._composer.app.action_prompt_attach()
+                    except Exception:
+                        pass
+                return
+
+            if event.key == "alt+p":
+                event.stop()
+                try:
+                    event.prevent_default()
+                except Exception:
+                    pass
+                if self._composer is not None:
+                    try:
+                        self._composer.app.action_toggle_permissions()
+                    except Exception:
+                        pass
+                return
+
+            if event.key == "ctrl+b":
+                event.stop()
+                try:
+                    event.prevent_default()
+                except Exception:
+                    pass
+                if self._composer is not None:
+                    try:
+                        self._composer.app.action_toggle_sidebar()
+                    except Exception:
+                        pass
+                return
+
             if (event.key == "escape" and self._composer is not None
                     and getattr(self._composer, "_editing_turn_id", None) is not None):
                 # Esc cancels Rewrite's edit mode (minor-bug-fix spec) —
@@ -464,7 +512,7 @@ if TEXTUAL_AVAILABLE:
         def compose(self):
             with Horizontal(id="cct-streaming-row"):
                 yield Static("", id="cct-streaming-status")
-                yield Button("\u25a0 Stop", id="btn-stop", classes="cct-stop-btn")
+                yield Button(_safe_glyph("■ Stop", "Stop"), id="btn-stop", classes="cct-stop-btn", tooltip="Stop response (Esc)")
             yield Static("", id="cct-edit-banner")
             yield Static("", id="cct-latex-preview")
             with Horizontal(id="cct-prompt-row"):
@@ -486,6 +534,16 @@ if TEXTUAL_AVAILABLE:
             self.query_one("#cct-input", ComposerInput).focus()
             self._apply_compact_height()
             self.set_explicit_height(None)
+
+        def on_unmount(self):
+            # The 100ms streaming ticker is owned by this widget: stop
+            # it here so a torn-down composer never keeps ticking.
+            try:
+                if self._stream_timer is not None:
+                    self._stream_timer.stop()
+            except Exception:
+                pass
+            self._stream_timer = None
             try:
                 from .. import ai_modes
                 self.set_ai_mode(ai_modes.current_mode())
@@ -622,12 +680,12 @@ if TEXTUAL_AVAILABLE:
             try:
                 send_btn = self.query_one("#btn-send", Button)
                 if value:
-                    send_btn.label = "⏸"
-                    send_btn.tooltip = "Interrupt response (Click ⏸ / Esc)"
+                    send_btn.label = _safe_glyph("⏸", "||")
+                    send_btn.tooltip = "Interrupt response (Click || / Esc)"
                     send_btn.disabled = False
                     send_btn.set_class(True, "cct-btn-interrupt")
                 else:
-                    send_btn.label = "\u27a4"
+                    send_btn.label = _safe_glyph("➤", ">")
                     send_btn.tooltip = "Send message (Enter)"
                     send_btn.disabled = False
                     send_btn.set_class(False, "cct-btn-interrupt")
@@ -651,7 +709,16 @@ if TEXTUAL_AVAILABLE:
                 if row is not None:
                     row.add_class("active")
                 bar.add_class("active")
-                # 100ms tick for live elapsed + spinner
+                # 100ms tick for live elapsed + spinner. A second
+                # set_streaming(True) before False must NOT orphan the
+                # previous interval (rapid regenerate/switch otherwise
+                # stacks one 10Hz ticker per call, forever).
+                if self._stream_timer is not None:
+                    try:
+                        self._stream_timer.stop()
+                    except Exception:
+                        pass
+                    self._stream_timer = None
                 self._stream_timer = self.set_interval(0.1, self._update_streaming_text)
             else:
                 if self._stream_timer is not None:
@@ -1013,6 +1080,10 @@ if TEXTUAL_AVAILABLE:
                 self.styles.max_height = "85%"
             else:
                 self.styles.max_height = "80%" if self._explicit_height is not None else "75%"
+            try:
+                self.query_one("#btn-permissions", Button).set_class(bool(is_open), "-active")
+            except Exception:
+                pass
 
         def on_palette_selected(self, cmd):
             if not cmd:

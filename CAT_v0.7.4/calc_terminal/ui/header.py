@@ -564,10 +564,11 @@ if TEXTUAL_AVAILABLE:
             from . import theme_css
             color = theme_css.current_hex(_MODE_TONE[self.mode])
             faint = theme_css.current_hex("text-faint")
-            label = perm.MODE_LABELS[self.mode]
+            plain_label = perm.manager.plain_mode_label()
+            icon = {"ask": "\U0001f512", "restricted": "\U0001f7e1", "full": "\u26a1"}.get(self.mode, "\u25cf")
             desc = _MODE_DESCRIPTIONS[self.mode]
-            check = "\u25cf " if self.mode == perm.manager.mode else "\u25cb "
-            self.update(f"[{color} b]{check}{label}[/]\n  [{faint}]{desc}[/]")
+            check = " \u2713" if self.mode == perm.manager.mode else ""
+            self.update(f"[{color} b]{icon} {plain_label}{check}[/]\n  [{faint}]{desc}[/]")
 
         def on_click(self, event):
             # v0.7.6 Patch 1: guard against a click being delivered to
@@ -828,7 +829,10 @@ if TEXTUAL_AVAILABLE:
             from . import theme_css
             mode = perm.manager.mode
             color = theme_css.current_hex(_MODE_TONE[mode])
-            self.update(f"[{color} b]{perm.manager.mode_label()}[/]")
+            # v0.7.9.6: Status icon matching Screenshots 1-5 (🟡 Restricted / 🔒 Ask / ⚡ Full)
+            icon = {"ask": "\U0001f512", "restricted": "\U0001f7e1", "full": "\u26a1"}.get(mode, "\u25cf")
+            plain_label = perm.manager.plain_mode_label()
+            self.update(f"{icon} [{color} b]{plain_label}[/]")
             # tooltip for current mode
             try:
                 self.tooltip = _MODE_DESCRIPTIONS.get(mode, "")

@@ -491,17 +491,48 @@ if TEXTUAL_AVAILABLE:
                 if (entry.get("provider") or "").lower() == "ollama" and entry.get("model")
             }
             
-            # Try to discover available models from local Ollama
-            available = []
+            # Discover local Ollama models OFF the UI thread (a 3s
+            # synchronous probe here used to freeze the whole panel).
+            # The model-pick runs against FRESH provider state when the
+            # probe lands, so nothing goes stale while it flies.
+            def _probe():
+                found = []
+                try:
+                    import requests
+                    resp = requests.get("http://localhost:11434/api/tags", timeout=3)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        found = [m.get("name", "") for m in data.get("models", []) if m.get("name")]
+                except Exception:
+                    pass
+                try:
+                    self.app.call_from_thread(
+                        lambda: self._finish_add_ollama_backup(found))
+                except Exception:
+                    pass
+
+            threading.Thread(target=_probe, daemon=True).start()
+            return
+
+        def _finish_add_ollama_backup(self, available):
+            """Second half of _add_ollama_backup: runs on the UI thread
+            once the background Ollama probe lands (or with an empty
+            list when Ollama is down). Re-reads provider state fresh."""
             try:
-                import requests
-                resp = requests.get("http://localhost:11434/api/tags", timeout=3)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    available = [m.get("name", "") for m in data.get("models", []) if m.get("name")]
+                if not self.is_running:
+                    return
             except Exception:
                 pass
-            
+            try:
+                configured_models = {
+                    entry.get("model")
+                    for entry in self._providers
+                    if (entry.get("provider") or "").lower() == "ollama" and entry.get("model")
+                }
+            except Exception:
+                configured_models = set()
+            available = list(available or [])
+
             # Prefer unconfigured models from local Ollama
             unconfigured_local = [m for m in available if m not in configured_models]
             

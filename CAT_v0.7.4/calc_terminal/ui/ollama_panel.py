@@ -145,6 +145,11 @@ if TEXTUAL_AVAILABLE:
             self._bench = None
             self._downloading = None
             self._progress = {}
+            # Generation counter for the 8s self-rearming installed-
+            # models poll: opening the panel N times must not leave N
+            # chains polling after close. on_unmount bumps the token so
+            # stray chains stop re-arming.
+            self._poll_token = 0
 
         def compose(self):
             with Vertical(id="ollama-box"):
@@ -219,13 +224,29 @@ if TEXTUAL_AVAILABLE:
             except Exception:
                 pass
 
+        def on_unmount(self):
+            # Invalidate the poll chain: the in-flight callback (if
+            # any) will see a stale token and stop re-arming.
+            try:
+                self._poll_token = getattr(self, "_poll_token", 0) + 1
+            except Exception:
+                pass
+
         def _poll_installed(self):
+            token = getattr(self, "_poll_token", 0)
+            try:
+                if not self.is_running:
+                    return
+            except Exception:
+                pass
             try:
                 if installed_models:
                     self._installed = set(installed_models())
             except Exception:
                 pass
             try:
+                if getattr(self, "_poll_token", 0) != token:
+                    return
                 self.set_timer(8, self._poll_installed)
             except Exception:
                 pass

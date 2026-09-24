@@ -22,8 +22,14 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-# Add parent directory to path for CAT core imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add parent directory to path for CAT core imports (source-checkout only).
+# When installed via pip, `calc_terminal` is already importable — do not
+# mutate sys.path. The guard below keeps `python -m calc_terminal.web.server`
+# working identically in both layouts.
+try:
+    import calc_terminal as _ct_check  # noqa: F401
+except Exception:
+    sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from calc_terminal import aicore, projects, workspace as ws_paths
 from calc_terminal.browser.preview import PreviewController, _shutdown_all as preview_shutdown_all
@@ -319,9 +325,28 @@ static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
-# Mount workspace files for preview
-workspaces_dir = Path(__file__).parent.parent.parent / "workspaces"
-workspaces_dir.mkdir(exist_ok=True)
+# Mount workspace files for preview. Writable preview workspaces MUST live in
+# the user's app-data dir — never inside site-packages (read-only when
+# installed) and never tied to the git checkout. Falls back to the legacy
+# repo-relative location only if the app-data dir is unavailable.
+def _preview_workspaces_dir() -> Path:
+    try:
+        from calc_terminal.first_run import data_dir as _app_data_dir
+
+        p = Path(_app_data_dir()) / "workspaces"
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+    except Exception:
+        pass
+    try:
+        legacy = Path(__file__).parent.parent.parent / "workspaces"
+        legacy.mkdir(exist_ok=True)
+        return legacy
+    except Exception:
+        return Path.cwd() / "workspaces"
+
+
+workspaces_dir = _preview_workspaces_dir()
 
 
 # --- Root Route (PWA Entry) ---
@@ -2818,7 +2843,6 @@ def ensure_fatty_server(timeout: float = 10.0, auto_start: bool = True) -> bool:
         return False
 
     import subprocess
-    repo_root = Path(__file__).resolve().parent.parent.parent
     python_exe = sys.executable or "python"
 
     creationflags = 0
@@ -2826,9 +2850,12 @@ def ensure_fatty_server(timeout: float = 10.0, auto_start: bool = True) -> bool:
         creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
 
     try:
+        # `python -m calc_terminal.web.server` works from ANY cwd when CAT is
+        # pip-installed (and from a source checkout too), so do not force
+        # cwd to the git repo root — that path does not exist on a friend's
+        # computer. Inherit the caller's cwd instead.
         subprocess.Popen(
             [python_exe, "-m", "calc_terminal.web.server"],
-            cwd=str(repo_root),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             creationflags=creationflags,

@@ -61,6 +61,15 @@ except Exception:
 
 if TEXTUAL_AVAILABLE:
 
+    def _safe_glyph(emoji: str, fallback: str) -> str:
+        try:
+            import sys
+            enc = getattr(sys.stdout, "encoding", None) or "utf-8"
+            emoji.encode(enc)
+            return emoji
+        except Exception:
+            return fallback
+
     class WorkspaceShell(Horizontal):
         """Explorer (left) + adaptive main area (right) that keeps the
         chat, the editor AND the web preview mounted at all times."""
@@ -86,13 +95,13 @@ if TEXTUAL_AVAILABLE:
             yield ExplorerResizeHandle(self)
             with Vertical(id="cct-workspace-main"):
                 with Horizontal(id="cct-workspace-switcher"):
-                    yield Button("\u25b8", id="cct-sidebar-expand-btn", classes="cct-switch", tooltip="Open Sidebar")
+                    yield Button(_safe_glyph("▶", ">"), id="cct-sidebar-expand-btn", classes="cct-chat-nav-btn cct-sidebar-expand-btn", tooltip="Open Sidebar (Ctrl+B)")
                     yield Button("Chat", id="cct-switch-chat", classes="cct-switch")
                     yield Button("Files", id="cct-switch-files", classes="cct-switch")
                 with Horizontal(id="cct-workspace-body"):
                     with Vertical(id="cct-chat-col"):
                         with Horizontal(id="cct-chat-nav"):
-                            yield Button("▸ Explorer", id="cct-chat-sidebar-toggle", classes="cct-chat-nav-btn", tooltip="Open Sidebar (Ctrl+B)")
+                            yield Button(_safe_glyph("▶ Explorer", "> Explorer"), id="cct-chat-sidebar-toggle", classes="cct-chat-nav-btn", tooltip="Open Sidebar (Ctrl+B)")
                         yield self._conversation_view
                         if self._composer is not None:
                             yield ComposerResizeHandle(self)
@@ -216,6 +225,22 @@ if TEXTUAL_AVAILABLE:
             save_layout(explorer_width=self.explorer.width or None)
 
         def on_resize(self):
+            # Resize storms (rapid terminal drags) are coalesced by a
+            # leading-edge + trailing debouncer: the first event lays
+            # out immediately (interactive feel preserved), the burst
+            # settles into one final layout instead of N.
+            try:
+                from . import design_system
+                deb = getattr(self, "_relayout_debouncer", None)
+                if deb is None or not isinstance(
+                        deb, design_system.RelayoutDebouncer):
+                    deb = design_system.RelayoutDebouncer(delay=0.06)
+                    self._relayout_debouncer = deb
+                deb.request(self, self._do_resize_layout)
+            except Exception:
+                self._do_resize_layout()
+
+        def _do_resize_layout(self):
             # While the right pane is fullscreen the split/stack logic
             # must not fight the expanded layout.
             self._clamp_explorer_to_window()
@@ -389,6 +414,28 @@ if TEXTUAL_AVAILABLE:
             except Exception:
                 pass
 
+            # Responsive tier (design_system breakpoints): drives the
+            # .cat-bp-* CSS classes that strip secondary chrome on
+            # narrow/short terminals. Display flags below stay fully
+            # owned by _relayout (recomputed every resize), so user
+            # state (explorer visibility, _showing) is never mutated.
+            tiny = False
+            try:
+                from . import design_system
+                bp = design_system.breakpoint_for(
+                    self.size.width, self.size.height)
+                for _cls in ("cat-bp-large", "cat-bp-medium",
+                             "cat-bp-small", "cat-bp-tiny"):
+                    self.set_class(bp == _cls[7:], _cls)
+                try:
+                    short = (self.size.height or 24) <= 20
+                except Exception:
+                    short = False
+                self.set_class(short, "cat-short")
+                tiny = (bp == "tiny")
+            except Exception:
+                pass
+
             if (not has_files and not has_preview) or editor_disabled:
                 # Nothing to show on the right or editor disabled: chat alone, full width.
                 right.display = False
@@ -396,6 +443,19 @@ if TEXTUAL_AVAILABLE:
                 switcher.display = False
                 chat_col.display = True
                 chat_col.styles.width = "1fr"
+                self._sync_switcher()
+                self._sync_sidebar_toggle()
+                return
+
+            if tiny:
+                # Extremely small terminal: clean chat-first fallback.
+                # No switcher, no right pane, no overflow — the chat
+                # column (min-width 24, overflow hidden) always fits.
+                switcher.display = False
+                chat_col.display = True
+                right.display = False
+                chat_col.styles.width = "1fr"
+                self.sync_right_resizer()
                 self._sync_switcher()
                 self._sync_sidebar_toggle()
                 return
@@ -472,7 +532,8 @@ if TEXTUAL_AVAILABLE:
             if self.explorer:
                 if not self.explorer.display or self.explorer.width == 0:
                     self.explorer.display = True
-                    self.explorer.set_width(32)
+                    restore_w = getattr(self.explorer, "_restore_width", None) or 32
+                    self.explorer.set_width(max(restore_w, 32))
                 else:
                     self.explorer.toggle()
                 self.sync_resizer()
@@ -481,13 +542,19 @@ if TEXTUAL_AVAILABLE:
 
         def _sync_sidebar_toggle(self):
             try:
+                collapsed = (not self.explorer.display or self.explorer.width == 0)
                 nav = self.query_one("#cct-chat-nav", Horizontal)
                 btn = self.query_one("#cct-chat-sidebar-toggle", Button)
-                collapsed = (not self.explorer.display or self.explorer.width == 0)
                 nav.display = collapsed
                 if collapsed:
-                    btn.label = "▸ Explorer"
+                    btn.label = _safe_glyph("▶ Explorer", "> Explorer")
                     btn.tooltip = "Open Sidebar (Ctrl+B)"
+            except Exception:
+                pass
+            try:
+                exp_btn = self.query_one("#cct-sidebar-expand-btn", Button)
+                collapsed = (not self.explorer.display or self.explorer.width == 0)
+                exp_btn.display = collapsed
             except Exception:
                 pass
 

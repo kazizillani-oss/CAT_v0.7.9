@@ -36,11 +36,11 @@ const IMPORT_PROBE = `import ${CAT_MODULE}`;
 const DEFAULT_TIMEOUT_MS = 10000;
 
 const CAT_MISSING_MESSAGE =
-	'CAT CLI is not installed or could not be detected.';
+	'CAT — Coding Agent Terminal is not installed or could not be detected.';
 const PYTHON_MISSING_MESSAGE =
-	'CAT CLI could not be started.\n' +
+	'CAT — Coding Agent Terminal could not be started.\n' +
 	`No Python interpreter with the "${CAT_MODULE}" package was found.\n` +
-	'Please select/configure a Python interpreter (cat.cli.pythonPath) or install CAT CLI.';
+	'Please select/configure a Python interpreter (cat.pythonPath) or install CAT — Coding Agent Terminal.';
 
 /**
  * Minimal `which`. Scans PATH without spawning a shell. On Windows also
@@ -227,14 +227,17 @@ async function findVerifiedPython(candidates, { verify = verifyInterpreter, ...p
  *   4. null → caller falls back to `<python> -m calc_terminal`, which is
  *      always available in the verified environment.
  */
-function resolveCatLauncher({ command = '', workspaceRoot = '', platform = process.platform, existsSync = fs.existsSync, which = whichCommand } = {}) {
+function resolveCatLauncher({ command = '', workspaceRoot = '', python = null, platform = process.platform, existsSync = fs.existsSync, which = whichCommand } = {}) {
 	const out = { kind: null, file: null, tokens: null };
 	const trimmed = (command || '').trim();
 	// Only treat it as an override when the user typed more than the bare
 	// default (a path, flags, or a different command name).
-	if (trimmed && trimmed !== 'cat') {
+	if (trimmed && trimmed !== 'cat' && trimmed !== 'cat.exe') {
 		const tokens = parseCommandString(trimmed);
 		if (tokens.length) {
+			if (platform === 'win32' && tokens[0].toLowerCase() === 'cat') {
+				tokens[0] = 'cat.exe';
+			}
 			out.kind = 'configured';
 			out.tokens = tokens;
 			out.file = tokens[0];
@@ -253,8 +256,24 @@ function resolveCatLauncher({ command = '', workspaceRoot = '', platform = proce
 			}
 		}
 	}
+	// Check the verified Python interpreter's directory/Scripts for cat.exe on Windows
+	if (platform === 'win32' && python && python.candidate && typeof python.candidate.command === 'string') {
+		const pyCmd = python.candidate.command;
+		if (pyCmd.includes(path.sep) || pyCmd.includes('/')) {
+			const pyDir = path.dirname(pyCmd);
+			for (const sub of ['Scripts', '']) {
+				const candidateExe = sub ? path.join(pyDir, sub, 'cat.exe') : path.join(pyDir, 'cat.exe');
+				if (existsSync(candidateExe)) {
+					out.kind = 'python-script';
+					out.file = candidateExe;
+					out.tokens = [candidateExe];
+					return out;
+				}
+			}
+		}
+	}
 	if (platform === 'win32') {
-		const found = which('cat', { platform, existsSync });
+		const found = which('cat.exe', { platform, existsSync }) || which('cat', { platform, existsSync });
 		if (found) {
 			out.kind = 'path';
 			out.file = found;
@@ -274,6 +293,10 @@ function resolveCatLauncher({ command = '', workspaceRoot = '', platform = proce
 				return out;
 			}
 		}
+	}
+	if (platform === 'win32' && out.tokens && out.tokens[0].toLowerCase() === 'cat') {
+		out.tokens[0] = 'cat.exe';
+		out.file = 'cat.exe';
 	}
 	return out;
 }

@@ -1,0 +1,267 @@
+/* ==========================================================================
+   FOMOJI — 3D DEPTH ENGINE  (spec sections 14-17)
+
+   Additive, opt-in layer on top of fomoji-tokens.css / fomoji-fx.css. Two
+   independent knobs, both driven by data-attributes on <html> (site-wide
+   default, set by js/fomoji-3d.js from window.FomojiAppearance) with a
+   per-element override via the same attributes directly on a card:
+
+     data-depth   = "off" | "low" | "medium" | "high"   — how much
+                     elevation/parallax/tilt an element gets
+     data-surface = "smooth" | "matte" | "gloss" | "frosted" | "glass" |
+                    "metallic" | "plastic" | "soft-clay" | "pixel" | "grid" |
+                    "technical" | "organic" | "crystal"  — what it's "made of"
+
+   Apply both to any element via class="card-3d" (or the generic
+   [data-fx="card-3d"]) plus the attributes above. Cards, buttons and
+   authentication cards (Group/Student/Person) all use the same two knobs.
+
+   Everything here is CSS transforms + gradients + box-shadow — no WebGL,
+   no 3D engine, no per-frame JS (see spec section 17). Motion collapses to
+   near-zero under prefers-reduced-motion / html.reduce-motion, matching the
+   pattern fomoji-tokens.css already establishes.
+   ========================================================================== */
+
+:root{
+  /* ---- depth scale, overridden per data-depth tier below ---- */
+  --fx-depth-elevation: 0px;      /* translateZ on hover/press */
+  --fx-depth-tilt: 0deg;          /* max rotateX/rotateY on hover */
+  --fx-depth-shadow-y: 6px;
+  --fx-depth-shadow-blur: 18px;
+  --fx-depth-shadow-alpha: 0.28;
+  --fx-depth-highlight-alpha: 0.05;
+  --fx-depth-perspective: 900px;
+  --fx-depth-float-amp: 0px;      /* ambient floating amplitude for .fx-float-el */
+  --fx-depth-float-duration: 6s;
+}
+
+/* ---- depth tiers ----------------------------------------------------- */
+html[data-depth3d="off"]{
+  --fx-depth-elevation: 0px; --fx-depth-tilt: 0deg;
+  --fx-depth-shadow-y: 2px; --fx-depth-shadow-blur: 6px; --fx-depth-shadow-alpha: 0.14;
+  --fx-depth-highlight-alpha: 0; --fx-depth-float-amp: 0px;
+}
+html[data-depth3d="low"]{
+  --fx-depth-elevation: 6px; --fx-depth-tilt: 3deg;
+  --fx-depth-shadow-y: 5px; --fx-depth-shadow-blur: 14px; --fx-depth-shadow-alpha: 0.22;
+  --fx-depth-highlight-alpha: 0.04; --fx-depth-float-amp: 2px;
+}
+html[data-depth3d="medium"],
+html:not([data-depth3d]){
+  --fx-depth-elevation: 14px; --fx-depth-tilt: 7deg;
+  --fx-depth-shadow-y: 10px; --fx-depth-shadow-blur: 26px; --fx-depth-shadow-alpha: 0.32;
+  --fx-depth-highlight-alpha: 0.08; --fx-depth-float-amp: 5px;
+}
+html[data-depth3d="high"]{
+  --fx-depth-elevation: 26px; --fx-depth-tilt: 12deg;
+  --fx-depth-shadow-y: 18px; --fx-depth-shadow-blur: 42px; --fx-depth-shadow-alpha: 0.42;
+  --fx-depth-highlight-alpha: 0.14; --fx-depth-float-amp: 9px;
+}
+
+/* Per-element override: data-depth on the card itself wins over <html>. */
+[data-depth="off"]{ --fx-depth-elevation: 0px !important; --fx-depth-tilt: 0deg !important; --fx-depth-float-amp: 0px !important; }
+[data-depth="low"]{ --fx-depth-elevation: 6px !important; --fx-depth-tilt: 3deg !important; }
+[data-depth="medium"]{ --fx-depth-elevation: 14px !important; --fx-depth-tilt: 7deg !important; }
+[data-depth="high"]{ --fx-depth-elevation: 26px !important; --fx-depth-tilt: 12deg !important; }
+
+/* Reduced motion: kill tilt/float animation, keep a flat soft shadow only. */
+html.reduce-motion, html[data-motion="reduced"], html[data-motion="none"]{
+  --fx-depth-tilt: 0deg !important;
+  --fx-depth-float-amp: 0px !important;
+}
+
+/* ==========================================================================
+   .card-3d — the base 3D surface. Works on auth cards, group/student
+   cards, connector.html connection rows, dashboard tiles.
+   ========================================================================== */
+.card-3d, [data-fx="card-3d"]{
+  position: relative;
+  transform-style: preserve-3d;
+  perspective: var(--fx-depth-perspective);
+  border-radius: var(--fx-radius-lg);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,var(--fx-depth-highlight-alpha)) inset,
+    0 var(--fx-depth-shadow-y) var(--fx-depth-shadow-blur) rgba(0,0,0,var(--fx-depth-shadow-alpha));
+  transition:
+    transform var(--fx-duration-slow) var(--fx-ease-spring),
+    box-shadow var(--fx-duration-slow) var(--fx-ease-decel);
+  will-change: transform;
+}
+
+/* Hover: lift + gentle tilt toward the pointer's general quadrant is a JS
+   job (see fomoji-3d.js's optional pointer-tilt for elements that opt in
+   with data-tilt="pointer"); the CSS-only default here is a symmetric
+   "rise toward viewer" that needs no per-frame JS at all. */
+.card-3d[data-fx-state="hover"], [data-fx="card-3d"][data-fx-state="hover"]{
+  transform: perspective(var(--fx-depth-perspective))
+             translateZ(var(--fx-depth-elevation))
+             rotateX(calc(var(--fx-depth-tilt) * 0.35));
+  box-shadow:
+    0 1px 0 rgba(255,255,255,calc(var(--fx-depth-highlight-alpha) * 1.6)) inset,
+    0 calc(var(--fx-depth-shadow-y) * 1.6) calc(var(--fx-depth-shadow-blur) * 1.4) rgba(0,0,0,calc(var(--fx-depth-shadow-alpha) * 1.15));
+}
+.card-3d[data-fx-state="press"], [data-fx="card-3d"][data-fx-state="press"]{
+  transform: perspective(var(--fx-depth-perspective))
+             translateZ(calc(var(--fx-depth-elevation) * 0.3))
+             scale(0.992);
+  transition-duration: var(--fx-duration-fast);
+}
+
+/* Pointer-tilt variant: fomoji-3d.js sets --tilt-x/--tilt-y (in degrees,
+   clamped to ±var(--fx-depth-tilt)) from pointer position while hovering.
+   No-op (falls back to the symmetric hover above) if JS never runs. */
+.card-3d[data-tilt="pointer"][data-fx-state="hover"]{
+  transform: perspective(var(--fx-depth-perspective))
+             translateZ(var(--fx-depth-elevation))
+             rotateX(var(--tilt-x, 0deg))
+             rotateY(var(--tilt-y, 0deg));
+}
+
+/* ---- layered / floating child elements ----
+   Give any child .card-3d-layer a small extra translateZ so it visibly
+   sits "above" the card surface (badges, icons, avatars) — real depth
+   layering, not just a drop shadow. */
+.card-3d-layer{ transform: translateZ(calc(var(--fx-depth-elevation) * 0.6)); }
+.card-3d[data-fx-state="hover"] .card-3d-layer{ transform: translateZ(calc(var(--fx-depth-elevation) * 1.3)); }
+
+/* ---- ambient floating (decorative background shapes / icons) ---- */
+.fx-float-el{
+  animation: fx-float-kf var(--fx-depth-float-duration) var(--fx-ease-standard) infinite alternate;
+}
+@keyframes fx-float-kf{
+  from{ transform: translateY(calc(var(--fx-depth-float-amp) * -1)) translateZ(0); }
+  to{   transform: translateY(var(--fx-depth-float-amp)) translateZ(0); }
+}
+
+/* ==========================================================================
+   3D BUTTONS — elevated resting state, press = sink toward the surface.
+   Opt in with class="btn-3d" alongside the existing .btn.
+   ========================================================================== */
+.btn-3d{
+  transform: translateZ(calc(var(--fx-depth-elevation) * 0.4));
+  box-shadow: 0 calc(var(--fx-depth-shadow-y) * 0.6) calc(var(--fx-depth-shadow-blur) * 0.5) rgba(0,0,0,calc(var(--fx-depth-shadow-alpha) * 0.8));
+  transition: transform var(--fx-duration-fast) var(--fx-ease-decel), box-shadow var(--fx-duration-fast) var(--fx-ease-decel);
+}
+.btn-3d[data-fx-state="hover"]{ transform: translateZ(calc(var(--fx-depth-elevation) * 0.7)) translateY(-1px); }
+.btn-3d[data-fx-state="press"]{ transform: translateZ(0) translateY(1px); box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
+
+/* ==========================================================================
+   SURFACE TEXTURES (spec section 15) — 13 lightweight variants, all
+   readable behind text (checked against both --ink on --panel and against
+   each texture's own tint). Applied via data-surface on a .card-3d.
+   ========================================================================== */
+
+[data-surface="smooth"]{
+  background: linear-gradient(155deg, var(--panel-2), var(--panel));
+}
+
+[data-surface="matte"]{
+  background: var(--panel);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.03) inset,
+    0 var(--fx-depth-shadow-y) var(--fx-depth-shadow-blur) rgba(0,0,0,calc(var(--fx-depth-shadow-alpha) * 0.7));
+}
+
+[data-surface="gloss"]{
+  background:
+    linear-gradient(160deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0) 32%),
+    linear-gradient(155deg, var(--panel-2), var(--panel));
+  background-blend-mode: screen, normal;
+}
+
+[data-surface="frosted"]{
+  background: rgba(var(--fx-surface-rgb, 20,21,15), 0.62);
+  backdrop-filter: blur(14px) saturate(1.1);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+[data-surface="glass"]{
+  background: linear-gradient(160deg, rgba(255,255,255,0.08), rgba(255,255,255,0.01));
+  backdrop-filter: blur(20px) saturate(1.25);
+  -webkit-backdrop-filter: blur(20px) saturate(1.25);
+  border: 1px solid rgba(255,255,255,0.10);
+}
+
+[data-surface="metallic"]{
+  background:
+    repeating-linear-gradient(100deg, rgba(255,255,255,0.05) 0 2px, rgba(255,255,255,0) 2px 6px),
+    linear-gradient(150deg, #4a4d47, #22231f 55%, #313329);
+}
+
+[data-surface="plastic"]{
+  background: linear-gradient(165deg, rgba(var(--fx-accent-rgb),0.22), var(--panel) 60%);
+  box-shadow:
+    0 2px 0 rgba(255,255,255,0.10) inset,
+    0 -8px 16px rgba(0,0,0,0.18) inset,
+    0 var(--fx-depth-shadow-y) var(--fx-depth-shadow-blur) rgba(0,0,0,var(--fx-depth-shadow-alpha));
+}
+
+[data-surface="soft-clay"]{
+  background: var(--panel);
+  box-shadow:
+    8px 8px 18px rgba(0,0,0,0.35),
+    -6px -6px 16px rgba(255,255,255,0.03);
+  border-radius: var(--fx-radius-lg);
+}
+
+[data-surface="pixel"]{
+  background-color: var(--panel);
+  background-image:
+    linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+  background-size: 8px 8px;
+  image-rendering: pixelated;
+}
+
+[data-surface="grid"]{
+  background-color: var(--panel);
+  background-image:
+    linear-gradient(rgba(var(--fx-accent-rgb),0.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--fx-accent-rgb),0.16) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+[data-surface="technical"]{
+  background-color: var(--panel);
+  background-image:
+    linear-gradient(rgba(var(--fx-accent-rgb),0.10) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--fx-accent-rgb),0.10) 1px, transparent 1px),
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 88px 88px, 88px 88px, 11px 11px, 11px 11px;
+}
+
+[data-surface="organic"]{
+  background:
+    radial-gradient(120% 90% at 12% 8%, rgba(var(--fx-accent-rgb),0.18), transparent 55%),
+    radial-gradient(100% 80% at 90% 100%, rgba(var(--fx-accent-gold-rgb, 201,160,74),0.14), transparent 60%),
+    var(--panel);
+}
+
+[data-surface="crystal"]{
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.14) 0 15%, transparent 15% 30%, rgba(255,255,255,0.06) 30% 45%, transparent 45% 60%, rgba(255,255,255,0.10) 60% 75%, transparent 75% 100%),
+    linear-gradient(155deg, var(--panel-2), var(--panel));
+  background-size: 220% 220%, 100% 100%;
+}
+
+/* Every texture must stay readable behind text (spec section 15) — force a
+   consistent text color + a very subtle shadow on any direct text inside a
+   textured card, rather than relying on each gradient staying light. */
+[data-surface] .card-title, [data-surface] .card-body, [data-surface] p, [data-surface] h1,
+[data-surface] h2, [data-surface] h3, [data-surface] span, [data-surface] label{
+  text-shadow: 0 1px 2px rgba(0,0,0,0.25);
+}
+
+/* ==========================================================================
+   Reduced-motion / performance: transforms collapse, textures stay (they're
+   static backgrounds, not motion) — matches the "pause when not visible"
+   requirement via fomoji-3d.js's IntersectionObserver toggling this class.
+   ========================================================================== */
+.fx-3d-paused{ animation-play-state: paused !important; }
+html.reduce-motion .card-3d,
+html[data-motion="reduced"] .card-3d,
+html[data-motion="none"] .card-3d{
+  transition: box-shadow var(--fx-duration-fast) var(--fx-ease-decel) !important;
+}

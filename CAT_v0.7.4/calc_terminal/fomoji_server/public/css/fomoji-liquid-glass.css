@@ -1,0 +1,201 @@
+/* ==========================================================================
+   FOMOJI — LIQUID GLASS SYSTEM  (UI Engine 2.0, Phase 2)
+
+   A fifth surface material — html[data-texture="liquid"] — alongside the
+   existing flat/glass/neu/skeu set in fomoji-fx.css. Deliberately NOT just
+   `background:rgba(...); backdrop-filter:blur(...)`: every liquid-glass
+   surface below layers several things that read as "material" rather than
+   "transparent rectangle":
+     - a blurred/saturated base (the glass itself)
+     - a specular highlight that tracks the pointer (--lg-x/--lg-y, set by
+       js/fomoji-liquid-glass.js) instead of sitting static
+     - a top edge highlight + bottom contact shadow (depth)
+     - a faint accent tint pulled from the active theme (color interaction
+       with the background, via --fx-accent-rgb from fomoji-theme.js)
+     - press-compression + elastic bounce-back (.lg-press / .lg-bounce)
+     - optional pointer-direction stretch (--lg-stretch-x/--lg-stretch-y)
+
+   Bounce/stretch magnitude come from --fx-bounce-strength / --fx-stretch-strength
+   (css/fomoji-tokens.css), which fomoji-theme.js already zeroes out whenever
+   reduced motion is active — so nothing here needs its own motion query.
+   Load after fomoji-tokens.css and fomoji-fx.css.
+   ========================================================================== */
+
+:root{
+  --lg-x: 50%;
+  --lg-y: 30%;
+  --lg-stretch-x: 0px;
+  --lg-stretch-y: 0px;
+}
+
+/* THE STARCH/STRETCH BUG, FIXED AT THE ROOT:
+   --lg-stretch-x/-y and --lg-x/-y were being set as inline styles (el.style)
+   by js/fomoji-liquid-glass.js on whichever surface the pointer was over.
+   CSS custom properties inherit by default — so a card being dragged also
+   pushed its stretch value down into any button nested inside it, and that
+   button had no override of its own to fall back to, so it inherited and
+   applied the card's stretch on top of its own. Transforms compounded
+   surface-inside-surface, which is exactly the "starch"/stretching artifact
+   reported. Registering these as non-inherited (@property, with a real
+   initial-value) stops that leak at the CSS level: every surface now only
+   ever uses a value actually set on itself, never one leaking down from an
+   ancestor. Falls back gracefully to the plain custom properties above in
+   browsers that don't support @property yet. */
+@property --lg-stretch-x { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --lg-stretch-y { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --lg-x { syntax: '<percentage>'; inherits: false; initial-value: 50%; }
+@property --lg-y { syntax: '<percentage>'; inherits: false; initial-value: 30%; }
+
+
+/* ---- base material: cards, panels, inputs ---- */
+html[data-texture="liquid"] .card,
+html[data-texture="liquid"] .panel,
+html[data-texture="liquid"] .dash-card{
+  position:relative;
+  background:
+    radial-gradient(120px 90px at var(--lg-x) var(--lg-y), rgba(255,255,255,0.16), transparent 60%),
+    linear-gradient(155deg, rgba(255,255,255,0.06), rgba(255,255,255,0.01) 55%),
+    rgba(var(--fx-accent-rgb, 154,160,133), 0.06),
+    rgba(var(--fx-surface-rgb, 20,21,15),0.42) !important;
+  border-color:rgba(255,255,255,0.14) !important;
+  backdrop-filter:blur(22px) saturate(165%);
+  -webkit-backdrop-filter:blur(22px) saturate(165%);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.14) inset,
+    0 -1px 0 rgba(0,0,0,0.25) inset,
+    0 20px 44px -16px rgba(0,0,0,0.55);
+  overflow:hidden;
+  transition: transform var(--fx-duration-base, 180ms) var(--fx-ease-standard, ease), box-shadow var(--fx-duration-base, 180ms) var(--fx-ease-standard, ease);
+  transform: translate(var(--lg-stretch-x), var(--lg-stretch-y));
+}
+/* thin bright edge tracing the top-left rim — the "refraction" cue */
+html[data-texture="liquid"] .card::before,
+html[data-texture="liquid"] .panel::before,
+html[data-texture="liquid"] .dash-card::before{
+  content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+  background:linear-gradient(115deg, rgba(255,255,255,0.28) 0%, transparent 18%, transparent 82%, rgba(255,255,255,0.08) 100%);
+  mix-blend-mode:overlay;
+  opacity:0.9;
+}
+
+html[data-texture="liquid"] .field input{
+  background:
+    radial-gradient(80px 60px at var(--lg-x) var(--lg-y), rgba(255,255,255,0.10), transparent 65%),
+    rgba(255,255,255,0.045) !important;
+  backdrop-filter:blur(10px) saturate(150%);
+  border-color:rgba(255,255,255,0.14) !important;
+}
+
+/* ---- Liquid Glass buttons ---- */
+html[data-texture="liquid"] .btn{
+  position:relative;
+  overflow:hidden;
+  background:
+    radial-gradient(90px 70px at var(--lg-x) var(--lg-y), rgba(255,255,255,0.22), transparent 60%),
+    linear-gradient(160deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02) 60%),
+    rgba(var(--fx-accent-rgb, 154,160,133), 0.14);
+  border:1px solid rgba(255,255,255,0.18);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.22) inset,
+    0 10px 22px -10px rgba(0,0,0,0.45);
+  backdrop-filter:blur(16px) saturate(160%);
+  -webkit-backdrop-filter:blur(16px) saturate(160%);
+  transform: scale(1) translate(var(--lg-stretch-x), var(--lg-stretch-y));
+  transition:
+    transform var(--fx-duration-fast, 120ms) var(--fx-ease-standard, ease),
+    box-shadow var(--fx-duration-fast, 120ms) var(--fx-ease-standard, ease);
+}
+html[data-texture="liquid"] .btn-primary{
+  background:
+    radial-gradient(90px 70px at var(--lg-x) var(--lg-y), rgba(255,255,255,0.35), transparent 60%),
+    linear-gradient(160deg, rgba(255,255,255,0.14), rgba(255,255,255,0.02) 60%),
+    linear-gradient(180deg, #b3894a, var(--gold-dim));
+}
+/* idle -> hover: highlight already tracks the pointer via --lg-x/--lg-y;
+   this just lifts the surface slightly so the highlight reads as moving light,
+   not a repaint */
+html[data-texture="liquid"] .btn[data-fx-state="hover"]{
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.28) inset,
+    0 14px 30px -12px rgba(0,0,0,0.5);
+}
+/* press: surface compresses */
+html[data-texture="liquid"] .btn.lg-press,
+html[data-texture="liquid"] .btn[data-fx-state="press"]{
+  transform: scale(0.965) translate(var(--lg-stretch-x), var(--lg-stretch-y));
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.12) inset,
+    0 4px 10px -6px rgba(0,0,0,0.4);
+}
+/* release: elastic recovery */
+html[data-texture="liquid"] .btn.lg-bounce{
+  animation: lg-bounce-kf calc(360ms + 260ms * var(--fx-bounce-strength, 0)) var(--fx-ease-spring, cubic-bezier(.34,1.4,.4,1));
+}
+@keyframes lg-bounce-kf{
+  0%   { transform: scale(0.965); }
+  55%  { transform: scale(calc(1 + 0.05 * var(--fx-bounce-strength, 0))); }
+  100% { transform: scale(1); }
+}
+
+/* ---- Liquid Glass tab bar ---- */
+html[data-texture="liquid"] .tabbar{
+  background:
+    radial-gradient(140px 60px at 50% -10%, rgba(255,255,255,0.10), transparent 70%),
+    rgba(var(--fx-surface-strong-rgb, 16,17,12),0.4) !important;
+  border-color:rgba(255,255,255,0.14) !important;
+  backdrop-filter:blur(24px) saturate(170%);
+  -webkit-backdrop-filter:blur(24px) saturate(170%);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.10) inset,
+    0 14px 34px rgba(0,0,0,0.5);
+}
+/* the plain gradient .tab.is-active background is replaced by the floating
+   indicator below, so it doesn't double up underneath it */
+html[data-texture="liquid"] .tab.is-active{ background:transparent; }
+html[data-texture="liquid"] .tab.is-active svg{ filter:drop-shadow(0 1px 1px rgba(0,0,0,0.25)); }
+
+/* injected by js/fomoji-liquid-glass.js as the tabbar's first child, so
+   later .tab siblings paint on top of it automatically (no z-index needed).
+   top/height used to be hardcoded here to the default (floating) tab size
+   — 6px/52px. js only ever measured left/width off the real active tab,
+   so on [data-tabbar="compact"] (44px tabs) the pill sat 2px too low and
+   overflowed the (smaller) bar by ~6px, and on [data-tabbar="labeled"]
+   (46px row tabs) it overflowed by ~5px — the pill visibly poked out past
+   the bar edge over page content. top/height are now set inline by JS from
+   the tab's real rect, same as left/width already were; these are just the
+   pre-JS fallback so nothing pops before the first measure. */
+.tab-indicator{
+  position:absolute;
+  top:6px; height:52px;
+  border-radius:999px;
+  pointer-events:none;
+  background:
+    radial-gradient(70% 70% at 50% 20%, rgba(255,255,255,0.30), transparent 70%),
+    linear-gradient(180deg, var(--putty), var(--sage));
+  box-shadow:0 1px 0 rgba(255,255,255,0.3) inset, 0 6px 16px -6px rgba(0,0,0,0.4);
+  /* materializes on load rather than sliding across a page navigation —
+     there's no client-side router here, each tab is a real page load */
+  animation: lg-indicator-in var(--fx-duration-slow, 320ms) var(--fx-ease-spring, cubic-bezier(.34,1.4,.4,1)) backwards;
+  /* top/height are now measured live (see fomoji-liquid-glass.js) same as
+     left/width — e.g. switching Tab Bar Layout in Settings while Liquid
+     Glass is active changes tab height (44/46/52px), and without these two
+     here the pill would resize instantly while sliding smoothly, which
+     reads as broken/janky next to the animated left/width. */
+  transition:
+    left var(--fx-duration-base, 180ms) var(--fx-ease-standard, ease),
+    width var(--fx-duration-base, 180ms) var(--fx-ease-standard, ease),
+    top var(--fx-duration-base, 180ms) var(--fx-ease-standard, ease),
+    height var(--fx-duration-base, 180ms) var(--fx-ease-standard, ease);
+}
+@keyframes lg-indicator-in{ from{ opacity:0; transform:scale(0.85); } to{ opacity:1; transform:scale(1); } }
+
+/* ---- motion-safety: identical to the reduced-motion tier in tokens.css,
+   restated here so the bounce keyframe/indicator materialize animation
+   never plays even if a component mounts before tokens.css finishes
+   cascading ---- */
+html.reduce-motion .btn.lg-bounce,
+html[data-motion="reduced"] .btn.lg-bounce,
+html[data-motion="none"] .btn.lg-bounce{ animation:none; }
+html.reduce-motion .tab-indicator,
+html[data-motion="reduced"] .tab-indicator,
+html[data-motion="none"] .tab-indicator{ animation:none; transition:none; }

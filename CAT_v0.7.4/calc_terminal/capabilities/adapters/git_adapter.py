@@ -77,20 +77,55 @@ def _diff_handler(args: Dict[str, Any], context: Optional[Dict[str, Any]] = None
 
 def _commit_handler(args: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> ExecutionResult:
     cwd = args.get("cwd", os.getcwd())
-    message = args.get("message", "")
-    if not message:
-        return ExecutionResult(success=False, error="Commit message is required")
+    raw_message = args.get("message", "").strip()
 
-    # Add changes if requested
+    from ...git_sync import stage_intended_files, validate_commit_message
+
+    # Stage intended files if requested
     if args.get("all", True):
-        _run_git(["add", "-A"], cwd)
+        stage_ok, staged_files, stage_err = stage_intended_files(cwd)
+        if not stage_ok:
+            return ExecutionResult(success=False, error=stage_err or "Failed to stage intended files")
+    else:
+        staged_files = []
+
+    valid_ok, valid_msg = validate_commit_message(raw_message, staged_files)
+    if not valid_ok or not valid_msg:
+        return ExecutionResult(success=False, error="Commit message is required and cannot be empty")
 
     task_id = args.get("task_id", "")
-    full_message = f"{message}\n\nTask-Id: {task_id}" if task_id else message
+    full_message = f"{valid_msg}\n\nTask-Id: {task_id}" if task_id else valid_msg
     ok, out, err, code = _run_git(["commit", "-m", full_message], cwd)
     if not ok:
         return ExecutionResult(success=False, error=err or out, metadata={"exit_code": code})
     return ExecutionResult(success=True, output=out, metadata={"commit_message": full_message})
+
+
+def _push_handler(args: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> ExecutionResult:
+    cwd = args.get("cwd", os.getcwd())
+    remote = args.get("remote", "origin")
+    branch = args.get("branch")
+
+    from ...git_sync import push_to_remote
+    push_ok, out, err = push_to_remote(cwd, remote=remote, branch=branch)
+    if not push_ok:
+        return ExecutionResult(success=False, error=err or out or "Git push failed")
+    return ExecutionResult(success=True, output=out or "Push completed successfully")
+
+
+def _publish_handler(args: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> ExecutionResult:
+    cwd = args.get("cwd", os.getcwd())
+    message = args.get("message")
+    remote = args.get("remote", "origin")
+
+    from ...git_sync import sync_and_publish
+    rc = sync_and_publish(repo_path=cwd, message=message, remote=remote)
+    return ExecutionResult(
+        success=(rc == 0),
+        output="GitHub update completed" if rc == 0 else "GitHub update failed",
+        error=None if rc == 0 else f"Publish workflow failed with exit code {rc}",
+        metadata={"exit_code": rc},
+    )
 
 
 def _branch_handler(args: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> ExecutionResult:
@@ -162,12 +197,42 @@ def register_git_capabilities(bus):
             version="1.0.0",
             category=CapabilityCategory.GIT,
             description="Create a git commit with provenance task attribution.",
-            input_schema={"message": "string", "all": "boolean?", "task_id": "string?"},
+            input_schema={"message": "string?", "all": "boolean?", "task_id": "string?"},
             output_schema={"output": "string"},
             permissions=["modify_git"],
-            documentation="Stages and commits changes with commit message.",
+            documentation="Stages and commits changes with validated commit message.",
         ),
         handler=_commit_handler,
+        health_checker=_check_git_health,
+    ))
+
+    bus.register(Capability(
+        spec=CapabilitySpec(
+            name="git.push",
+            version="1.0.0",
+            category=CapabilityCategory.GIT,
+            description="Push current branch to remote repository.",
+            input_schema={"remote": "string?", "branch": "string?"},
+            output_schema={"output": "string"},
+            permissions=["modify_git"],
+            documentation="Pushes local commits to the remote Git branch.",
+        ),
+        handler=_push_handler,
+        health_checker=_check_git_health,
+    ))
+
+    bus.register(Capability(
+        spec=CapabilitySpec(
+            name="git.publish",
+            version="1.0.0",
+            category=CapabilityCategory.GIT,
+            description="Synchronize, stage, commit, and push changes to GitHub with strict verification.",
+            input_schema={"message": "string?", "remote": "string?"},
+            output_schema={"output": "string"},
+            permissions=["modify_git"],
+            documentation="Executes end-to-end Git verification and GitHub publish workflow.",
+        ),
+        handler=_publish_handler,
         health_checker=_check_git_health,
     ))
 
@@ -200,3 +265,4 @@ def register_git_capabilities(bus):
         handler=_rollback_handler,
         health_checker=_check_git_health,
     ))
+

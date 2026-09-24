@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="js/fomoji-theme.js"></script>
+<script src="js/fomoji-animated-bot.js"></script>
+<script src="js/fomoji-components.js"></script>
+<script src="js/fomoji-liquid-glass.js"></script>
+<script src="js/fomoji-fx.js"></script>
+<script src="js/fomoji-commands.js"></script>
+<script src="js/fomoji-tabbar.js"></script>
+<script src="js/fomoji-signout.js"></script>
+<script src="js/fomoji-gestures.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Security · Fomoji</title>
+<link rel="stylesheet" href="css/fomoji-tokens.css">
+<link rel="stylesheet" href="css/fomoji.css">
+<link rel="stylesheet" href="css/fomoji-fx.css">
+<link rel="stylesheet" href="css/fomoji-animated-bot.css">
+<link rel="stylesheet" href="css/fomoji-liquid-glass.css">
+<link rel="stylesheet" href="css/fomoji-glow-engine.css">
+<link rel="stylesheet" href="css/fomoji-signout.css">
+<style>
+  .doc{ position:relative; z-index:1; max-width:680px; margin:0 auto; padding:28px 20px 0; }
+  @media (min-width:820px){ .doc{ padding:44px 40px 0; } }
+  .doc-head{ margin-bottom:22px; }
+  .doc-eyebrow{
+    font-family:var(--f-mono); font-size:11px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--putty); display:block; margin-bottom:10px;
+  }
+  .doc-title{ font-size:clamp(22px,3.6vw,30px); font-weight:600; }
+  .doc-sub{ margin-top:8px; font-size:13.5px; color:var(--ink-dim); line-height:1.6; max-width:520px; }
+  .doc-toc{ display:flex; gap:8px; flex-wrap:wrap; margin:20px 0 32px; }
+  .doc-toc a{
+    font-size:12px; font-family:var(--f-mono); color:var(--ink-dim);
+    border:1px solid var(--line); border-radius:999px; padding:6px 12px;
+  }
+  .doc-toc a:hover{ color:var(--sage); border-color:var(--sage-deep); }
+  .doc-status{
+    display:inline-flex; align-items:center; gap:5px;
+    font-family:var(--f-mono); font-size:10.5px; letter-spacing:0.04em; text-transform:uppercase;
+    padding:2px 8px; border-radius:999px; margin-left:6px; vertical-align:middle;
+  }
+  .doc-status.is-live{ background:rgba(154,160,133,0.16); color:var(--sage); }
+  .doc-status.is-planned{ background:var(--panel-2); color:var(--ink-faint); border:1px solid var(--line); }
+  .doc-note{
+    border:1px dashed var(--line); border-radius:var(--radius-s);
+    padding:12px 14px; font-size:12.5px; color:var(--ink-faint); margin-top:12px; line-height:1.6;
+  }
+  .doc-note.is-honest{ border-color:var(--line); background:var(--panel); }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a href="home.html"><img src="img/fomoji-logo.png" alt="Fomoji"></a>
+  <div class="topbar-user">
+    <span id="topbarName">—</span>
+    <div class="avatar" id="avatarInitial">·</div>
+  </div>
+</header>
+
+<div class="settings-wrap">
+
+  <nav class="settings-nav" aria-label="Security sections">
+    <a href="#overview" class="is-active">Overview</a>
+    <a href="#auth-methods">Auth methods</a>
+    <a href="#auth-card">Authentication Card</a>
+    <a href="#session">Session</a>
+    <a href="#password">Password</a>
+    <a href="#connected">Connected apps</a>
+    <a href="connector.html">Connections</a>
+    <a href="oauth-config.html">Provider Config</a>
+    <a href="#data">Data &amp; privacy</a>
+    <a href="#recovery">Recovery</a>
+    <a href="#recommendations">Recommendations</a>
+  </nav>
+
+  <main class="settings-main">
+
+    <div class="guest-banner" id="guestBanner" style="display:none;">
+      <span><strong>Browsing as guest</strong> — password and recovery settings need an account first.</span>
+      <a href="signup.html" class="btn btn-primary">Create account</a>
+    </div>
+
+    <!-- OVERVIEW -->
+    <section class="panel" id="overview">
+      <div class="panel-head">
+        <div class="panel-title">Security overview</div>
+        <div class="panel-sub">What actually protects your account today, in one place. This page is an additional look at security specifically — the same real controls also live in <a href="settings.html#security" style="color:var(--sage);">Settings → Security</a>. Baseline security (password hashing, lockouts, session expiry) is always on and can't be turned off from either place.</div>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">Full manual</div>
+          <div class="row-sub">Every Fomoji feature, documented.</div>
+        </div>
+        <a href="manual.html" class="btn btn-ghost btn-inline">Open</a>
+      </div>
+    </section>
+
+    <!-- AUTH METHODS -->
+    <section class="panel" id="auth-methods">
+      <div class="panel-head">
+        <div class="panel-title">Authentication methods</div>
+        <div class="panel-sub">What you can currently sign in with.</div>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">Username / email + password</div>
+          <div class="row-sub">Hashed server-side with scrypt, never stored or sent in plain text. Repeated failed attempts trigger a temporary lockout on that identifier.</div>
+        </div>
+        <span class="pill pill-on">Active</span>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">Passkeys</div>
+          <div class="row-sub">Real server-side WebAuthn — Face ID, Touch ID, Windows Hello, or a security key. Manage yours from <a href="passkey.html" style="color:var(--sage);">the passkey page</a>.</div>
+        </div>
+        <span class="pill pill-on">Active</span>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">Two-factor authentication (2FA)</div>
+          <div class="row-sub">Not built yet as a separate step — a passkey already provides device-bound, phishing-resistant verification on its own.</div>
+        </div>
+        <span class="pill pill-off">Planned</span>
+      </div>
+    </section>
+
+    <!-- AUTHENTICATION CARD -->
+    <section class="panel" id="auth-card">
+      <div class="panel-head">
+        <div class="panel-title">Fomoji Authentication Card</div>
+        <div class="panel-sub">Your account's signed identity card — full account info, a unique server-generated pattern, and a signature only Fomoji could have issued.</div>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">View / download your card</div>
+          <div class="row-sub">Requires a fresh device unlock (passkey, password, or PIN) — separate from just being signed in.</div>
+        </div>
+        <button class="btn btn-primary btn-inline" id="openCardBtn">Open</button>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">Card unlock PIN</div>
+          <div class="row-sub">An optional quick-unlock secret for the card, separate from your account password.</div>
+        </div>
+        <button class="btn btn-ghost btn-inline" id="setCardPinBtn">Set PIN</button>
+      </div>
+      <div class="doc-note is-honest">
+        <strong>What "verified" means here:</strong> a download carries the card's actual signed data, so it checks out against Fomoji's server. A screenshot only carries pixels — it has nothing to verify, even though it looks identical. No website can detect or block a screenshot itself; what this buys you is that nobody can forge a card that verifies, not that screenshots are prevented.
+      </div>
+    </section>
+
+    <!-- SESSION -->
+    <section class="panel" id="session">
+      <div class="panel-head">
+        <div class="panel-title">Session</div>
+        <div class="panel-sub">Trusted devices, sessions, and signing out.</div>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">Current session</div>
+          <div class="row-sub" id="sessionInfo">—</div>
+        </div>
+        <span class="pill pill-on">Active</span>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">Trusted devices</div>
+          <div class="row-sub">Not built — everything here lives per-browser with no server, so there's no cross-device list to show yet. Signing in elsewhere just starts an independent session there.</div>
+        </div>
+        <span class="pill pill-off">Planned</span>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">Sign out of Fomoji</div>
+          <div class="row-sub">Ends this session on this browser.</div>
+        </div>
+        <button class="btn btn-danger btn-inline" id="logoutBtn">Log out</button>
+      </div>
+    </section>
+
+    <!-- PASSWORD -->
+    <section class="panel" id="password">
+      <div class="panel-head">
+        <div class="panel-title">Change password</div>
+        <div class="panel-sub">Requires your current password.</div>
+      </div>
+      <div class="alert alert-error" id="pwAlert" role="alert" aria-live="assertive"></div>
+      <form id="pwForm" novalidate>
+        <div class="field">
+          <label for="currentPw">Current password</label>
+          <input type="password" id="currentPw" autocomplete="current-password">
+        </div>
+        <div class="field">
+          <label for="newPw">New password</label>
+          <input type="password" id="newPw" autocomplete="new-password">
+        </div>
+        <div class="field">
+          <label for="confirmPw">Confirm new password</label>
+          <input type="password" id="confirmPw" autocomplete="new-password">
+        </div>
+        <button type="submit" class="btn btn-primary btn-inline" id="pwBtn">
+          <span class="spinner"></span>
+          <span class="btn-label">Update password</span>
+        </button>
+        <div class="mini-alert" id="pwSavedMsg">✓ Password updated.</div>
+      </form>
+    </section>
+
+    <!-- CONNECTED APPS / PERMISSIONS -->
+    <section class="panel" id="connected">
+      <div class="panel-head">
+        <div class="panel-title">Connected applications &amp; permissions</div>
+        <div class="panel-sub">What can sign in as you.</div>
+      </div>
+      <div class="row" id="catRow">
+        <div>
+          <div class="row-label">CAT</div>
+          <div class="row-sub">Coding agent terminal. Authorizing this only verifies your identity — it never shares your password, and it doesn't grant CAT any access to your device.</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
+          <span class="pill pill-off" id="catPill">Not connected</span>
+          <button type="button" class="btn btn-primary btn-inline" id="catConnectBtn">Connect</button>
+          <button type="button" class="btn btn-danger btn-inline is-hidden" id="catDisconnectBtn">Disconnect</button>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">Full connector manager</div>
+          <div class="row-sub">Per-app permissions, every connected application, and approving a connection code from CAT or another project.</div>
+        </div>
+        <a href="connector.html" class="btn btn-ghost btn-inline">Open</a>
+      </div>
+    </section>
+
+    <!-- DATA & PRIVACY -->
+    <section class="panel" id="data">
+      <div class="panel-head">
+        <div class="panel-title">Data protection &amp; privacy</div>
+        <div class="panel-sub">Where your data actually lives.</div>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">Storage</div>
+          <div class="row-sub">Your identity, credentials (password hash, passkeys), and sign-in activity live server-side in a real database. Appearance, tab bar, gestures, and connected-app state still live only in this browser's local storage — those haven't moved to the server yet.</div>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">Full privacy policy</div>
+          <div class="row-sub">Includes how third-party AI providers would be handled once that layer exists.</div>
+        </div>
+        <a href="privacy.html" class="btn btn-ghost btn-inline">View</a>
+      </div>
+    </section>
+
+    <!-- RECOVERY -->
+    <section class="panel" id="recovery">
+      <div class="panel-head">
+        <div class="panel-title">Recovery</div>
+        <div class="panel-sub">Your one-time recovery code is the only backup door this build has.</div>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-label">Reset with recovery code</div>
+          <div class="row-sub">Available from the login screen's "Forgot password?" link. Resetting rotates your code automatically.</div>
+        </div>
+        <a href="index.html" class="btn btn-ghost btn-inline">Go to login</a>
+      </div>
+      <div class="doc-note is-honest"><strong>No email-based reset exists</strong> — that needs a mail server this build doesn't have. If you lose both your password and your recovery code, there's currently no way back into that account.</div>
+    </section>
+
+    <!-- RECOMMENDATIONS -->
+    <section class="panel" id="recommendations">
+      <div class="panel-head">
+        <div class="panel-title">Security recommendations</div>
+        <div class="panel-sub">Realistic advice for what this build actually protects.</div>
+      </div>
+      <div class="row"><div class="row-sub">Store your recovery code somewhere durable and offline — it's shown exactly once and can't be retrieved again.</div></div>
+      <div class="row"><div class="row-sub">Use a password you don't reuse elsewhere — hashing protects it locally, but it's still the only thing standing between anyone with browser access and your account.</div></div>
+      <div class="row"><div class="row-sub">Sign out on shared or public computers — sessions persist by default until you do.</div></div>
+    </section>
+
+  </main>
+  <div class="tabbar-spacer"></div>
+</div>
+
+<nav class="tabbar" aria-label="Primary">
+  <a class="tab" href="home.html" data-ascii-glyph="[~]" data-emoji-glyph="🏠">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9h12v-9"/></svg>
+    <span class="tab-label">Home</span>
+  </a>
+  <a class="tab is-active" href="settings.html" aria-current="page" data-ascii-glyph="[@]" data-emoji-glyph="🙂">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.4"/><path d="M5 20c1.2-3.6 4-5.4 7-5.4s5.8 1.8 7 5.4"/></svg>
+    <span class="tab-label">Me</span>
+  </a>
+</nav>
+
+<script src="js/fomoji-auth.js"></script>
+<script src="js/connector.js"></script>
+<script src="js/fomoji-connect.js"></script>
+<script src="vendor/simplewebauthn-browser.min.js"></script>
+<script src="js/fomoji-webauthn.js"></script>
+<script src="js/fomoji-passkey-manager.js"></script>
+<script src="js/fomoji-auth-card.js"></script>
+<script>
+(async () => {
+  const account = await requireSession();
+  if (!account) return;
+
+  document.getElementById('topbarName').textContent = account.username;
+  document.getElementById('avatarInitial').textContent = account.name.trim().charAt(0).toUpperCase() || '?';
+  document.getElementById('sessionInfo').textContent = account.isGuest
+    ? `Guest session · expires ${new Date(account.expiresAt).toLocaleString()}`
+    : `Fomoji ID ${account.fomojiId} · session renews on sign-in`;
+
+  if (account.isGuest) {
+    document.getElementById('guestBanner').style.display = 'flex';
+    document.getElementById('pwForm').style.display = 'none';
+    const pwNote = document.createElement('div');
+    pwNote.className = 'alert alert-info is-visible';
+    pwNote.textContent = 'Guest sessions don\u2019t have a password to change — create an account to set one.';
+    document.getElementById('pwForm').insertAdjacentElement('afterend', pwNote);
+  } else if (!account.hasPassword) {
+    document.getElementById('pwForm').style.display = 'none';
+    const pwNote = document.createElement('div');
+    pwNote.className = 'alert alert-info is-visible';
+    pwNote.textContent = 'This identity signs in with a passkey and has no password set.';
+    document.getElementById('pwForm').insertAdjacentElement('afterend', pwNote);
+  }
+
+  // ---- connected apps: CAT connect/disconnect (shared FomojiConnect modal) ----
+  const catPill = document.getElementById('catPill');
+  const catConnectBtn = document.getElementById('catConnectBtn');
+  const catDisconnectBtn = document.getElementById('catDisconnectBtn');
+  const catRow = document.getElementById('catRow');
+
+  function flashRow() {
+    catRow.classList.add('is-flash');
+    catPill.classList.add('is-flash');
+    setTimeout(() => { catRow.classList.remove('is-flash'); catPill.classList.remove('is-flash'); }, 500);
+  }
+
+  async function renderCatState() {
+    let connected;
+    if (!account.isGuest && window.FomojiConnector) {
+      try { connected = (await FomojiConnector.status('cat')) === 'connected'; }
+      catch { connected = false; }
+    } else {
+      connected = !!FomojiAPI.getConnections(account).cat;
+    }
+    catPill.textContent = connected ? 'Connected' : 'Not connected';
+    catPill.classList.toggle('pill-on', connected);
+    catPill.classList.toggle('pill-off', !connected);
+    catConnectBtn.classList.toggle('is-hidden', connected);
+    catDisconnectBtn.classList.toggle('is-hidden', !connected);
+  }
+  renderCatState();
+
+  catConnectBtn.addEventListener('click', () => {
+    FomojiConnect.open(account, { onConnected: () => { renderCatState(); flashRow(); } });
+  });
+
+  catDisconnectBtn.addEventListener('click', async () => {
+    catDisconnectBtn.disabled = true;
+    try {
+      if (!account.isGuest && window.FomojiConnector) {
+        await FomojiConnector.disconnect('cat');
+      } else {
+        await FomojiAPI.disconnectApp(account, 'cat');
+      }
+      await renderCatState();
+      flashRow();
+    } finally {
+      catDisconnectBtn.disabled = false;
+    }
+  });
+
+  // ---- logout ----
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    if (window.FomojiSignOut && typeof FomojiSignOut.trigger === 'function') {
+      FomojiSignOut.trigger();
+    } else {
+      FomojiAPI.logout().finally(() => { window.location.href = 'welcome.html'; });
+    }
+  });
+
+  // ---- authentication card ----
+  document.getElementById('openCardBtn').addEventListener('click', () => {
+    if (account.isGuest) { alert('Create an account first — guest sessions don\u2019t have a card.'); return; }
+    FomojiAuthCard.open();
+  });
+  document.getElementById('setCardPinBtn').addEventListener('click', async () => {
+    if (account.isGuest) { alert('Create an account first — guest sessions don\u2019t have a card.'); return; }
+    const pin = prompt('Choose a PIN (4\u201332 characters) to unlock your Authentication Card quickly. This requires unlocking with your password or passkey once first.');
+    if (!pin) return;
+    try {
+      try {
+        await FomojiAuthCard.setPin(pin);
+        alert('Card PIN set.');
+      } catch (err) {
+        // Not unlocked yet this session — prompt for password, unlock, then set.
+        const password = prompt('Confirm your password to enable a card PIN:');
+        if (!password) return;
+        await FomojiAuthCard.unlockWithPassword(password);
+        await FomojiAuthCard.setPin(pin);
+        alert('Card PIN set.');
+      }
+    } catch (err) {
+      alert(err instanceof FomojiCardError ? err.message : 'Could not set a PIN right now.');
+    }
+  });
+
+  // ---- change password ----
+  const pwForm = document.getElementById('pwForm');
+  const pwAlert = document.getElementById('pwAlert');
+  const pwBtn = document.getElementById('pwBtn');
+  pwForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    pwAlert.classList.remove('is-visible');
+    document.getElementById('pwSavedMsg').classList.remove('is-visible');
+
+    const currentPassword = document.getElementById('currentPw').value;
+    const newPassword = document.getElementById('newPw').value;
+    const confirmPassword = document.getElementById('confirmPw').value;
+
+    if (newPassword !== confirmPassword) {
+      pwAlert.textContent = 'New passwords don\u2019t match.';
+      pwAlert.classList.add('is-visible');
+      return;
+    }
+
+    pwBtn.disabled = true;
+    pwBtn.classList.add('is-loading');
+    try {
+      const { recoveryCode } = await FomojiAPI.changePassword({ currentPassword, newPassword });
+      pwForm.reset();
+      document.getElementById('pwSavedMsg').classList.add('is-visible');
+      if (recoveryCode) {
+        alert(`A password was just set on this identity for the first time, so a recovery code was generated too — save it now, it won't be shown again:\n\n${recoveryCode}`);
+      }
+    } catch (err) {
+      pwAlert.textContent = err instanceof FomojiAuthError ? err.message : 'Something went wrong.';
+      pwAlert.classList.add('is-visible');
+    } finally {
+      pwBtn.disabled = false;
+      pwBtn.classList.remove('is-loading');
+    }
+  });
+
+  // ---- settings-nav active state on scroll (mirrors settings.html behavior) ----
+  const navLinks = Array.from(document.querySelectorAll('.settings-nav a[href^="#"]'));
+  const sections = navLinks.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  function setActiveFromHash() {
+    const id = location.hash ? location.hash.slice(1) : 'overview';
+    navLinks.forEach(a => a.classList.toggle('is-active', a.getAttribute('href') === '#' + id));
+  }
+  window.addEventListener('hashchange', setActiveFromHash);
+  setActiveFromHash();
+})();
+</script>
+</body>
+</html>

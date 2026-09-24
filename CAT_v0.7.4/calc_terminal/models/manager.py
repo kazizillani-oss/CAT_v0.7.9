@@ -27,13 +27,35 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 # ── Paths ──────────────────────────────────────────────────────────────────
-# project root = <project>/calc_terminal/models/../../
+# _PKG_DIR points inside the installed package (site-packages or source
+# checkout) and is correct for READ-ONLY bundled data (providers.json,
+# model_metadata.json). The writable model cache MUST live in the user's
+# app-data dir — never inside site-packages (read-only when installed) and
+# never tied to the git checkout path. first_run.data_dir() is the single
+# source of truth (CCT_DATA_DIR override + OS conventions); _LEGACY_CACHE_DIR
+# preserves reads from older source-checkout runs.
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _PKG_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # calc_terminal/
 PROVIDERS_FILE = os.path.join(_PKG_DIR, "providers", "providers.json")
 MODEL_METADATA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                    "model_metadata.json")
-CACHE_DIR = os.path.join(_ROOT, "cache", "models")
+
+
+def _user_cache_dir() -> str:
+    try:
+        from ..first_run import cache_dir as _app_cache
+
+        return os.path.join(_app_cache(), "models")
+    except Exception:
+        pass
+    base = os.environ.get("CCT_DATA_DIR", "").strip()
+    if base:
+        return os.path.join(os.path.abspath(base), "cache", "models")
+    return os.path.join(os.path.expanduser("~"), ".cct", "cache", "models")
+
+
+CACHE_DIR = _user_cache_dir()
+_LEGACY_CACHE_DIR = os.path.join(_ROOT, "cache", "models")
 
 # ── Sources ────────────────────────────────────────────────────────────────
 SOURCE_LIVE = "live"       # freshly fetched from the provider's API
@@ -181,17 +203,30 @@ def get_cache_path(provider_id: str) -> str:
 
 
 def get_cached(provider_id: str) -> Optional[tuple[list[str], str]]:
-    """(models, fetched_at_iso) from disk, or None."""
-    path = get_cache_path(provider_id)
+    """(models, fetched_at_iso) from disk, or None.
+
+    Reads the user app-data cache first, then the legacy source-checkout
+    location (so caches written before the pip-installable layout still
+    work). Writes always go to the user location (see write_cache)."""
+    candidates = [get_cache_path(provider_id)]
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        models = data.get("models")
-        if not isinstance(models, list) or not models:
-            return None
-        return [str(m) for m in models], str(data.get("fetched_at", ""))
+        safe = re.sub(r"[^A-Za-z0-9_.-]", "_", str(provider_id))
+        legacy = os.path.join(_LEGACY_CACHE_DIR, f"{safe}.json")
+        if legacy not in candidates:
+            candidates.append(legacy)
     except Exception:
-        return None
+        pass
+    for path in candidates:
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            models = data.get("models")
+            if not isinstance(models, list) or not models:
+                continue
+            return [str(m) for m in models], str(data.get("fetched_at", ""))
+        except Exception:
+            continue
+    return None
 
 
 def write_cache(provider_id: str, models: list[str]):

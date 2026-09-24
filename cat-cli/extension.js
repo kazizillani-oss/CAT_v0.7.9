@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * CAT CLI — VS Code extension entry point.
+ * CAT — Coding Agent Terminal — VS Code extension entry point.
  *
  * This extension is a LAUNCHER/INTEGRATION BRIDGE only. The real CAT
  * application is the existing Python/Textual CLI (calc_terminal), which
@@ -20,8 +20,8 @@ const { CatTerminalManager } = require('./catTerminal');
 
 /** @param {vscode.ExtensionContext} context */
 function activate(context) {
-	const output = vscode.window.createOutputChannel('CAT CLI');
-	output.appendLine('CAT CLI extension activating…');
+	const output = vscode.window.createOutputChannel('CAT — Coding Agent Terminal');
+	output.appendLine('CAT — Coding Agent Terminal extension activating…');
 
 	const manager = new CatTerminalManager(context, output);
 
@@ -30,7 +30,7 @@ function activate(context) {
 		vscode.commands.registerCommand('kazizillani.cat.open', async () => {
 			const result = await manager.launch();
 			if (result === 'failed') {
-				vscode.window.showErrorMessage('Failed to start CAT. Check the output for details.');
+				vscode.window.showErrorMessage('Failed to start CAT — Coding Agent Terminal. Check the output for details.');
 			}
 		}),
 
@@ -39,7 +39,7 @@ function activate(context) {
 			await manager.closeTerminal();
 			const result = await manager.launch({ forceNew: true });
 			if (result === 'failed') {
-				vscode.window.showErrorMessage('Failed to restart CAT. Check the output for details.');
+				vscode.window.showErrorMessage('Failed to restart CAT — Coding Agent Terminal. Check the output for details.');
 			}
 		}),
 
@@ -58,14 +58,14 @@ function activate(context) {
 			const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 90);
 			status.command = 'kazizillani.cat.open';
 			status.text = '$(terminal) CAT';
-			status.tooltip = 'Open CAT CLI in the integrated terminal';
+			status.tooltip = 'Open CAT — Coding Agent Terminal in the integrated terminal';
 			status.show();
 			return status;
 		})()
 	);
 
 	context.subscriptions.push(disposable);
-	output.appendLine('CAT CLI extension activated (launcher bridge; real CAT runs in the integrated terminal).');
+	output.appendLine('CAT — Coding Agent Terminal extension activated (launcher bridge; real CAT runs in the integrated terminal).');
 }
 
 function deactivate() {

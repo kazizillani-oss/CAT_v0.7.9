@@ -31,6 +31,15 @@ try:
 except Exception:
     TEXTUAL_AVAILABLE = False
 
+def _safe_glyph(emoji: str, fallback: str) -> str:
+    try:
+        import sys
+        enc = getattr(sys.stdout, "encoding", None) or "utf-8"
+        emoji.encode(enc)
+        return emoji
+    except Exception:
+        return fallback
+
 DEFAULT_WIDTH = 32
 COLLAPSED_WIDTH = 0
 
@@ -776,8 +785,8 @@ if TEXTUAL_AVAILABLE:
             # chevron flips ▼/▶ with the panel's width state.
             with Horizontal(id="cct-sidebar-titlebar"):
                 yield Static("[b]Explorer[/b]", id="cct-sidebar-title")
-                yield Button("\u25c2", id="cct-sidebar-collapse-btn",
-                             classes="cct-ctrl cct-sidebar-collapse-btn", tooltip="Collapse Sidebar (Ctrl+B)")
+                yield Button(_safe_glyph("◀", "<"), id="cct-sidebar-collapse-btn",
+                             classes="cct-sidebar-collapse-btn", tooltip="Collapse Sidebar (Ctrl+B)")
             yield Button("📁 Open Folder", id="cct-open-folder-btn", classes="cct-sidebar-open-btn")
             with ScrollableContainer(id="cct-sidebar-body"):
                 yield Static("No folder open.", id="cct-sidebar-empty")
@@ -872,8 +881,9 @@ if TEXTUAL_AVAILABLE:
             if event.button.id == "cct-open-folder-btn":
                 self.post_message(FileOpenRequested("__open_folder_prompt__"))
             elif event.button.id == "cct-sidebar-collapse-btn":
+                event.stop()
                 self.toggle()
-                self.post_message(SidebarToggled(self.width > 0))
+                self.post_message(SidebarToggled(self.width > 0 and self.display))
             elif event.button.id == "cct-sidebar-menu-btn":
                 self._show_explorer_menu()
 
@@ -1233,36 +1243,43 @@ if TEXTUAL_AVAILABLE:
         # -------------------------------------------------- collapse/resize --
         def set_width(self, value):
             previous = self.width
-            self.width = max(COLLAPSED_WIDTH, value)
-            self.styles.width = self.width
-            # At 0 width the panel would still paint its 1px right
-            # border, so the collapsed class drops it — the sidebar
-            # fully disappears instead of leaving a visible sliver.
-            self.set_class(self.width == 0, "cct-sidebar-collapsed")
-            # Keep the title-bar chevron honest: ▼ when open (click
+            new_width = max(COLLAPSED_WIDTH, value)
+            self.width = new_width
+            self.styles.width = new_width
+            # At 0 width the panel fully disappears without leaving any border or residue
+            if new_width == 0:
+                self.display = False
+                self.set_class(True, "cct-sidebar-collapsed")
+            else:
+                self.display = True
+                self.set_class(False, "cct-sidebar-collapsed")
+            # Keep the title-bar chevron honest: ◀ when open (click
             # collapses), ▶ when collapsed (click expands again).
             if self.is_mounted:
                 try:
                     btn = self.query_one("#cct-sidebar-collapse-btn", Button)
-                    btn.label = "\u25c2" if self.width > 0 else "\u25b8"
+                    is_open = (self.width > 0 and self.display)
+                    btn.label = _safe_glyph("◀", "<") if is_open else _safe_glyph("▶", ">")
+                    btn.tooltip = "Collapse Sidebar (Ctrl+B)" if is_open else "Expand Sidebar (Ctrl+B)"
                 except Exception:
                     pass
                 # Announce visibility flips once, so the shell can keep
                 # its resize divider in lockstep (and CCTApp persists
-                # the state). Crossing detection avoids double-posting
-                # on every drag frame.
-                if (previous > 0) != (self.width > 0):
-                    self.post_message(SidebarToggled(self.width > 0))
+                # the state).
+                if (previous > 0) != (self.width > 0 and self.display):
+                    self.post_message(SidebarToggled(self.width > 0 and self.display))
 
         def _tree_mounted_or_root(self):
             return self._workspace_root is not None or self._tree_mounted
 
         def toggle(self):
-            if self.width > 0:
+            if self.width > 0 and self.display:
                 self._restore_width = self.width
                 self.set_width(COLLAPSED_WIDTH)
             else:
-                self.set_width(getattr(self, "_restore_width", DEFAULT_WIDTH))
+                self.display = True
+                restore_w = getattr(self, "_restore_width", None) or DEFAULT_WIDTH
+                self.set_width(max(restore_w, DEFAULT_WIDTH))
 
         def focus_tree(self):
             """Give the open folder's DirectoryTree keyboard focus after

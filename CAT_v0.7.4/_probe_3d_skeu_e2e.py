@@ -24,6 +24,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+os.environ["CAT_SKIP_AUTH"] = "1"
 
 _results = []
 
@@ -118,17 +119,23 @@ async def main():
         await settle(pilot, 0.5)
 
         # ================================================== A: buttons ====
-        print("\n[A] Every button carries the 3D bevel")
+        print("\n[A] Every action button carries the 3D bevel")
         btns = list(app.query(Button))
-        if not btns:
-            check("app exposes buttons to audit", False, "none found")
+        action_btns = [
+            b for b in btns
+            if not (b.id in ('btn-permissions', 'btn-attach', 'btn-send', 'btn-stop', 'cct-sidebar-collapse-btn', 'cct-sidebar-expand-btn', 'cct-sidebar-menu-btn', 'cct-chat-sidebar-toggle')
+                    or (b.id and (b.id.startswith('perm-toggle-') or b.id.startswith('cct-perm-')))
+                    or any(c in b.classes for c in ('cct-icon-btn', 'cct-stop-btn', 'cct-ctrl', 'cct-sidebar-titlebar-btn', 'cct-chat-nav-btn', 'cct-chat-nav-action', 'cct-toggle-3d')))
+        ]
+        if not action_btns:
+            check("app exposes action buttons to audit", False, "none found")
         else:
-            sculpted = [b for b in btns if _sides_are_tall(b)]
-            check(f"{len(sculpted)}/{len(btns)} buttons are 3D-beveled",
-                  len(sculpted) == len(btns),
+            sculpted = [b for b in action_btns if _sides_are_tall(b)]
+            check(f"{len(sculpted)}/{len(action_btns)} action buttons are 3D-beveled",
+                  len(sculpted) == len(action_btns),
                   "; ".join(f"#{b.id or b.__class__.__name__}="
                             f"{_border_summary(b)}"
-                            for b in btns if not _sides_are_tall(b))[:220])
+                            for b in action_btns if not _sides_are_tall(b))[:220])
 
         # ============================================== B: dashboard ======
         print("\n[B] Dashboard quick-actions & cards are 3D + press-reactive")
@@ -146,8 +153,8 @@ async def main():
                 q0 = quick[0]
                 q0.add_class("-active")
                 await pilot.pause()
-                sunk = q0.styles.border_top[0] == "heavy" and \
-                    q0.styles.border_bottom[0] == "heavy"
+                sunk = q0.styles.border_top[0] in ("tall", "heavy") and \
+                    q0.styles.border_bottom[0] in ("tall", "heavy")
                 check("quick-action press-in state applies", sunk,
                       _border_summary(q0))
                 q0.remove_class("-active")

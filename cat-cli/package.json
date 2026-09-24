@@ -1,22 +1,65 @@
 {
   "name": "cat-cli",
-  "displayName": "CAT CLI (v0.8.0 BETA)",
-  "description": "CAT (Coding Agent Terminal) launcher for VS Code: opens the existing Python/Textual CAT CLI in the integrated terminal with one click.",
-  "publisher": "kazizillani",
-  "version": "0.8.0",
-    "engines": {
-    "vscode": "^1.138.0"
+  "displayName": "CAT — Coding Agent Terminal",
+  "description": "CAT — Coding Agent Terminal (also known as CCT) is an AI CLI and AI coding assistant for VS Code — a terminal AI and coding agent for terminal-first development, coding, debugging, research and planning. Launches the real CAT terminal assistant inside the VS Code integrated terminal.",
+  "publisher": "KaziZillani",
+  "version": "0.8.6",
+  "engines": {
+    "vscode": "^1.100.0"
   },
   "categories": [
+    "AI",
+    "Chat",
+    "Programming Languages",
+    "Machine Learning",
     "Other"
   ],
   "keywords": [
     "cat",
-    "cat-cli",
+    "cct",
+    "ai",
+    "chat",
+    "copilot",
+    "coding-agent",
     "coding agent",
-    "terminal",
-    "python",
-    "tui"
+    "coding assistant",
+    "terminal ai",
+    "terminal assistant",
+    "deepseek",
+    "ollama",
+    "claude",
+    "gpt",
+    "ai cli",
+    "ai coding",
+    "ai coding assistant",
+    "ai coding agent",
+    "command line ai",
+    "command line",
+    "developer ai",
+    "developer tool",
+    "ai developer tool",
+    "python cli",
+    "python ai",
+    "vs code ai",
+    "vscode ai",
+    "cli ai",
+    "ai assistant",
+    "developer assistant",
+    "cat cli for vscode",
+    "cat cli",
+    "cct cli"
+  ],
+  "badges": [
+    {
+      "url": "https://img.shields.io/badge/CAT-v0.7.9-ff79c6.svg",
+      "href": "https://github.com/kazizillani-oss/CAT_v0.7.9",
+      "description": "CAT CLI Version"
+    },
+    {
+      "url": "https://img.shields.io/badge/License-MIT-blue.svg",
+      "href": "https://github.com/kazizillani-oss/CAT_v0.7.9/blob/main/LICENSE",
+      "description": "License"
+    }
   ],
   "icon": "media/icon.png",
   "galleryBanner": {
@@ -32,6 +75,10 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/kazizillani-oss/CAT_v0.7.9"
+  },
+  "homepage": "https://github.com/kazizillani-oss/CAT_v0.7.9",
+  "bugs": {
+    "url": "https://github.com/kazizillani-oss/CAT_v0.7.9/issues"
   },
   "contributes": {
     "commands": [
@@ -94,12 +141,12 @@
       }
     ],
     "configuration": {
-      "title": "CAT CLI",
+      "title": "CAT — Coding Agent Terminal",
       "properties": {
         "cat.executable": {
           "type": "string",
           "default": "cat",
-          "description": "CAT executable to launch. A bare name ('cat') auto-detects the real entry point; a full command string (e.g., 'python -m calc_terminal') is used as-is. Supports {workspace}."
+          "description": "CAT executable to launch. A bare name ('cat' or 'cat.exe') auto-detects the real entry point; a full command string (e.g., 'python -m calc_terminal') is used as-is. Supports {workspace}."
         },
         "cat.launchArguments": {
           "type": "array",
@@ -109,7 +156,7 @@
         "cat.pythonPath": {
           "type": "string",
           "default": "",
-          "description": "Python interpreter used to run CAT. Leave empty to auto-detect (workspace .venv/venv/env, conda, poetry, py/python3/python)."
+          "description": "Python interpreter used to run CAT — Coding Agent Terminal. Leave empty to auto-detect (workspace .venv/venv/env, conda, poetry, py/python3/python)."
         },
         "cat.autoDetectPython": {
           "type": "boolean",
@@ -124,7 +171,7 @@
         "cat.autoStart": {
           "type": "boolean",
           "default": false,
-          "description": "Automatically start CAT when VS Code opens."
+          "description": "Automatically start CAT — Coding Agent Terminal when VS Code opens."
         }
       }
     }
@@ -133,17 +180,20 @@
     "lint": "eslint .",
     "pretest": "npm run lint",
     "test": "vscode-test",
-    "package": "vsce package --allow-missing-repository --skip-license"
+    "package": "vsce package --allow-missing-repository --skip-license",
+    "package:openvsx": "vsce package --allow-missing-repository --skip-license",
+    "publish:openvsx": "ovsx publish --allow-missing-repository"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "24.x",
-    "@types/vscode": "^1.138.0",
+    "@types/vscode": "^1.100.0",
     "@vscode/test-cli": "^0.0.15",
     "@vscode/test-electron": "^3.0.0",
     "@vscode/vsce": "^4.0.0",
     "eslint": "^10.5.0",
-    "globals": "^17.12.0"
+    "globals": "^17.12.0",
+    "ovsx": "^1.2.0"
   },
   "overrides": {
     "diff": "^8.0.4",

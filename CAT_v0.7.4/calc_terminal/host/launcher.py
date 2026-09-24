@@ -87,17 +87,31 @@ def _ensure_qt_app():
     _cache_path = os.path.join(tempfile.gettempdir(), "cat_qt_cache")
     os.makedirs(_cache_path, exist_ok=True)
     os.environ["QTWEBENGINE_CACHE_PATH"] = _cache_path
-    # Performance: keep GPU enabled for smooth rendering, add safe flags
+    # Performance: keep GPU enabled for smooth rendering, eliminate window occlusion flicker,
+    # bound memory to 4 processes for low-end 4GB-8GB PCs, and enable smooth 60fps scrolling
     os.environ.setdefault("QTWEBENGINE_CHROMIUM_FLAGS",
                           "--disable-dev-shm-usage --enable-gpu-rasterization "
                           "--ignore-gpu-blocklist --enable-zero-copy "
-                          "--disable-background-networking --disable-default-apps")
+                          "--disable-background-networking --disable-default-apps "
+                          "--disable-features=CalculateNativeWinOcclusion "
+                          "--renderer-process-limit=4 --smooth-scrolling "
+                          "--disable-gpu-watchdog --num-raster-threads=2")
     os.environ.setdefault("QTWEBENGINE_DISABLE_SANDBOX", "1")
 
     try:
+        from PySide6.QtCore import QCoreApplication, Qt
         from PySide6.QtWidgets import QApplication
     except ImportError:
+        from PyQt6.QtCore import QCoreApplication, Qt  # type: ignore
         from PyQt6.QtWidgets import QApplication  # type: ignore
+
+    # AA_ShareOpenGLContexts MUST be set before QApplication is instantiated to prevent surface tearing/flickering
+    try:
+        if hasattr(Qt.ApplicationAttribute, "AA_ShareOpenGLContexts"):
+            QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts, True)
+    except Exception:
+        pass
+
     app = QApplication.instance()
     if app is None:
         app = QApplication(sys.argv)
@@ -258,10 +272,20 @@ def launch_cat_host(
                 pw = exe.replace("python.exe", "pythonw.exe")
                 if os.path.exists(pw):
                     exe = pw
-            ws_root = str(pathlib.Path(__file__).resolve().parent.parent.parent)
+            # Source-checkout support only: a pip-installed CAT already has
+            # `calc_terminal` importable, so never force PYTHONPATH/cwd to a
+            # repo path that does not exist on the user's machine.
+            candidate_root = pathlib.Path(__file__).resolve().parent.parent.parent
+            is_source_checkout = (candidate_root / "calc_terminal").is_dir() and (
+                candidate_root / "main.py"
+            ).exists()
             env = os.environ.copy()
-            ppath = env.get("PYTHONPATH", "")
-            env["PYTHONPATH"] = ws_root + (os.pathsep + ppath if ppath else "")
+            popen_kwargs: dict = {}
+            if is_source_checkout:
+                ws_root = str(candidate_root)
+                ppath = env.get("PYTHONPATH", "")
+                env["PYTHONPATH"] = ws_root + (os.pathsep + ppath if ppath else "")
+                popen_kwargs["cwd"] = ws_root
             cmd = [exe, "-m", "calc_terminal.host.launcher", "--url", url, "--mode", "browser"]
             creationflags = 0
             if sys.platform == "win32":
@@ -269,12 +293,12 @@ def launch_cat_host(
             try:
                 subprocess.Popen(
                     cmd,
-                    cwd=ws_root,
                     env=env,
                     creationflags=creationflags,
                     close_fds=(sys.platform != "win32"),
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
+                    **popen_kwargs,
                 )
                 return 0
             except Exception as e:

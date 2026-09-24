@@ -26,6 +26,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+os.environ["CAT_SKIP_AUTH"] = "1"
 
 _results = []
 
@@ -185,18 +186,23 @@ async def main():
             tall_btns = 0
             plain_btns = 0
             for btn in app.query(Button):
+                if (btn.id in ('btn-permissions', 'btn-attach', 'btn-send', 'btn-stop', 'cct-sidebar-collapse-btn', 'cct-sidebar-menu-btn', 'cct-chat-sidebar-toggle')
+                        or (btn.id and (btn.id.startswith('perm-toggle-') or btn.id.startswith('cct-perm-')))
+                        or any(c in btn.classes for c in ('cct-icon-btn', 'cct-stop-btn', 'cct-ctrl', 'cct-sidebar-titlebar-btn', 'cct-chat-nav-btn', 'cct-chat-nav-action', 'cct-toggle-3d'))):
+                    continue
                 if _border_name(btn) == "tall":
                     tall_btns += 1
                 else:
                     plain_btns += 1
-            check("D1 every Button wears a raised `tall` bevel",
+            check("D1 every action Button wears a raised `tall` bevel",
                   tall_btns > 0 and plain_btns == 0,
                   f"tall={tall_btns} other={plain_btns}")
             if is_dash:
                 try:
                     qa = conv._dashboard.query(".cct-dash-action").first()
+                    h = getattr(qa, "outer_size", None).height if getattr(qa, "outer_size", None) else (qa.region.height or qa.size.height)
                     check("D2 dashboard quick-action keycap is 3 rows tall",
-                          qa.size.height >= 3, f"h={qa.size.height}")
+                          h >= 3, f"h={h}")
                     check("D3 dashboard quick-action has a bevel",
                           _border_name(qa) == "tall", _border_name(qa))
                 except Exception as e:

@@ -25,10 +25,28 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = (os.path.dirname(_HERE)
          if os.path.basename(_HERE) == "calc_terminal" else _HERE)
 if _ROOT not in sys.path:
-    sys.path.insert(0, _ROOT)
+    try:
+        import calc_terminal as _ct_check  # noqa: F401
+    except Exception:
+        sys.path.insert(0, _ROOT)
 
 # ---- startup logging ------------------------------------------------------
-_LOG_FILE = os.path.join(_ROOT, "startup.log")
+# Writable user logs dir first (works when pip-installed into read-only
+# site-packages); legacy repo-root startup.log kept as fallback for source
+# checkouts. Best-effort only — logging must never crash the app.
+def _resolve_log_file() -> str:
+    try:
+        from calc_terminal.first_run import logs_dir as _logs_dir
+
+        _d = _logs_dir()
+        os.makedirs(_d, exist_ok=True)
+        return os.path.join(_d, "startup.log")
+    except Exception:
+        pass
+    return os.path.join(_ROOT, "startup.log")
+
+
+_LOG_FILE = _resolve_log_file()
 def _log(msg, exc_info=False):
     try:
         with open(_LOG_FILE, "a", encoding="utf-8") as f:

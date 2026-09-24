@@ -1,0 +1,226 @@
+/* ==========================================================================
+   FOMOJI — AnimatedBot (single consolidated companion)
+   Reads its own --bot-* custom properties only (never --sage/--panel/etc)
+   so the bot's look stays fully independent of the global Fomoji theme.
+   One element, one texture system keyed by data-texture, so 35 presets
+   share this file instead of needing 35 stylesheets.
+   ========================================================================== */
+
+.fabot{
+  position:fixed;
+  z-index:55; /* above page content, below the sign-out modal (200) */
+  width:52px; height:52px;
+  cursor:pointer;
+  outline:none;
+  -webkit-tap-highlight-color:transparent;
+  transform:scale(var(--bot-scale, 1));
+  opacity:var(--bot-opacity, 1);
+  filter:var(--bot-shade-filter, none);
+  transition:opacity .25s ease, filter .25s ease, transform .2s ease;
+}
+.fabot[data-position="br"]{ right:calc(16px + var(--safe-r, 0px)); bottom:var(--fabot-clearance, 88px); transform-origin:bottom right; }
+.fabot[data-position="bl"]{ left:calc(16px + var(--safe-l, 0px)); bottom:var(--fabot-clearance, 88px); transform-origin:bottom left; }
+.fabot[data-position="tr"]{ right:calc(16px + var(--safe-r, 0px)); top:calc(16px + var(--safe-t, 0px)); transform-origin:top right; }
+.fabot[data-position="tl"]{ left:calc(16px + var(--safe-l, 0px)); top:calc(16px + var(--safe-t, 0px)); transform-origin:top left; }
+.fabot[data-position="br"], .fabot[data-position="bl"]{ transform:scale(var(--bot-scale, 1)); }
+
+.fabot.fabot-preview{ position:static; transform:scale(1.6); margin:22px; }
+
+.fabot:focus-visible .fabot-body{ outline:2px solid var(--bot-edge, #46e08a); outline-offset:3px; }
+.fabot.is-hidden{ display:none; }
+.fabot.no-interact{ cursor:default; }
+
+.fabot-body{
+  position:relative; width:100%; height:100%;
+  border-radius:16px;
+  background:linear-gradient(155deg, var(--bot-secondary), var(--bot-primary));
+  border:1.5px solid var(--bot-edge);
+  box-shadow:0 6px 18px -6px var(--bot-shadow-c, rgba(0,0,0,0.45)), 0 0 18px -4px var(--bot-glow, transparent);
+  display:flex; align-items:center; justify-content:center;
+  animation:fabot-float var(--bot-float-dur, 3.2s) ease-in-out infinite;
+  overflow:hidden;
+}
+.fabot.no-motion .fabot-body{ animation:none; }
+.fabot.is-paused .fabot-body{ animation-play-state:paused; }
+@keyframes fabot-float{
+  0%, 100% { transform:translateY(0); }
+  50%      { transform:translateY(calc(-1 * var(--bot-float-amp, 5px))); }
+}
+
+/* ---- face shapes ---- */
+.fabot[data-face="round"] .fabot-body{ border-radius:50%; }
+.fabot[data-face="square"] .fabot-body{ border-radius:8px; }
+.fabot[data-face="blob"] .fabot-body{ border-radius:62% 38% 55% 45% / 48% 42% 58% 52%; }
+.fabot[data-face="pixel"] .fabot-body{ border-radius:2px; }
+
+.fabot-shine{ position:absolute; inset:0; pointer-events:none; opacity:0; }
+
+/* ---- eyes ---- */
+.fabot-eyes{ position:absolute; display:flex; gap:9px; top:42%; left:50%; transform:translate(-50%,-50%); }
+.fabot-eye{
+  width:11px; height:11px; border-radius:50%;
+  background:var(--bot-eye-bg);
+  display:flex; align-items:center; justify-content:center;
+  overflow:hidden;
+  transition:height .12s ease, width .12s ease, transform .18s ease;
+}
+.fabot-pupil{ width:5px; height:5px; border-radius:50%; background:var(--bot-pupil); transition:transform 90ms linear; }
+
+.fabot[data-eyes="oval"] .fabot-eye{ width:9px; height:14px; border-radius:50%; }
+.fabot[data-eyes="wide"] .fabot-eye{ width:13px; height:13px; }
+.fabot[data-eyes="sleepy"] .fabot-eye{ height:7px; border-radius:0 0 8px 8px; }
+
+/* eye state overrides emotion-driven, layered on top of the shape above */
+.fabot[data-eye-state="closed"] .fabot-eye{ height:1.5px; border-radius:2px; }
+.fabot[data-eye-state="wide"] .fabot-eye{ width:14px; height:14px; }
+.fabot[data-eye-state="narrow"] .fabot-eye{ height:4px; border-radius:2px; }
+.fabot[data-eye-state="squint"] .fabot-eye{ height:6px; }
+.fabot[data-eye-state="happy"] .fabot-eye{ height:6px; border-radius:8px 8px 2px 2px; }
+.fabot[data-eye-state="up"] .fabot-eyes{ transform:translate(-50%,-65%); }
+
+/* ---- mouth ---- */
+.fabot-mouth{
+  position:absolute; left:50%; top:64%; transform:translate(-50%,-50%);
+  width:16px; height:8px;
+  border-bottom:2px solid var(--bot-eye-bg);
+  border-radius:0 0 10px 10px;
+  transition:all .15s ease;
+}
+.fabot[data-mouth-state="line"] .fabot-mouth{ height:0; border-radius:0; width:12px; }
+.fabot[data-mouth-state="smile"] .fabot-mouth{ height:6px; }
+.fabot[data-mouth-state="big"] .fabot-mouth{ height:10px; width:18px; border-width:2.5px; }
+.fabot[data-mouth-state="frown"] .fabot-mouth{ border-bottom:none; border-top:2px solid var(--bot-eye-bg); border-radius:10px 10px 0 0; top:68%; height:6px; }
+.fabot[data-mouth-state="open"] .fabot-mouth{ height:9px; width:9px; border:2px solid var(--bot-eye-bg); border-radius:50%; }
+.fabot[data-mouth-state="wavy"] .fabot-mouth{ height:4px; border-radius:6px 6px 0 6px; }
+
+/* ---- sleep ---- */
+.fabot-zzz{
+  position:absolute; top:-4px; right:-4px; font:700 8px/1 var(--f-mono, monospace);
+  color:var(--bot-pupil); opacity:0; letter-spacing:1px; pointer-events:none;
+  transform:translateY(0);
+}
+.fabot.is-asleep .fabot-zzz{ opacity:.85; animation:fabot-zzz-float 2.4s ease-in-out infinite; }
+.fabot.is-asleep.no-motion .fabot-zzz{ animation:none; }
+@keyframes fabot-zzz-float{ 0%,100%{ transform:translateY(0); opacity:.85; } 50%{ transform:translateY(-6px); opacity:.4; } }
+.fabot.is-asleep .fabot-body{ animation-duration:calc(var(--bot-float-dur, 3.2s) * 1.6); }
+
+/* ---- reaction animations (shared primitives, reused across all 21 emotions) ---- */
+.fabot.do-pop .fabot-body{ animation:fabot-pop .5s cubic-bezier(.34,1.6,.5,1) both; }
+@keyframes fabot-pop{ 0%{transform:scale(1);} 45%{transform:scale(1.14,0.88);} 100%{transform:scale(1);} }
+.fabot.do-bounce .fabot-body{ animation:fabot-bounce .55s ease-in-out both; }
+@keyframes fabot-bounce{ 0%,100%{transform:translateY(0);} 40%{transform:translateY(-9px);} 70%{transform:translateY(2px);} }
+.fabot.do-bouncefast .fabot-body{ animation:fabot-bounce .3s ease-in-out 3; }
+.fabot.do-shake .fabot-body{ animation:fabot-shake .45s ease-in-out both; }
+@keyframes fabot-shake{ 0%,100%{transform:translateX(0);} 25%{transform:translateX(-4px);} 75%{transform:translateX(4px);} }
+.fabot.do-droop .fabot-body{ animation:fabot-droop .8s ease-in-out both; }
+@keyframes fabot-droop{ 0%{transform:translateY(0) scale(1);} 100%{transform:translateY(3px) scale(0.97,1.02);} }
+.fabot.do-tilt .fabot-body{ animation:fabot-tilt .6s ease-in-out both; }
+@keyframes fabot-tilt{ 0%,100%{transform:rotate(0);} 50%{transform:rotate(-8deg);} }
+.fabot.do-sway .fabot-body{ animation:fabot-sway 2.4s ease-in-out infinite; }
+@keyframes fabot-sway{ 0%,100%{transform:rotate(-3deg);} 50%{transform:rotate(3deg);} }
+.fabot.do-pulse .fabot-body{ animation:fabot-pulse 1.1s ease-in-out infinite; }
+@keyframes fabot-pulse{ 0%,100%{filter:brightness(1);} 50%{filter:brightness(1.18);} }
+.fabot.do-wave .fabot-body{ animation:fabot-wave .6s ease-in-out both; }
+@keyframes fabot-wave{ 0%,100%{transform:rotate(0);} 25%{transform:rotate(-11deg);} 50%{transform:rotate(8deg);} 75%{transform:rotate(-5deg);} }
+.fabot.do-dance .fabot-body{ animation:fabot-dance .7s ease-in-out 2; }
+@keyframes fabot-dance{ 0%,100%{transform:rotate(0) translateY(0);} 25%{transform:rotate(-6deg) translateY(-3px);} 75%{transform:rotate(6deg) translateY(-3px);} }
+.fabot.do-breathe .fabot-body{ animation:fabot-breathe 3.6s ease-in-out infinite; }
+@keyframes fabot-breathe{ 0%,100%{transform:scale(1);} 50%{transform:scale(1.03,0.98);} }
+.fabot.no-motion[class*="do-"] .fabot-body{ animation:none !important; }
+
+/* ==========================================================================
+   Texture families — this is what makes 35 presets a config, not 35 files.
+   ========================================================================== */
+
+/* depth: layered shadow/bevel strength, independent of texture */
+.fabot[data-depth="off"] .fabot-body{ box-shadow:none; border-width:1px; }
+.fabot[data-depth="low"] .fabot-body{ box-shadow:0 4px 10px -4px var(--bot-shadow-c, rgba(0,0,0,.4)), 0 0 14px -6px var(--bot-glow, transparent); }
+.fabot[data-depth="medium"] .fabot-body{ box-shadow:0 8px 20px -6px var(--bot-shadow-c, rgba(0,0,0,.5)), inset 0 1px 0 rgba(255,255,255,.15), inset 0 -6px 10px -4px rgba(0,0,0,.35), 0 0 20px -4px var(--bot-glow, transparent); }
+.fabot[data-depth="high"] .fabot-body{ box-shadow:0 12px 26px -8px var(--bot-shadow-c, rgba(0,0,0,.55)), inset 0 2px 2px rgba(255,255,255,.25), inset 0 -10px 14px -5px rgba(0,0,0,.45), 0 0 26px -3px var(--bot-glow, transparent); }
+
+/* 3d family */
+.fabot[data-texture="3d"] .fabot-shine, .fabot[data-texture="3d-glossy"] .fabot-shine{
+  opacity:1; background:radial-gradient(circle at 32% 22%, rgba(255,255,255,.45), transparent 55%);
+}
+.fabot[data-texture="3d-glossy"] .fabot-body{ background:linear-gradient(160deg, var(--bot-primary), var(--bot-secondary) 60%, var(--bot-primary)); }
+
+/* metallic */
+.fabot[data-texture="metallic"] .fabot-body{ background:linear-gradient(120deg, var(--bot-secondary), var(--bot-primary) 35%, var(--bot-secondary) 55%, var(--bot-primary) 80%); }
+.fabot[data-texture="metallic"] .fabot-shine{ opacity:.9; background:linear-gradient(115deg, transparent 30%, rgba(255,255,255,.55) 48%, transparent 60%); }
+
+/* emoji */
+.fabot[data-texture="emoji"] .fabot-body{ border-radius:50%; border-width:0; box-shadow:0 6px 14px -6px var(--bot-shadow-c, rgba(0,0,0,.4)), inset 0 -8px 10px -6px rgba(0,0,0,.25); }
+.fabot[data-texture="emoji"] .fabot-shine{ opacity:.8; background:radial-gradient(circle at 30% 24%, rgba(255,255,255,.5), transparent 50%); }
+
+/* cat bot (distinct concept from the global CAT Terminal app theme) */
+.fabot[data-texture="cat"] .fabot-body::before, .fabot[data-texture="cat"] .fabot-body::after{
+  content:''; position:absolute; top:-6px; width:0; height:0;
+  border-left:7px solid transparent; border-right:7px solid transparent; border-bottom:12px solid var(--bot-primary);
+}
+.fabot[data-texture="cat"] .fabot-body::before{ left:8px; transform:rotate(-18deg); }
+.fabot[data-texture="cat"] .fabot-body::after{ right:8px; transform:rotate(18deg); }
+
+/* minecraft / pixel / game pixel — hard edges, stepped shadow, no radius */
+.fabot[data-texture="pixel"] .fabot-body,
+.fabot[data-texture="pixel"] .fabot-eye,
+.fabot[data-texture="pixel"] .fabot-pupil,
+.fabot[data-texture="pixel"] .fabot-mouth{ border-radius:0 !important; }
+.fabot[data-texture="pixel"] .fabot-body{ image-rendering:pixelated; box-shadow:3px 3px 0 var(--bot-edge), 6px 6px 0 rgba(0,0,0,.25); }
+
+/* arcade */
+.fabot[data-texture="arcade"] .fabot-body{ box-shadow:0 0 0 2px var(--bot-edge), 0 0 22px -2px var(--bot-glow); }
+.fabot[data-texture="arcade"] .fabot-shine{ opacity:.6; background:repeating-linear-gradient(0deg, rgba(255,255,255,.08) 0 2px, transparent 2px 4px); }
+
+/* retro */
+.fabot[data-texture="retro"] .fabot-body{ border-radius:6px; box-shadow:2px 2px 0 var(--bot-edge); }
+
+/* neumorphism — soft dual shadow, no hard border */
+.fabot[data-texture="neu"] .fabot-body{
+  border:none; background:var(--bot-primary);
+  box-shadow:7px 7px 14px rgba(0,0,0,.28), -6px -6px 12px rgba(255,255,255,.35);
+}
+
+/* skeuomorphism — heavy inner bevel + gloss cap */
+.fabot[data-texture="skeu"] .fabot-body{ box-shadow:inset 0 2px 1px rgba(255,255,255,.5), inset 0 -10px 14px -6px rgba(0,0,0,.55), 0 8px 16px -6px rgba(0,0,0,.5); }
+.fabot[data-texture="skeu"] .fabot-shine{ opacity:.7; top:6%; height:38%; left:12%; right:12%; border-radius:50%; background:linear-gradient(rgba(255,255,255,.55), transparent); position:absolute; }
+
+/* glassmorphism */
+.fabot[data-texture="glass"] .fabot-body{ backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+
+/* crystal — faceted look via clip-path */
+.fabot[data-texture="crystal"] .fabot-body{ clip-path:polygon(50% 0%, 100% 30%, 82% 100%, 18% 100%, 0% 30%); border-radius:0; }
+.fabot[data-texture="crystal"] .fabot-shine{ opacity:.8; background:linear-gradient(120deg, rgba(255,255,255,.6), transparent 45%); }
+
+/* holographic — animated hue sweep */
+.fabot[data-texture="holo"] .fabot-body{ background:linear-gradient(120deg, var(--bot-primary), var(--bot-secondary), var(--bot-primary)); background-size:220% 220%; animation:fabot-float var(--bot-float-dur, 3.2s) ease-in-out infinite, fabot-holo 5s linear infinite; }
+.fabot.no-motion[data-texture="holo"] .fabot-body{ animation:none; }
+@keyframes fabot-holo{ 0%{ background-position:0% 50%; } 100%{ background-position:200% 50%; } }
+
+/* cyber — neon border + scanline */
+.fabot[data-texture="cyber"] .fabot-body{ border-width:2px; box-shadow:0 0 12px var(--bot-glow), inset 0 0 10px var(--bot-glow); }
+.fabot[data-texture="cyber"] .fabot-shine{ opacity:.5; background:repeating-linear-gradient(180deg, rgba(0,255,178,.12) 0 1px, transparent 1px 3px); }
+
+/* quantum — orbiting particle */
+.fabot[data-texture="quantum"] .fabot-body::after{
+  content:''; position:absolute; width:5px; height:5px; border-radius:50%; background:var(--bot-edge);
+  box-shadow:0 0 6px var(--bot-edge); animation:fabot-orbit 2.6s linear infinite;
+}
+.fabot.no-motion[data-texture="quantum"] .fabot-body::after{ animation:none; }
+@keyframes fabot-orbit{ from{ transform:rotate(0) translateX(22px) rotate(0); } to{ transform:rotate(360deg) translateX(22px) rotate(-360deg); } }
+
+/* scientific — graph-paper grid */
+.fabot[data-texture="scientific"] .fabot-body{ background-image:linear-gradient(rgba(58,110,165,.18) 1px, transparent 1px), linear-gradient(90deg, rgba(58,110,165,.18) 1px, transparent 1px), linear-gradient(155deg, var(--bot-secondary), var(--bot-primary)); background-size:8px 8px, 8px 8px, auto; }
+
+/* CRT terminal — scanlines + soft phosphor glow */
+.fabot[data-texture="crt"] .fabot-body{ box-shadow:0 0 16px var(--bot-glow), inset 0 0 12px rgba(0,0,0,.6); }
+.fabot[data-texture="crt"] .fabot-shine{ opacity:.55; background:repeating-linear-gradient(0deg, rgba(0,0,0,.35) 0 1px, transparent 1px 3px); }
+
+@media (max-width:520px){
+  .fabot{ width:46px; height:46px; }
+  .fabot-eye{ width:9px; height:9px; }
+  .fabot-pupil{ width:4px; height:4px; }
+}
+
+@media (prefers-reduced-motion: reduce){
+  .fabot, .fabot .fabot-body, .fabot .fabot-shine, .fabot .fabot-zzz, .fabot .fabot-body::after{ animation:none !important; }
+}

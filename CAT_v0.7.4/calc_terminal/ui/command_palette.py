@@ -114,12 +114,15 @@ if TEXTUAL_AVAILABLE:
             for child in list(self.children):
                 child.remove()
             for i, (item, desc) in enumerate(self._matches):
-                classes = "cct-cmd-row" + (" cct-cmd-row-selected" if i == self._selected else "")
+                is_sel = (i == self._selected)
+                classes = "cct-cmd-row" + (" cct-cmd-row-selected" if is_sel else "")
+                bar = f"[{accent} b]\u25ae[/] " if is_sel else "  "
                 if item.startswith("/"):
                     color = category_color(item)
-                    self.mount(Static(f"[{color} b]{item}[/]  [dim]{desc}[/dim]", classes=classes))
+                    cmd_label = f"{item:<12}" if len(item) < 12 else f"{item} "
+                    self.mount(Static(f"{bar}[{color} b]{cmd_label}[/] [dim]{desc}[/dim]", classes=classes))
                 else:
-                    self.mount(Static(f"[{accent}]\u2726[/] [b]{item}[/]  [dim]{desc}[/dim]", classes=classes))
+                    self.mount(Static(f"{bar}[{accent}]\u2726[/] [b]{item}[/]  [dim]{desc}[/dim]", classes=classes))
 
 else:
     CommandPalette = None

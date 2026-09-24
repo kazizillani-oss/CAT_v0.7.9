@@ -553,15 +553,15 @@ if TEXTUAL_AVAILABLE:
                     if is_light:
                         b_top = "#ffffff"
                         b_bot = "#94a3b8"
-                        self.styles.border_top = ("heavy", b_top)
-                        self.styles.border_left = ("heavy", b_top)
-                        self.styles.border_right = ("heavy", b_bot)
-                        self.styles.border_bottom = ("heavy", b_bot)
+                        self.styles.border_top = ("tall", b_top)
+                        self.styles.border_left = ("tall", b_top)
+                        self.styles.border_right = ("tall", b_bot)
+                        self.styles.border_bottom = ("tall", b_bot)
                     else:
-                        self.styles.border_top = ("heavy", hi)
-                        self.styles.border_left = ("heavy", hi)
-                        self.styles.border_right = ("heavy", accent)
-                        self.styles.border_bottom = ("heavy", accent)
+                        self.styles.border_top = ("tall", hi)
+                        self.styles.border_left = ("tall", hi)
+                        self.styles.border_right = ("tall", accent)
+                        self.styles.border_bottom = ("tall", accent)
                     self.styles.padding = (1, 2, 1, 2)
                 elif self.role == "assistant":
                     self.styles.background = "#ffffff" if is_light else "#0f172a"
@@ -569,15 +569,15 @@ if TEXTUAL_AVAILABLE:
                     if is_light:
                         b_top = "#ffffff"
                         b_bot = "#cbd5e1"
-                        self.styles.border_top = ("heavy", b_top)
-                        self.styles.border_left = ("heavy", b_top)
-                        self.styles.border_right = ("heavy", b_bot)
-                        self.styles.border_bottom = ("heavy", b_bot)
+                        self.styles.border_top = ("tall", b_top)
+                        self.styles.border_left = ("tall", b_top)
+                        self.styles.border_right = ("tall", b_bot)
+                        self.styles.border_bottom = ("tall", b_bot)
                     else:
-                        self.styles.border_top = ("heavy", hi)
-                        self.styles.border_left = ("heavy", hi)
-                        self.styles.border_right = ("heavy", accent)
-                        self.styles.border_bottom = ("heavy", accent)
+                        self.styles.border_top = ("tall", hi)
+                        self.styles.border_left = ("tall", hi)
+                        self.styles.border_right = ("tall", accent)
+                        self.styles.border_bottom = ("tall", accent)
                     self.styles.padding = (1, 2)
                 elif self.role == "system":
                     self.styles.background = "#ffffff" if is_light else theme_css.current_hex("surface-alt")
@@ -585,15 +585,15 @@ if TEXTUAL_AVAILABLE:
                     if is_light:
                         b_top = t.hex("accent") if t else "#005faf"
                         b_bot = t.hex("border") if t else "#8c959f"
-                        self.styles.border_top = ("heavy", b_top)
-                        self.styles.border_left = ("heavy", b_top)
-                        self.styles.border_right = ("heavy", b_bot)
-                        self.styles.border_bottom = ("heavy", b_bot)
+                        self.styles.border_top = ("tall", b_top)
+                        self.styles.border_left = ("tall", b_top)
+                        self.styles.border_right = ("tall", b_bot)
+                        self.styles.border_bottom = ("tall", b_bot)
                     else:
-                        self.styles.border_top = ("heavy", hi)
-                        self.styles.border_left = ("heavy", hi)
-                        self.styles.border_right = ("heavy", sh)
-                        self.styles.border_bottom = ("heavy", sh)
+                        self.styles.border_top = ("tall", hi)
+                        self.styles.border_left = ("tall", hi)
+                        self.styles.border_right = ("tall", sh)
+                        self.styles.border_bottom = ("tall", sh)
                     self.styles.padding = (0, 2)
             except Exception:
                 pass
@@ -610,23 +610,23 @@ if TEXTUAL_AVAILABLE:
                 if self.role == "system":
                     if is_light:
                         glow = t.hex("accent_alt") if t else "#007acc"
-                        self.styles.border_top = ("round", glow)
-                        self.styles.border_left = ("round", glow)
+                        self.styles.border_top = ("tall", glow)
+                        self.styles.border_left = ("tall", glow)
                     else:
-                        self.styles.border_top = ("round", "#ffffff")
-                        self.styles.border_left = ("round", hi)
+                        self.styles.border_top = ("tall", "#ffffff")
+                        self.styles.border_left = ("tall", hi)
                 elif self.role in ("user", "assistant"):
                     if is_light:
                         glow = t.hex("accent_alt") if t else "#007acc"
-                        self.styles.border_top = ("round", glow)
-                        self.styles.border_left = ("round", glow)
-                        self.styles.border_right = ("heavy", t.hex("border") if t else "#8c959f")
-                        self.styles.border_bottom = ("heavy", t.hex("accent") if t else "#005faf")
+                        self.styles.border_top = ("tall", glow)
+                        self.styles.border_left = ("tall", glow)
+                        self.styles.border_right = ("tall", t.hex("border") if t else "#8c959f")
+                        self.styles.border_bottom = ("tall", t.hex("accent") if t else "#005faf")
                     else:
-                        self.styles.border_top = ("round", "#ffffff")
-                        self.styles.border_left = ("round", hi)
-                        self.styles.border_right = ("heavy", sh)
-                        self.styles.border_bottom = ("heavy", accent)
+                        self.styles.border_top = ("tall", "#ffffff")
+                        self.styles.border_left = ("tall", hi)
+                        self.styles.border_right = ("tall", sh)
+                        self.styles.border_bottom = ("tall", accent)
             except Exception:
                 pass
 
@@ -955,6 +955,16 @@ if TEXTUAL_AVAILABLE:
             super().__init__(id=id)
             self._items = {}  # turn_id -> ConversationItem (the bubble, not its row)
             self._welcome = None
+            # v0.7.9.6: the welcome SLOT is one widget at a time, so
+            # `_welcome` is the live one and `_dashboard` is a typed alias
+            # that is non-None only while a WelcomeDashboard occupies the
+            # slot. Kept in sync by show_dashboard()/hide_welcome() so
+            # CCTApp._cascade_resize can ask "is the dashboard the thing
+            # that needs a re-fit?" without reaching into the slot blindly
+            # (the previous app-side `getattr(conv, "_dashboard", None)`
+            # check could never be true — the attribute did not exist,
+            # so the dashboard branch was dead code).
+            self._dashboard = None
             # v0.7.9.0: the CAT Agent ASCII activity indicator — a pure
             # UI-state widget driven by real backend state (AgentActivity
             # / MessageStarted / MessageFinished), never model output.
@@ -1010,6 +1020,7 @@ if TEXTUAL_AVAILABLE:
             if self._welcome is not None:
                 self._welcome.remove()
                 self._welcome = None
+            self._dashboard = None
 
         def show_dashboard(self, dashboard_widget):
             """spec v0.7 Welcome Dashboard: mounted the same way
@@ -1021,6 +1032,17 @@ if TEXTUAL_AVAILABLE:
             self.hide_welcome()
             self._welcome = dashboard_widget
             self.mount(self._welcome)
+            # v0.7.9.6: the welcome slot is duck-typed (plain WelcomeBanner,
+            # CATChatEmptyState, or the richer WelcomeDashboard all land
+            # here). Track the dashboard specifically so callers that need
+            # its resize/stats contract can ask a real question instead of
+            # feature-sniffing the slot.
+            from . import dashboard as _dashboard_mod
+            self._dashboard = (
+                dashboard_widget
+                if _dashboard_mod.WelcomeDashboard is not None
+                and isinstance(dashboard_widget, _dashboard_mod.WelcomeDashboard)
+                else None)
 
         def show_empty_state(self, empty_state_widget):
             """v0.7.9.0: the CATChatEmptyState startup centerpiece mounts
