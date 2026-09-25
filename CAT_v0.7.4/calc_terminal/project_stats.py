@@ -29,8 +29,11 @@ if __name__ == "__main__":
 import os
 import time
 
-_IGNORE_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv",
-                ".mypy_cache", ".pytest_cache", "dist", "build", ".idea", ".vscode"}
+_IGNORE_DIRS = {
+    ".git", "node_modules", "__pycache__", ".venv", "venv", ".mypy_cache",
+    ".pytest_cache", "dist", "build", ".idea", ".vscode", "tmp", "temp",
+    "bin", "obj", ".next", ".nuxt", "coverage", ".cache", ".cct", ".gradle"
+}
 _LANG_BY_EXT = {
     ".py": "Python", ".js": "JavaScript", ".jsx": "JavaScript", ".ts": "TypeScript",
     ".tsx": "TypeScript", ".java": "Java", ".c": "C", ".h": "C", ".cpp": "C++",
@@ -40,18 +43,28 @@ _LANG_BY_EXT = {
     ".yml": "YAML", ".md": "Markdown", ".sh": "Shell", ".sql": "SQL",
     ".r": "R", ".lua": "Lua", ".dart": "Dart",
 }
-MAX_SCAN_FILES = 20000  # bail out past this so a huge workspace can't hang the UI thread
+MAX_SCAN_FILES = 3000  # bounded scan so huge workspaces or cloud drives cannot hang the UI thread
+_SCAN_CACHE = {}
+_SCAN_TTL = 5.0  # seconds
 
 
 def scan_workspace(root):
     """One bounded os.walk pass computing size/file-count/language
     histogram/last-modified together, since walking the same tree three
     separate times for three separate stats would be pure waste.
+    Results are cached in memory with a short TTL to prevent UI freezes.
     Returns a dict; every count is `None` if `root` isn't a real,
     readable directory rather than a misleading 0."""
     if not root or not os.path.isdir(root):
         return {"total_size": None, "total_files": None, "languages": {},
                 "last_modified": None, "truncated": False}
+
+    norm = os.path.normcase(os.path.abspath(root))
+    now = time.time()
+    cached = _SCAN_CACHE.get(norm)
+    if cached and (now - cached[0] < _SCAN_TTL):
+        return dict(cached[1])
+
     total_size = 0
     total_files = 0
     languages = {}
@@ -77,11 +90,13 @@ def scan_workspace(root):
                 languages[lang] = languages.get(lang, 0) + 1
         if truncated:
             break
-    return {
+    result = {
         "total_size": total_size, "total_files": total_files,
         "languages": dict(sorted(languages.items(), key=lambda kv: -kv[1])[:5]),
         "last_modified": last_modified or None, "truncated": truncated,
     }
+    _SCAN_CACHE[norm] = (now, result)
+    return result
 
 
 def human_size(n):
@@ -107,24 +122,42 @@ def human_age(epoch):
     return f"{int(delta // 86400)}d ago"
 
 
+_GIT_CACHE = {}
+_GIT_TTL = 5.0
+
+
 def git_branch(root):
     """Reads .git/HEAD directly rather than shelling out to `git` — no
     subprocess dependency, and it's the one file that answers "what
     branch" without needing a full git status walk. Returns None if
     `root` isn't a git repo at all (distinct from "detached HEAD",
     which returns the short commit hash instead of a branch name)."""
-    head_path = os.path.join(root or "", ".git", "HEAD")
+    if not root:
+        return None
+    norm = os.path.normcase(os.path.abspath(root))
+    now = time.time()
+    cached = _GIT_CACHE.get(norm)
+    if cached and (now - cached[0] < _GIT_TTL):
+        return cached[1]
+
+    head_path = os.path.join(root, ".git", "HEAD")
     try:
         with open(head_path, "r", encoding="utf-8") as f:
             content = f.read().strip()
     except OSError:
+        _GIT_CACHE[norm] = (now, None)
         return None
     if content.startswith("ref:"):
-        return content.split("/")[-1]
-    return content[:8]  # detached HEAD: short commit hash
+        branch = content.split("/")[-1]
+    else:
+        branch = content[:8]  # detached HEAD: short commit hash
+    _GIT_CACHE[norm] = (now, branch)
+    return branch
 
 
 _DEP_FILES = ("requirements.txt", "package.json", "pyproject.toml", "Pipfile")
+_DEP_CACHE = {}
+_DEP_TTL = 10.0
 
 
 def dependencies(root):
@@ -137,6 +170,11 @@ def dependencies(root):
     dashboard layout."""
     if not root:
         return []
+    norm = os.path.normcase(os.path.abspath(root))
+    now = time.time()
+    cached = _DEP_CACHE.get(norm)
+    if cached and (now - cached[0] < _DEP_TTL):
+        return list(cached[1])
     names = []
     req = os.path.join(root, "requirements.txt")
     if os.path.isfile(req):

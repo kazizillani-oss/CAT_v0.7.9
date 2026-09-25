@@ -958,6 +958,14 @@ def load_config() -> dict:
             cfg["api_key"] = env_key
     if prov == "nvidia" and cfg.get("api_style") != "openai":
         cfg["api_style"] = "openai"
+    elif prov == "ollama":
+        o_url = cfg.get("ollama_url") or cfg.get("base_url") or "http://localhost:11434"
+        if "https://localhost" in o_url or o_url.rstrip("/") in ("http://localhost", "https://localhost"):
+            o_url = "http://localhost:11434"
+        cfg["ollama_url"] = o_url
+        cfg["base_url"] = o_url
+        if not cfg.get("api_style") or cfg.get("api_style") == "openai" and "11434" not in cfg.get("base_url", ""):
+            cfg["api_style"] = "ollama"
     return cfg
 
 
@@ -974,6 +982,14 @@ def _default_model_id() -> str:
 def save_config(config: dict):
     if config.get("provider") == "nvidia":
         config["api_style"] = "openai"
+    elif config.get("provider") == "ollama":
+        o_url = config.get("ollama_url") or config.get("base_url") or "http://localhost:11434"
+        if "https://localhost" in o_url or o_url.rstrip("/") in ("http://localhost", "https://localhost"):
+            o_url = "http://localhost:11434"
+        config["ollama_url"] = o_url
+        config["base_url"] = o_url
+        if not config.get("api_style") or config.get("api_style") == "openai" and "11434" not in config.get("base_url", ""):
+            config["api_style"] = "ollama"
     with open(CONFIG_FILE, "w") as f:
         json.dump(config, f)
     try:

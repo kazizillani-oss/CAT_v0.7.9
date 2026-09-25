@@ -73,7 +73,7 @@ class CapabilityMatcher:
         if is_local:
             needs_key = False
         api_key = str(config.get("api_key") or "").strip()
-        if needs_key and not api_key:
+        if is_backup and needs_key and not api_key:
             return None
 
         # 4. Capability Check

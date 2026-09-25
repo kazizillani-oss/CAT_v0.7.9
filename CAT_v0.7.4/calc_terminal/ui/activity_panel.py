@@ -93,10 +93,10 @@ if TEXTUAL_AVAILABLE:
                 self._act_mod = _act_mod
             except Exception:
                 self._act_mod = None
-            self._timer = self.set_interval(0.1, self._refresh)
+            self._timer = self.set_interval(0.18, self._refresh)
 
         def on_unmount(self):
-            # Mirror ActivityStreamPanel: the 100ms refresh ticker is
+            # Mirror ActivityStreamPanel: the refresh ticker is
             # owned by this screen and must stop when it closes.
             try:
                 if getattr(self, "_timer", None) is not None:
@@ -155,8 +155,11 @@ if TEXTUAL_AVAILABLE:
                                 prov = f"{(cfg.get('provider') or '').upper()} {cfg.get('model') or ''}".strip()
                             except Exception:
                                 prov = "—"
-                        stage_box = self.query_one("#act-stage", Static)
-                        stage_box.update(f"[{color}]{spin}[/] [{color}]{title}[/]  ·  [{color}]{target.status}[/]  ·  {target.elapsed_time:.1f}s")
+                        new_stage = f"[{color}]{spin}[/] [{color}]{title}[/]  ·  [{color}]{target.status}[/]  ·  {target.elapsed_time:.1f}s"
+                        if new_stage != getattr(self, "_last_stage_text", None):
+                            self._last_stage_text = new_stage
+                            stage_box = self.query_one("#act-stage", Static)
+                            stage_box.update(new_stage)
                         # stats from real activity
                         lines = [
                             f"  [{theme_css.current_hex('text-faint')}]elapsed[/]      {target.elapsed_time:.1f}s",
@@ -171,8 +174,11 @@ if TEXTUAL_AVAILABLE:
                             lines.append(f"  [{theme_css.current_hex('text-faint')}]command[/]      {target.command[:40]}")
                         if target.error:
                             lines.append(f"  [{theme_css.current_hex('text-faint')}]error[/]        {target.error[:60]}")
-                        stats_box = self.query_one("#act-stats", Static)
-                        stats_box.update("\n".join(lines))
+                        new_stats = "\n".join(lines)
+                        if new_stats != getattr(self, "_last_stats_text", None):
+                            self._last_stats_text = new_stats
+                            stats_box = self.query_one("#act-stats", Static)
+                            stats_box.update(new_stats)
                         # usage
                         try:
                             from .. import aicore

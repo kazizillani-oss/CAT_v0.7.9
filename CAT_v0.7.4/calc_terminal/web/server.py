@@ -135,6 +135,14 @@ class ModelSwitchRequest(BaseModel):
     provider: str
     model: str
     api_key: Optional[str] = None
+    base_url: Optional[str] = None
+
+
+class ProviderVerifyRequest(BaseModel):
+    provider: str
+    model: Optional[str] = None
+    api_key: Optional[str] = None
+    base_url: Optional[str] = None
 
 
 class CommandDispatchRequest(BaseModel):
@@ -702,6 +710,24 @@ async def delete_chat_session(chat_id: str):
     return {"success": ok}
 
 
+@app.get("/api/chats/{chat_id}/export")
+async def export_chat(chat_id: str, format: str = "markdown"):
+    """Export a chat session as Markdown or JSON."""
+    session = chat_store.get_chat(chat_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    name = session.get("name", "Chat")
+    turns = session.get("turns", session.get("messages", []))
+    if format == "json":
+        return JSONResponse(content=session)
+    md_lines = [f"# {name}\n", f"*Exported from CAT on {time.strftime('%Y-%m-%d %H:%M:%S')}*\n\n---\n"]
+    for t in turns:
+        role = t.get("role", "user").capitalize()
+        content = t.get("content", t.get("text", ""))
+        md_lines.append(f"### {role}\n\n{content}\n\n")
+    return {"filename": f"{name.replace(' ', '_')}.md", "content": "\n".join(md_lines)}
+
+
 # --- Model Context Protocol (Real CAT mcp.py) ---
 
 @app.get("/api/mcp/servers")
@@ -907,15 +933,33 @@ async def perform_logout():
     return {"success": True, "message": "Signed out successfully."}
 
 
+@app.post("/api/user/guest")
+async def switch_to_guest():
+    """Switch to local developer guest mode."""
+    try:
+        fomoji_auth.logout()
+    except Exception:
+        pass
+    return {"success": True, "mode": "guest", "name": "Local Developer"}
+
+
 # --- Startup & Welcome Lifecycle (Matching Image 2) ---
 
 @app.get("/api/startup/status")
 async def get_startup_status():
     """Get startup status for WelcomeModal lifecycle."""
     seen = welcome_modal.has_seen_version()
+    raw = [h for h in getattr(welcome_modal, "_HIGHLIGHTS", ()) if h]
+    if not raw:
+        raw = [
+            ("🚀", "v0.7.9 Speed Engine", "Sub-second startup, instant local intelligence, zero lag"),
+            ("⚡", "Provider Model Center", "150+ AI models, live latency testing, auto failover"),
+            ("🎨", "3D Dynamic Styling", "Theme-adaptive skeuomorphic UI with tactile depth"),
+            ("📁", "Workspace Intelligence", "Full filesystem explorer, code editor, and live preview"),
+        ]
     highlights = [
         {"icon": h[0], "name": h[1], "desc": h[2]}
-        for h in welcome_modal._HIGHLIGHTS
+        for h in raw
     ]
     return {
         "version": welcome_modal._VERSION,
@@ -1303,11 +1347,11 @@ async def chat(request: ChatRequest):
         )
         if cid:
             result["chat_id"] = cid
-            if result.get("response"):
-                try:
-                    chat_store.add_turn(cid, "assistant", result["response"])
-                except Exception:
-                    pass
+            resp_text = result.get("response") or "(No response)"
+            try:
+                chat_store.add_turn(cid, "assistant", resp_text)
+            except Exception:
+                pass
         return result
     except Exception as e:
         prov = config.get("provider", "ollama").upper()
@@ -1324,6 +1368,10 @@ async def chat(request: ChatRequest):
         }
         if cid:
             err_res["chat_id"] = cid
+            try:
+                chat_store.add_turn(cid, "assistant", err_res["response"])
+            except Exception:
+                pass
         return err_res
 
 
@@ -1641,7 +1689,143 @@ async def list_models(provider_id: str, force_refresh: bool = False):
 @app.post("/api/models/switch")
 async def switch_model(request: ModelSwitchRequest):
     """Switch active provider and model in CAT configuration."""
-    return runtime.switch_model(request.provider, request.model, request.api_key)
+    return runtime.switch_model(request.provider, request.model, request.api_key, request.base_url)
+
+
+@app.get("/api/providers/center")
+async def get_provider_center():
+    """Return all provider metadata, categories, active status, and live Ollama status for the Provider Model Center."""
+    cfg = aicore.load_config()
+    all_provs = runtime.list_providers()
+    ollama_stat = runtime.get_ollama_status()
+    
+    popular_ids = {"ollama", "openai", "anthropic", "groq", "deepseek", "gemini", "openrouter", "mistral", "cohere", "together"}
+    categories = ["all", "local", "free", "reasoning", "coding", "vision", "fast", "multimodal"]
+    
+    enriched = []
+    for p in all_provs:
+        pid = p.get("id", "")
+        item = dict(p)
+        item["popular"] = pid in popular_ids
+        tags = ["all"]
+        if pid == "ollama":
+            tags.extend(["local", "free"])
+        elif not p.get("needs_key", True):
+            tags.append("free")
+        item["categories"] = tags
+        enriched.append(item)
+        
+    return {
+        "providers": enriched,
+        "categories": categories,
+        "active": {
+            "provider": cfg.get("provider", "ollama"),
+            "model": cfg.get("model", "deepseek-r1"),
+            "base_url": cfg.get("base_url", "http://localhost:11434"),
+            "has_key": bool(cfg.get("api_key")),
+        },
+        "ollama": ollama_stat,
+    }
+
+
+@app.post("/api/providers/verify")
+async def verify_provider_endpoint(req: ProviderVerifyRequest):
+    """Test connection to a provider and measure response latency."""
+    import urllib.request
+    t0 = time.time()
+    try:
+        prov = (req.provider or "ollama").lower()
+        base_url = req.base_url or ""
+        
+        if prov == "ollama":
+            url = (base_url or "http://localhost:11434").rstrip("/") + "/api/tags"
+            req_obj = urllib.request.Request(url, headers={"User-Agent": "CAT/0.7.9"})
+            with urllib.request.urlopen(req_obj, timeout=3.0) as resp:
+                data = json.loads(resp.read().decode())
+                latency = int((time.time() - t0) * 1000)
+                models_found = [m.get("name") for m in data.get("models", [])]
+                return {
+                    "success": True,
+                    "latency_ms": latency,
+                    "preview": f"Ollama online ({len(models_found)} models available)",
+                    "models": models_found,
+                }
+        elif base_url and ("localhost" in base_url or "127.0.0.1" in base_url):
+            url = base_url.rstrip("/") + "/v1/models"
+            headers = {"User-Agent": "CAT/0.7.9"}
+            if req.api_key:
+                headers["Authorization"] = f"Bearer {req.api_key}"
+            req_obj = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req_obj, timeout=3.0) as resp:
+                latency = int((time.time() - t0) * 1000)
+                return {"success": True, "latency_ms": latency, "preview": "Local endpoint reachable"}
+        else:
+            # Cloud or general providers
+            cfg = {
+                "provider": req.provider,
+                "model": req.model or "",
+                "api_key": req.api_key or "",
+                "base_url": req.base_url or "",
+            }
+            res = aicore.query_ai("ping", config=cfg, size_class="simple")
+            latency = int((time.time() - t0) * 1000)
+            if aicore.is_error_response(res):
+                return {"success": False, "latency_ms": latency, "error": res}
+            return {"success": True, "latency_ms": latency, "preview": (res or "").strip()[:80]}
+    except Exception as e:
+        latency = int((time.time() - t0) * 1000)
+        return {"success": False, "latency_ms": latency, "error": str(e)}
+
+
+# --- Live Activities ---
+
+@app.get("/api/activities")
+async def get_live_activities(limit: int = 50):
+    """Return recent real activities from the CAT Activity system."""
+    try:
+        from calc_terminal import activity as act_mod
+        mgr = act_mod.get_activity_manager()
+        recent = mgr.get_recent(limit=limit)
+        items = []
+        for a in recent:
+            items.append({
+                "id": getattr(a, "id", str(uuid.uuid4())),
+                "type": getattr(a, "type", "system"),
+                "action": getattr(a, "action", "run"),
+                "status": getattr(a, "status", "completed"),
+                "title": getattr(a, "title", ""),
+                "details": getattr(a, "details", ""),
+                "file": getattr(a, "file", None),
+                "command": getattr(a, "command", None),
+                "tool": getattr(a, "tool", None),
+                "duration_ms": getattr(a, "duration_ms", 0),
+                "timestamp": getattr(a, "timestamp", ""),
+            })
+        summary = mgr.get_session_summary()
+        sample = mgr.get_resource_sample()
+        return {
+            "activities": items,
+            "summary": summary,
+            "resources": {
+                "cpu_percent": getattr(sample, "cpu_percent", 0.0),
+                "memory_mb": getattr(sample, "memory_mb", 0.0),
+                "active_tasks": getattr(sample, "active_tasks", 0),
+            }
+        }
+    except Exception as e:
+        return {"activities": [], "summary": {}, "resources": {}, "error": str(e)}
+
+
+@app.post("/api/activities/clear")
+async def clear_activities():
+    """Clear activity history."""
+    try:
+        from calc_terminal import activity as act_mod
+        mgr = act_mod.get_activity_manager()
+        mgr.clear()
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 # --- Ollama Support ---

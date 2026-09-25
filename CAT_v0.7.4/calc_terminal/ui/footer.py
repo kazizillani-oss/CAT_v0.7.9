@@ -181,7 +181,11 @@ if TEXTUAL_AVAILABLE:
                 color = theme_css.current_hex(tone_role.get(tone, "text-muted"))
                 text = f"[{color}]{value}[/]" if not label else f"{label} [{color}]{value}[/]"
                 parts.append(text)
-            self.update("   \u00b7   ".join(parts))
+            new_text = "   \u00b7   ".join(parts)
+            if getattr(self, "_last_rendered_text", None) == new_text:
+                return
+            self._last_rendered_text = new_text
+            self.update(new_text)
 
 else:
     ComposerFooter = None

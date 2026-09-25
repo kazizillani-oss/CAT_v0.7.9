@@ -650,10 +650,29 @@ if TEXTUAL_AVAILABLE:
             if self._collapsed:
                 self._apply_collapsed(True)
 
-            # Smooth spinner timer (120ms tick)
-            try:
-                self._anim_timer = self.set_interval(0.12, self._tick_animations)
-            except Exception:
+            # Smooth spinner timer (160ms tick) — only started when active activities exist
+            has_active = any(
+                getattr(row, "_activity", None) and row._activity.status in (act_mod.STATUS_RUNNING, act_mod.STATUS_STARTED)
+                for row in self._rows.values()
+            )
+            self._anim_timer = None
+            if has_active:
+                self._start_anim_timer_if_needed()
+
+        def _start_anim_timer_if_needed(self):
+            if getattr(self, "_anim_timer", None) is None:
+                try:
+                    self._anim_timer = self.set_interval(0.16, self._tick_animations)
+                except Exception:
+                    self._anim_timer = None
+
+        def _stop_anim_timer(self):
+            timer = getattr(self, "_anim_timer", None)
+            if timer is not None:
+                try:
+                    timer.stop()
+                except Exception:
+                    pass
                 self._anim_timer = None
 
         def on_unmount(self):
@@ -663,12 +682,7 @@ if TEXTUAL_AVAILABLE:
                 except Exception:
                     pass
                 self._sub = None
-            if getattr(self, "_anim_timer", None) is not None:
-                try:
-                    self._anim_timer.stop()
-                except Exception:
-                    pass
-                self._anim_timer = None
+            self._stop_anim_timer()
 
         def _tick_animations(self):
             """Tick rotating spinners and live duration on running items, plus RAM resource monitor."""
@@ -680,13 +694,19 @@ if TEXTUAL_AVAILABLE:
                         row.update_activity(row._activity)
                 if has_running:
                     self._refresh_header()
+                else:
+                    # When nothing is running, stop the high-frequency animation timer to conserve CPU/GPU
+                    self._stop_anim_timer()
 
                 now = time.time()
                 if now - getattr(self, "_last_res_update", 0.0) >= 1.0:
                     self._last_res_update = now
                     try:
                         res_bar = self.query_one("#live-resource-bar", Static)
-                        res_bar.update(self._build_resource_markup())
+                        new_markup = self._build_resource_markup()
+                        if new_markup != getattr(self, "_last_resource_markup", None):
+                            self._last_resource_markup = new_markup
+                            res_bar.update(new_markup)
                     except Exception:
                         pass
             except Exception:
@@ -695,6 +715,9 @@ if TEXTUAL_AVAILABLE:
         def _on_activity_event(self, activity: act_mod.Activity, change: str):
             if activity.turn_id != self.turn_id:
                 return
+
+            if activity.status in (act_mod.STATUS_RUNNING, act_mod.STATUS_STARTED):
+                self._start_anim_timer_if_needed()
 
             def _do_update():
                 try:

@@ -41,37 +41,146 @@
     <!-- Main Workspace Area -->
     <div id="cct-workspace">
       <!-- Left Sidebar: File Explorer -->
+      <!-- Left Sidebar: Multi-Section Tabbed Navigation -->
       <aside id="cct-sidebar">
-        <div class="cct-sidebar-scroll">
-          <div class="cct-sidebar-top">
-            <div class="cct-explorer-header" onclick="FATTY.toggleSidebar()">
-              <span class="cct-explorer-title">▸ Explorer</span>
+        <!-- Sidebar Navigation Tab Bar -->
+        <div class="cct-sidebar-nav" id="cct-sidebar-nav">
+          <button class="cct-sb-tab-btn active" id="cct-sb-tab-explorer" onclick="FATTY.switchSidebarTab('explorer')" title="Files & Projects">📁 Files</button>
+          <button class="cct-sb-tab-btn" id="cct-sb-tab-chats" onclick="FATTY.switchSidebarTab('chats')" title="Chat History & Sessions">💬 Chats</button>
+          <button class="cct-sb-tab-btn" id="cct-sb-tab-activities" onclick="FATTY.switchSidebarTab('activities')" title="Live Activities Stream">⚡ Activity</button>
+          <button class="cct-sb-tab-btn" id="cct-sb-tab-extensions" onclick="FATTY.switchSidebarTab('extensions')" title="Extensions & Plugins">🧩 Ext</button>
+          <button class="cct-sb-tab-btn" id="cct-sb-tab-settings" onclick="FATTY.switchSidebarTab('settings')" title="Quick Settings">⚙</button>
+        </div>
+
+        <!-- View 1: File Explorer -->
+        <div class="cct-sidebar-view" id="cct-sb-view-explorer">
+          <div class="cct-sidebar-scroll">
+            <div class="cct-sidebar-top">
+              <div class="cct-explorer-header" onclick="FATTY.toggleSidebar()">
+                <span class="cct-explorer-title">▸ Explorer</span>
+              </div>
+              <button class="cct-open-folder-btn" onclick="FATTY.openFolderDialog()">📁 Open Folder</button>
             </div>
-            <button class="cct-open-folder-btn" onclick="FATTY.openFolderDialog()">📁 Open Folder</button>
-          </div>
 
-          <!-- Active Workspace Info -->
-          <div class="cct-ws-summary">
-            <div class="cct-ws-title">
-              <span>📁</span>
-              <span id="cct-ws-folder-name">compressed</span>
+            <!-- Active Workspace Info -->
+            <div class="cct-ws-summary">
+              <div class="cct-ws-title">
+                <span>📁</span>
+                <span id="cct-ws-folder-name">compressed</span>
+              </div>
+              <div class="cct-ws-languages" id="cct-ws-folder-sub">HTML, JavaScript, CSS · 3</div>
             </div>
-            <div class="cct-ws-languages" id="cct-ws-folder-sub">HTML, JavaScript, CSS · 3</div>
-          </div>
 
-          <!-- ASCII Directory Tree -->
-          <div class="cct-filetree" id="cct-tree-container">
-            <!-- Dynamic tree injected by JS -->
-          </div>
+            <!-- ASCII Directory Tree -->
+            <div class="cct-filetree" id="cct-tree-container">
+              <!-- Dynamic tree injected by JS -->
+            </div>
 
-          <!-- Recent Projects -->
-          <div class="cct-recent-section" id="cct-recent-container">
-            <!-- Recent rows injected by JS -->
-          </div>
+            <!-- Recent Projects -->
+            <div class="cct-recent-section" id="cct-recent-container">
+              <!-- Recent rows injected by JS -->
+            </div>
 
-          <!-- Drop Notice -->
-          <div class="cct-dropzone-notice">
-            Drag & drop files here, or into Chat/Editor, to attach them for the AI.
+            <!-- Drop Notice -->
+            <div class="cct-dropzone-notice">
+              Drag & drop files here, or into Chat/Editor, to attach them for the AI.
+            </div>
+          </div>
+        </div>
+
+        <!-- View 2: Recent Chats History -->
+        <div class="cct-sidebar-view" id="cct-sb-view-chats" style="display: none;">
+          <div class="cct-sidebar-subpane">
+            <div class="cct-sb-chats-header">
+              <span class="cct-sb-view-title">💬 Chat Sessions</span>
+              <button class="cct-sb-mini-btn primary" onclick="FATTY.createNewChatSession()" title="Start New Chat Session">+ New</button>
+            </div>
+            <div class="cct-sb-search-box">
+              <input type="text" class="cct-sb-search-input" id="cct-sb-chat-search" placeholder="Search sessions..." oninput="FATTY.filterSidebarChats(this.value)">
+            </div>
+            <div class="cct-sb-chats-list" id="cct-sidebar-chats-list">
+              <!-- Dynamically populated from /api/chats -->
+            </div>
+          </div>
+        </div>
+
+        <!-- View 3: Live Activities -->
+        <div class="cct-sidebar-view" id="cct-sb-view-activities" style="display: none;">
+          <div class="cct-sidebar-subpane">
+            <div class="cct-sb-chats-header">
+              <span class="cct-sb-view-title">⚡ Live Activities</span>
+              <button class="cct-sb-mini-btn" onclick="FATTY.clearActivities()" title="Clear activity log">Clear</button>
+            </div>
+            <div class="cct-sb-activities-status">
+              <span class="cct-pulse-dot">●</span>
+              <span>Real-time Task & Execution Stream</span>
+            </div>
+            <div class="cct-sb-activities-list" id="cct-sidebar-activities-list">
+              <!-- Real-time activity items -->
+            </div>
+          </div>
+        </div>
+
+        <!-- View 4: Extensions -->
+        <div class="cct-sidebar-view" id="cct-sb-view-extensions" style="display: none;">
+          <div class="cct-sidebar-subpane">
+            <div class="cct-sb-chats-header">
+              <span class="cct-sb-view-title">🧩 Extensions</span>
+              <button class="cct-sb-mini-btn primary" onclick="FATTY.openCreateExtensionModal()" title="Add Custom Extension">+ Add</button>
+            </div>
+            <div class="cct-ext-cat-pills" id="cct-sb-ext-pills">
+              <button class="cct-pill active" onclick="FATTY.filterSidebarExtensions('all')">All</button>
+              <button class="cct-pill" onclick="FATTY.filterSidebarExtensions('Productivity')">Productivity</button>
+              <button class="cct-pill" onclick="FATTY.filterSidebarExtensions('Developer Tools')">Dev</button>
+              <button class="cct-pill" onclick="FATTY.filterSidebarExtensions('AI & ML')">AI</button>
+            </div>
+            <div class="cct-sb-extensions-list" id="cct-sidebar-extensions-list">
+              <!-- Extensions loaded from /api/extensions -->
+            </div>
+          </div>
+        </div>
+
+        <!-- View 5: Quick Settings -->
+        <div class="cct-sidebar-view" id="cct-sb-view-settings" style="display: none;">
+          <div class="cct-sidebar-subpane">
+            <div class="cct-sb-chats-header">
+              <span class="cct-sb-view-title">⚙ Settings & Quick Config</span>
+            </div>
+            <div class="cct-sb-settings-content">
+              <div class="cct-sb-setting-group">
+                <label class="cct-sb-setting-label">Permission Mode:</label>
+                <div class="cct-perm-options-compact">
+                  <button class="cct-perm-opt-btn active" id="cct-sb-perm-ask" onclick="FATTY.setPermissionMode('ask')">🔒 Ask</button>
+                  <button class="cct-perm-opt-btn" id="cct-sb-perm-restricted" onclick="FATTY.setPermissionMode('restricted')">🛡 Restricted</button>
+                  <button class="cct-perm-opt-btn" id="cct-sb-perm-full" onclick="FATTY.setPermissionMode('full')">⚡ Full</button>
+                </div>
+              </div>
+
+              <div class="cct-sb-setting-group">
+                <label class="cct-sb-setting-label">Active AI Model:</label>
+                <div class="cct-sb-model-pill" onclick="FATTY.openProviderCenter()">
+                  <span id="cct-sb-active-model-name">Ollama deepseek-r1</span>
+                  <span class="cct-sb-pill-action">Change ➜</span>
+                </div>
+              </div>
+
+              <div class="cct-sb-setting-group">
+                <label class="cct-sb-setting-label">Editor Preferences:</label>
+                <label class="cct-checkbox-row">
+                  <input type="checkbox" id="cct-sb-word-wrap" onchange="FATTY.toggleWordWrap(this.checked)"> Word Wrap in Editor
+                </label>
+                <label class="cct-checkbox-row">
+                  <input type="checkbox" id="cct-sb-auto-save" checked onchange="FATTY.toggleAutoSave(this.checked)"> Auto-Save on Blur
+                </label>
+              </div>
+
+              <div class="cct-sb-setting-actions">
+                <button class="cct-action-btn-block" onclick="FATTY.openProviderCenter()">⚡ AI Provider Center</button>
+                <button class="cct-action-btn-block" onclick="FATTY.openThemes()">🎨 Themes & Colors</button>
+                <button class="cct-action-btn-block" onclick="FATTY.openUserProfile()">☺ User Profile & Identity</button>
+                <button class="cct-action-btn-block" onclick="FATTY.openSettings()">⚙ Full Settings Dialog</button>
+              </div>
+            </div>
           </div>
         </div>
       </aside>
@@ -133,21 +242,17 @@
                 </div>
               </div>
 
-              <div class="cct-column cct-card-box">
+              <div class="cct-column cct-card-box" id="cct-card-cat-greeting" onclick="window.FATTY && FATTY.cycleCatGreeting && FATTY.cycleCatGreeting()" style="cursor: pointer;">
                 <div class="cct-column-title">
-                  <span>Session Notebooks</span>
-                  <button class="cct-nb-new-btn" onclick="FATTY.promptNewNotebook()" title="Create new notebook">+ New</button>
+                  <span>CAT</span>
                 </div>
-                <div class="cct-card-content-list" id="cct-session-notebooks-list">
-                  <div class="cct-column-item" id="cct-session-count"><span class="cct-green">●</span> 0 solved this session</div>
-                  <div class="cct-column-faint" id="cct-nb-empty-note">Instant derivation &amp; calculation templates:</div>
-                  <div class="cct-nb-quick-chips" id="cct-nb-quick-chips">
-                    <button class="cct-nb-chip" onclick="FATTY.runNotebookSolve('kinetics')" title="First-order integrated rate law">⚡ Kinetics</button>
-                    <button class="cct-nb-chip" onclick="FATTY.runNotebookSolve('arrhenius')" title="Arrhenius activation energy">⚡ Arrhenius</button>
-                    <button class="cct-nb-chip" onclick="FATTY.runNotebookSolve('nernst')" title="Nernst cell potential">⚡ Nernst</button>
-                    <button class="cct-nb-chip" onclick="FATTY.runNotebookSolve('gibbs')" title="Gibbs free energy">⚡ Gibbs</button>
-                    <button class="cct-nb-chip" onclick="FATTY.runNotebookSolve('ideal_gas')" title="Ideal gas law">⚡ Gas Law</button>
-                  </div>
+                <div class="cct-card-content-list" id="cct-cat-greeting-box">
+                  <pre class="cct-3d-block-art" id="cct-3d-block-art" style="font-family: monospace; font-size: 11px; line-height: 1.15; color: #89b4fa; margin: 4px 0 8px 0; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">  █▀▀▄ █▀▀ █▀▀█ █▀▀▄ █  █
+  █▄▄▀ █▀▀ █▄▄█ █  █  ▀█▀
+  ▀  ▀ ▀▀▀ ▀  ▀ ▀▀▀    █ </pre>
+                  <div class="cct-column-item" id="cct-greeting-badge"><span class="cct-green">⚡</span> <span id="cct-routine-time">Routine Active</span></div>
+                  <div class="cct-greeting-msg" id="cct-greeting-msg" style="color: #cdd6f4; font-weight: 600; font-size: 13px; margin-top: 4px;">[01] &gt; CAT is ready.</div>
+                  <div class="cct-greeting-sub" id="cct-greeting-sub" style="color: #a6adc8; font-size: 12px; margin-top: 2px;">&gt; 🐾 Ready to code.</div>
                 </div>
               </div>
 
@@ -214,13 +319,21 @@
 
       <!-- Right Column: Code Editor Pane -->
       <aside id="cct-editor-pane">
+        <!-- Multi-File Editor Tabs Bar -->
+        <div class="cct-editor-tabs-bar" id="cct-editor-tabs-bar">
+          <!-- Dynamic file tabs injected by JS -->
+        </div>
+
         <div class="cct-editor-toolbar">
           <div class="cct-editor-file-info">
             <span class="cct-editor-menu-glyph">≡</span>
             <span class="cct-editor-dot">○</span>
             <span class="cct-editor-filename" id="cct-editor-filename">index.html</span>
+            <span class="cct-editor-lang-badge" id="cct-editor-lang-badge">HTML</span>
           </div>
           <div class="cct-editor-controls">
+            <button class="cct-editor-btn cct-btn-format" onclick="FATTY.formatEditorCode()" title="Format Code ({ })">{ }</button>
+            <button class="cct-editor-btn cct-btn-save" onclick="FATTY.saveCurrentFile()" title="Save File (Ctrl+S)">💾</button>
             <button class="cct-editor-btn cct-btn-run" onclick="FATTY.runPreview()" title="Run Web Preview (▷)">▷</button>
             <button class="cct-editor-btn cct-btn-split" onclick="FATTY.toggleSplitView()" title="Split Preview View (⿻)">⿻</button>
             <button class="cct-editor-btn cct-btn-close" onclick="FATTY.closeEditor()" title="Close Editor (✕)">✕</button>
@@ -472,11 +585,65 @@
   <div class="cct-modal-backdrop" id="cct-user-modal" style="display: none;" onclick="FATTY.closeAllModals(event)">
     <div class="cct-modal-box" style="width: 580px;" onclick="event.stopPropagation()">
       <div class="cct-modal-titlebar">
-        <span>☺ User Profile & Identity</span>
+        <span>☺ User Profile &amp; Identity</span>
         <button class="cct-modal-close-btn" onclick="FATTY.closeAllModals()">✕</button>
       </div>
       <div class="cct-modal-content" id="cct-user-modal-content">
-        <!-- Injected dynamically from /api/user/profile -->
+        <!-- Profile Header -->
+        <div class="cct-user-profile-header">
+          <div class="cct-user-avatar" id="cct-user-avatar">🐱</div>
+          <div class="cct-user-header-info">
+            <div class="cct-user-name-row">
+              <span class="cct-user-name" id="cct-user-display-name">ADMIN</span>
+              <span class="cct-user-role-badge" id="cct-user-role-badge">Community / Pro</span>
+            </div>
+            <div class="cct-user-status-row">
+              <span class="cct-status-dot online" id="cct-user-status-dot">●</span>
+              <span id="cct-user-status-text">Active Local Session</span>
+              <span class="cct-faint">· Fomoji Auth</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- User Stats Grid -->
+        <div class="cct-user-stats-grid">
+          <div class="cct-user-stat-card">
+            <span class="cct-user-stat-num" id="cct-stat-chats-count">0</span>
+            <span class="cct-user-stat-label">Saved Sessions</span>
+          </div>
+          <div class="cct-user-stat-card">
+            <span class="cct-user-stat-num" id="cct-stat-memory-count">0</span>
+            <span class="cct-user-stat-label">Memory Facts</span>
+          </div>
+          <div class="cct-user-stat-card">
+            <span class="cct-user-stat-num" id="cct-stat-ws-count">1</span>
+            <span class="cct-user-stat-label">Workspaces</span>
+          </div>
+          <div class="cct-user-stat-card">
+            <span class="cct-user-stat-num" id="cct-stat-active-provider">Ollama</span>
+            <span class="cct-user-stat-label">Active Provider</span>
+          </div>
+        </div>
+
+        <!-- Quick Preferences -->
+        <div class="cct-column-title" style="margin-top: 12px;">Session &amp; Terminal Preferences:</div>
+        <label class="cct-checkbox-row">
+          <input type="checkbox" id="cct-user-wordwrap" onchange="FATTY.toggleWordWrap(this.checked)"> Word Wrap in Code Editor
+        </label>
+        <label class="cct-checkbox-row">
+          <input type="checkbox" id="cct-user-autosave" checked onchange="FATTY.toggleAutoSave(this.checked)"> Auto-Save files on blur
+        </label>
+        <label class="cct-checkbox-row">
+          <input type="checkbox" id="cct-user-stream" checked> Real-time Token Streaming (SSE)
+        </label>
+
+        <!-- Quick Hub Actions -->
+        <div class="cct-user-quick-links" style="margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <button class="cct-modal-btn" onclick="FATTY.toggleGuestMode()" id="cct-guest-toggle-btn">⚡ Switch to Guest Mode</button>
+          <button class="cct-modal-btn" onclick="FATTY.openThemes()">🎨 Themes &amp; Colors</button>
+          <button class="cct-modal-btn" onclick="FATTY.openProviderCenter()">⚡ AI Provider Center</button>
+          <button class="cct-modal-btn" onclick="FATTY.togglePermissionModal()">🔒 Permissions Mode</button>
+        </div>
       </div>
       <div class="cct-modal-footer">
         <button class="cct-modal-btn" onclick="FATTY.openSignOutModal()">Sign Out</button>
@@ -558,27 +725,145 @@
     </div>
   </div>
 
-  <!-- MODAL: Settings Dialog -->
+  <!-- MODAL: Settings Dialog (Full Multi-Tab CAT Configuration) -->
   <div class="cct-modal-backdrop" id="cct-settings-modal" style="display: none;" onclick="FATTY.closeAllModals(event)">
-    <div class="cct-modal-box" onclick="event.stopPropagation()">
+    <div class="cct-modal-box" style="width: 660px;" onclick="event.stopPropagation()">
       <div class="cct-modal-titlebar">
-        <span>Settings & Model Configuration</span>
+        <span>⚙ Settings &amp; Configuration</span>
         <button class="cct-modal-close-btn" onclick="FATTY.closeAllModals()">✕</button>
       </div>
+
+      <!-- Settings Tabs -->
+      <div class="cct-tabs-header" id="cct-settings-tabs-header">
+        <button class="cct-tab-btn active" id="tab-settings-general" onclick="FATTY.switchSettingsTab('general')">General</button>
+        <button class="cct-tab-btn" id="tab-settings-ai" onclick="FATTY.switchSettingsTab('ai')">AI &amp; Model</button>
+        <button class="cct-tab-btn" id="tab-settings-perm" onclick="FATTY.switchSettingsTab('perm')">Permissions</button>
+        <button class="cct-tab-btn" id="tab-settings-editor" onclick="FATTY.switchSettingsTab('editor')">Editor</button>
+        <button class="cct-tab-btn" id="tab-settings-shortcuts" onclick="FATTY.switchSettingsTab('shortcuts')">Shortcuts</button>
+      </div>
+
       <div class="cct-modal-content">
-        <div class="cct-form-group">
-          <label class="cct-form-label">AI Provider:</label>
-          <input type="text" class="cct-form-input" id="cct-cfg-provider" value="ollama">
+        <!-- Tab 1: General -->
+        <div id="cct-settings-tab-general">
+          <div class="cct-form-group">
+            <label class="cct-form-label">Active Workspace Directory:</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" class="cct-form-input" id="cct-cfg-workspace-path" readonly style="flex: 1; opacity: 0.85;">
+              <button class="cct-modal-btn" onclick="FATTY.openFolderDialog()">Change...</button>
+            </div>
+          </div>
+          <div class="cct-form-group">
+            <label class="cct-form-label">Startup Behavior:</label>
+            <label class="cct-checkbox-row">
+              <input type="checkbox" id="cct-cfg-show-welcome-on-start"> Show Welcome Screen &amp; System Highlights on startup
+            </label>
+          </div>
+          <div class="cct-form-group">
+            <label class="cct-form-label">Appearance &amp; Theme:</label>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span id="cct-cfg-active-theme-name" style="color: var(--accent-build); font-weight: bold;">Tokyo Night</span>
+              <button class="cct-modal-btn" onclick="FATTY.openThemes()">Browse 12+ Themes...</button>
+            </div>
+          </div>
         </div>
-        <div class="cct-form-group">
-          <label class="cct-form-label">Model Name:</label>
-          <input type="text" class="cct-form-input" id="cct-cfg-model" value="deepseek-r1">
+
+        <!-- Tab 2: AI & Model -->
+        <div id="cct-settings-tab-ai" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <span class="cct-column-title">Provider &amp; Model Credentials:</span>
+            <button class="cct-action-link-btn" onclick="FATTY.openProviderCenter()">Open 150+ Provider Center ➜</button>
+          </div>
+          <div class="cct-form-group">
+            <label class="cct-form-label">AI Provider:</label>
+            <input type="text" class="cct-form-input" id="cct-cfg-provider" value="ollama">
+          </div>
+          <div class="cct-form-group">
+            <label class="cct-form-label">Model Name:</label>
+            <input type="text" class="cct-form-input" id="cct-cfg-model" value="deepseek-r1">
+          </div>
+          <div class="cct-form-group">
+            <label class="cct-form-label">Base URL / Endpoint:</label>
+            <input type="text" class="cct-form-input" id="cct-cfg-endpoint" value="http://localhost:11434">
+          </div>
+          <div class="cct-form-group">
+            <label class="cct-form-label">API Key (if required):</label>
+            <input type="password" class="cct-form-input" id="cct-cfg-apikey" placeholder="sk-...">
+          </div>
+          <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px;">
+            <button class="cct-modal-btn" id="cct-test-conn-btn" onclick="FATTY.testCurrentConnection()">⚡ Test Connection &amp; Latency</button>
+            <span id="cct-test-conn-result" style="align-self: center; font-size: 11px;"></span>
+          </div>
         </div>
-        <div class="cct-form-group">
-          <label class="cct-form-label">API Key / Endpoint:</label>
-          <input type="text" class="cct-form-input" id="cct-cfg-endpoint" value="http://localhost:11434">
+
+        <!-- Tab 3: Permissions & Security -->
+        <div id="cct-settings-tab-perm" style="display: none;">
+          <div class="cct-column-title">Permission Mode:</div>
+          <div class="cct-perm-options-grid">
+            <div class="cct-option-item" id="opt-perm-ask-cfg" onclick="FATTY.setPermissionMode('ask')">
+              <div class="cct-option-title">🔒 Ask Every Time</div>
+              <div class="cct-option-desc">Interactive confirmation prompt before executing protected actions.</div>
+            </div>
+            <div class="cct-option-item" id="opt-perm-restricted-cfg" onclick="FATTY.setPermissionMode('restricted')">
+              <div class="cct-option-title">🛡 Restricted</div>
+              <div class="cct-option-desc">Read-only assistance; block file writes and system actions automatically.</div>
+            </div>
+            <div class="cct-option-item" id="opt-perm-full-cfg" onclick="FATTY.setPermissionMode('full')">
+              <div class="cct-option-title">⚡ Full Access</div>
+              <div class="cct-option-desc">Autonomous workspace execution without individual confirmation prompts.</div>
+            </div>
+          </div>
+
+          <div class="cct-column-title" style="margin-top: 14px;">Granular Capabilities:</div>
+          <label class="cct-checkbox-row">
+            <input type="checkbox" id="cct-perm-cap-terminal" checked onchange="FATTY.toggleCapability('terminal', this.checked)"> Terminal Command Execution
+          </label>
+          <label class="cct-checkbox-row">
+            <input type="checkbox" id="cct-perm-cap-fs-write" checked onchange="FATTY.toggleCapability('fs_write', this.checked)"> File System Write &amp; Create
+          </label>
+          <label class="cct-checkbox-row">
+            <input type="checkbox" id="cct-perm-cap-fs-delete" checked onchange="FATTY.toggleCapability('fs_delete', this.checked)"> File System Deletion
+          </label>
+          <label class="cct-checkbox-row">
+            <input type="checkbox" id="cct-perm-cap-git" checked onchange="FATTY.toggleCapability('git', this.checked)"> Git Operations (commit, branch, push)
+          </label>
+          <label class="cct-checkbox-row">
+            <input type="checkbox" id="cct-perm-cap-network" checked onchange="FATTY.toggleCapability('network', this.checked)"> External Web Search &amp; Documentation Retrieval
+          </label>
+        </div>
+
+        <!-- Tab 4: Editor -->
+        <div id="cct-settings-tab-editor" style="display: none;">
+          <div class="cct-column-title">Code Editor Settings:</div>
+          <label class="cct-checkbox-row">
+            <input type="checkbox" id="cct-cfg-editor-wrap" onchange="FATTY.toggleWordWrap(this.checked)"> Word Wrap lines in editor
+          </label>
+          <label class="cct-checkbox-row">
+            <input type="checkbox" id="cct-cfg-editor-autosave" checked onchange="FATTY.toggleAutoSave(this.checked)"> Auto-save open files on blur
+          </label>
+          <label class="cct-checkbox-row">
+            <input type="checkbox" id="cct-cfg-editor-linenos" checked onchange="FATTY.toggleLineNumbers(this.checked)"> Show line numbers gutter
+          </label>
+          <div class="cct-form-group" style="margin-top: 10px;">
+            <label class="cct-form-label">Font Family:</label>
+            <input type="text" class="cct-form-input" id="cct-cfg-editor-font" value="'JetBrains Mono', 'Consolas', monospace" onchange="FATTY.setEditorFont(this.value)">
+          </div>
+        </div>
+
+        <!-- Tab 5: Shortcuts -->
+        <div id="cct-settings-tab-shortcuts" style="display: none;">
+          <div class="cct-column-title">Interactive Keyboard Shortcuts:</div>
+          <div class="cct-shortcuts-table">
+            <div class="cct-shortcut-row"><kbd>Enter</kbd> <span>Send message in chat</span></div>
+            <div class="cct-shortcut-row"><kbd>Shift + Enter</kbd> <span>New line in input / Run preview in editor</span></div>
+            <div class="cct-shortcut-row"><kbd>Ctrl + K</kbd> or <kbd>/</kbd> <span>Command Palette (86+ commands)</span></div>
+            <div class="cct-shortcut-row"><kbd>Ctrl + M</kbd> <span>Switch AI Mode (Build, Plan, Research, Debugger, Agent, Notebook)</span></div>
+            <div class="cct-shortcut-row"><kbd>Ctrl + S</kbd> <span>Save active file in code editor</span></div>
+            <div class="cct-shortcut-row"><kbd>Ctrl + B</kbd> <span>Toggle file explorer sidebar</span></div>
+            <div class="cct-shortcut-row"><kbd>Esc</kbd> <span>Close all active modals</span></div>
+          </div>
         </div>
       </div>
+
       <div class="cct-modal-footer">
         <button class="cct-modal-btn" onclick="FATTY.closeAllModals()">Cancel</button>
         <button class="cct-modal-btn primary" onclick="FATTY.saveSettings()">Save Configuration</button>
@@ -627,30 +912,97 @@
     </div>
   </div>
 
-  <!-- MODAL: Model & Provider Picker -->
+  <!-- MODAL: Full AI Provider & Model Center (1:1 CAT CLI Provider Center) -->
   <div class="cct-modal-backdrop" id="cct-model-picker-modal" style="display: none;" onclick="FATTY.closeAllModals(event)">
-    <div class="cct-modal-box cct-picker-box" onclick="event.stopPropagation()">
+    <div class="cct-modal-box cct-provider-center-box" onclick="event.stopPropagation()">
       <div class="cct-modal-titlebar">
-        <span>AI Providers & Models</span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: var(--accent-build);">⚡</span>
+          <span>AI Provider &amp; Model Center</span>
+          <span class="cct-badge" style="background: rgba(125,207,255,0.15); color: #7dcfff; border: 1px solid #7dcfff; font-size: 11px;">155+ Providers</span>
+        </div>
         <button class="cct-modal-close-btn" onclick="FATTY.closeAllModals()">✕</button>
       </div>
-      <div class="cct-modal-content">
-        <div class="cct-form-group">
-          <label class="cct-form-label">Search Provider:</label>
-          <input type="text" class="cct-form-input" id="cct-picker-filter" placeholder="Filter providers (ollama, openai, groq, deepseek, anthropic...)" oninput="FATTY.filterProviders(this.value)">
+
+      <!-- Category Filter Pills -->
+      <div class="cct-pm-category-bar" id="cct-pm-cat-bar">
+        <button class="cct-pill active" onclick="FATTY.filterProviderCategory('all')">All</button>
+        <button class="cct-pill" onclick="FATTY.filterProviderCategory('local')">Local (Ollama)</button>
+        <button class="cct-pill" onclick="FATTY.filterProviderCategory('popular')">Popular</button>
+        <button class="cct-pill" onclick="FATTY.filterProviderCategory('free')">Free Tier</button>
+        <button class="cct-pill" onclick="FATTY.filterProviderCategory('reasoning')">Reasoning</button>
+        <button class="cct-pill" onclick="FATTY.filterProviderCategory('coding')">Coding</button>
+        <button class="cct-pill" onclick="FATTY.filterProviderCategory('fast')">Fast &amp; Cheap</button>
+        <button class="cct-pill" onclick="FATTY.filterProviderCategory('vision')">Vision / Audio</button>
+      </div>
+
+      <!-- Search Box -->
+      <div class="cct-pm-search-box">
+        <input type="text" class="cct-form-input" id="cct-picker-filter" placeholder="Search 150+ AI providers or models (ollama, openai, groq, deepseek, anthropic...)" oninput="FATTY.filterProviders(this.value)">
+      </div>
+
+      <!-- Dual-Panel Center: Left Providers Grid, Right Provider Config & Models -->
+      <div class="cct-pm-body">
+        <!-- Left Panel: Provider Cards Grid -->
+        <div class="cct-pm-left-col">
+          <div class="cct-pm-col-header">
+            <span>Providers (<span id="cct-provider-count">0</span>):</span>
+            <span class="cct-text-muted" style="font-size: 11px;">Click a provider to configure</span>
+          </div>
+          <div class="cct-provider-list" id="cct-picker-providers">
+            <!-- Dynamically populated provider cards -->
+          </div>
         </div>
-        <div class="cct-column-title" style="margin-top: 4px;">Providers (<span id="cct-provider-count">155</span>):</div>
-        <div class="cct-provider-list" id="cct-picker-providers">
-          <!-- Injected dynamically by JS -->
-        </div>
-        <div class="cct-column-title" style="margin-top: 6px;">Available Models:</div>
-        <div class="cct-model-list" id="cct-picker-models">
-          <!-- Injected dynamically by JS -->
+
+        <!-- Right Panel: Provider Configuration & Model Selector -->
+        <div class="cct-pm-right-col" id="cct-pm-detail-panel">
+          <div class="cct-pm-detail-header">
+            <div class="cct-pm-detail-title-row">
+              <span class="cct-pm-detail-icon" id="cct-pm-detail-icon">🤖</span>
+              <div>
+                <h3 id="cct-pm-detail-name">Select a Provider</h3>
+                <div class="cct-pm-detail-sub" id="cct-pm-detail-sub">Configure endpoint, credentials, test latency and select model</div>
+              </div>
+            </div>
+            <div class="cct-pm-detail-status-pill" id="cct-pm-detail-status">Ready</div>
+          </div>
+
+          <div class="cct-pm-detail-form" id="cct-pm-detail-form">
+            <div class="cct-form-group">
+              <label class="cct-form-label">Base URL / Endpoint:</label>
+              <input type="text" class="cct-form-input" id="cct-pm-detail-baseurl" placeholder="http://localhost:11434">
+            </div>
+
+            <div class="cct-form-group" id="cct-pm-apikey-group">
+              <label class="cct-form-label">API Key / Token:</label>
+              <div class="cct-input-with-action">
+                <input type="password" class="cct-form-input" id="cct-pm-detail-apikey" placeholder="Enter API Key (stored locally in ~/.cct_ai_config.json)">
+                <button class="cct-input-toggle-btn" type="button" onclick="FATTY.toggleApiKeyVisibility()" title="Show/Hide Key">👁</button>
+              </div>
+            </div>
+
+            <div class="cct-form-group">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <label class="cct-form-label">Available Models:</label>
+                <button class="cct-action-link-btn" onclick="FATTY.refreshProviderModels()" title="Fetch live models from provider">⟳ Refresh Models</button>
+              </div>
+              <div class="cct-model-list" id="cct-picker-models">
+                <!-- Dynamically populated model items -->
+              </div>
+            </div>
+
+            <!-- Latency Test Action -->
+            <div class="cct-pm-test-row">
+              <button class="cct-modal-btn" id="cct-pm-verify-btn" onclick="FATTY.verifyCurrentProvider()">⚡ Test Connection &amp; Latency</button>
+              <div class="cct-pm-latency-badge" id="cct-pm-latency-badge" style="display: none;"></div>
+            </div>
+          </div>
         </div>
       </div>
+
       <div class="cct-modal-footer">
-        <button class="cct-modal-btn" onclick="FATTY.closeAllModals()">Cancel</button>
-        <button class="cct-modal-btn primary" onclick="FATTY.applySelectedModel()">Select Model</button>
+        <button class="cct-modal-btn" onclick="FATTY.closeAllModals()">Close</button>
+        <button class="cct-modal-btn primary" id="cct-pm-apply-btn" onclick="FATTY.applySelectedModel()">Set Active Provider &amp; Model</button>
       </div>
     </div>
   </div>
@@ -760,6 +1112,9 @@
       </div>
     </div>
   </div>
+
+  <!-- Toast Feedback Notifications Container -->
+  <div id="cct-toast-container" class="cct-toast-container"></div>
 
   <script src="/static/js/app.js"></script>
 </body>

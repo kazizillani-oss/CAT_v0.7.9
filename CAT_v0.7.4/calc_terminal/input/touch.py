@@ -23,13 +23,13 @@ from textual.widget import Widget
 from textual.containers import ScrollableContainer, VerticalScroll
 from textual.scroll_view import ScrollView
 
-# Tolerances & Thresholds
-TAP_MAX_DISTANCE = 2.0         # Manhattan distance in cells (finger jitter allowance)
-TAP_MAX_DURATION = 0.45        # Max seconds between down and up for a single tap
+# Tolerances & Thresholds (Calibrated for human finger pads on laptop touchscreens)
+TAP_MAX_DISTANCE = 4.0         # Manhattan distance in cells (finger jitter allowance)
+TAP_MAX_DURATION = 0.65        # Max seconds between down and up for a single tap
 DOUBLE_TAP_MAX_DELAY = 0.40    # Max seconds between taps for double-tap
-DOUBLE_TAP_MAX_DISTANCE = 3.0  # Max distance between consecutive taps
+DOUBLE_TAP_MAX_DISTANCE = 4.0  # Max distance between consecutive taps
 LONG_PRESS_DURATION = 0.55     # Seconds required to trigger long-press
-SCROLL_DRAG_THRESHOLD = 2.5    # Movement cells required to switch into scroll mode
+SCROLL_DRAG_THRESHOLD = 3.0    # Movement cells required to switch into scroll mode
 
 
 class TouchTapRecognizer:
@@ -181,30 +181,42 @@ class TouchTapRecognizer:
         if down_w is up_w:
             return down_w
 
-        # If one is ancestor of the other, favor the interactive child or button
-        from textual.widgets import Button, Tab, Tree
+        # Check comprehensive interactive types and focusable controls
+        from textual.widgets import (
+            Button, Input, TextArea, Tab, Tabs, Select, OptionList,
+            Checkbox, RadioSet, RadioButton, Switch, Tree, ListItem, ListView
+        )
+        interactive_types = (
+            Button, Input, TextArea, Tab, Tabs, Select, OptionList,
+            Checkbox, RadioSet, RadioButton, Switch, Tree, ListItem, ListView
+        )
 
-        interactive_types = (Button, Tab)
+        def _find_interactive(w: Optional[Widget]) -> Optional[Widget]:
+            cur = w
+            while cur is not None:
+                if isinstance(cur, interactive_types):
+                    return cur
+                if hasattr(cur, "press") or hasattr(cur, "action_press"):
+                    return cur
+                if getattr(cur, "can_focus", False) and not isinstance(cur, (ScrollableContainer, VerticalScroll, ScrollView)):
+                    return cur
+                # Check for standard interactive button/item CSS classes
+                classes = getattr(cur, "classes", set())
+                if any(c in classes for c in ("btn", "button", "clickable", "interactive", "nav-item")):
+                    return cur
+                cur = getattr(cur, "parent", None)
+            return None
 
-        if isinstance(down_w, interactive_types):
-            return down_w
-        if isinstance(up_w, interactive_types):
-            return up_w
+        # Prioritize down_widget first (the element the finger touched initially)
+        down_target = _find_interactive(down_w)
+        if down_target is not None:
+            return down_target
 
-        # Check if down_widget is inside a Button or interactive control
-        cur = down_w
-        while cur is not None:
-            if isinstance(cur, interactive_types) or getattr(cur, "can_focus", False):
-                return cur
-            cur = getattr(cur, "parent", None)
+        up_target = _find_interactive(up_w)
+        if up_target is not None:
+            return up_target
 
-        cur = up_w
-        while cur is not None:
-            if isinstance(cur, interactive_types) or getattr(cur, "can_focus", False):
-                return cur
-            cur = getattr(cur, "parent", None)
-
-        # If they share a direct parent container, down_w is what the user touched first
+        # Fallback to down_w (what the user aimed at initially)
         return down_w
 
 
@@ -297,20 +309,10 @@ class TouchScrollHandler:
         if start_widget is None:
             return None
 
-        # Interactive controls must never trigger drag-scrolling
-        from textual.widgets import Button, Input, TextArea, Tab, Select, OptionList, Checkbox, RadioSet, Switch
-        interactive_types = (Button, Input, TextArea, Tab, Select, OptionList, Checkbox, RadioSet, Switch)
-
-        # Check if the touched widget or its immediate ancestors are interactive
-        check_node = start_widget
-        for _ in range(3):
-            if check_node is None:
-                break
-            if isinstance(check_node, (ScrollableContainer, VerticalScroll, ScrollView)):
-                break
-            if isinstance(check_node, interactive_types) or getattr(check_node, "can_focus", False):
-                return None
-            check_node = getattr(check_node, "parent", None)
+        # Single-line text input fields shouldn't trigger drag-scroll (reserved for caret / selection)
+        from textual.widgets import Input
+        if isinstance(start_widget, Input):
+            return None
 
         cur = start_widget
         while cur is not None:

@@ -170,10 +170,17 @@ try:
     from textual.app import App as TextualApp
     from textual.screen import Screen
     from textual.containers import Vertical
-    from textual.widgets import Static
+    from textual.widgets import Static, Button
     from textual import work, events
 except Exception:
     TEXTUAL_AVAILABLE = False
+    Button = None
+
+try:
+    from ..input import TouchHitZone, auto_promote_touch_mode
+except Exception:
+    TouchHitZone = None
+    auto_promote_touch_mode = None
 
 TEXTUAL_AVAILABLE = (TEXTUAL_AVAILABLE and _CONV_OK and _COMP_OK and _FOOTER_OK
                      and _PERM_OK and _HEADER_OK and _STATUSBAR_OK and _DASH_OK and _WORKSPACE_OK
@@ -1885,6 +1892,9 @@ if TEXTUAL_AVAILABLE:
             import logging
             logging.getLogger("calc_terminal.app").error("Recovered from unhandled UI exception: %s", error, exc_info=True)
             try:
+                from textual.app import ScreenError
+                if isinstance(error, ScreenError) and "dismiss" in str(error).lower():
+                    return
                 self.notify(f"Task recovered: {error}", severity="warning", timeout=4.0)
             except Exception:
                 pass
@@ -2076,7 +2086,8 @@ if TEXTUAL_AVAILABLE:
             except Exception:
                 pass
             # v0.7.10: drain preview-subsystem events onto the UI thread.
-            self.set_interval(0.2, self._drain_preview_events)
+            _drain_cadence = 0.8 if os.environ.get("CAT_ECO_MODE") == "1" else 0.3
+            self.set_interval(_drain_cadence, self._drain_preview_events)
             # v0.7.9.5: install the aicore failover hook so provider
             # switchovers surface in the chat ("⚠ ... Switching to Backup
             # Provider N...") instead of happening silently.
@@ -2127,11 +2138,15 @@ if TEXTUAL_AVAILABLE:
             # It is pushed after the first frames settle so the dashboard
             # isn't painted under a modal mid-mount.
             try:
-                from .welcome_modal import WelcomeModal
+                from .welcome_modal import WelcomeModal, has_seen_version
 
                 def _show():
                     try:
                         if os.environ.get("PYTEST_CURRENT_TEST") or getattr(self, "is_headless", False) or getattr(self, "_suppress_welcome_modal", False):
+                            return
+                        if has_seen_version():
+                            # User has already seen the welcome screen — launch directly into workspace!
+                            self._on_welcome_finished()
                             return
                         self.push_screen(WelcomeModal(),
                                          self._on_welcome_finished)
@@ -2162,6 +2177,11 @@ if TEXTUAL_AVAILABLE:
                 mgr.add_change_listener(_on_cust_change)
             except Exception:
                 pass
+            # Dismiss centered startup progress loading animation
+            try:
+                self.call_after_refresh(self._finish_startup_loader)
+            except Exception:
+                pass
             # Apply Touch-Friendly UI Mode if touchscreen / touch mode active
             if getattr(self, "input_capabilities", None) and self.input_capabilities.touch_mode_enabled:
                 self.add_class("cct-touch-mode")
@@ -2170,14 +2190,21 @@ if TEXTUAL_AVAILABLE:
                 except Exception:
                     pass
 
+        def _finish_startup_loader(self):
+            try:
+                loader = self.query_one_optional("#cct-startup-loader")
+                if loader is not None and hasattr(loader, "complete_and_dismiss"):
+                    loader.complete_and_dismiss()
+            except Exception:
+                pass
+
         # ----------------------------------------------- touch / events --
         async def on_event(self, event: events.Event) -> None:
             # Let Textual process all events natively first
             down_before_up = getattr(self, "_mouse_down_widget", None)
 
             # Resizer hit zone expansion for touch
-            if isinstance(event, events.MouseDown) and getattr(self, "input_capabilities", None) and self.input_capabilities.touch_mode_enabled:
-                from ..input import TouchHitZone
+            if isinstance(event, events.MouseDown) and TouchHitZone is not None:
                 screen_x = getattr(event, "screen_x", event.x)
                 screen_y = getattr(event, "screen_y", event.y)
                 nearby_resizer = TouchHitZone.find_nearby_resizer(self, screen_x, screen_y)
@@ -2189,7 +2216,7 @@ if TEXTUAL_AVAILABLE:
                         pass
 
             # Handle active drag-to-scroll on Move
-            if isinstance(event, events.MouseMove) and getattr(self, "input_capabilities", None) and self.input_capabilities.touch_mode_enabled:
+            if isinstance(event, events.MouseMove):
                 if hasattr(self, "_touch_scroll_handler") and self._touch_scroll_handler.is_scrolling:
                     self._touch_scroll_handler.on_mouse_move(event)
                     return
@@ -2205,7 +2232,12 @@ if TEXTUAL_AVAILABLE:
 
             # Touch tracking hooks (non-blocking post-processing)
             if isinstance(event, events.MouseDown):
-                down_target = getattr(self, "_mouse_down_widget", None)
+                try:
+                    down_target, _ = self.get_widget_at(*event.screen_offset)
+                except Exception:
+                    down_target = getattr(self, "_mouse_down_widget", None)
+                self._mouse_down_widget = down_target
+
                 if hasattr(self, "_touch_scroll_handler"):
                     self._touch_scroll_handler.on_mouse_down(down_target, event)
                 if hasattr(self, "_touch_tap_recognizer"):
@@ -2224,17 +2256,45 @@ if TEXTUAL_AVAILABLE:
                     except Exception:
                         up_widget = None
 
-                    # If Textual dropped the click because up_widget != down_before_up, recover it
-                    if down_before_up is not None and up_widget is not down_before_up:
-                        is_tap, chain, resolved_target = self._touch_tap_recognizer.on_mouse_up(up_widget, event)
-                        if is_tap and resolved_target is not None:
+                    is_tap, chain, resolved_target = self._touch_tap_recognizer.on_mouse_up(up_widget, event)
+                    if is_tap and resolved_target is not None:
+                        # Auto-promote touch mode on first real touch interaction
+                        if auto_promote_touch_mode is not None:
                             try:
-                                click_ev = events.Click.from_event(resolved_target, event, chain=chain)
-                                self.screen._forward_event(click_ev)
+                                auto_promote_touch_mode()
                             except Exception:
                                 pass
-                    else:
-                        self._touch_tap_recognizer.on_mouse_up(up_widget, event)
+
+                        # If Textual dropped the click (because up_widget != down_before_up or subtle jitter),
+                        # activate the target directly!
+                        if down_before_up is not None and up_widget is not down_before_up and Button is not None:
+                            btn = resolved_target if isinstance(resolved_target, Button) else None
+                            if btn is None:
+                                cur = getattr(resolved_target, "parent", None)
+                                while cur is not None:
+                                    if isinstance(cur, Button):
+                                        btn = cur
+                                        break
+                                    cur = getattr(cur, "parent", None)
+                            if btn is not None and not getattr(btn, "disabled", False):
+                                try:
+                                    btn.press()
+                                except Exception:
+                                    pass
+
+                            if getattr(resolved_target, "can_focus", False):
+                                try:
+                                    resolved_target.focus()
+                                except Exception:
+                                    pass
+
+                            try:
+                                click_ev = events.Click.from_event(resolved_target, event, chain=chain)
+                                resolved_target.post_message(click_ev)
+                            except Exception:
+                                pass
+
+                    self._mouse_down_widget = None
 
         def _on_touch_tap_resolved(self, widget, event, chain):
             """Called when a clean touch tap is resolved."""
@@ -2313,14 +2373,24 @@ if TEXTUAL_AVAILABLE:
                        for t in self.session.turns):
                     return False   # a conversation exists — no dashboard
                 current = self.conversation._welcome
+                target_root = self._workspace_root or None
                 if isinstance(current, WelcomeDashboard):
-                    current.set_mode(self._current_ai_mode)
-                    current.update_ai_status()
+                    if current._workspace_root != target_root:
+                        self.conversation.show_dashboard(WelcomeDashboard(
+                            LOGO, self._version(), self._model_label(),
+                            len(self._history),
+                            workspace_root=target_root,
+                            mode_key=self._current_ai_mode))
+                    else:
+                        current.set_mode(self._current_ai_mode)
+                        current.update_ai_status()
+                        if hasattr(current, "refresh_stats"):
+                            current.refresh_stats()
                     return True
                 self.conversation.show_dashboard(WelcomeDashboard(
                     LOGO, self._version(), self._model_label(),
                     len(self._history),
-                    workspace_root=self._workspace_root or None,
+                    workspace_root=target_root,
                     mode_key=self._current_ai_mode))
                 return True
             except Exception:
@@ -2431,7 +2501,8 @@ if TEXTUAL_AVAILABLE:
                 # task ordering differs from headless run_test mode
                 # (which installs asyncio's eager task factory). Now we
                 # only unhide the pre-mounted shell — nothing moves.
-                self.conversation.hide_dashboard()
+                if any(t.role in ("user", "assistant") for t in self.session.turns):
+                    self.conversation.hide_dashboard()
                 self._workspace_shell = self.query_one(WorkspaceShell)
                 # Restore the Explorer's remembered open/closed state
                 # (spec v0.7.4: sidebar state persists across runs) —
@@ -2490,10 +2561,7 @@ if TEXTUAL_AVAILABLE:
             # If no chat turns have been submitted, show the clean dashboard/empty state
             # for this new workspace — zero prior chat leakage.
             if not any(t.role in ("user", "assistant") for t in self.session.turns):
-                from ..app import LOGO
-                self.conversation.show_dashboard(WelcomeDashboard(
-                    LOGO, self._version(), self._model_label(), len(self._history),
-                    workspace_root=path))
+                self._show_dashboard_home()
             # v0.7.7 spec section 6: index the workspace off the UI
             # thread, streaming visible progress stages into the chat
             # and finishing with the Project Header detail line.
@@ -4217,6 +4285,11 @@ if TEXTUAL_AVAILABLE:
                     _wb2.open_new_tab = _CAT_ORIG_WEBBROWSER_OPEN
             except Exception:
                 pass
+            try:
+                from ..terminal_host import sanitize_terminal
+                sanitize_terminal()
+            except Exception:
+                pass
 
         def on_click(self, event):
             # Ctrl+Click anywhere on a URL → force CAT Browser (never external)
@@ -4372,7 +4445,11 @@ if TEXTUAL_AVAILABLE:
             Queue only; the UI drain interval does all widget work."""
             with self._preview_events_lock:
                 self._preview_events.append((kind, dict(info)))
-            del self._preview_events[:-400:]
+                del self._preview_events[:-400:]
+            try:
+                self.call_from_thread(self._drain_preview_events)
+            except Exception:
+                pass
 
         def _drain_preview_events(self):
             """UI thread: apply queued controller events to widgets.
@@ -7656,16 +7733,23 @@ def launch_chat_app(repl, history, stats):
         return False, f"Could not construct the chat UI: {type(e).__name__}: {e}"
     _dbg("calling CCTApp.run()...")
     try:
-        app.run()
-    except SystemExit as e:
-        print(f"[CAT DEBUG] CCTApp.run() called sys.exit({e.code!r}) internally "
-              "(this is almost always Textual's own crash handler) \u2014 "
-              "re-raising so you see the real traceback below:", flush=True)
-        raise
-    except BaseException as e:
-        import traceback
-        print(f"[CAT DEBUG] CCTApp.run() raised: {type(e).__name__}: {e}", flush=True)
-        traceback.print_exc()
-        return False, f"Could not launch the chat UI: {type(e).__name__}: {e}"
+        try:
+            app.run()
+        except SystemExit as e:
+            print(f"[CAT DEBUG] CCTApp.run() called sys.exit({e.code!r}) internally "
+                  "(this is almost always Textual's own crash handler) \u2014 "
+                  "re-raising so you see the real traceback below:", flush=True)
+            raise
+        except BaseException as e:
+            import traceback
+            print(f"[CAT DEBUG] CCTApp.run() raised: {type(e).__name__}: {e}", flush=True)
+            traceback.print_exc()
+            return False, f"Could not launch the chat UI: {type(e).__name__}: {e}"
+    finally:
+        try:
+            from ..terminal_host import sanitize_terminal
+            sanitize_terminal()
+        except Exception:
+            pass
     _dbg("CCTApp.run() returned normally (app was closed/quit).")
     return True, ""

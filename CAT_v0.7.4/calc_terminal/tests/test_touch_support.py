@@ -459,5 +459,58 @@ class TestMouseKeyboardZeroRegression(unittest.TestCase):
         self.assertFalse(recognizer._active)
 
 
+class TestTouchAutoPromotionAndRecovery(unittest.TestCase):
+    """Test suite for runtime auto-promotion and robust button tap recovery."""
+
+    def test_auto_promote_touch_mode(self):
+        from calc_terminal.input.capabilities import auto_promote_touch_mode, set_touch_mode, get_input_capabilities
+        set_touch_mode(False, persist=False)
+        caps = get_input_capabilities()
+        self.assertFalse(caps.touch_mode_enabled)
+
+        promoted = auto_promote_touch_mode()
+        self.assertTrue(promoted)
+        self.assertTrue(caps.touch_mode_enabled)
+        self.assertTrue(caps.touchscreen_available)
+
+    def test_finger_jitter_expanded_tolerance(self):
+        """Finger moving 3.5 cells horizontally on high-DPI laptop screen must still be recognized as tap."""
+        from textual.widgets import Button
+        w1 = Button("TouchButton")
+        w2 = MagicMock(name="Neighbor")
+        recognizer = TouchTapRecognizer()
+
+        down_evt = make_mouse_down(w1, 10, 10)
+        recognizer.on_mouse_down(w1, down_evt)
+
+        # Move 3.5 cells (within 4.0 allowance)
+        move_evt = make_mouse_move(w1, 13, 10)
+        self.assertTrue(recognizer.on_mouse_move(move_evt))
+
+        # Release on w2
+        up_evt = make_mouse_up(w2, 13, 10)
+        is_tap, chain, resolved = recognizer.on_mouse_up(w2, up_evt)
+        self.assertTrue(is_tap)
+        self.assertEqual(resolved, w1)
+
+    def test_startup_loading_overlay_lifecycle(self):
+        """Test StartupLoadingOverlay progress rendering, advancement, and complete_and_dismiss."""
+        from calc_terminal.ui.startup_loader import StartupLoadingOverlay
+        overlay = StartupLoadingOverlay()
+        self.assertIsNotNone(overlay)
+
+        # Verify initial bar render
+        bar_text = overlay._render_bar(0.50)
+        self.assertIn("50%", bar_text)
+
+        # Verify 100% completion render
+        full_bar = overlay._render_bar(1.0)
+        self.assertIn("100%", full_bar)
+
+        # Verify complete_and_dismiss marks state as finishing
+        overlay.complete_and_dismiss()
+        self.assertTrue(overlay._is_finishing)
+
+
 if __name__ == "__main__":
     unittest.main()

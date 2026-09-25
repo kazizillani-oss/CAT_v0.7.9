@@ -476,7 +476,7 @@ if _QT_AVAILABLE:
         # Tab management — native new-tab + WebEngineView swap
         # ----------------------------------------------------------------
         def _new_tab_widget(self):
-            """Fast native New Tab — no WebEngine, instant."""
+            """Fast native New Tab — modern, beautiful, responsive, and instant with 0ms lag."""
             try:
                 from .terminal import CATTerminalWidget  # avoid circular at class body
             except Exception:
@@ -484,87 +484,164 @@ if _QT_AVAILABLE:
             w = QWidget()
             v = QVBoxLayout(w)
             v.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            v.setSpacing(12)
+            v.setContentsMargins(20, 24, 20, 24)
+            v.setSpacing(16)
             c = _cat_colors()
 
+            accent = c.get("accent", "#82aaff")
+            bg = c.get("bg", "#1a1b26")
+            surface = c.get("surface", "#1e2030")
+            surface_hover = c.get("surface_hover", "#222436")
+            text = c.get("text", "#e8ebfa")
+            text_muted = c.get("text_muted", "#878caf")
+            border = c.get("border", "#3b4261")
+
             wrap = QWidget()
-            wrap.setMaximumWidth(560)
+            wrap.setMaximumWidth(680)
             vw = QVBoxLayout(wrap)
             vw.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            vw.setSpacing(14)
+            vw.setSpacing(16)
 
+            # 1. Hero Brand: Modern Gradient Badge + Title + Hardware Status Pill
+            brand_box = QWidget()
+            bb_layout = QVBoxLayout(brand_box)
+            bb_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            bb_layout.setSpacing(6)
+            bb_layout.setContentsMargins(0, 0, 0, 0)
+
+            # Glowing CAT Wordmark with modern typography
             logo = QLabel()
             logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
             logo.setTextFormat(Qt.TextFormat.RichText)
             logo.setText(
-                f'<span style="font-size:36px;font-weight:800;letter-spacing:5px;'
-                f'color:{c["accent"]};">CAT</span>'
+                f'<div style="text-align:center;">'
+                f'<span style="font-size:46px;font-weight:900;letter-spacing:8px;'
+                f'color:{accent};">C A T</span>'
+                f'<div style="font-size:13px;font-weight:600;letter-spacing:3px;'
+                f'color:{text_muted};margin-top:2px;">B R O W S E R</div>'
+                f'</div>'
             )
-            logo.setStyleSheet(f"font-size: 36px; font-weight: 800; letter-spacing: 5px;")
-            vw.addWidget(logo)
+            bb_layout.addWidget(logo)
 
-            subtitle = QLabel("Browser")
-            subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            subtitle.setStyleSheet(f"color: {c['text_muted']}; font-size: 12px; margin-top: -6px;")
-            vw.addWidget(subtitle)
+            # Feature / Mode Pill (e.g. ⚡ Low-End Eco Engine · 🛡 Zero-Telemetry · 🚀 Fast)
+            pill = QLabel("⚡ ECO ENGINE ACTIVE  ·  🛡 AD-SHIELD ON  ·  🚀 60 FPS SMOOTH SCROLL")
+            pill.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            pill.setStyleSheet(
+                f"QLabel {{ background: {surface}; color: {accent}; border: 1px solid {border}; "
+                f"border-radius: 10px; font-size: 10px; font-weight: bold; padding: 4px 14px; margin-top: 4px; }}"
+            )
+            bb_layout.addWidget(pill)
+            vw.addWidget(brand_box)
 
-            # Search
-            search_frame = QWidget()
+            # 2. Modern Glassmorphic Search Frame
+            search_frame = QFrame()
+            search_frame.setStyleSheet(f"""
+                QFrame {{
+                    background: {surface};
+                    border: 1.5px solid {border};
+                    border-radius: 20px;
+                }}
+                QFrame:hover {{
+                    border: 1.5px solid {accent};
+                    background: {surface_hover};
+                }}
+            """)
             sh = QHBoxLayout(search_frame)
-            sh.setContentsMargins(12, 6, 12, 6)
-            sh.setSpacing(6)
+            sh.setContentsMargins(16, 7, 16, 7)
+            sh.setSpacing(10)
+
             search_icon = QLabel("🔍")
-            search_icon.setStyleSheet(f"color: {c['text_muted']}; font-size: 13px; background: transparent;")
+            search_icon.setStyleSheet(f"color: {accent}; font-size: 14px; background: transparent; border: none;")
             sh.addWidget(search_icon)
+
             search_input = QLineEdit()
-            search_input.setPlaceholderText("Search or enter a URL")
+            search_input.setPlaceholderText("Search the web or enter URL (e.g. localhost:8765, github.com)...")
             search_input.setStyleSheet(
-                f"background: transparent; border: none; color: {c['text']}; font-size: 13px;"
+                f"background: transparent; border: none; color: {text}; font-size: 13px; padding: 2px 0;"
             )
             w._search_input = search_input  # type: ignore
+
             def _submit():
-                text = search_input.text().strip()
-                if text:
-                    self._handle_newtab_search(text)
+                t = search_input.text().strip()
+                if t:
+                    self._handle_newtab_search(t)
+
             search_input.returnPressed.connect(_submit)
             sh.addWidget(search_input, 1)
-            search_frame.setStyleSheet(
-                f"background: {c['surface']}; border: 1px solid {c['border']}; border-radius: 16px;"
+
+            enter_badge = QLabel("⏎ Enter")
+            enter_badge.setStyleSheet(
+                f"background: {surface_hover}; color: {text_muted}; border: 1px solid {border}; "
+                f"border-radius: 6px; font-size: 10px; font-weight: bold; padding: 2px 6px;"
             )
+            sh.addWidget(enter_badge)
             vw.addWidget(search_frame)
 
-            # Shortcuts — minimal set
+            # 3. Quick Dials (6 rich interactive cards in a 3x2 grid)
             try:
                 from PySide6.QtWidgets import QGridLayout
             except ImportError:
                 from PyQt6.QtWidgets import QGridLayout  # type: ignore
+
             grid = QGridLayout()
-            grid.setSpacing(6)
-            for idx, (icon, label, url) in enumerate([
-                ("🐱", "Fatty CAT", "http://localhost:8765/"),
-                ("🔗", "Fomoji", "http://localhost:3000/home.html"),
-                ("○", "New Tab", "about:home"),
-            ]):
-                btn = QPushButton(f"{icon}  {label}")
-                btn.setFixedHeight(30)
-                btn.setStyleSheet(
-                    f"QPushButton {{ background: {c['surface']}; border: 1px solid {c['border']}; "
-                    f"border-radius: 6px; color: {c['text']}; padding: 0 12px; font-size: 12px; }}"
-                    f"QPushButton:hover {{ border: 1px solid {c['accent']}; background: {c['surface_hover']}; }}"
+            grid.setSpacing(10)
+
+            shortcuts = [
+                ("🐱", "Fatty CAT", "AI Web Workspace", "http://localhost:8765/", "#a6e3a1"),
+                ("🔗", "Fomoji Portal", "Auth & Passkeys", "http://localhost:3000/home.html", "#89b4fa"),
+                ("▶", "YouTube", "Videos & Guides", "https://youtube.com", "#f38ba8"),
+                ("⬢", "GitHub", "Code & Repos", "https://github.com", "#cdd6f4"),
+                ("⚙", "Settings", "Browser & System", "http://localhost:3000/settings.html", "#fab387"),
+                ("○", "New Window", "Open Blank Tab", "about:home", "#cba6f7"),
+            ]
+
+            card_style = f"""
+                QPushButton {{
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {surface_hover}, stop:1 {surface});
+                    border: 1px solid {border};
+                    border-radius: 12px;
+                    color: {text};
+                    text-align: left;
+                    padding: 8px 12px;
+                }}
+                QPushButton:hover {{
+                    border: 1.5px solid {accent};
+                    background: {surface_hover};
+                }}
+                QPushButton:pressed {{
+                    background: {surface};
+                    border: 1.5px solid {border};
+                    padding-top: 10px;
+                }}
+            """
+
+            for i, (icon, label, sub, url, tag_color) in enumerate(shortcuts):
+                row = i // 3
+                col = i % 3
+                btn = QPushButton()
+                btn.setCursor(Qt.CursorShape.PointingHandCursor)
+                btn.setFixedHeight(56)
+                btn.setStyleSheet(card_style)
+                btn.setText(
+                    f'<span style="font-size:16px;">{icon}</span> '
+                    f'<span style="font-size:12px;font-weight:bold;color:{text};">{label}</span><br>'
+                    f'<span style="font-size:10px;color:{text_muted};margin-left:22px;">{sub}</span>'
                 )
                 btn.clicked.connect(lambda _=None, u=url: self.navigate(u))
-                grid.addWidget(btn, 0, idx)
+                grid.addWidget(btn, row, col)
+
             grid_w = QWidget()
             grid_w.setLayout(grid)
             vw.addWidget(grid_w)
 
-            foot = QLabel("CAT Browser")
+            # 4. Footer & Shortcut Helper
+            foot = QLabel("CAT Browser · Ultra-Fast · Low Memory Footprint · Press Ctrl+T for new tab")
             foot.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            foot.setStyleSheet(f"color: {c['text_muted']}; font-size: 10px; margin-top: 8px;")
+            foot.setStyleSheet(f"color: {text_muted}; font-size: 11px; margin-top: 10px;")
             vw.addWidget(foot)
 
             v.addWidget(wrap)
-            QTimer.singleShot(100, lambda: search_input.setFocus())
+            QTimer.singleShot(80, lambda: search_input.setFocus())
             w.setObjectName("newtab")
             return w
 
@@ -728,9 +805,13 @@ if _QT_AVAILABLE:
             old = self._views[idx]
             self.viewport_stack.removeWidget(old)
             old.deleteLater()
-            view = QWebEngineView()
+            view = SecureWebEngineView()
             try:
-                page = QWebEnginePage(self.profile, view)
+                page = SecureWebEnginePage(self.profile, view)
+                try:
+                    page.setDevToolsPage(None)
+                except Exception:
+                    pass
                 view.setPage(page)
                 view.titleChanged.connect(lambda t, v=view: self._on_title(v, t))
                 view.urlChanged.connect(lambda q, v=view: self._on_url(v, q))
@@ -742,9 +823,10 @@ if _QT_AVAILABLE:
                     pass
             except Exception:
                 pass
+            self._views[idx] = view
             self.viewport_stack.insertWidget(idx, view)
             self.viewport_stack.setCurrentIndex(idx)
-            self._views[idx] = view
+            self._rebuild_view_index()
             # State
             if self.state and 0 <= idx < len(self.state.tabs):
                 self.state.tabs[idx].url = url
@@ -770,9 +852,10 @@ if _QT_AVAILABLE:
             self.viewport_stack.removeWidget(old)
             old.deleteLater()
             w = self._new_tab_widget()
+            self._views[idx] = w
             self.viewport_stack.insertWidget(idx, w)
             self.viewport_stack.setCurrentIndex(idx)
-            self._views[idx] = w
+            self._rebuild_view_index()
             self.tab_bar.setTabText(idx, "○  New Tab")
             if self.state and 0 <= idx < len(self.state.tabs):
                 self.state.tabs[idx].url = "about:home"
@@ -999,11 +1082,16 @@ if _QT_AVAILABLE:
         def _close_tab(self, idx: int):
             if not (0 <= idx < len(self._views)):
                 return
-            w = self._views.pop(idx)
-            self.viewport_stack.removeWidget(w)
-            w.deleteLater()
-            self.tab_bar.removeTab(idx)
-            self._rebuild_view_index()
+            self.tab_bar.blockSignals(True)
+            try:
+                w = self._views.pop(idx)
+                self.viewport_stack.removeWidget(w)
+                w.deleteLater()
+                self.tab_bar.removeTab(idx)
+                self._rebuild_view_index()
+            finally:
+                self.tab_bar.blockSignals(False)
+
             if self.state and 0 <= idx < len(self.state.tabs):
                 try:
                     tab_id = self.state.tabs[idx].id

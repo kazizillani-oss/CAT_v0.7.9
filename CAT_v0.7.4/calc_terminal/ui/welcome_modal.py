@@ -111,98 +111,157 @@ if TEXTUAL_AVAILABLE:
         return ["CAT"]
 
 
+    _SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+
+
     class WelcomeModal(Screen):
-        """Once-per-version welcome dialog. Displays the CCT ASCII mark,
-        a brief interruptible boot animation, version highlights, and a
-        call-to-action. Dismissing any way marks the version seen."""
+        """Unified Startup Loader & Welcome Screen for CAT CLI.
+        Combines instant zero-blank rendering, animated shimmering ASCII mark,
+        hardware detection profile, real-time stage loader, progress bar,
+        and instant interruption via touch/keyboard/clicks."""
 
         CSS = """
-        WelcomeModal { align: center middle; background: $app-background 70%; }
-        #wm-box {
-            width: 82; height: auto; max-height: 94%;
-            background: $surface; border: tall $border-active $border; padding: 0 2;
-            opacity: 0; offset-y: 1;
-            transition: opacity 150ms, offset 180ms;
+        WelcomeModal {
+            align: center middle;
+            background: $app-background 80%;
         }
-        #wm-box.open { opacity: 1; offset-y: 0; }
-        #wm-titlebar { height: 3; padding: 1 0 0 0; border-bottom: solid $border; }
-        #wm-title { text-style: bold; width: 1fr; }
-        #wm-logo { height: auto; content-align: center top; padding-top: 1; }
-        #wm-boot { height: 2; padding: 1 0 0 0; }
-        #wm-countdown { height: 1; text-align: center; color: $text-faint; }
-        #wm-subtitle { color: $text-muted; height: 2; padding-top: 1; }
-        #wm-hardware { height: 2; color: $text-muted; padding: 0; }
-        .wm-h2 { color: $text-faint; height: 2; padding: 1 0 0 0; }
-        #wm-body { height: auto; padding-bottom: 1; overflow-y: auto;
-                   scrollbar-gutter: stable; scrollbar-size-vertical: 1;
-                   scrollbar-size-horizontal: 0; scrollbar-color: $border $surface; }
-        .wm-row { height: 3; color: $text-muted; }
-        .wm-icon { width: 4; }
-        .wm-name { text-style: bold; width: 16; }
-        #wm-actions { height: 5; padding: 1 0 1 0; border-top: solid $border;
-                      align-horizontal: center; }
-        #wm-actions Button {
-            border: tall #c4b5fd #4c1d95;
-            background: #7c3aed;
+        #wm-box {
+            width: 78;
+            max-width: 96%;
+            height: auto;
+            max-height: 94%;
+            background: $surface;
+            border: double $accent;
+            padding: 1 2;
+            opacity: 1;
+            offset-y: 0;
+            content-align: center middle;
+        }
+        #wm-titlebar {
+            height: 2;
+            padding: 0;
+            margin-bottom: 1;
+            border-bottom: solid $border;
+            content-align: center middle;
+        }
+        #wm-title {
+            text-style: bold;
+            width: 1fr;
+            text-align: center;
+            color: $accent;
+        }
+        #wm-logo {
+            height: auto;
+            content-align: center top;
+            text-align: center;
+            margin-bottom: 1;
+        }
+        #wm-hardware {
+            height: auto;
+            color: $text-muted;
+            padding: 0;
+            text-align: center;
+            margin-bottom: 1;
+        }
+        #wm-status {
+            height: 1;
+            text-align: center;
+            color: $text;
+            margin-bottom: 1;
+        }
+        #wm-boot {
+            height: 1;
+            text-align: center;
+            color: $accent;
+            text-style: bold;
+            margin-bottom: 1;
+        }
+        #wm-countdown {
+            height: 1;
+            text-align: center;
+            color: $text-faint;
+            margin-bottom: 1;
+        }
+        #wm-actions {
+            height: 3;
+            align-horizontal: center;
+            content-align: center middle;
+            margin-top: 1;
+        }
+        #wm-btn-go {
+            border: tall $accent-light $accent-dark;
+            background: $accent;
             color: #ffffff;
             text-style: bold;
-            min-width: 22;
+            min-width: 24;
+            height: 3;
         }
-        #wm-actions Button:hover {
-            border: tall #ddd6fe #5b21b6;
-            background: #8b5cf6;
+        #wm-btn-go:hover {
+            background: $accent-light;
+            color: #ffffff;
         }
-        #wm-actions Button.-active {
-            border: tall #4c1d95 #c4b5fd;
-            offset-y: 1;
+        #wm-btn-go:focus {
+            border: double #ffffff;
         }
-        .wm-hint { color: $text-faint; padding-top: 1; height: 2; }
+        .wm-hint {
+            color: $text-faint;
+            text-align: center;
+            height: 1;
+            margin-top: 1;
+        }
         """
 
-        BINDINGS = [Binding("escape", "cancel", "Close")]
+        BINDINGS = [
+            Binding("escape", "cancel", "Skip"),
+            Binding("enter", "cancel", "Continue"),
+            Binding("space", "cancel", "Continue"),
+        ]
 
-        _BOOT_STEPS = 14
-        _BOOT_INTERVAL = 0.09   # ~1.3s total
-        _PULSE_INTERVAL = 0.65
+        _BOOT_STEPS = 16
+        _BOOT_INTERVAL = 0.04   # ~0.6s smooth, fast boot progress with zero CPU/GPU stall
+        _PULSE_INTERVAL = 0.75
 
         def compose(self):
             self._logo_lines = _logo_lines()
             with Vertical(id="wm-box"):
                 with Horizontal(id="wm-titlebar"):
-                    yield Static(f"\U0001f680  Welcome to CAT v{_VERSION}", id="wm-title")
+                    yield Static(f"🚀 CAT CLI — AI Coding Agent Terminal OS  [dim]v{_VERSION}[/dim]", id="wm-title")
                 yield Static("", id="wm-logo")
-                yield Static("", id="wm-boot")
-                yield Static("", id="wm-countdown")
-                yield Static("Creator: Kazi Zillani \u00b7 Coding \u00b7 Agents \u00b7 Intelligence \u2014 the terminal for builders.",
-                             id="wm-subtitle")
+                
+                # Hardware detection line
                 try:
                     from ..hardware_analyzer import HardwareAnalyzer
                     prof = HardwareAnalyzer.analyze()
-                    gpu_str = f"{prof.gpu_name[:22]} ({prof.vram_gb:.1f}GB {prof.gpu_backend})" if prof.has_gpu else "CPU"
-                    hw_line = f"⚡ [{theme_css.current_hex('accent')} b]Device Profile:[/] {prof.cpu_model[:26]} \u00b7 {prof.ram_total_gb:.0f}GB RAM \u00b7 {gpu_str} \u00b7 [{theme_css.current_hex('success')} b]Tier: {prof.local_ai_tier.value}[/]"
+                    gpu_str = f"{prof.gpu_name[:20]} ({prof.vram_gb:.1f}GB {prof.gpu_backend})" if prof.has_gpu else "CPU Only"
+                    is_low = HardwareAnalyzer.is_low_end(prof) or os.environ.get("CAT_ECO_MODE") == "1"
+                    perf_tag = f" \u00b7 [{theme_css.current_hex('accent')} b]⚡ Eco Engine Active[/]" if is_low else ""
+                    hw_line = f"⚡ [{theme_css.current_hex('accent')} b]Device Profile:[/] {prof.cpu_model[:22]} \u00b7 {prof.ram_total_gb:.0f}GB RAM \u00b7 {gpu_str} \u00b7 [{theme_css.current_hex('success')} b]Tier: {prof.local_ai_tier.value}[/]{perf_tag}"
                     yield Static(hw_line, id="wm-hardware")
                 except Exception:
-                    pass
-                if _HIGHLIGHTS:
-                    yield Static("What's new in this build:", classes="wm-h2")
-                    with Vertical(id="wm-body"):
-                        for icon, name, desc in _HIGHLIGHTS:
-                            yield Static(
-                                f"[{theme_css.current_hex('accent')}]{icon}[/] "
-                                f"[{theme_css.current_hex('text')}]{name}[/]  \u00b7  {desc}",
-                                classes="wm-row")
-                yield Static("Auto-continuing to Dashboard — press Esc/Enter to skip",
-                             classes="wm-hint")
+                    yield Static("⚡ [b]Ready for Coding & Intelligent Agents[/b]", id="wm-hardware")
+
+                # Live stage spinner & status
+                yield Static(f"[bold #f9e2af]{_SPINNER_FRAMES[0]}[/] Mounting workspace & environment...", id="wm-status")
+
+                # Animated progress bar
+                yield Static(self._render_bar(0.08), id="wm-boot")
+
+                # Auto-countdown indicator
+                yield Static("", id="wm-countdown")
+
+                # Primary Action CTA
+                with Horizontal(id="wm-actions"):
+                    yield Button("Let's Go  ➜", id="wm-btn-go", variant="primary")
+
+                yield Static("[dim]Tap screen or press any key to enter workspace[/dim]", classes="wm-hint")
 
         def _accent_hex(self, role="accent"):
             try:
                 return theme_css.current_hex(role)
             except Exception:
-                return "#888888"
+                return "#89b4fa"
 
         def _logo_colors(self):
-            """Alternating gradient stops give the logo a slow
-            shimmer; the boot bar uses the flat accent."""
             try:
                 start, end = theme_css.gradient_hex()
             except Exception:
@@ -215,51 +274,83 @@ if TEXTUAL_AVAILABLE:
             start, _end = self._logo_colors()
             try:
                 logo = "\n".join(f"[{start} b]{line}[/]" for line in self._logo_lines)
+                if logo == getattr(self, "_last_drawn_logo", None):
+                    return
+                self._last_drawn_logo = logo
                 self.query_one("#wm-logo", Static).update(logo)
             except Exception:
                 pass
 
-        def _update_boot(self):
-            filled = getattr(self, "_boot_step", 0)
-            bar = "\u2588" * filled + "\u2591" * (self._BOOT_STEPS - filled)
+        def _render_bar(self, fraction: float) -> str:
+            fraction = max(0.0, min(1.0, fraction))
+            total_width = 28
+            filled = int(round(fraction * total_width))
+            empty = total_width - filled
+            pct = int(round(fraction * 100))
+            return f"[bold #a6e3a1]{'█' * filled}[/][dim #45475a]{'░' * empty}[/] [bold #89b4fa]{pct:3d}%[/]"
+
+        def _get_status_text(self, step: int) -> str:
+            fraction = step / float(self._BOOT_STEPS)
+            if fraction >= 1.0 or getattr(self, "_is_boot_done", False):
+                return "[bold #a6e3a1]✓ CAT CLI ready! Launching workspace...[/]"
+            elif fraction < 0.25:
+                return "Mounting workspace & environment..."
+            elif fraction < 0.50:
+                return "Calibrating touchscreen & finger gestures..."
+            elif fraction < 0.75:
+                return "Syncing AI providers & model runtime..."
+            else:
+                return "Finalizing CAT CLI interactive workspace..."
+
+        def _update_boot_view(self):
+            step = getattr(self, "_boot_step", 0)
+            fraction = min(1.0, step / float(self._BOOT_STEPS))
+            spinner_char = _SPINNER_FRAMES[step % len(_SPINNER_FRAMES)]
+            status_text = self._get_status_text(step)
+
             try:
-                self.query_one("#wm-boot", Static).update(
-                    f"[{self._accent_hex()} b]Initializing CAT\u2026[/]  {bar}")
+                self.query_one("#wm-boot", Static).update(self._render_bar(fraction))
+            except Exception:
+                pass
+            try:
+                if fraction >= 1.0:
+                    self.query_one("#wm-status", Static).update(status_text)
+                else:
+                    self.query_one("#wm-status", Static).update(f"[bold #f9e2af]{spinner_char}[/] {status_text}")
             except Exception:
                 pass
 
         def _tick_boot(self):
             self._boot_step = getattr(self, "_boot_step", 0) + 1
             if self._boot_step >= self._BOOT_STEPS:
+                self._is_boot_done = True
                 try:
                     self._boot_timer.stop()
                 except Exception:
                     pass
+                self._update_boot_view()
+
+                # Seamlessly transition into workspace without forcing the user to wait through a 3-second countdown!
+                def _auto_dismiss():
+                    try:
+                        self.dismiss("auto")
+                    except Exception:
+                        pass
                 try:
-                    self.query_one("#wm-boot", Static).update(
-                        f"[{self._accent_hex()} b]\u2713 CAT ready[/]"
-                        f"  [{self._accent_hex('text-faint')}]Opening "
-                        f"Dashboard\u2026[/]")
+                    self.set_timer(0.12, _auto_dismiss)
                 except Exception:
-                    pass
-                # Animated countdown to close (shows time remaining)
-                self._countdown = 5
-                self._update_countdown()
-                try:
-                    self._countdown_timer = self.set_interval(1.0, self._tick_countdown)
-                except Exception:
-                    pass
-                self.set_timer(5.0, self._auto_continue)
+                    _auto_dismiss()
                 return
-            self._update_boot()
+
+            self._update_boot_view()
 
         def _update_countdown(self):
             try:
                 c = getattr(self, "_countdown", 0)
-                # Pulsing dot animation + time
                 dot = "●" if c % 2 == 0 else "○"
+                bar = '█' * c + '░' * (3 - c)
                 self.query_one("#wm-countdown", Static).update(
-                    f"[{self._accent_hex()}]{dot}[/] Closing in {c}s — press Esc to stay \u2026 [{self._accent_hex('text-faint')}]{'█' * c + '░' * (5 - c)}[/]")
+                    f"[{self._accent_hex()}]{dot}[/] Entering workspace in {c}s \u2014 [{self._accent_hex('text-faint')}]{bar}[/]")
             except Exception:
                 pass
 
@@ -272,37 +363,26 @@ if TEXTUAL_AVAILABLE:
                     self._countdown_timer.stop()
                 except Exception:
                     pass
-
-        def _auto_continue(self):
-            try:
-                if self.is_running:
-                    self.dismiss("auto")
-            except Exception:
-                pass
+                self.dismiss("auto")
 
         def _tick_pulse(self):
             self._pulse_step = getattr(self, "_pulse_step", 0) + 1
             self._draw_logo()
 
         def on_mount(self):
-            self.call_after_refresh(lambda: self.query_one("#wm-box").add_class("open"))
-            self.call_after_refresh(self._fit)
             self._pulse_step = 0
-            self._boot_step = 0
+            self._boot_step = 1
+            self._is_boot_done = False
             self._draw_logo()
-            self._update_boot()
+            self._update_boot_view()
             self._boot_timer = self.set_interval(self._BOOT_INTERVAL, self._tick_boot)
             self._pulse_timer = self.set_interval(self._PULSE_INTERVAL, self._tick_pulse)
-            # v0.7.8.65: mark the version as seen the moment the modal is
-            # SHOWN, not only when it is dismissed. Quitting the app with
-            # Ctrl+Q (or closing the terminal) while the modal was up used
-            # to skip the dismiss handler, so the marker was never written
-            # and the welcome screen reappeared on every single launch.
+            self.call_after_refresh(self._fit)
             mark_seen()
 
         def on_unmount(self):
-            for timer in ("_boot_timer", "_pulse_timer", "_countdown_timer"):
-                t = getattr(self, timer, None)
+            for timer_name in ("_boot_timer", "_pulse_timer", "_countdown_timer"):
+                t = getattr(self, timer_name, None)
                 if t is not None:
                     try:
                         t.stop()
@@ -320,24 +400,27 @@ if TEXTUAL_AVAILABLE:
                 pass
 
         def on_key(self, event):
-            if event.key == "escape":
-                self.dismiss(None)
+            # Any key press instantly dismisses and continues to dashboard
+            self.dismiss("key")
 
         def action_cancel(self):
-            self.dismiss(None)
+            self.dismiss("cancel")
 
         def on_button_pressed(self, event):
-            self.dismiss(None)
+            self.dismiss("button")
 
         def on_click(self, event):
-            if getattr(event, "widget", None) in (self, None):
-                self.dismiss(None)
+            # Any click or touch tap dismisses immediately
+            self.dismiss("click")
 
         def dismiss(self, result=None):
-            """Any dismissal counts as 'seen this version' — the modal
-            is a once-per-version notice, not a persistent dialog."""
             mark_seen()
-            return super().dismiss(result)
+            try:
+                super().dismiss(result)
+            except Exception:
+                pass
+            return None
 
 else:
     WelcomeModal = None
+

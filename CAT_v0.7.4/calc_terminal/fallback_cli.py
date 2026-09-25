@@ -1036,6 +1036,12 @@ def opencode_input(width=78, show_tip=True, mode_label="NOTEBOOK", model_label=N
             raw = session.prompt(ANSI(row_prefix), placeholder=placeholder)
         except (EOFError, KeyboardInterrupt):
             raise
+        finally:
+            try:
+                from .terminal_host import sanitize_terminal
+                sanitize_terminal()
+            except Exception:
+                pass
         # echo-erase the prompt_toolkit output, then print the canonical box
         _erase_echoed_input(theme.vlen(row_prefix), raw, width)
         return raw
@@ -1228,6 +1234,12 @@ def _home_style_input(width=78, show_tip=True, mode_label="NOTEBOOK", model_labe
     except (EOFError, KeyboardInterrupt):
         print(_oc_bottom(box_w, left_pad))
         raise
+    finally:
+        try:
+            from .terminal_host import sanitize_terminal
+            sanitize_terminal()
+        except Exception:
+            pass
 
     print(_oc_meta_row(box_w, left_pad, mode_label, model_label, effort_label))
     print(_oc_bottom(box_w, left_pad))
@@ -1294,6 +1306,12 @@ def _chat_style_input(label, bg_color, suggestions=None, width=None,
         raw = session.prompt(ANSI(prompt_str), placeholder=placeholder_ft)
     except (EOFError, KeyboardInterrupt):
         raise
+    finally:
+        try:
+            from .terminal_host import sanitize_terminal
+            sanitize_terminal()
+        except Exception:
+            pass
     _erase_echoed_input(theme.vlen(prompt_str), raw, width)
     if hint:
         print(theme.faint("  " + hint))

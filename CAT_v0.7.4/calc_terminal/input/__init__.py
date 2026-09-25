@@ -10,6 +10,7 @@ from .capabilities import (
     get_input_capabilities,
     set_touch_mode,
     toggle_touch_mode,
+    auto_promote_touch_mode,
     register_listener,
     unregister_listener,
 )
@@ -39,6 +40,7 @@ __all__ = [
     "get_input_capabilities",
     "set_touch_mode",
     "toggle_touch_mode",
+    "auto_promote_touch_mode",
     "register_listener",
     "unregister_listener",
     "TouchTapRecognizer",

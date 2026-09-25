@@ -297,53 +297,69 @@ class _NewTabWidget(QWidget):
         c = _cat_theme_colors()
         self.setStyleSheet(f"background: {c['bg']};")
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setContentsMargins(20, 24, 20, 24)
         outer.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         wrap = QWidget()
-        wrap.setMaximumWidth(560)
+        wrap.setMaximumWidth(680)
         v = QVBoxLayout(wrap)
         v.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        v.setSpacing(14)
+        v.setSpacing(16)
 
+        # 1. Hero Brand: Modern Gradient Badge + Title + Hardware Status Pill
+        brand_box = QWidget()
+        bb_layout = QVBoxLayout(brand_box)
+        bb_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        bb_layout.setSpacing(6)
+        bb_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Glowing CAT Wordmark with modern typography
         logo = QLabel()
         logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         logo.setTextFormat(Qt.TextFormat.RichText)
         logo.setText(
-            f'<span style="font-size:42px;font-weight:800;letter-spacing:6px;'
-            f'color:{c["accent"]};">CAT</span>'
+            f'<div style="text-align:center;">'
+            f'<span style="font-size:46px;font-weight:900;letter-spacing:8px;'
+            f'color:{c["accent"]};">C A T</span>'
+            f'<div style="font-size:13px;font-weight:600;letter-spacing:3px;'
+            f'color:{c["text_muted"]};margin-top:2px;">B R O W S E R</div>'
+            f'</div>'
         )
-        v.addWidget(logo)
+        bb_layout.addWidget(logo)
 
-        subtitle = QLabel("Your private, protected browser")
-        subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        subtitle.setStyleSheet(f"color: {c['text_muted']}; font-size: 12px; margin-top: -6px;")
-        v.addWidget(subtitle)
+        # Feature / Mode Pill
+        pill = QLabel("⚡ ECO ENGINE ACTIVE  ·  🛡 AD-SHIELD ON  ·  🚀 60 FPS SMOOTH SCROLL")
+        pill.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        pill.setStyleSheet(
+            f"QLabel {{ background: {c['surface']}; color: {c['accent']}; border: 1px solid {c['border']}; "
+            f"border-radius: 10px; font-size: 10px; font-weight: bold; padding: 4px 14px; margin-top: 4px; }}"
+        )
+        bb_layout.addWidget(pill)
+        v.addWidget(brand_box)
 
+        # 2. Modern Glassmorphic Search Frame
         search_frame = QFrame()
         search_frame.setStyleSheet(f"""
             QFrame {{
                 background: {c['surface']};
-                border: 1px solid {c['border']};
-                border-radius: 14px;
+                border: 1.5px solid {c['border']};
+                border-radius: 20px;
             }}
             QFrame:hover {{
-                border: 1px solid {c['accent']};
-                background: {c['surface_hover']};
-            }}
-            QFrame:focus-within {{
-                border: 1px solid {c['accent']};
+                border: 1.5px solid {c['accent']};
                 background: {c['surface_hover']};
             }}
         """)
         sh = QHBoxLayout(search_frame)
-        sh.setContentsMargins(12, 4, 12, 4)
-        sh.setSpacing(8)
-        search_icon = QLabel("⌕")
-        search_icon.setStyleSheet(f"color: {c['text_muted']}; font-size: 15px; font-weight: bold; background: transparent; border: none;")
+        sh.setContentsMargins(16, 7, 16, 7)
+        sh.setSpacing(10)
+
+        search_icon = QLabel("🔍")
+        search_icon.setStyleSheet(f"color: {c['accent']}; font-size: 14px; background: transparent; border: none;")
         sh.addWidget(search_icon)
+
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Search the web or enter a URL...")
+        self.search_input.setPlaceholderText("Search the web or enter a URL (e.g. localhost:8765, github.com)...")
         self.search_input.setAccessibleName("Search query or URL")
         self.search_input.setAccessibleDescription("Enter search terms or website address")
         self.search_input.setStyleSheet(
@@ -352,77 +368,81 @@ class _NewTabWidget(QWidget):
         )
         self.search_input.returnPressed.connect(self._on_search)
         sh.addWidget(self.search_input, 1)
+
+        enter_badge = QLabel("⏎ Enter")
+        enter_badge.setStyleSheet(
+            f"background: {c['surface_hover']}; color: {c['text_muted']}; border: 1px solid {c['border']}; "
+            f"border-radius: 6px; font-size: 10px; font-weight: bold; padding: 2px 6px;"
+        )
+        sh.addWidget(enter_badge)
         v.addWidget(search_frame)
 
+        # 3. Quick Dials (6 rich interactive cards in a 3x2 grid)
         try:
             from PySide6.QtWidgets import QGridLayout
         except ImportError:
             from PyQt6.QtWidgets import QGridLayout  # type: ignore
+
         grid = QGridLayout()
-        grid.setSpacing(6)
+        grid.setSpacing(10)
+
         shortcuts = [
-            ("▶", "YouTube", "https://youtube.com", c["danger"]),
-            ("⬢", "GitHub", "https://github.com", c["text"]),
-            ("✉", "Gmail", "https://mail.google.com", c["warning"]),
-            ("◆", "Fomoji", "http://localhost:3000/connector.html", c["accent"]),
-            ("⌂", "Home", "http://localhost:3000/home.html", c["success"]),
-            ("🛡", "Security", "http://localhost:3000/security.html", c["warning"]),
-            ("👤", "Identities", "http://localhost:3000/identities.html", c["accent"]),
-            ("⚙", "Settings", "http://localhost:3000/settings.html", c["text_muted"]),
+            ("🐱", "Fatty CAT", "AI Web Workspace", "http://localhost:8765/", "#a6e3a1"),
+            ("🔗", "Fomoji Portal", "Auth & Passkeys", "http://localhost:3000/home.html", "#89b4fa"),
+            ("▶", "YouTube", "Videos & Guides", "https://youtube.com", "#f38ba8"),
+            ("⬢", "GitHub", "Code & Repos", "https://github.com", "#cdd6f4"),
+            ("⚙", "Settings", "Browser & System", "http://localhost:3000/settings.html", "#fab387"),
+            ("○", "New Window", "Open Blank Tab", "about:home", "#cba6f7"),
         ]
-        for idx, (icon, label, url, color) in enumerate(shortcuts):
+
+        card_style = f"""
+            QPushButton {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c['surface_hover']}, stop:1 {c['surface']});
+                border: 1px solid {c['border']};
+                border-radius: 12px;
+                color: {c['text']};
+                text-align: left;
+                padding: 8px 12px;
+            }}
+            QPushButton:hover {{
+                border: 1.5px solid {c['accent']};
+                background: {c['surface_hover']};
+            }}
+            QPushButton:pressed {{
+                background: {c['surface']};
+                border: 1.5px solid {c['border']};
+                padding-top: 10px;
+            }}
+        """
+
+        for i, (icon, label, sub, url, tag_color) in enumerate(shortcuts):
+            row = i // 3
+            col = i % 3
             btn = QPushButton()
-            btn.setFixedSize(115, 70)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.setAccessibleName(f"{label} shortcut")
-            btn.setAccessibleDescription(f"Opens {url}")
-            btn.setStyleSheet(f"""
-                QPushButton {{
-                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c['surface_hover']}, stop:0.35 {c['surface']}, stop:1 {c['surface']});
-                    border-top: 1.5px solid {c['hi']};
-                    border-left: 1.5px solid {c['hi']};
-                    border-right: 1.5px solid {c['sh']};
-                    border-bottom: 1.5px solid {c['sh']};
-                    border-radius: 10px;
-                    color: {c['text']};
-                }}
-                QPushButton:hover {{
-                    border-top: 1.5px solid {color};
-                    border-left: 1.5px solid {color};
-                    border-right: 1.5px solid {c['sh']};
-                    border-bottom: 1.5px solid {c['sh']};
-                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c['surface_active']}, stop:1 {c['surface_hover']});
-                }}
-                QPushButton:pressed {{
-                    border-top: 1.5px solid {c['sh']};
-                    border-left: 1.5px solid {c['sh']};
-                    border-right: 1.5px solid {c['hi']};
-                    border-bottom: 1.5px solid {c['hi']};
-                    padding-top: 2px;
-                    padding-left: 2px;
-                }}
-                QPushButton:focus {{
-                    border: 2px solid {c['focus_ring']};
-                    outline: none;
-                }}
-            """)
-            btn.setText(f'<span style="font-size:18px;">{icon}</span><br>'
-                        f'<span style="font-size:11px;color:{c["text_muted"]};">{label}</span>')
+            btn.setFixedHeight(56)
+            btn.setStyleSheet(card_style)
+            btn.setText(
+                f'<span style="font-size:16px;">{icon}</span> '
+                f'<span style="font-size:12px;font-weight:bold;color:{c["text"]};">{label}</span><br>'
+                f'<span style="font-size:10px;color:{c["text_muted"]};margin-left:22px;">{sub}</span>'
+            )
             btn.setTextFormat(Qt.TextFormat.RichText)
             btn.clicked.connect(lambda _=None, u=url: self.navigateRequested.emit(u))
-            r, col = divmod(idx, 4)
-            grid.addWidget(btn, r, col)
+            grid.addWidget(btn, row, col)
+
         grid_wrap = QWidget()
         grid_wrap.setLayout(grid)
         v.addWidget(grid_wrap)
 
-        foot = QLabel("CAT Browser · Chromium engine")
+        # 4. Footer & Shortcut Helper
+        foot = QLabel("CAT Browser · Ultra-Fast · Low Memory Footprint · Press Ctrl+T for new tab")
         foot.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        foot.setStyleSheet(f"color: {c['text_muted']}; font-size: 10px; margin-top: 6px;")
+        foot.setStyleSheet(f"color: {c['text_muted']}; font-size: 11px; margin-top: 10px;")
         v.addWidget(foot)
 
         outer.addWidget(wrap)
-        QTimer.singleShot(100, lambda: self.search_input.setFocus())
+        QTimer.singleShot(80, lambda: self.search_input.setFocus())
 
     def _on_search(self):
         text = self.search_input.text().strip()
@@ -1606,11 +1626,15 @@ class DevToolsDialog(QDialog):
 
 
 def launch_qt_browser(start_url: str = "about:home") -> int:
-    # Performance: keep GPU enabled for smooth rendering
-    os.environ.setdefault("QTWEBENGINE_CHROMIUM_FLAGS",
-                          "--disable-dev-shm-usage --enable-gpu-rasterization "
-                          "--ignore-gpu-blocklist --enable-zero-copy "
-                          "--disable-background-networking --disable-default-apps")
+    try:
+        from ..host.launcher import get_optimal_chromium_flags
+        flags = get_optimal_chromium_flags()
+    except Exception:
+        flags = (
+            "--enable-gpu-rasterization --enable-zero-copy --enable-smooth-scrolling "
+            "--disable-dev-shm-usage --disable-features=CalculateNativeWinOcclusion --no-sandbox"
+        )
+    os.environ.setdefault("QTWEBENGINE_CHROMIUM_FLAGS", flags)
     os.environ.setdefault("QTWEBENGINE_DISABLE_SANDBOX", "1")
     app = QApplication.instance()
     created = False

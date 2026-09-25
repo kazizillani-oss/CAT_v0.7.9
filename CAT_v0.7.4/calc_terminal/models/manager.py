@@ -195,6 +195,9 @@ def get_model_meta(model_id: str, provider_id: str = "") -> Optional[dict]:
     return entry
 
 
+get_model_metadata = get_model_meta
+
+
 # ── Disk cache (cache/models/{provider_id}.json) ───────────────────────────
 
 def get_cache_path(provider_id: str) -> str:

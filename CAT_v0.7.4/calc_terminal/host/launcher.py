@@ -80,6 +80,57 @@ def _store_pending_verification(url: str):
             pass
 
 
+def get_optimal_chromium_flags() -> str:
+    """Computes stable, hardware-adaptive, anti-flicker Chromium flags.
+    Prevents GPU driver crashes, black screens, visual shattering, and scrolling lag on low-end PCs."""
+    flags = [
+        "--enable-gpu-rasterization",
+        "--enable-zero-copy",
+        "--enable-smooth-scrolling",
+        "--disable-dev-shm-usage",
+        "--disable-features=CalculateNativeWinOcclusion",
+        "--no-sandbox",
+        "--disable-gpu-vsync",
+        "--disable-checker-imaging",
+        "--enable-features=SmoothScrolling,OverlayScrollbar",
+        "--disable-background-timer-throttling",
+        "--disable-renderer-backgrounding",
+        "--blink-settings=scrollAnimatorEnabled=true",
+    ]
+    if sys.platform == "win32":
+        # Direct3D 11 via ANGLE provides rock-solid stability across Intel HD, AMD, and Nvidia on Windows
+        flags.append("--use-angle=d3d11")
+        flags.append("--enable-accelerated-video-decode")
+
+    # Detect hardware capabilities adaptively
+    try:
+        from ..hardware_analyzer import HardwareAnalyzer
+        prof = HardwareAnalyzer.analyze()
+        is_low_end = (
+            not prof.has_gpu
+            or prof.ram_total_gb <= 8.5
+            or prof.cpu_threads <= 4
+            or getattr(prof.local_ai_tier, "value", str(prof.local_ai_tier)) in ("LIMITED", "MODERATE")
+        )
+    except Exception:
+        is_low_end = True
+
+    if is_low_end:
+        # Low-end PC optimization: limit threads and renderer processes to avoid pegging CPU/RAM
+        # Prevent GPU memory thrashing and visual shattering
+        flags.append("--renderer-process-limit=2")
+        flags.append("--num-raster-threads=2")
+        flags.append("--disable-background-networking")
+        flags.append("--disable-partial-raster")
+    else:
+        # Higher-end PC: multi-threaded rasterization
+        flags.append("--renderer-process-limit=4")
+        flags.append("--num-raster-threads=3")
+        flags.append("--enable-features=CanvasOopRasterization")
+
+    return " ".join(flags)
+
+
 def _ensure_qt_app():
     """Create or get existing QApplication. Returns (app, created_new)."""
     # Fix Qt WebEngine cache permission errors
@@ -87,21 +138,9 @@ def _ensure_qt_app():
     _cache_path = os.path.join(tempfile.gettempdir(), "cat_qt_cache")
     os.makedirs(_cache_path, exist_ok=True)
     os.environ["QTWEBENGINE_CACHE_PATH"] = _cache_path
-    # Performance: Hardware acceleration, smooth 60fps scrolling, zero-copy rasterization
-    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
-        "--enable-gpu-rasterization "
-        "--ignore-gpu-blocklist "
-        "--enable-zero-copy "
-        "--enable-features=VaapiVideoDecoder,CanvasOopRasterization "
-        "--disable-features=CalculateNativeWinOcclusion "
-        "--disable-gpu-driver-bug-workarounds "
-        "--enable-accelerated-video-decode "
-        "--enable-smooth-scrolling "
-        "--disable-dev-shm-usage "
-        "--renderer-process-limit=6 "
-        "--num-raster-threads=4 "
-        "--no-sandbox"
-    )
+    
+    # Adaptive anti-flicker & performance flags
+    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = get_optimal_chromium_flags()
     os.environ.setdefault("QTWEBENGINE_DISABLE_SANDBOX", "1")
 
     try:
@@ -111,11 +150,13 @@ def _ensure_qt_app():
         from PyQt6.QtCore import QCoreApplication, Qt  # type: ignore
         from PyQt6.QtWidgets import QApplication  # type: ignore
 
-    # AA_ShareOpenGLContexts + AA_UseDesktopOpenGL prevent surface tearing and flicker
+    # AA_ShareOpenGLContexts prevents surface tearing and flicker
     try:
         if hasattr(Qt.ApplicationAttribute, "AA_ShareOpenGLContexts"):
             QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts, True)
-        if hasattr(Qt.ApplicationAttribute, "AA_UseDesktopOpenGL"):
+        # On Windows, Direct3D 11 via ANGLE is rock-solid and eliminates OpenGL ICD driver flickering.
+        # Only use desktop OpenGL if on Linux or explicitly requested.
+        if sys.platform != "win32" and hasattr(Qt.ApplicationAttribute, "AA_UseDesktopOpenGL"):
             QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_UseDesktopOpenGL, True)
     except Exception:
         pass

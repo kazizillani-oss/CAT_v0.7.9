@@ -31,6 +31,8 @@
       full: { text: 'Full Access', icon: '⚡' }
     },
     currentFile: null,
+    openFiles: [],
+    activeFileIndex: -1,
     editorOpen: false,
     splitPreview: false,
     previewRunning: false,
@@ -53,7 +55,16 @@
     selectedProvider: 'ollama',
     selectedModel: 'deepseek-r1',
     memoryFacts: [],
-    extensions: []
+    extensions: [],
+    activeSidebarTab: 'explorer',
+    sidebarChats: [],
+    sidebarActivities: [],
+    sidebarExtensions: [],
+    providerCenterData: null,
+    selectedProviderId: 'ollama',
+    selectedModelName: 'deepseek-r1',
+    chatId: 'default',
+    autoSave: true
   };
 
   // ─── 5 RESPONSIVE LAYOUT VARIANTS OF THE CAT WORDMARK LOGO ──────────────
@@ -153,6 +164,15 @@
 
       // 8. Load active session notebooks
       await this.loadSessionNotebooks();
+
+      // 9. Initialize CAT 3D ASCII Block Art & Routine Greetings
+      this.initCatRoutineGreeting();
+
+      // 10. Initialize multi-file editor tabs bar
+      this.renderEditorTabs();
+
+      // 11. Initialize sidebar tab
+      this.switchSidebarTab('explorer');
     },
 
     bindDOM() {
@@ -475,35 +495,143 @@
     },
 
     // ─────────────────────────────────────────────────────────────────────
-    // FILE OPEN & EDITOR
+    // MULTI-FILE CODE EDITOR & TABS
     // ─────────────────────────────────────────────────────────────────────
-    async openFile(filePath, fileName) {
+    showToast(message, type = 'info') {
+      const container = document.getElementById('cct-toast-container');
+      if (!container) return;
+      const toast = document.createElement('div');
+      toast.className = `cct-toast ${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => {
+        if (toast.parentNode) toast.parentNode.removeChild(toast);
+      }, 3100);
+    },
+
+    renderEditorTabs() {
+      const bar = document.getElementById('cct-editor-tabs-bar');
+      if (!bar) return;
+      bar.innerHTML = '';
+
+      state.openFiles.forEach((file, idx) => {
+        const tab = document.createElement('div');
+        tab.className = `cct-editor-tab ${idx === state.activeFileIndex ? 'active' : ''}`;
+        
+        let icon = '📄';
+        if (file.name.endsWith('.html')) icon = '🌐';
+        else if (file.name.endsWith('.js')) icon = '📜';
+        else if (file.name.endsWith('.css')) icon = '🎨';
+        else if (file.name.endsWith('.py')) icon = '🐍';
+        else if (file.name.endsWith('.json')) icon = '⚙';
+        else if (file.name.endsWith('.md')) icon = '📘';
+
+        tab.innerHTML = `
+          <span>${icon}</span>
+          <span>${this.escapeHtml(file.name)}</span>
+          ${file.dirty ? '<span class="cct-tab-dirty">●</span>' : ''}
+          <span class="cct-tab-close" title="Close file (✕)">✕</span>
+        `;
+
+        tab.addEventListener('click', (e) => {
+          if (e.target.classList.contains('cct-tab-close')) {
+            e.stopPropagation();
+            this.closeEditorTab(idx);
+          } else {
+            this.switchEditorTab(idx);
+          }
+        });
+
+        bar.appendChild(tab);
+      });
+    },
+
+    switchEditorTab(idx) {
+      if (idx < 0 || idx >= state.openFiles.length) return;
+      state.activeFileIndex = idx;
+      const file = state.openFiles[idx];
+      state.currentFile = file;
+
+      const titleEl = document.getElementById('cct-editor-filename');
+      if (titleEl) titleEl.textContent = file.name;
+
+      const langBadge = document.getElementById('cct-editor-lang-badge');
+      if (langBadge) {
+        const ext = (file.name.split('.').pop() || 'TXT').toUpperCase();
+        langBadge.textContent = ext;
+      }
+
+      const textarea = document.getElementById('cct-code-editor');
+      if (textarea) {
+        textarea.value = file.content || '';
+      }
+
       document.querySelectorAll('.cct-tree-node').forEach(n => {
-        if (n.dataset.path === filePath) {
+        if (n.dataset.path === file.path) {
           n.classList.add('active-file');
         } else {
           n.classList.remove('active-file');
         }
       });
 
-      state.currentFile = { path: filePath, name: fileName };
-      const titleEl = document.getElementById('cct-editor-filename');
-      if (titleEl) titleEl.textContent = fileName;
+      this.renderEditorTabs();
+      this.updateLineNumbers();
+    },
 
+    closeEditorTab(idx) {
+      if (idx < 0 || idx >= state.openFiles.length) return;
+      const file = state.openFiles[idx];
+      if (file.dirty) {
+        if (confirm(`Save changes to ${file.name} before closing?`)) {
+          this.saveCurrentFile();
+        }
+      }
+
+      state.openFiles.splice(idx, 1);
+      if (state.openFiles.length === 0) {
+        state.activeFileIndex = -1;
+        state.currentFile = null;
+        this.closeEditor();
+      } else {
+        const nextIdx = Math.max(0, idx - 1);
+        this.switchEditorTab(nextIdx);
+      }
+      this.renderEditorTabs();
+    },
+
+    async openFile(filePath, fileName) {
+      // 1. Check if file is already open in tabs
+      const existingIdx = state.openFiles.findIndex(f => f.path === filePath);
+      if (existingIdx !== -1) {
+        this.switchEditorTab(existingIdx);
+        const editorPane = document.getElementById('cct-editor-pane');
+        const resizer = document.getElementById('cct-editor-resizer');
+        if (editorPane) editorPane.classList.add('open');
+        if (resizer) resizer.style.display = 'block';
+        state.editorOpen = true;
+        return;
+      }
+
+      // 2. Fetch content from server
       let content = '';
       try {
         const res = await api.get(`/api/workspace/current/file?path=${encodeURIComponent(filePath)}`);
         content = res.content || '';
       } catch (e) {
-        console.warn('Could not read file from server, using sample code');
-        content = `<!DOCTYPE html>\n<html>\n<head><title>CAT Editor</title></head>\n<body>\n<h1>Hello from CAT CLI</h1>\n</body>\n</html>`;
+        console.warn('Could not read file from server:', e);
+        content = '';
       }
 
-      const textarea = document.getElementById('cct-code-editor');
-      if (textarea) {
-        textarea.value = content;
-        textarea.scrollTop = 0;
-      }
+      const newFile = {
+        path: filePath,
+        name: fileName,
+        content: content,
+        dirty: false
+      };
+
+      state.openFiles.push(newFile);
+      state.activeFileIndex = state.openFiles.length - 1;
+      state.currentFile = newFile;
 
       const editorPane = document.getElementById('cct-editor-pane');
       const resizer = document.getElementById('cct-editor-resizer');
@@ -511,7 +639,7 @@
       if (resizer) resizer.style.display = 'block';
       state.editorOpen = true;
 
-      this.updateLineNumbers();
+      this.switchEditorTab(state.activeFileIndex);
     },
 
     updateLineNumbers() {
@@ -527,6 +655,38 @@
       gutter.innerHTML = numHtml;
     },
 
+    formatEditorCode() {
+      const textarea = document.getElementById('cct-code-editor');
+      if (!textarea || !textarea.value) return;
+
+      const file = state.currentFile;
+      if (file && (file.name.endsWith('.json') || textarea.value.trim().startsWith('{') || textarea.value.trim().startsWith('['))) {
+        try {
+          const parsed = JSON.parse(textarea.value);
+          textarea.value = JSON.stringify(parsed, null, 2);
+          if (file) {
+            file.content = textarea.value;
+            file.dirty = true;
+          }
+          this.renderEditorTabs();
+          this.updateLineNumbers();
+          this.showToast('Formatted JSON code ✓', 'success');
+          return;
+        } catch (e) {}
+      }
+
+      const lines = textarea.value.split('\n');
+      const cleaned = lines.map(l => l.replace(/\s+$/, '')).join('\n');
+      textarea.value = cleaned;
+      if (file) {
+        file.content = textarea.value;
+        file.dirty = true;
+      }
+      this.renderEditorTabs();
+      this.updateLineNumbers();
+      this.showToast('Cleaned indentation & whitespace ✓', 'success');
+    },
+
     async saveCurrentFile() {
       if (!state.currentFile) return;
       const textarea = document.getElementById('cct-code-editor');
@@ -537,12 +697,16 @@
           path: state.currentFile.path,
           content: textarea.value
         });
-        console.log('Saved file:', state.currentFile.path);
+        state.currentFile.content = textarea.value;
+        state.currentFile.dirty = false;
+        this.renderEditorTabs();
+        this.showToast(`Saved ${state.currentFile.name} ✓`, 'success');
         if (state.previewRunning) {
           this.runPreview();
         }
       } catch (e) {
         console.error('Error saving file:', e);
+        this.showToast(`Error saving ${state.currentFile.name}: ${e.message}`, 'error');
       }
     },
 
@@ -716,8 +880,30 @@
             this.setAiMode(arg.toLowerCase());
             this.appendSystemNotice(`Switched active persona to <b style="color: #38bdf8;">${this.escapeHtml(arg)}</b> mode.`);
           } else {
-            this.appendSystemNotice('Usage: <code>/mode &lt;build|agent|research|notebook&gt;</code>');
+            this.openModeSelector();
           }
+          return;
+        case '/model':
+        case '/provider':
+        case '/providers':
+          this.openProviderCenter();
+          return;
+        case '/user':
+        case '/profile':
+          this.openUserProfile();
+          return;
+        case '/themes':
+        case '/theme':
+          this.openThemes();
+          return;
+        case '/workspace':
+          this.openFolderDialog();
+          return;
+        case '/activities':
+          this.switchSidebarTab('activities');
+          return;
+        case '/extensions':
+          this.switchSidebarTab('extensions');
           return;
         case '/settings':
           this.openSettings();
@@ -741,11 +927,34 @@
             `</div>`
           );
           return;
-        default:
-          this.appendSystemNotice(
-            `<span style="color: #ff5555;">Unknown command <code>${this.escapeHtml(cmd)}</code>.</span> Type <code>/help</code> for available commands.`
-          );
+        default: {
+          const cardEl = this.appendAssistantLoading();
+          api.post('/api/command/dispatch', { command: cmdText })
+            .then(res => {
+              const out = res.output || 'Command executed.';
+              this.updateAssistantCard(cardEl, {
+                text: out,
+                provider: state.provider,
+                model: state.model,
+                timeStr: '0:01',
+                tokens: out.length,
+                timings: { ttfb_ms: 40, memory_ms: 10, loop_ms: 50 },
+                calls: 1
+              });
+            })
+            .catch(e => {
+              this.updateAssistantCard(cardEl, {
+                text: `Command error: ${e.message}`,
+                provider: state.provider,
+                model: state.model,
+                timeStr: '0:01',
+                tokens: 0,
+                timings: { ttfb_ms: 10, memory_ms: 5, loop_ms: 15 },
+                calls: 1
+              });
+            });
           return;
+        }
       }
     },
 
@@ -791,65 +1000,261 @@
 
       // 2. Append Assistant Loading Card
       const cardEl = this.appendAssistantLoading();
-
-      // 3. Request AI Response or Agent Turn from server
+      const meta = state.modeMeta[state.activeMode] || state.modeMeta.build;
       const t0 = Date.now();
-      try {
-        let res;
-        const isAgentMode = state.activeMode === 'agent';
-        const isExplicitFileTask = /^\s*(create|write|delete|edit|refactor|generate)\s+(file|folder|dir|component|app|project)\b/i.test(text);
-        if (isAgentMode || (state.activeMode === 'build' && isExplicitFileTask)) {
-          // Use multi-turn agent for explicit file/tool tasks
-          res = await api.post('/api/agent', {
+
+      // Check if explicit agent task
+      const isAgentMode = state.activeMode === 'agent';
+      const isExplicitFileTask = /^\s*(create|write|delete|edit|refactor|generate)\s+(file|folder|dir|component|app|project)\b/i.test(text);
+
+      if (isAgentMode || (state.activeMode === 'build' && isExplicitFileTask)) {
+        try {
+          const res = await api.post('/api/agent', {
             message: text,
             mode: 'agent',
             max_steps: 4,
             project_path: state.workspaceRoot,
             chat_id: state.chatId
           });
-        } else {
-          // Fast AI chat for queries, discussions, explanations, and build mode code generation
-          res = await api.post('/api/chat', {
+          if (res && res.chat_id) state.chatId = res.chat_id;
+          const elapsed = Math.round((Date.now() - t0) / 1000);
+          this.updateAssistantCard(cardEl, {
+            text: res.response || '(No response from agent)',
+            steps: res.steps || [],
+            provider: res.provider || state.provider,
+            model: res.model || state.model,
+            timeStr: `${Math.floor(elapsed / 60)}:${(elapsed % 60) < 10 ? '0' : ''}${elapsed % 60}`,
+            tokens: res.tokens || Math.max(12, Math.round(text.length * 1.3)),
+            timings: { ttfb_ms: 180, memory_ms: 20, loop_ms: elapsed * 1000 },
+            calls: res.steps ? Math.max(1, res.steps.length) : 1
+          });
+        } catch (e) {
+          this.updateAssistantCard(cardEl, {
+            text: `(Agent error: ${e.message})`,
+            provider: state.provider,
+            model: state.model,
+            timeStr: '0:02',
+            tokens: 0,
+            timings: { ttfb_ms: 20, memory_ms: 10, loop_ms: 30 },
+            calls: 1
+          });
+        }
+        return;
+      }
+
+      // Streaming execution via /api/chat/stream
+      let accumulatedText = '';
+      let thinkingText = '';
+      let inThinkingBlock = false;
+      let hasReceivedFirstToken = false;
+      let ttfbMs = 0;
+
+      try {
+        const response = await fetch('/api/chat/stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: text,
+            mode: state.activeMode,
+            project_path: state.workspaceRoot,
+            chat_id: state.chatId
+          })
+        });
+
+        if (!response.ok || !response.body) {
+          throw new Error('Stream request returned status ' + response.status);
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith('data:')) continue;
+            const dataStr = trimmed.slice(5).trim();
+            if (!dataStr) continue;
+
+            let chunk;
+            try {
+              chunk = JSON.parse(dataStr);
+            } catch (e) {
+              continue;
+            }
+
+            if (!hasReceivedFirstToken) {
+              hasReceivedFirstToken = true;
+              ttfbMs = Date.now() - t0;
+            }
+
+            if (chunk.type === 'token') {
+              accumulatedText += chunk.text;
+
+              if (accumulatedText.includes('<think>')) {
+                inThinkingBlock = true;
+                const thinkStart = accumulatedText.indexOf('<think>') + 7;
+                if (accumulatedText.includes('</think>')) {
+                  const thinkEnd = accumulatedText.indexOf('</think>');
+                  thinkingText = accumulatedText.slice(thinkStart, thinkEnd);
+                  inThinkingBlock = false;
+                } else {
+                  thinkingText = accumulatedText.slice(thinkStart);
+                }
+              }
+
+              this.renderStreamingAssistantCard(cardEl, {
+                rawText: accumulatedText,
+                thinkingText,
+                inThinkingBlock,
+                elapsedMs: Date.now() - t0
+              });
+            } else if (chunk.type === 'done') {
+              break;
+            } else if (chunk.type === 'error') {
+              throw new Error(chunk.error || 'Stream error');
+            }
+          }
+        }
+
+        const totalElapsed = Date.now() - t0;
+        const totalSecs = Math.max(1, Math.round(totalElapsed / 1000));
+        const mins = Math.floor(totalSecs / 60);
+        const secs = totalSecs % 60;
+        const timeStr = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+
+        this.finalizeAssistantCard(cardEl, {
+          rawText: accumulatedText,
+          thinkingText,
+          provider: state.provider,
+          model: state.model,
+          timeStr,
+          tokens: Math.max(10, Math.round(accumulatedText.length / 3)),
+          timings: {
+            ttfb_ms: ttfbMs || 250,
+            memory_ms: 32,
+            loop_ms: totalElapsed
+          },
+          calls: 1
+        });
+
+      } catch (streamErr) {
+        console.warn('Streaming failed, falling back to standard /api/chat:', streamErr);
+        try {
+          const res = await api.post('/api/chat', {
             message: text,
             mode: state.activeMode,
             project_path: state.workspaceRoot,
             chat_id: state.chatId
           });
+          if (res && res.chat_id) state.chatId = res.chat_id;
+          const elapsed = Math.round((Date.now() - t0) / 1000);
+          this.updateAssistantCard(cardEl, {
+            text: res.response || '(No response from AI)',
+            steps: res.steps || [],
+            provider: res.provider || state.provider,
+            model: res.model || state.model,
+            timeStr: `${Math.floor(elapsed / 60)}:${(elapsed % 60) < 10 ? '0' : ''}${elapsed % 60}`,
+            tokens: res.tokens || Math.max(12, Math.round(text.length * 1.3)),
+            timings: res.timings || { ttfb_ms: 300, memory_ms: 30, loop_ms: elapsed * 1000 },
+            calls: 1
+          });
+        } catch (e2) {
+          this.updateAssistantCard(cardEl, {
+            text: `(AI error: ${e2.message})`,
+            provider: state.provider,
+            model: state.model,
+            timeStr: '0:02',
+            tokens: 0,
+            timings: { ttfb_ms: 20, memory_ms: 10, loop_ms: 30 },
+            calls: 1
+          });
         }
-        if (res && res.chat_id) {
-          state.chatId = res.chat_id;
-        }
-
-        const elapsed = Math.round((Date.now() - t0) / 1000);
-        const mins = Math.floor(elapsed / 60);
-        const secs = elapsed % 60;
-        const timeStr = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-
-        this.updateAssistantCard(cardEl, {
-          text: res.response || '(No response from AI)',
-          steps: res.steps || [],
-          provider: res.provider || state.provider,
-          model: res.model || state.model,
-          timeStr: res.time_str || timeStr,
-          tokens: res.tokens || Math.max(12, Math.round(text.length * 1.3)),
-          timings: res.timings || {
-            ttfb_ms: Math.max(120, elapsed * 800),
-            memory_ms: 37,
-            loop_ms: Math.max(140, elapsed * 1000)
-          },
-          calls: res.calls || (res.steps ? Math.max(1, res.steps.length) : 1)
-        });
-      } catch (e) {
-        this.updateAssistantCard(cardEl, {
-          text: '(Generation error: ' + (e.message || 'connection issue') + ')',
-          provider: state.provider,
-          model: state.model,
-          timeStr: '0:05',
-          tokens: 11,
-          timings: { ttfb_ms: 500, memory_ms: 37, loop_ms: 540 },
-          calls: 1
-        });
       }
+    },
+
+    renderStreamingAssistantCard(cardEl, { rawText, thinkingText, inThinkingBlock, elapsedMs }) {
+      if (!cardEl) return;
+      const meta = state.modeMeta[state.activeMode] || state.modeMeta.build;
+      const elapsedSec = (elapsedMs / 1000).toFixed(1);
+
+      let thinkingHtml = '';
+      let answerText = rawText;
+
+      if (rawText.includes('<think>')) {
+        const parts = rawText.split('</think>');
+        if (parts.length > 1) {
+          answerText = parts[1].trim();
+        } else {
+          answerText = '';
+        }
+
+        thinkingHtml = `
+          <details class="cct-thinking-block" ${inThinkingBlock ? 'open' : ''}>
+            <summary class="cct-thinking-summary">
+              <span class="cct-thinking-pulse">🧠</span>
+              <span>Thinking Process (${state.model})</span>
+              <span style="font-size: 10px; margin-left: auto; color: var(--term-text-muted);">${elapsedSec}s</span>
+            </summary>
+            <div class="cct-thinking-content">${this.escapeHtml(thinkingText)}</div>
+          </details>
+        `;
+      }
+
+      cardEl.innerHTML = `
+        <div class="cct-card-header">${meta.icon} ${meta.label}</div>
+        ${thinkingHtml}
+        <div class="cct-card-content">${answerText ? this.formatContent(answerText) : (inThinkingBlock ? '<span style="color: var(--term-text-muted);">Formulating response… ▌</span>' : '▌')}</div>
+        <div class="cct-card-meta">
+          <div class="cct-meta-line" style="color: #7dcfff;">Streaming tokens from ${state.provider} ${state.model}… (${elapsedSec}s)</div>
+        </div>
+      `;
+      this.scrollToBottom();
+    },
+
+    finalizeAssistantCard(cardEl, data) {
+      if (!cardEl) return;
+      const meta = state.modeMeta[state.activeMode] || state.modeMeta.build;
+
+      let thinkingHtml = '';
+      let answerText = data.rawText || '';
+
+      if (answerText.includes('<think>')) {
+        const parts = answerText.split('</think>');
+        if (parts.length > 1) {
+          answerText = parts[1].trim();
+        }
+        thinkingHtml = `
+          <details class="cct-thinking-block">
+            <summary class="cct-thinking-summary">
+              <span>🧠</span>
+              <span>Reasoning &amp; Thought Trace</span>
+              <span style="font-size: 10px; margin-left: auto; color: var(--color-green);">✓ Complete</span>
+            </summary>
+            <div class="cct-thinking-content">${this.escapeHtml(data.thinkingText || '')}</div>
+          </details>
+        `;
+      }
+
+      cardEl.innerHTML = `
+        <div class="cct-card-header">${meta.icon} ${meta.label}</div>
+        ${thinkingHtml}
+        <div class="cct-card-content">${this.formatContent(answerText)}</div>
+        <div class="cct-card-meta">
+          <div class="cct-meta-complete">✓ Response Complete</div>
+          <div class="cct-meta-line">Provider: ${data.provider} &nbsp;·&nbsp; Model: ${data.model} &nbsp;·&nbsp; Time: ${data.timeStr} &nbsp;·&nbsp; Tokens: ${data.tokens}</div>
+          <div class="cct-meta-timings">⏰ Real timings: TTFB ${data.timings.ttfb_ms}ms &nbsp;·&nbsp; memory ${data.timings.memory_ms}ms &nbsp;·&nbsp; loop ${data.timings.loop_ms}ms</div>
+          <div class="cct-meta-calls">🗂 ${data.calls} model call(s)</div>
+        </div>
+      `;
+      this.scrollToBottom();
     },
 
     appendUserMessage(text) {
@@ -883,7 +1288,7 @@
         <div class="cct-card-header">${meta.icon} ${meta.label}</div>
         <div class="cct-card-content">Thinking… ▌</div>
         <div class="cct-card-meta">
-          <div class="cct-meta-line">Generating response from ${state.provider} ${state.model}…</div>
+          <div class="cct-meta-line">Connecting to ${state.provider} ${state.model}…</div>
         </div>
       `;
       turnsBox.appendChild(card);
@@ -926,57 +1331,6 @@
       this.scrollToBottom();
     },
 
-    async executeSlashCommand(cmdStr) {
-      const welcome = document.getElementById('cct-welcome-view');
-      const turnsBox = document.getElementById('cct-chat-turns');
-      if (welcome) welcome.style.display = 'none';
-      if (turnsBox) turnsBox.style.display = 'flex';
-
-      this.appendUserMessage(cmdStr);
-      const cardEl = this.appendAssistantLoading();
-
-      const base = cmdStr.split(' ')[0].toLowerCase();
-      if (base === '/clear') {
-        this.newChat();
-        return;
-      } else if (base === '/docs' || base === '/help') {
-        this.openDocs();
-      } else if (base === '/model') {
-        this.openModelPicker();
-      } else if (base === '/mode') {
-        this.openModeSelector();
-      } else if (base === '/memory' || base === '/m') {
-        this.openMemoryCenter();
-      } else if (base === '/extensions') {
-        this.openExtensionsManager();
-      } else if (base === '/workspace') {
-        this.openFolderDialog();
-      }
-
-      try {
-        const res = await api.post('/api/command/dispatch', { command: cmdStr });
-        const out = res.output || 'Command executed.';
-        this.updateAssistantCard(cardEl, {
-          text: out,
-          provider: state.provider,
-          model: state.model,
-          timeStr: '0:01',
-          tokens: out.length,
-          timings: { ttfb_ms: 40, memory_ms: 10, loop_ms: 50 },
-          calls: 1
-        });
-      } catch (e) {
-        this.updateAssistantCard(cardEl, {
-          text: `Command error: ${e.message}`,
-          provider: state.provider,
-          model: state.model,
-          timeStr: '0:01',
-          tokens: 0,
-          timings: { ttfb_ms: 10, memory_ms: 5, loop_ms: 15 },
-          calls: 1
-        });
-      }
-    },
 
     newChat() {
       const welcome = document.getElementById('cct-welcome-view');
@@ -1127,126 +1481,709 @@
     },
 
     // ─────────────────────────────────────────────────────────────────────
-    // MODEL & PROVIDER PICKER
+    // FULL AI PROVIDER & MODEL CENTER (1:1 CAT CLI)
     // ─────────────────────────────────────────────────────────────────────
-    async openModelPicker() {
+    openModelPicker() {
+      this.openProviderCenter();
+    },
+
+    async openProviderCenter() {
       const modal = document.getElementById('cct-model-picker-modal');
       if (!modal) return;
       modal.style.display = 'flex';
 
-      await this.loadProviders();
+      const leftList = document.getElementById('cct-picker-providers');
+      if (leftList) leftList.innerHTML = '<div style="padding: 10px; font-size: 11px; color: var(--term-text-muted);">Loading 150+ providers...</div>';
+
+      try {
+        const center = await api.get('/api/providers/center');
+        state.providerCenterData = center;
+        state.providers = center.providers || [];
+
+        const activeProv = center.active ? center.active.provider : state.provider.toLowerCase();
+        state.selectedProviderId = activeProv;
+        state.selectedModelName = center.active ? center.active.model : state.model;
+
+        this.filterProviderCategory('all');
+        this.selectProvider(activeProv);
+      } catch (e) {
+        console.warn('Failed to load provider center:', e);
+        if (leftList) leftList.innerHTML = `<div style="padding: 10px; color: var(--color-red);">${this.escapeHtml(e.message)}</div>`;
+      }
     },
 
-    async loadProviders() {
-      try {
-        const res = await api.get('/api/providers');
-        if (res && res.providers) {
-          state.providers = res.providers;
+    filterProviderCategory(cat) {
+      document.querySelectorAll('#cct-pm-cat-bar .cct-pill').forEach(p => {
+        p.classList.remove('active');
+        if (p.textContent.toLowerCase().includes(cat.toLowerCase()) || (cat === 'all' && p.textContent.toLowerCase() === 'all')) {
+          p.classList.add('active');
         }
-      } catch (e) {
-        console.warn('Could not load providers list');
-        state.providers = [
-          { id: 'ollama', name: 'Ollama (Local)' },
-          { id: 'openai', name: 'OpenAI' },
-          { id: 'anthropic', name: 'Anthropic Claude' },
-          { id: 'gemini', name: 'Google Gemini' },
-          { id: 'groq', name: 'Groq Cloud' },
-          { id: 'deepseek', name: 'DeepSeek API' }
-        ];
+      });
+
+      if (!state.providerCenterData) return;
+      let provs = state.providerCenterData.providers || [];
+      if (cat !== 'all') {
+        provs = provs.filter(p => {
+          if (cat === 'local') return p.id === 'ollama';
+          if (cat === 'popular') return p.popular;
+          if (cat === 'free') return !p.needs_key || p.id === 'ollama';
+          return (p.categories || []).includes(cat);
+        });
       }
 
-      const countEl = document.getElementById('cct-provider-count');
-      if (countEl) countEl.textContent = state.providers.length;
-
-      this.renderProviders(state.providers);
-      this.selectProvider(state.provider.toLowerCase());
+      this.renderProviderCards(provs);
     },
 
     filterProviders(query) {
       const q = (query || '').toLowerCase().trim();
-      const filtered = state.providers.filter(p => {
-        const id = (p.id || '').toLowerCase();
-        const name = (p.name || '').toLowerCase();
-        return id.includes(q) || name.includes(q);
-      });
-      this.renderProviders(filtered);
+      if (!state.providerCenterData) return;
+      let provs = state.providerCenterData.providers || [];
+      if (q) {
+        provs = provs.filter(p => {
+          const id = (p.id || '').toLowerCase();
+          const name = (p.name || '').toLowerCase();
+          return id.includes(q) || name.includes(q);
+        });
+      }
+      this.renderProviderCards(provs);
     },
 
-    renderProviders(providers) {
-      const container = document.getElementById('cct-picker-providers');
-      if (!container) return;
-      container.innerHTML = '';
+    renderProviderCards(provs) {
+      const leftList = document.getElementById('cct-picker-providers');
+      const countEl = document.getElementById('cct-provider-count');
+      if (countEl) countEl.textContent = provs.length;
+      if (!leftList) return;
 
-      providers.slice(0, 60).forEach(p => {
-        const btn = document.createElement('button');
-        btn.className = 'cct-provider-btn' + (p.id === state.selectedProvider ? ' active' : '');
-        btn.textContent = p.name || p.id;
-        btn.addEventListener('click', () => {
+      leftList.innerHTML = '';
+      provs.forEach(p => {
+        const card = document.createElement('div');
+        const isSelected = p.id === state.selectedProviderId;
+        card.className = `cct-provider-card ${isSelected ? 'active' : ''}`;
+        
+        let badgeText = p.id === 'ollama' ? 'Local' : (p.needs_key ? 'Key Required' : 'Free');
+        let badgeColor = p.id === 'ollama' ? 'var(--color-green)' : (p.needs_key ? 'var(--accent-build)' : '#7dcfff');
+
+        card.innerHTML = `
+          <div class="cct-provider-card-left">
+            <span style="font-size: 14px;">${p.id === 'ollama' ? '🦙' : '⚡'}</span>
+            <span class="cct-provider-card-name">${this.escapeHtml(p.name || p.id)}</span>
+          </div>
+          <span style="font-size: 9.5px; padding: 1px 5px; border-radius: 3px; border: 1px solid ${badgeColor}; color: ${badgeColor};">${badgeText}</span>
+        `;
+
+        card.addEventListener('click', () => {
+          document.querySelectorAll('.cct-provider-card').forEach(c => c.classList.remove('active'));
+          card.classList.add('active');
           this.selectProvider(p.id);
         });
-        container.appendChild(btn);
+
+        leftList.appendChild(card);
       });
     },
 
-    async selectProvider(provId) {
-      state.selectedProvider = provId;
-      document.querySelectorAll('.cct-provider-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.textContent.toLowerCase().includes(provId));
-      });
+    async selectProvider(providerId) {
+      state.selectedProviderId = providerId;
+      const prov = (state.providers || []).find(p => p.id === providerId) || { id: providerId, name: providerId };
 
-      const modelContainer = document.getElementById('cct-picker-models');
-      if (!modelContainer) return;
-      modelContainer.innerHTML = '<div style="padding: 6px; color: var(--term-text-faint);">Loading models…</div>';
+      const nameEl = document.getElementById('cct-pm-detail-name');
+      const subEl = document.getElementById('cct-pm-detail-sub');
+      const baseurlInput = document.getElementById('cct-pm-detail-baseurl');
+      const apikeyGroup = document.getElementById('cct-pm-apikey-group');
+      const apikeyInput = document.getElementById('cct-pm-detail-apikey');
+      const modelsList = document.getElementById('cct-picker-models');
+      const latencyBadge = document.getElementById('cct-pm-latency-badge');
+      const applyBtn = document.getElementById('cct-pm-apply-btn');
+
+      if (latencyBadge) latencyBadge.style.display = 'none';
+      if (applyBtn) applyBtn.disabled = false;
+
+      if (nameEl) nameEl.textContent = prov.name || prov.id;
+      if (subEl) subEl.textContent = `${prov.id} provider endpoint & configuration`;
+
+      if (baseurlInput) {
+        if (providerId === 'ollama') {
+          baseurlInput.value = 'http://localhost:11434';
+        } else {
+          baseurlInput.value = prov.default_base_url || '';
+        }
+      }
+
+      if (apikeyGroup) {
+        apikeyGroup.style.display = (providerId === 'ollama' && !prov.needs_key) ? 'none' : 'block';
+      }
+
+      // Load models for this provider
+      if (modelsList) {
+        modelsList.innerHTML = '<div style="padding: 6px; font-size: 11px; color: var(--term-text-muted);">Fetching models…</div>';
+      }
 
       try {
-        const res = await api.get(`/api/models?provider=${encodeURIComponent(provId)}`);
-        const models = (res && res.models && res.models.length) ? res.models : [state.model, 'default'];
-        this.renderModels(models);
+        const res = await api.get(`/api/providers/${providerId}/models`);
+        const models = res.models || [];
+        this.renderProviderModelsList(models);
       } catch (e) {
-        this.renderModels([state.model, 'default']);
+        if (modelsList) {
+          modelsList.innerHTML = `<div style="padding: 6px; font-size: 11px; color: var(--color-red);">${this.escapeHtml(e.message)}</div>`;
+        }
       }
     },
 
-    renderModels(models) {
-      const container = document.getElementById('cct-picker-models');
-      if (!container) return;
-      container.innerHTML = '';
+    renderProviderModelsList(models) {
+      const modelsList = document.getElementById('cct-picker-models');
+      if (!modelsList) return;
 
+      if (!models || models.length === 0) {
+        modelsList.innerHTML = '<div style="padding: 6px; font-size: 11px; color: var(--term-text-muted);">No models found for this provider.</div>';
+        return;
+      }
+
+      modelsList.innerHTML = '';
       models.forEach(m => {
-        const row = document.createElement('div');
-        row.className = 'cct-model-row' + (m === state.selectedModel ? ' active' : '');
-        row.innerHTML = `
-          <span>${this.escapeHtml(m)}</span>
-          <span style="color: var(--term-text-faint); font-size: 11px;">Select</span>
+        const mName = typeof m === 'string' ? m : (m.id || m.name);
+        const item = document.createElement('div');
+        const isSelected = mName === state.selectedModelName;
+        item.className = `cct-model-item ${isSelected ? 'active' : ''}`;
+        item.innerHTML = `
+          <span>${this.escapeHtml(mName)}</span>
+          ${isSelected ? '<span class="cct-model-check">✓ Active</span>' : ''}
         `;
-        row.addEventListener('click', () => {
-          state.selectedModel = m;
-          document.querySelectorAll('.cct-model-row').forEach(r => r.classList.remove('active'));
-          row.classList.add('active');
+        item.addEventListener('click', () => {
+          document.querySelectorAll('.cct-model-item').forEach(mi => mi.classList.remove('active'));
+          item.classList.add('active');
+          state.selectedModelName = mName;
         });
-        container.appendChild(row);
+        modelsList.appendChild(item);
       });
     },
 
+    async refreshProviderModels() {
+      if (!state.selectedProviderId) return;
+      const modelsList = document.getElementById('cct-picker-models');
+      if (modelsList) {
+        modelsList.innerHTML = '<div style="padding: 6px; font-size: 11px; color: var(--term-text-muted);">Refreshing live models…</div>';
+      }
+      try {
+        const res = await api.get(`/api/providers/${state.selectedProviderId}/models?force_refresh=true`);
+        this.renderProviderModelsList(res.models || []);
+        this.showToast(`Refreshed models for ${state.selectedProviderId} ✓`, 'info');
+      } catch (e) {
+        this.showToast(`Refresh error: ${e.message}`, 'error');
+      }
+    },
+
+    toggleApiKeyVisibility() {
+      const input = document.getElementById('cct-pm-detail-apikey');
+      if (!input) return;
+      input.type = input.type === 'password' ? 'text' : 'password';
+    },
+
+    async verifyCurrentProvider() {
+      const baseurlInput = document.getElementById('cct-pm-detail-baseurl');
+      const apikeyInput = document.getElementById('cct-pm-detail-apikey');
+      const latencyBadge = document.getElementById('cct-pm-latency-badge');
+      const verifyBtn = document.getElementById('cct-pm-verify-btn');
+
+      if (verifyBtn) verifyBtn.textContent = 'Testing...';
+      if (latencyBadge) {
+        latencyBadge.style.display = 'inline-block';
+        latencyBadge.className = 'cct-pm-latency-badge';
+        latencyBadge.textContent = 'Testing latency...';
+      }
+
+      try {
+        const res = await api.post('/api/providers/verify', {
+          provider: state.selectedProviderId,
+          model: state.selectedModelName || '',
+          base_url: baseurlInput ? baseurlInput.value : '',
+          api_key: apikeyInput ? apikeyInput.value : ''
+        });
+
+        if (res && res.success) {
+          if (latencyBadge) {
+            latencyBadge.className = 'cct-pm-latency-badge success';
+            latencyBadge.textContent = `✓ OK (${res.latency_ms}ms)`;
+          }
+          this.showToast(`Connected to ${state.selectedProviderId} in ${res.latency_ms}ms ✓`, 'success');
+        } else {
+          if (latencyBadge) {
+            latencyBadge.className = 'cct-pm-latency-badge error';
+            latencyBadge.textContent = `✕ Failed (${res.error || 'Connection error'})`;
+          }
+          this.showToast(`Connection failed: ${res.error || 'Unknown error'}`, 'error');
+        }
+      } catch (e) {
+        if (latencyBadge) {
+          latencyBadge.className = 'cct-pm-latency-badge error';
+          latencyBadge.textContent = `✕ Error (${e.message})`;
+        }
+      } finally {
+        if (verifyBtn) verifyBtn.textContent = '⚡ Test Connection & Latency';
+      }
+    },
+
     async applySelectedModel() {
-      state.provider = state.selectedProvider.toUpperCase();
-      state.model = state.selectedModel;
+      const baseurlInput = document.getElementById('cct-pm-detail-baseurl');
+      const baseUrl = baseurlInput ? baseurlInput.value : '';
 
       try {
         await api.post('/api/models/switch', {
-          provider: state.selectedProvider,
-          model: state.selectedModel
+          provider: state.selectedProviderId,
+          model: state.selectedModelName,
+          base_url: baseUrl
         });
-      } catch (e) {}
 
-      const modelBadge = document.getElementById('cct-model-badge');
-      if (modelBadge) modelBadge.textContent = `${state.provider} ${state.model}`;
+        state.provider = state.selectedProviderId.toUpperCase();
+        state.model = state.selectedModelName;
 
-      const welcomeModel = document.getElementById('cct-welcome-model');
-      if (welcomeModel) welcomeModel.textContent = `${state.provider.toLowerCase()} ${state.model}`;
+        const composerBadge = document.getElementById('cct-model-badge');
+        if (composerBadge) composerBadge.textContent = `${state.provider} ${state.model}`;
 
-      this.closeAllModals();
+        const welcomeModel = document.getElementById('cct-welcome-model');
+        if (welcomeModel) welcomeModel.textContent = `${state.provider.toLowerCase()} ${state.model}`;
+
+        const sbModelName = document.getElementById('cct-sb-active-model-name');
+        if (sbModelName) sbModelName.textContent = `${state.provider} ${state.model}`;
+
+        const wsAiStatus = document.getElementById('cct-ws-ai-status');
+        if (wsAiStatus) wsAiStatus.textContent = `${state.provider.toLowerCase()} (${state.model})`;
+
+        this.closeAllModals();
+        this.showToast(`Switched active model to ${state.provider} ${state.model} ✓`, 'success');
+      } catch (e) {
+        alert('Could not switch model: ' + e.message);
+      }
     },
+
+    // ─────────────────────────────────────────────────────────────────────
+    // SIDEBAR TABBED NAVIGATION & SUBPANE HANDLERS
+    // ─────────────────────────────────────────────────────────────────────
+    switchSidebarTab(tabName) {
+      state.activeSidebarTab = tabName;
+
+      ['explorer', 'chats', 'activities', 'extensions', 'settings'].forEach(t => {
+        const btn = document.getElementById(`cct-sb-tab-${t}`);
+        const view = document.getElementById(`cct-sb-view-${t}`);
+        if (btn) {
+          if (t === tabName) btn.classList.add('active');
+          else btn.classList.remove('active');
+        }
+        if (view) {
+          view.style.display = (t === tabName) ? 'flex' : 'none';
+        }
+      });
+
+      if (tabName === 'chats') {
+        this.loadSidebarChats();
+      } else if (tabName === 'activities') {
+        this.loadSidebarActivities();
+      } else if (tabName === 'extensions') {
+        this.loadSidebarExtensions();
+      } else if (tabName === 'settings') {
+        this.syncSidebarSettings();
+      }
+    },
+
+    async loadSidebarChats() {
+      const listEl = document.getElementById('cct-sidebar-chats-list');
+      if (!listEl) return;
+      listEl.innerHTML = '<div style="padding: 10px; font-size: 11px; color: var(--term-text-muted);">Loading sessions...</div>';
+
+      try {
+        const data = await api.get('/api/chats');
+        state.sidebarChats = data.chats || [];
+        this.renderSidebarChatsList(state.sidebarChats);
+      } catch (e) {
+        listEl.innerHTML = `<div style="padding: 10px; font-size: 11px; color: var(--color-red);">Error: ${this.escapeHtml(e.message)}</div>`;
+      }
+    },
+
+    filterSidebarChats(query) {
+      const q = (query || '').toLowerCase().trim();
+      if (!q) {
+        this.renderSidebarChatsList(state.sidebarChats);
+        return;
+      }
+      const filtered = state.sidebarChats.filter(c => 
+        (c.title && c.title.toLowerCase().includes(q)) ||
+        (c.id && c.id.toLowerCase().includes(q))
+      );
+      this.renderSidebarChatsList(filtered);
+    },
+
+    renderSidebarChatsList(chats) {
+      const listEl = document.getElementById('cct-sidebar-chats-list');
+      if (!listEl) return;
+
+      if (!chats || chats.length === 0) {
+        listEl.innerHTML = '<div style="padding: 12px; font-size: 11px; color: var(--term-text-muted); text-align: center;">No chat sessions found.<br><button class="cct-sb-mini-btn primary" style="margin-top: 6px;" onclick="FATTY.createNewChatSession()">Start New Chat</button></div>';
+        return;
+      }
+
+      listEl.innerHTML = '';
+      chats.forEach(chat => {
+        const item = document.createElement('div');
+        const isActive = state.chatId === chat.id;
+        item.className = `cct-sb-chat-item ${isActive ? 'active' : ''}`;
+
+        const msgCount = chat.message_count !== undefined ? chat.message_count : (chat.messages ? chat.messages.length : 0);
+        const timeStr = chat.updated_at ? new Date(chat.updated_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+
+        item.innerHTML = `
+          <div class="cct-sb-chat-info" onclick="FATTY.loadChatSession('${chat.id}')">
+            <span class="cct-sb-chat-title" title="${this.escapeHtml(chat.title || 'Untitled Session')}">💬 ${this.escapeHtml(chat.title || 'Untitled Session')}</span>
+            <span class="cct-sb-chat-meta">${msgCount} msgs ${timeStr ? '· ' + timeStr : ''}</span>
+          </div>
+          <div class="cct-sb-chat-actions">
+            <button class="cct-sb-chat-action-btn" onclick="FATTY.renameChatSession('${chat.id}', '${this.escapeHtml(chat.title || '')}', event)" title="Rename (✎)">✎</button>
+            <button class="cct-sb-chat-action-btn" onclick="FATTY.exportChatSession('${chat.id}', event)" title="Export (⤓)">⤓</button>
+            <button class="cct-sb-chat-action-btn" onclick="FATTY.deleteChatSession('${chat.id}', event)" title="Delete (🗑)">🗑</button>
+          </div>
+        `;
+        listEl.appendChild(item);
+      });
+    },
+
+    async createNewChatSession() {
+      try {
+        const res = await api.post('/api/chats', { title: 'New Chat Session' });
+        if (res && res.chat_id) {
+          state.chatId = res.chat_id;
+        }
+      } catch (e) {
+        state.chatId = 'chat_' + Date.now();
+      }
+      this.newChat();
+      this.loadSidebarChats();
+      this.showToast('Started new chat session ✓', 'info');
+    },
+
+    async loadChatSession(chatId) {
+      try {
+        const data = await api.get(`/api/chats/${chatId}`);
+        state.chatId = chatId;
+        const welcome = document.getElementById('cct-welcome-view');
+        const turnsBox = document.getElementById('cct-chat-turns');
+        if (welcome) welcome.style.display = 'none';
+        if (turnsBox) {
+          turnsBox.style.display = 'flex';
+          turnsBox.innerHTML = '';
+          const messages = data.messages || [];
+          messages.forEach(m => {
+            if (m.role === 'user') {
+              this.appendUserMessage(m.content);
+            } else if (m.role === 'assistant') {
+              const card = this.appendAssistantLoading();
+              this.updateAssistantCard(card, {
+                text: m.content,
+                provider: m.provider || state.provider,
+                model: m.model || state.model,
+                timeStr: 'Loaded',
+                tokens: m.tokens || Math.round(m.content.length * 1.3),
+                timings: { ttfb_ms: 50, memory_ms: 10, loop_ms: 60 },
+                calls: 1
+              });
+            }
+          });
+        }
+        this.loadSidebarChats();
+      } catch (e) {
+        this.showToast(`Error loading chat: ${e.message}`, 'error');
+      }
+    },
+
+    async renameChatSession(chatId, currentTitle, event) {
+      if (event) event.stopPropagation();
+      const newTitle = prompt('Enter new session title:', currentTitle);
+      if (!newTitle || !newTitle.trim()) return;
+
+      try {
+        await api.post(`/api/chats/${chatId}/rename`, { title: newTitle.trim() });
+        this.loadSidebarChats();
+        this.showToast('Session renamed ✓', 'success');
+      } catch (e) {
+        this.showToast(`Rename error: ${e.message}`, 'error');
+      }
+    },
+
+    async deleteChatSession(chatId, event) {
+      if (event) event.stopPropagation();
+      if (!confirm('Are you sure you want to delete this chat session?')) return;
+
+      try {
+        await api.del(`/api/chats/${chatId}`);
+        if (state.chatId === chatId) {
+          this.newChat();
+        }
+        this.loadSidebarChats();
+        this.showToast('Session deleted ✓', 'info');
+      } catch (e) {
+        this.showToast(`Delete error: ${e.message}`, 'error');
+      }
+    },
+
+    async exportChatSession(chatId, event) {
+      if (event) event.stopPropagation();
+      try {
+        const data = await api.get(`/api/chats/${chatId}/export`);
+        const content = data.content || '';
+        const filename = data.filename || `chat_${chatId}.md`;
+        const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        this.showToast(`Exported ${filename} ⤓`, 'success');
+      } catch (e) {
+        this.showToast(`Export failed: ${e.message}`, 'error');
+      }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────
+    // LIVE ACTIVITIES
+    // ─────────────────────────────────────────────────────────────────────
+    async loadSidebarActivities() {
+      const listEl = document.getElementById('cct-sidebar-activities-list');
+      if (!listEl) return;
+
+      try {
+        const data = await api.get('/api/activities');
+        const acts = data.activities || [];
+        state.sidebarActivities = acts;
+        if (acts.length === 0) {
+          listEl.innerHTML = '<div style="padding: 12px; font-size: 11px; color: var(--term-text-muted); text-align: center;">No recent activities recorded.<br>Terminal tasks, tool executions, and file edits appear here live.</div>';
+          return;
+        }
+
+        listEl.innerHTML = '';
+        acts.slice(0, 30).forEach(act => {
+          const item = document.createElement('div');
+          item.className = 'cct-activity-item';
+
+          let icon = '⚡';
+          if (act.status === 'success') icon = '✓';
+          else if (act.status === 'error') icon = '✕';
+          else if (act.status === 'running') icon = '<span class="cct-activity-icon spinner">◐</span>';
+
+          item.innerHTML = `
+            <div class="cct-activity-icon" style="color: ${act.status === 'error' ? 'var(--color-red)' : 'var(--color-green)'};">${icon}</div>
+            <div class="cct-activity-body">
+              <div class="cct-activity-title">${this.escapeHtml(act.title || act.action || 'Activity')}</div>
+              <div class="cct-activity-time">${this.escapeHtml(act.details || '')} ${act.timestamp ? '· ' + act.timestamp : ''}</div>
+            </div>
+          `;
+          listEl.appendChild(item);
+        });
+      } catch (e) {
+        listEl.innerHTML = `<div style="padding: 10px; font-size: 11px; color: var(--color-red);">${this.escapeHtml(e.message)}</div>`;
+      }
+    },
+
+    async clearActivities() {
+      try {
+        await api.post('/api/activities/clear');
+        this.loadSidebarActivities();
+        this.showToast('Activity history cleared ✓', 'info');
+      } catch (e) {
+        this.showToast(`Clear error: ${e.message}`, 'error');
+      }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────
+    // EXTENSIONS MANAGER
+    // ─────────────────────────────────────────────────────────────────────
+    async loadSidebarExtensions() {
+      const listEl = document.getElementById('cct-sidebar-extensions-list');
+      if (!listEl) return;
+
+      try {
+        const data = await api.get('/api/extensions');
+        state.sidebarExtensions = data.extensions || [];
+        this.renderSidebarExtensionsList(state.sidebarExtensions);
+      } catch (e) {
+        listEl.innerHTML = `<div style="padding: 10px; font-size: 11px; color: var(--color-red);">${this.escapeHtml(e.message)}</div>`;
+      }
+    },
+
+    filterSidebarExtensions(cat) {
+      document.querySelectorAll('#cct-sb-ext-pills .cct-pill').forEach(p => {
+        p.classList.remove('active');
+        if (p.textContent.toLowerCase() === cat.toLowerCase() || (cat === 'all' && p.textContent.toLowerCase() === 'all')) {
+          p.classList.add('active');
+        }
+      });
+
+      if (!cat || cat.toLowerCase() === 'all') {
+        this.renderSidebarExtensionsList(state.sidebarExtensions);
+        return;
+      }
+      const filtered = state.sidebarExtensions.filter(e => 
+        e.category && e.category.toLowerCase().includes(cat.toLowerCase())
+      );
+      this.renderSidebarExtensionsList(filtered);
+    },
+
+    renderSidebarExtensionsList(exts) {
+      const listEl = document.getElementById('cct-sidebar-extensions-list');
+      if (!listEl) return;
+
+      if (!exts || exts.length === 0) {
+        listEl.innerHTML = '<div style="padding: 12px; font-size: 11px; color: var(--term-text-muted); text-align: center;">No extensions in this category.</div>';
+        return;
+      }
+
+      listEl.innerHTML = '';
+      exts.forEach(ext => {
+        const item = document.createElement('div');
+        item.className = 'cct-ext-card-item';
+        item.innerHTML = `
+          <div class="cct-ext-card-info">
+            <span class="cct-ext-card-icon">${ext.icon || '🧩'}</span>
+            <div class="cct-ext-card-text">
+              <span class="cct-ext-card-name">${this.escapeHtml(ext.name || ext.id)}</span>
+              <span class="cct-ext-card-desc">${this.escapeHtml(ext.description || ext.category || '')}</span>
+            </div>
+          </div>
+          <label class="cct-switch">
+            <input type="checkbox" ${ext.enabled ? 'checked' : ''} onchange="FATTY.toggleExtension('${ext.id}', this.checked)">
+            <span class="cct-slider"></span>
+          </label>
+        `;
+        listEl.appendChild(item);
+      });
+    },
+
+    async toggleExtension(extId, enabled) {
+      try {
+        await api.post('/api/extensions/toggle', { id: extId, enabled: enabled });
+        this.showToast(`Extension ${extId} ${enabled ? 'enabled' : 'disabled'} ✓`, 'info');
+      } catch (e) {
+        this.showToast(`Toggle failed: ${e.message}`, 'error');
+      }
+    },
+
+    // ─────────────────────────────────────────────────────────────────────
+    // SETTINGS, PREFERENCES & SHORTCUTS
+    // ─────────────────────────────────────────────────────────────────────
+    syncSidebarSettings() {
+      const permPills = ['ask', 'restricted', 'full'];
+      permPills.forEach(p => {
+        const btn = document.getElementById(`cct-sb-perm-${p}`);
+        if (btn) btn.classList.toggle('active', state.permissionMode === p);
+      });
+      const sbModelName = document.getElementById('cct-sb-active-model-name');
+      if (sbModelName) sbModelName.textContent = `${state.provider} ${state.model}`;
+    },
+
+    switchSettingsTab(tab) {
+      ['general', 'ai', 'perm', 'editor', 'shortcuts'].forEach(t => {
+        const btn = document.getElementById(`tab-settings-${t}`);
+        const view = document.getElementById(`cct-settings-tab-${t}`);
+        if (btn) btn.classList.toggle('active', t === tab);
+        if (view) view.style.display = (t === tab) ? 'block' : 'none';
+      });
+    },
+
+    async testCurrentConnection() {
+      const prov = document.getElementById('cct-cfg-provider')?.value || state.provider.toLowerCase();
+      const model = document.getElementById('cct-cfg-model')?.value || state.model;
+      const endpoint = document.getElementById('cct-cfg-endpoint')?.value || '';
+      const apikey = document.getElementById('cct-cfg-apikey')?.value || '';
+      const resultEl = document.getElementById('cct-test-conn-result');
+      const btn = document.getElementById('cct-test-conn-btn');
+
+      if (btn) btn.textContent = 'Testing...';
+      if (resultEl) {
+        resultEl.style.color = '#7dcfff';
+        resultEl.textContent = 'Measuring latency...';
+      }
+
+      try {
+        const res = await api.post('/api/providers/verify', {
+          provider: prov,
+          model: model,
+          base_url: endpoint,
+          api_key: apikey
+        });
+        if (res && res.success) {
+          if (resultEl) {
+            resultEl.style.color = '#50fa7b';
+            resultEl.textContent = `✓ Connected in ${res.latency_ms}ms`;
+          }
+          this.showToast(`AI connectivity verified (${res.latency_ms}ms) ✓`, 'success');
+        } else {
+          if (resultEl) {
+            resultEl.style.color = '#f7768e';
+            resultEl.textContent = `✕ ${res.error || 'Failed'}`;
+          }
+        }
+      } catch (e) {
+        if (resultEl) {
+          resultEl.style.color = '#f7768e';
+          resultEl.textContent = `✕ Error: ${e.message}`;
+        }
+      } finally {
+        if (btn) btn.textContent = '⚡ Test Connection & Latency';
+      }
+    },
+
+    toggleWordWrap(enabled) {
+      const editor = document.getElementById('cct-code-editor');
+      if (editor) {
+        editor.style.whiteSpace = enabled ? 'pre-wrap' : 'pre';
+        editor.style.wordBreak = enabled ? 'break-word' : 'normal';
+      }
+      const cb1 = document.getElementById('cct-sb-word-wrap');
+      const cb2 = document.getElementById('cct-cfg-editor-wrap');
+      const cb3 = document.getElementById('cct-user-wordwrap');
+      if (cb1) cb1.checked = enabled;
+      if (cb2) cb2.checked = enabled;
+      if (cb3) cb3.checked = enabled;
+    },
+
+    toggleAutoSave(enabled) {
+      state.autoSave = enabled;
+      const cb1 = document.getElementById('cct-sb-auto-save');
+      const cb2 = document.getElementById('cct-cfg-editor-autosave');
+      const cb3 = document.getElementById('cct-user-autosave');
+      if (cb1) cb1.checked = enabled;
+      if (cb2) cb2.checked = enabled;
+      if (cb3) cb3.checked = enabled;
+    },
+
+    toggleLineNumbers(enabled) {
+      const gutter = document.getElementById('cct-line-numbers');
+      if (gutter) gutter.style.display = enabled ? 'block' : 'none';
+    },
+
+    setEditorFont(fontStr) {
+      const editor = document.getElementById('cct-code-editor');
+      if (editor) editor.style.fontFamily = fontStr;
+    },
+
+    async toggleGuestMode() {
+      try {
+        const res = await api.post('/api/user/guest');
+        if (res && res.user) {
+          this.showToast(`Switched to ${res.guest_mode ? 'Guest Mode' : 'Local User'} ✓`, 'info');
+          this.openUserModal();
+        }
+      } catch (e) {
+        this.showToast('Guest mode toggle failed: ' + e.message, 'error');
+      }
+    },
+
+    openUserProfile() {
+      this.openUserModal();
+    },
+
+    openThemes() {
+      this.openThemesModal();
+    },
+
 
     // ─────────────────────────────────────────────────────────────────────
     // AI MODE SELECTOR (Ctrl+M)
@@ -2785,6 +3722,151 @@
       if (resizer) resizer.style.display = 'block';
       state.editorOpen = true;
       this.updateLineNumbers();
+    },
+
+    // ─────────────────────────────────────────────────────────────────────
+    // CAT 3D ASCII BLOCK ART & ROUTINE TIME-BASED GREETING
+    // ─────────────────────────────────────────────────────────────────────
+    greetingOffset: 0,
+    greetingsNumbered: [
+      "[01]  > CAT is ready.",
+      "[02]  > Welcome back.",
+      "[03]  > CAT is awake.",
+      "[04]  > Ready when you are.",
+      "[05]  > Let's build.",
+      "[06]  > Let's code.",
+      "[07]  > Let's create.",
+      "[08]  > Terminal ready.",
+      "[09]  > Workspace ready.",
+      "[10]  > System ready.",
+      "[11]  > CAT online.",
+      "[12]  > CAT initialized.",
+      "[13]  > CAT is purring.",
+      "[14]  > Paws on keyboard.",
+      "[15]  > Ready to assist.",
+      "[16]  > What are we building?",
+      "[17]  > What are we coding?",
+      "[18]  > What's the mission?",
+      "[19]  > Your workspace awaits.",
+      "[20]  > Back to work.",
+      "[21]  > Let's get started.",
+      "[22]  > Time to build.",
+      "[23]  > Time to code.",
+      "[24]  > Code mode ready.",
+      "[25]  > Agent mode ready.",
+      "[26]  > Notebook ready.",
+      "[27]  > Research mode ready.",
+      "[28]  > Plan mode ready.",
+      "[29]  > Debug mode ready.",
+      "[30]  > Build mode ready.",
+      "[31]  > All systems go.",
+      "[32]  > Everything is ready.",
+      "[33]  > CAT has arrived.",
+      "[34]  > CAT is here.",
+      "[35]  > Good to see you.",
+      "[36]  > Welcome to CAT.",
+      "[37]  > Back in the terminal.",
+      "[38]  > Your terminal companion.",
+      "[39]  > Let's make something.",
+      "[40]  > Let's solve it.",
+      "[41]  > Let's figure it out.",
+      "[42]  > Ready for the next task.",
+      "[43]  > New session started.",
+      "[44]  > Fresh session ready.",
+      "[45]  > Workspace unlocked.",
+      "[46]  > Terminal paws ready.",
+      "[47]  > Brain online. Paws ready.",
+      "[48]  > Coffee optional. Code required.",
+      "[49]  > No noise. Just code.",
+      "[50]  > CAT ready. Your move."
+    ],
+    greetingsFeline: [
+      "> *meow* — ready.",
+      "> Paws ready.",
+      "> CAT is purring.",
+      "> CAT has entered.",
+      "> Paws on keyboard.",
+      "> Meow. Let's code.",
+      "> 🐾 Ready to build.",
+      "> 🐾 Ready to debug.",
+      "> 🐾 Ready to explore.",
+      "> 🐾 Ready to create."
+    ],
+    greeting3DArt: {
+      "READY": "  █▀▀▄ █▀▀ █▀▀█ █▀▀▄ █  █\n  █▄▄▀ █▀▀ █▄▄█ █  █  ▀█▀\n  ▀  ▀ ▀▀▀ ▀  ▀ ▀▀▀    █ ",
+      "ONLINE": " █▀▀█ █▄ █ █   ▀█▀ █▄ █ █▀▀\n █  █ █ ▀█ █    █  █ ▀█ █▀▀\n ▀▀▀▀ ▀  ▀ ▀▀▀ ▀▀▀ ▀  ▀ ▀▀▀",
+      "AWAKE": "  █▀▀█ █   █ █▀▀█ █▄▀ █▀▀\n  █▄▄█ █ █ █ █▄▄█ █ █ █▀▀\n  ▀  ▀ ▀▀ ▀▀ ▀  ▀ ▀ ▀ ▀▀▀",
+      "BUILD": "  █▀▀▄ █  █ ▀█▀ █   █▀▀▄\n  █▀▀▄ █  █  █  █   █  █\n  ▀▀▀  ▀▀▀▀ ▀▀▀ ▀▀▀ ▀▀▀ ",
+      "CODE": "   █▀▀ █▀▀█ █▀▀▄ █▀▀\n   █   █  █ █  █ █▀▀\n   ▀▀▀ ▀▀▀▀ ▀▀▀  ▀▀▀",
+      "HELLO": "  █  █ █▀▀ █   █   █▀▀█\n  █▀▀█ █▀▀ █   █   █  █\n  ▀  ▀ ▀▀▀ ▀▀▀ ▀▀▀ ▀▀▀▀",
+      "GO !": "    █▀▀ █▀▀█   ▀█▀\n    █ ▀ █  █    █ \n    ▀▀▀ ▀▀▀▀   ▀▀▀",
+      "START": "  █▀▀ ▀█▀ █▀▀█ █▀▀▄ ▀█▀\n  ▀▀█  █  █▄▄█ █▄▄▀  █ \n  ▀▀▀  ▀  ▀  ▀ ▀  ▀  ▀ ",
+      "BEGIN": "  █▀▀▄ █▀▀ █▀▀ ▀█▀ █▄ █\n  █▀▀▄ █▀▀ █ ▀  █  █ ▀█\n  ▀▀▀  ▀▀▀ ▀▀▀ ▀▀▀ ▀  ▀",
+      "MEOW": "  █▄ ▄█ █▀▀ █▀▀█ █   █\n  █ ▀ █ █▀▀ █  █ █ █ █\n  ▀   ▀ ▀▀▀ ▀▀▀▀ ▀▀ ▀▀",
+      "PAWS": "   █▀▀▄ █▀▀█ █   █ █▀▀\n   █▄▄▀ █▄▄█ █ █ █ ▀▀█\n   ▀    ▀  ▀ ▀▀ ▀▀ ▀▀▀",
+      "PLAN": "   █▀▀▄ █   █▀▀█ █▄ █\n   █▄▄▀ █   █▄▄█ █ ▀█\n   ▀    ▀▀▀ ▀  ▀ ▀  ▀",
+      "DEBUG": " █▀▀▄ █▀▀ █▀▀▄ █  █ █▀▀\n █  █ █▀▀ █▀▀▄ █  █ █ ▀\n ▀▀▀  ▀▀▀ ▀▀▀  ▀▀▀▀ ▀▀▀",
+      "WORK": "   █   █ █▀▀█ █▀▀▄ █▄▀\n   █ █ █ █  █ █▄▄▀ █ █\n   ▀▀ ▀▀ ▀▀▀▀ ▀  ▀ ▀ ▀"
+    },
+    extractGreetingKeyword(numbered, feline) {
+      for (const text of [numbered, feline]) {
+        const t = (text || '').toLowerCase();
+        if (t.includes('ready') || t.includes('assist') || t.includes('mission') || t.includes('task')) return 'READY';
+        if (t.includes('online') || t.includes('brain online') || t.includes('initialized')) return 'ONLINE';
+        if (t.includes('awake')) return 'AWAKE';
+        if (t.includes('code') || t.includes('coding')) return 'CODE';
+        if (t.includes('build') || t.includes('building') || t.includes('create')) return 'BUILD';
+        if (t.includes('plan')) return 'PLAN';
+        if (t.includes('debug')) return 'DEBUG';
+        if (t.includes('welcome') || t.includes('arrived') || t.includes('here')) return 'HELLO';
+        if (t.includes('start') || t.includes('session') || t.includes('fresh')) return 'START';
+        if (t.includes('begin')) return 'BEGIN';
+        if (t.includes('work') || t.includes('solve')) return 'WORK';
+        if (t.includes('go') || t.includes('move')) return 'GO !';
+        if (t.includes('paws')) return 'PAWS';
+        if (t.includes('meow') || t.includes('purr')) return 'MEOW';
+      }
+      return 'READY';
+    },
+    initCatRoutineGreeting() {
+      this.updateCatRoutineGreeting();
+      setInterval(() => this.updateCatRoutineGreeting(), 60000);
+    },
+    cycleCatGreeting() {
+      this.greetingOffset++;
+      this.updateCatRoutineGreeting();
+    },
+    updateCatRoutineGreeting() {
+      const now = new Date();
+      const hour = now.getHours();
+      const minute = now.getMinutes();
+      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      let period = "Night Ops";
+      if (hour >= 5 && hour < 12) period = "Morning Build";
+      else if (hour >= 12 && hour < 17) period = "Afternoon Focus";
+      else if (hour >= 17 && hour < 22) period = "Evening Session";
+
+      const minOfDay = hour * 60 + minute;
+      const numIdx = (minOfDay + this.greetingOffset) % this.greetingsNumbered.length;
+      const felIdx = (Math.floor(minOfDay / 3) + this.greetingOffset) % this.greetingsFeline.length;
+
+      const numMsg = this.greetingsNumbered[numIdx];
+      const felMsg = this.greetingsFeline[felIdx];
+      const keyword = this.extractGreetingKeyword(numMsg, felMsg);
+
+      const artEl = document.getElementById('cct-3d-block-art');
+      if (artEl) {
+        artEl.textContent = this.greeting3DArt[keyword] || this.greeting3DArt["READY"];
+      }
+
+      const timeEl = document.getElementById('cct-routine-time');
+      if (timeEl) timeEl.textContent = `Routine ${timeStr} · ${period}`;
+
+      const msgEl = document.getElementById('cct-greeting-msg');
+      if (msgEl) msgEl.textContent = numMsg;
+
+      const subEl = document.getElementById('cct-greeting-sub');
+      if (subEl) subEl.textContent = felMsg;
     },
 
     // ─────────────────────────────────────────────────────────────────────

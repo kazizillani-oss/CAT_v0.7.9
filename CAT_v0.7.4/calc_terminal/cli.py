@@ -138,6 +138,8 @@ def _usage(prog: str = None) -> str:
         "  -h, --help      show this help message and exit\n"
         "  -v, --version   print the CAT version and exit\n"
         "  --debug         display read-only runtime diagnostics and environment info\n"
+        "  --eco           run in Eco Mode (power-saving, optimized for screen recording/low-end PCs)\n"
+        "  --low-end       alias for --eco (throttled animations, minimal GPU draws)\n"
         "  --doctor        diagnose the CLI install (PATH, launcher,\n"
         "  push [msg]      stage intended files, create verified commit and push to GitHub\n"
         "  publish [msg]   same as push — synchronized GitHub update workflow\n"
@@ -957,6 +959,42 @@ def main(argv=None):
         except Exception:
             pass
 
+    try:
+        from .terminal_host import install_terminal_guard, sanitize_terminal
+        install_terminal_guard()
+    except Exception:
+        pass
+
+    # Process Eco / Performance / Low-end device mode flags
+    if "--eco" in argv:
+        os.environ["CAT_ECO_MODE"] = "1"
+        argv = [a for a in argv if a != "--eco"]
+    elif "--low-end" in argv or "--smooth" in argv:
+        os.environ["CAT_ECO_MODE"] = "1"
+        argv = [a for a in argv if a not in ("--low-end", "--smooth")]
+    elif "--performance" in argv or "--no-eco" in argv:
+        os.environ["CAT_ECO_MODE"] = "0"
+        argv = [a for a in argv if a not in ("--performance", "--no-eco")]
+
+    # Auto-detect low-end hardware if eco mode not explicitly configured
+    if "CAT_ECO_MODE" not in os.environ:
+        try:
+            from .hardware_analyzer import HardwareAnalyzer
+            prof = HardwareAnalyzer.analyze()
+            if HardwareAnalyzer.is_low_end(prof):
+                os.environ["CAT_ECO_MODE"] = "1"
+        except Exception:
+            pass
+
+    if argv in (["--reset"], ["reset"], ["--clean"], ["clean"]):
+        try:
+            from .terminal_host import sanitize_terminal
+            sanitize_terminal()
+            print("✓ Terminal sanitized: mouse tracking, focus reporting, and alternate buffer cleared.")
+        except Exception as e:
+            print(f"Failed to reset terminal: {e}")
+        return 0
+
     if argv in (["-h"], ["--help"], ["help"]):
         print(_usage())
         return 0
@@ -1210,44 +1248,58 @@ def main(argv=None):
 def _launch_cat_terminal():
     """Launch the CAT Textual TUI (CCTApp). This is the main CAT experience:
     model.py setup wizard, /ai chat, /agent notebook, etc."""
+    from .terminal_host import sanitize_terminal, install_terminal_guard
+    install_terminal_guard()
     try:
-        from .terminal_identity import init_terminal_identity
-        init_terminal_identity()
-    except Exception:
-        pass
-
-    # Enforce 2-hour guest watchdog if running in guest mode
-    try:
-        from .fomoji_auth import start_guest_watchdog
-        start_guest_watchdog()
-    except Exception:
-        pass
-
-    from .app import App
-    from .ui.app import launch_chat_app
-    repl = App()
-    config = {}
-    try:
-        from . import aicore
-        config = aicore.load_config()
-    except Exception:
-        pass
-    stats = {
-        "solved": len(repl.history),
-        "provider": config.get("provider") or "none",
-        "model": config.get("model") or "none",
-    }
-    ok, msg = launch_chat_app(repl, repl.history, stats)
-    if not ok:
         try:
-            from . import theme
-            theme.enable_windows_ansi()
-            print(theme.orange(f"  {msg}"))
+            from .terminal_identity import init_terminal_identity
+            init_terminal_identity()
         except Exception:
-            print(f"  {msg}")
-        print("  Falling back to terminal REPL...")
-        repl.run()
-    return 0
+            pass
+
+        # Enforce 2-hour guest watchdog if running in guest mode
+        try:
+            from .fomoji_auth import start_guest_watchdog
+            start_guest_watchdog()
+        except Exception:
+            pass
+
+        # Immediate pre-Textual startup indicator to eliminate the initial blank screen
+        try:
+            if sys.stdout.isatty():
+                sys.stdout.write("\033[?25l")  # hide cursor
+                sys.stdout.write("\r\033[K \033[38;2;137;180;250m⠋\033[0m \033[1;38;2;203;166;247mCAT CLI\033[0m \033[38;2;147;154;183mv0.8.0\033[0m \033[2m— Initializing Terminal OS & AI Engine...\033[0m\r")
+                sys.stdout.flush()
+        except Exception:
+            pass
+
+        from .app import App
+        from .ui.app import launch_chat_app
+        repl = App()
+        config = {}
+        try:
+            from . import aicore
+            config = aicore.load_config()
+        except Exception:
+            pass
+        stats = {
+            "solved": len(repl.history),
+            "provider": config.get("provider") or "none",
+            "model": config.get("model") or "none",
+        }
+        ok, msg = launch_chat_app(repl, repl.history, stats)
+        if not ok:
+            try:
+                from . import theme
+                theme.enable_windows_ansi()
+                print(theme.orange(f"  {msg}"))
+            except Exception:
+                print(f"  {msg}")
+            print("  Falling back to terminal REPL...")
+            repl.run()
+        return 0
+    finally:
+        sanitize_terminal()
 
 
 def bootstrap():

@@ -304,53 +304,60 @@ class App:
 
     # -------------------------------------------------------------- loop --
     def run(self):
-        self.boot()
-        self.print_home()
-        while self.running:
-            try:
-                model_label = None
-                effort_label = "ready"
+        try:
+            self.boot()
+            self.print_home()
+            while self.running:
                 try:
-                    cfg = aicore.load_config()
-                    if cfg.get("provider") and (cfg.get("provider") == "ollama" or cfg.get("api_key")):
-                        model_label = f"{cfg['provider'].upper()} {cfg.get('model', '')}".strip()
-                        usage = aicore.get_session_usage()
-                        if usage["requests"]:
-                            effort_label = f"{usage['total_tokens']:,} tok used"
-                except Exception:
                     model_label = None
-                raw = fallback_cli.fallback_input(
-                    width=WIDTH, mode_label="NOTEBOOK", model_label=model_label,
-                    effort_label=effort_label, suggestions=self._suggestion_items()
-                ).strip()
-            except (EOFError, KeyboardInterrupt):
-                self.cmd_exit()
-                break
-            if not raw:
-                continue
-            pet.mark_activity()
-            # Show what was typed exactly once, right here, before it's
-            # routed anywhere — this used to also get reprinted deeper in
-            # handle_question(), which was the 'double text' bug.
-            # v0.5.6: adaptive OpenCode-style rendering — rail panel for long
-            # questions, right-aligned gradient bubble for short ones.
-            fallback_cli.render_user(raw, tag="you", term_width=WIDTH)
+                    effort_label = "ready"
+                    try:
+                        cfg = aicore.load_config()
+                        if cfg.get("provider") and (cfg.get("provider") == "ollama" or cfg.get("api_key")):
+                            model_label = f"{cfg['provider'].upper()} {cfg.get('model', '')}".strip()
+                            usage = aicore.get_session_usage()
+                            if usage["requests"]:
+                                effort_label = f"{usage['total_tokens']:,} tok used"
+                    except Exception:
+                        model_label = None
+                    raw = fallback_cli.fallback_input(
+                        width=WIDTH, mode_label="NOTEBOOK", model_label=model_label,
+                        effort_label=effort_label, suggestions=self._suggestion_items()
+                    ).strip()
+                except (EOFError, KeyboardInterrupt):
+                    self.cmd_exit()
+                    break
+                if not raw:
+                    continue
+                pet.mark_activity()
+                # Show what was typed exactly once, right here, before it's
+                # routed anywhere — this used to also get reprinted deeper in
+                # handle_question(), which was the 'double text' bug.
+                # v0.5.6: adaptive OpenCode-style rendering — rail panel for long
+                # questions, right-aligned gradient bubble for short ones.
+                fallback_cli.render_user(raw, tag="you", term_width=WIDTH)
+                try:
+                    self.handle(raw)
+                except (EOFError, KeyboardInterrupt):
+                    # A sub-menu (AI setup, code pad, editor, settings, etc.)
+                    # was reading its own input() and the user hit Ctrl+D/
+                    # Ctrl+C mid-flow. Previously this bubbled all the way up
+                    # and killed the whole app with a raw traceback. Now it
+                    # just cancels back out to the home prompt.
+                    print()
+                    print(theme.dim("  ✕ Cancelled — back to the main prompt."))
+                except Exception as exc:  # pragma: no cover - defensive
+                    # Any bug in a command handler should never nuke the
+                    # whole session. Report it and keep the terminal alive.
+                    print()
+                    print(theme.red(f"  ⚠ Something went wrong: {exc}"))
+                    print(theme.dim("  The terminal is still running — try another command."))
+        finally:
             try:
-                self.handle(raw)
-            except (EOFError, KeyboardInterrupt):
-                # A sub-menu (AI setup, code pad, editor, settings, etc.)
-                # was reading its own input() and the user hit Ctrl+D/
-                # Ctrl+C mid-flow. Previously this bubbled all the way up
-                # and killed the whole app with a raw traceback. Now it
-                # just cancels back out to the home prompt.
-                print()
-                print(theme.dim("  ✕ Cancelled — back to the main prompt."))
-            except Exception as exc:  # pragma: no cover - defensive
-                # Any bug in a command handler should never nuke the
-                # whole session. Report it and keep the terminal alive.
-                print()
-                print(theme.red(f"  ⚠ Something went wrong: {exc}"))
-                print(theme.dim("  The terminal is still running — try another command."))
+                from .terminal_host import sanitize_terminal
+                sanitize_terminal()
+            except Exception:
+                pass
 
     def _suggestion_items(self):
         """Flatten commands + known question topics into (trigger,

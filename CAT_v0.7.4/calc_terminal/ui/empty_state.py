@@ -277,7 +277,8 @@ if TEXTUAL_AVAILABLE:
             min-height: 1;
         }
         CATChatEmptyState #cct-empty-ready {
-            transition: opacity 1300ms;
+            text-align: center;
+            width: auto;
         }
         """
 
@@ -441,24 +442,33 @@ if TEXTUAL_AVAILABLE:
         def on_mount(self):
             self.call_after_refresh(self._fit_width)
             # Subtle entrance: fade in + slight upward settle (one-shot).
-            # Implemented with a class-toggle transition instead of a
-            # CSS @keyframes animation — an infinite/long animation can
-            # hold Textual's "wait for screen" busy state, while this
-            # settles once and is done.
             self.call_later(self.add_class, "open")
-            # Optional light status effect: slow pulse on the ready dot
-            # ONLY (never the word art). A gentle timer-driven opacity
-            # oscillation, smoothed by the CSS transition above.
-            if self._ready:
-                self._pulse_up = False
-                self.set_interval(1.3, self._pulse_ready_dot)
+            # Low-power & screen-recording optimization:
+            # Avoid continuous timer-driven redraws when idle so that terminal GPU
+            # rasterization sits at 0% GPU/CPU during recording and multitasking.
+            self._pulse_timer = None
+            self._pulse_up = False
+
+        def on_unmount(self):
+            if getattr(self, "_pulse_timer", None) is not None:
+                try:
+                    self._pulse_timer.stop()
+                except Exception:
+                    pass
+                self._pulse_timer = None
+            if getattr(self, "_resize_timer", None) is not None:
+                try:
+                    self._resize_timer.stop()
+                except Exception:
+                    pass
+                self._resize_timer = None
 
         def _pulse_ready_dot(self):
             if not self.is_attached:
                 return
             try:
                 dot = self.query_one("#cct-empty-ready", Static)
-                dot.styles.opacity = 1.0 if not self._pulse_up else 0.45
+                dot.styles.opacity = 1.0 if not self._pulse_up else 0.85
                 self._pulse_up = not self._pulse_up
             except Exception:
                 pass

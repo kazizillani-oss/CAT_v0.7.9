@@ -745,7 +745,11 @@ def _resolve_provider(config):
     info = _get_provider_info(provider)
     api_style = info["api_style"] if info else "openai"
     if provider == "ollama":
-        base_url = config.get("ollama_url") or (info["base_url"] if info else "http://localhost:11434")
+        base_url = config.get("ollama_url") or config.get("base_url") or (info["base_url"] if info else "http://localhost:11434")
+        if "https://localhost" in base_url or base_url.rstrip("/") in ("http://localhost", "https://localhost"):
+            base_url = "http://localhost:11434"
+        if not api_style or (api_style == "openai" and "11434" not in base_url):
+            api_style = "ollama"
     else:
         base_url = config.get("base_url") or config.get("api_url") or (info["base_url"] if info else "")
         # v0.7.10: If still no base_url, try to get it from providers.json

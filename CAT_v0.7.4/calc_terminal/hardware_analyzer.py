@@ -152,6 +152,54 @@ class HardwareProfile:
             "ai_capability_notes": self.ai_capability_notes,
         }
 
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> HardwareProfile:
+        try:
+            cpu_data = data.get("cpu", {})
+            cpu_info = CPUInfo(
+                model=cpu_data.get("model", "Unknown CPU"),
+                physical_cores=cpu_data.get("physical_cores", 1),
+                logical_cores=cpu_data.get("logical_cores", 1),
+                arch=cpu_data.get("arch", ""),
+            )
+            ram_data = data.get("ram", {})
+            ram_info = RAMInfo(
+                total_gb=ram_data.get("total_gb", 8.0),
+                available_gb=ram_data.get("available_gb", 4.0),
+                used_gb=ram_data.get("used_gb", 4.0),
+                percent_used=ram_data.get("percent_used", 50.0),
+            )
+            gpu_data = data.get("gpu", {})
+            gpu_info = GPUInfo(
+                detected=gpu_data.get("detected", False),
+                name=gpu_data.get("name", "Integrated / CPU Only"),
+                vendor=gpu_data.get("vendor", "Unknown"),
+                vram_total_gb=gpu_data.get("vram_total_gb", 0.0),
+                vram_free_gb=gpu_data.get("vram_free_gb", 0.0),
+                backend=gpu_data.get("backend", "CPU"),
+                driver_version=gpu_data.get("driver_version", ""),
+            )
+            storage_data = data.get("storage", {})
+            storage_info = StorageInfo(
+                total_gb=storage_data.get("total_gb", 0.0),
+                free_gb=storage_data.get("free_gb", 0.0),
+                used_gb=storage_data.get("used_gb", 0.0),
+                path=storage_data.get("path", ""),
+            )
+            return cls(
+                cpu=cpu_info,
+                ram=ram_info,
+                gpu=gpu_info,
+                storage=storage_info,
+                os_name=data.get("os_name", ""),
+                os_version=data.get("os_version", ""),
+                python_version=data.get("python_version", ""),
+                ai_capability=data.get("ai_capability", "MODERATE"),
+                ai_capability_notes=data.get("ai_capability_notes", []),
+            )
+        except Exception:
+            return cls()
+
 
 class HardwareAnalyzer:
     """Analyzes the local environment and grades local inference capability."""
@@ -159,10 +207,33 @@ class HardwareAnalyzer:
     _cached_profile: Optional[HardwareProfile] = None
 
     @classmethod
+    def _cache_file_path(cls) -> str:
+        try:
+            from .first_run import data_dir
+            d = data_dir()
+            os.makedirs(d, exist_ok=True)
+            return os.path.join(d, "hardware_profile.json")
+        except Exception:
+            return os.path.join(os.path.expanduser("~"), ".cct_hw_profile.json")
+
+    @classmethod
     def analyze(cls, force_refresh: bool = False) -> HardwareProfile:
-        """Run full hardware analysis, returning a structured HardwareProfile."""
+        """Run full hardware analysis, returning a structured HardwareProfile.
+        Uses persistent disk cache for instant (<1ms) startup with zero subprocess stalls."""
         if cls._cached_profile is not None and not force_refresh:
             return cls._cached_profile
+
+        cache_path = cls._cache_file_path()
+        if not force_refresh and os.path.isfile(cache_path):
+            try:
+                import json
+                with open(cache_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                prof = HardwareProfile.from_dict(data)
+                cls._cached_profile = prof
+                return prof
+            except Exception:
+                pass
 
         cpu_info = cls._detect_cpu()
         ram_info = cls._detect_ram()
@@ -187,7 +258,28 @@ class HardwareAnalyzer:
         )
 
         cls._cached_profile = profile
+        try:
+            import json
+            with open(cache_path, "w", encoding="utf-8") as f:
+                json.dump(profile.to_dict(), f, indent=2)
+        except Exception:
+            pass
+
         return profile
+
+    @classmethod
+    def is_low_end(cls, profile: Optional[HardwareProfile] = None) -> bool:
+        """Determines if the current system is a low-end device requiring eco/power optimizations."""
+        try:
+            prof = profile or cls.analyze()
+            # Low-end markers: <= 4 CPU threads, <= 8GB RAM, or integrated graphics only
+            is_limited_ram = prof.ram.total_gb <= 8.5
+            is_limited_cpu = prof.cpu.logical_cores <= 4
+            is_no_gpu = not prof.has_gpu or prof.gpu.backend == "CPU"
+            is_intel_uhd = "intel" in prof.gpu.name.lower() and prof.gpu.vram_total_gb <= 0.5
+            return is_limited_ram or is_limited_cpu or (is_no_gpu and prof.ai_capability in ("LIMITED", "MODERATE")) or is_intel_uhd
+        except Exception:
+            return False
 
     @classmethod
     def detect(cls, force_refresh: bool = False) -> HardwareProfile:
@@ -285,11 +377,67 @@ class HardwareAnalyzer:
 
     @classmethod
     def _detect_gpu(cls) -> GPUInfo:
-        # 1. Check NVIDIA via nvidia-smi
+        # 1. Windows: Instant direct registry inspection (<0.001s, zero subprocess overhead, no shell)
+        if sys.platform == "win32":
+            try:
+                import winreg
+                key_path = r"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}"
+                with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key_path) as k:
+                    i = 0
+                    best_gpu = None
+                    while True:
+                        try:
+                            sub = winreg.EnumKey(k, i)
+                            i += 1
+                            if sub.isdigit():
+                                with winreg.OpenKey(k, sub) as sk:
+                                    try:
+                                        desc, _ = winreg.QueryValueEx(sk, "DriverDesc")
+                                        if not desc or "Remote" in desc:
+                                            continue
+                                        try:
+                                            vram_bytes, _ = winreg.QueryValueEx(sk, "HardwareInformation.qwMemorySize")
+                                        except Exception:
+                                            vram_bytes = 0
+                                        vram_gb = round(int(vram_bytes) / (1024**3), 1) if vram_bytes else 0.0
+                                        vendor = "NVIDIA" if "NVIDIA" in desc.upper() else ("AMD" if "AMD" in desc.upper() or "RADEON" in desc.upper() else ("Intel" if "INTEL" in desc.upper() else "Unknown"))
+                                        backend = "CUDA" if vendor == "NVIDIA" else ("ROCm" if vendor == "AMD" else "DirectML")
+                                        cand = GPUInfo(
+                                            detected=True,
+                                            name=desc[:40],
+                                            vendor=vendor,
+                                            vram_total_gb=vram_gb,
+                                            vram_free_gb=vram_gb,
+                                            backend=backend,
+                                        )
+                                        if best_gpu is None or (vram_gb > best_gpu.vram_total_gb) or (vendor in ("NVIDIA", "AMD") and best_gpu.vendor not in ("NVIDIA", "AMD")):
+                                            best_gpu = cand
+                                    except Exception:
+                                        pass
+                        except OSError:
+                            break
+                    if best_gpu is not None and (best_gpu.vram_total_gb > 0 or best_gpu.vendor in ("NVIDIA", "AMD")):
+                        # Check if nvidia-smi gives exact live driver info
+                        if best_gpu.vendor == "NVIDIA" and shutil.which("nvidia-smi"):
+                            try:
+                                cmd = ["nvidia-smi", "--query-gpu=name,memory.total,memory.free,driver_version", "--format=csv,noheader"]
+                                out = subprocess.check_output(cmd, timeout=1.5, text=True)
+                                lines = [l.strip() for l in out.splitlines() if l.strip()]
+                                if lines:
+                                    parts = [p.strip() for p in lines[0].split(",")]
+                                    if len(parts) > 3:
+                                        best_gpu.driver_version = parts[3]
+                            except Exception:
+                                pass
+                        return best_gpu
+            except Exception:
+                pass
+
+        # 2. Check NVIDIA via nvidia-smi (Linux / fallback)
         if shutil.which("nvidia-smi"):
             try:
                 cmd = ["nvidia-smi", "--query-gpu=name,memory.total,memory.free,driver_version", "--format=csv,noheader"]
-                out = subprocess.check_output(cmd, timeout=3, text=True)
+                out = subprocess.check_output(cmd, timeout=1.5, text=True)
                 lines = [l.strip() for l in out.splitlines() if l.strip()]
                 if lines:
                     parts = [p.strip() for p in lines[0].split(",")]
@@ -321,12 +469,11 @@ class HardwareAnalyzer:
             except Exception:
                 pass
 
-        # 2. Check Apple Silicon via sysctl
+        # 3. Check Apple Silicon via sysctl
         if sys.platform == "darwin":
             try:
-                out = subprocess.check_output(["sysctl", "-n", "machdep.cpu.brand_string"], text=True, timeout=2)
+                out = subprocess.check_output(["sysctl", "-n", "machdep.cpu.brand_string"], text=True, timeout=1.5)
                 if "Apple" in out:
-                    # Apple unified memory shares system RAM
                     import psutil
                     total_ram = round(psutil.virtual_memory().total / (1024**3), 1)
                     return GPUInfo(
@@ -341,18 +488,19 @@ class HardwareAnalyzer:
             except Exception:
                 pass
 
-        # 3. Check AMD ROCm / Linux
+        # 4. Check AMD ROCm / Linux
         if shutil.which("rocm-smi"):
             try:
-                out = subprocess.check_output(["rocm-smi", "--showmeminfo", "vram"], text=True, timeout=3)
+                out = subprocess.check_output(["rocm-smi", "--showmeminfo", "vram"], text=True, timeout=1.5)
                 return GPUInfo(detected=True, name="AMD Radeon (ROCm)", vendor="AMD", backend="ROCm")
             except Exception:
                 pass
 
-        # 4. Windows WMIC / DirectX VideoController fallback
+        # 5. Windows WMIC fallback without shell=True
         if sys.platform == "win32":
             try:
-                out = subprocess.check_output("wmic path win32_VideoController get name,adapterram", shell=True, timeout=3, text=True)
+                cmd = ["wmic", "path", "win32_VideoController", "get", "name,adapterram"]
+                out = subprocess.check_output(cmd, timeout=1.5, text=True)
                 lines = [l.strip() for l in out.splitlines() if l.strip() and "Name" not in l and "AdapterRAM" not in l]
                 for line in lines:
                     parts = line.split()

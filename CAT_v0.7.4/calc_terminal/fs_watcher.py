@@ -57,6 +57,42 @@ except Exception:
         pass
 
 
+IGNORED_DIRS = {
+    ".git",
+    "node_modules",
+    ".venv",
+    ".venv-cat-test",
+    ".venv-package-test",
+    ".venv-test",
+    ".venv-test314",
+    "__pycache__",
+    ".pytest_cache",
+    ".vscode",
+    ".vscode-test",
+    ".tmp-workspace",
+    "dist",
+    "build",
+    ".agents",
+    ".gemini",
+    ".idea",
+    ".mypy_cache",
+    ".ruff_cache",
+}
+
+
+def is_ignored_path(path: str) -> bool:
+    """Returns True if the path lies within an ignored dependency or cache directory."""
+    if not path:
+        return True
+    parts = os.path.normpath(path).split(os.sep)
+    for part in parts:
+        if part in IGNORED_DIRS:
+            return True
+        if part.startswith(".") and part not in (".", "..", ".env", ".env.local", ".env.example"):
+            return True
+    return False
+
+
 class WorkspaceWatcher:
     """Watches one workspace root and reports debounced change sets.
 
@@ -174,7 +210,7 @@ class WorkspaceWatcher:
         every raw filesystem event (and usable directly for explicit
         internal TOOL_FILE_* notifications). Bursts are coalesced and
         flushed once the stream goes quiet for DEBOUNCE seconds."""
-        if path:
+        if path and not is_ignored_path(path):
             with self._lock:
                 if self._root is None:
                     return
@@ -206,7 +242,7 @@ class WorkspaceWatcher:
         """One shallow-everything snapshot: {path: mtime}. Directories
         get st_mtime too (Windows keeps dir mtimes fresh on content
         churn), so folder create/delete shows up as a diff without any
-        special handling. Symlinks are never followed."""
+        special handling. Symlinks and heavy dependency folders are never followed."""
         snap = {}
         stack = [root]
         while stack:
@@ -217,6 +253,9 @@ class WorkspaceWatcher:
                     for entry in entries:
                         try:
                             if entry.is_symlink():
+                                continue
+                            name = entry.name
+                            if name in IGNORED_DIRS or (name.startswith(".") and name not in (".env", ".env.local")):
                                 continue
                             if entry.is_dir(follow_symlinks=False):
                                 stack.append(entry.path)
@@ -253,7 +292,7 @@ class WorkspaceWatcher:
 
 class _Handler(_WdHandler):
     """Watchdog adapter: forwards every interesting event kind into the
-    watcher's debounced intake."""
+    watcher's debounced intake, dropping events from ignored folders."""
 
     def __init__(self, watcher):
         super().__init__()
@@ -273,5 +312,5 @@ class _Handler(_WdHandler):
         self._emit(event.dest_path)
 
     def _emit(self, path):
-        if path:
+        if path and not is_ignored_path(path):
             self._watcher.report(path)

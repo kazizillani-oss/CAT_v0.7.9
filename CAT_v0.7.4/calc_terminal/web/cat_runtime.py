@@ -350,12 +350,30 @@ class CatRuntime:
     def get_models_for_provider(self, provider_id: str, force_refresh: bool = False) -> List[Dict[str, Any]]:
         """Get models for provider using CAT model manager with caching."""
         cfg = aicore.load_config()
-        models = model_manager.get_models(provider_id, config=cfg, force_refresh=force_refresh)
+        models_res = model_manager.get_models(provider_id, config=cfg, force_refresh=force_refresh)
+        if isinstance(models_res, tuple):
+            models = models_res[0]
+        else:
+            models = models_res or []
+
+        # If ollama and local service is running, also merge installed local models
+        if provider_id == "ollama":
+            try:
+                installed = provider_manager.refresh_ollama_models(base_url="http://localhost:11434")
+                if installed:
+                    for im in installed:
+                        if im not in models:
+                            models.insert(0, im)
+            except Exception:
+                pass
+
         active_model = cfg.get("model", "")
 
         out = []
         for m_id in models:
-            meta = model_manager.get_model_metadata(m_id) or {}
+            if not isinstance(m_id, str):
+                continue
+            meta = model_manager.get_model_meta(m_id, provider_id) or {}
             out.append({
                 "id": m_id,
                 "name": meta.get("name", m_id),
@@ -368,16 +386,24 @@ class CatRuntime:
             })
         return out
 
-    def switch_model(self, provider_id: str, model_id: str, api_key: Optional[str] = None) -> Dict[str, Any]:
+    def switch_model(self, provider_id: str, model_id: str, api_key: Optional[str] = None, base_url: Optional[str] = None) -> Dict[str, Any]:
         """Switch active provider and model in CAT config."""
         cfg = aicore.load_config()
         cfg["provider"] = provider_id
         cfg["model"] = model_id
         if api_key is not None:
             cfg["api_key"] = api_key
+        if base_url:
+            cfg["base_url"] = base_url
+            if provider_id == "ollama":
+                cfg["ollama_url"] = base_url
+        elif provider_id == "ollama":
+            cfg["base_url"] = "http://localhost:11434"
+            cfg["ollama_url"] = "http://localhost:11434"
+            cfg["api_style"] = "ollama"
         aicore.save_config(cfg)
         provider_manager.save_config(cfg)
-        return {"success": True, "provider": provider_id, "model": model_id}
+        return {"success": True, "provider": provider_id, "model": model_id, "base_url": cfg.get("base_url")}
 
     # ─────────────────────────────────────────────────────────────
     # 5. Ollama Support

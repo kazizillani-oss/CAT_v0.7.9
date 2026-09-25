@@ -149,9 +149,37 @@ def detect_capabilities() -> InputCapabilities:
             slate_mode_val = user32.GetSystemMetrics(0x2003)
             slate_mode = bool(slate_mode_val == 1)
 
-            # If max touches > 0 or digitizer has touch bits
-            if max_touch_points > 0 or (digitizer_val & 0x03):
+            # If max touches > 0 or digitizer has touch/multi-input bits (0x01=integrated, 0x02=external, 0x04=pen, 0x40=multi-input)
+            if max_touch_points > 0 or (digitizer_val & 0x47):
                 touchscreen_available = True
+
+            # Enhanced detection: Check GetPointerDevices API on Windows 8/10/11
+            if not touchscreen_available:
+                try:
+                    count = ctypes.c_uint32(0)
+                    if hasattr(user32, "GetPointerDevices") and user32.GetPointerDevices(ctypes.byref(count), None) and count.value > 0:
+                        from ctypes import wintypes
+                        class _POINTER_DEVICE_INFO(ctypes.Structure):
+                            _fields_ = [
+                                ('displayOrientation', wintypes.DWORD),
+                                ('device', wintypes.HANDLE),
+                                ('pointerDeviceType', wintypes.DWORD),
+                                ('monitor', wintypes.HMONITOR),
+                                ('startingCursorId', wintypes.ULONG),
+                                ('maxActiveContacts', wintypes.USHORT),
+                                ('productString', wintypes.WCHAR * 520)
+                            ]
+                        devs = (_POINTER_DEVICE_INFO * count.value)()
+                        if user32.GetPointerDevices(ctypes.byref(count), devs):
+                            for d in devs:
+                                # pointerDeviceType 2 = pen, 3 = touch
+                                if d.pointerDeviceType in (2, 3):
+                                    touchscreen_available = True
+                                    if d.maxActiveContacts > max_touch_points:
+                                        max_touch_points = int(d.maxActiveContacts)
+                                    break
+                except Exception:
+                    pass
 
             # DPI detection
             try:
@@ -236,6 +264,18 @@ def toggle_touch_mode(persist: bool = True) -> bool:
     new_state = not caps.touch_mode_enabled
     set_touch_mode(new_state, persist=persist)
     return new_state
+
+
+def auto_promote_touch_mode() -> bool:
+    """Runtime auto-promotion: if touch/finger interaction occurs on any device,
+    ensure touch mode is enabled and listeners are notified."""
+    caps = get_input_capabilities()
+    if not caps.touch_mode_enabled or not caps.touchscreen_available:
+        caps.touchscreen_available = True
+        caps.touch_mode_enabled = True
+        _notify_listeners(caps)
+        return True
+    return False
 
 
 def register_listener(callback: Callable[[InputCapabilities], None]) -> None:

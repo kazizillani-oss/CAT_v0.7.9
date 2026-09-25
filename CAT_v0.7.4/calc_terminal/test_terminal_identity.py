@@ -127,6 +127,23 @@ class TestTerminalIdentity(unittest.TestCase):
         rc = doctor.fix_terminal()
         self.assertEqual(rc, 0)
 
+    def test_sanitize_terminal_emits_mouse_and_focus_disable_codes(self):
+        from calc_terminal.terminal_host import sanitize_terminal, TERMINAL_RESET_SEQUENCES
+        # Ensure crucial reset sequences are present
+        self.assertIn("\x1b[?1000l", TERMINAL_RESET_SEQUENCES)  # Mouse VT200
+        self.assertIn("\x1b[?1003l", TERMINAL_RESET_SEQUENCES)  # Mouse any-event
+        self.assertIn("\x1b[?1004l", TERMINAL_RESET_SEQUENCES)  # FocusIn/Out reporting
+        self.assertIn("\x1b[?1006l", TERMINAL_RESET_SEQUENCES)  # Mouse SGR extended
+        self.assertIn("\x1b[?1049l", TERMINAL_RESET_SEQUENCES)  # Alternate screen buffer
+        self.assertIn("\x1b[?25h", TERMINAL_RESET_SEQUENCES)    # Cursor visible
+
+        # Should execute cleanly without raising
+        sanitize_terminal()
+
+    def test_install_terminal_guard(self):
+        from calc_terminal.terminal_host import install_terminal_guard
+        install_terminal_guard()
+
 
 if __name__ == "__main__":
     unittest.main()

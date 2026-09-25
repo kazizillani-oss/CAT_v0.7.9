@@ -64,8 +64,13 @@ try:
         CATBorders,
         CATSpacing,
     )
+    try:
+        from .cat_greeting import get_cat_routine_display
+    except Exception:
+        get_cat_routine_display = None
 except Exception:
     TEXTUAL_AVAILABLE = False
+    get_cat_routine_display = None
 
 
 # ─── 45 RESPONSIVE LAYOUT VARIANTS OF THE CAT WORDMARK LOGO ───────────────────
@@ -103,6 +108,7 @@ if TEXTUAL_AVAILABLE:
             self._ai_state = None   # live state text pushed by CCTApp
             self._last_resize_w = None  # (width, height) of last handled resize
             self._manual_override_tier = None
+            self._greeting_offset = 0
 
         def _get_viewport_size(self):
             p = getattr(self, "parent", None)
@@ -263,28 +269,8 @@ if TEXTUAL_AVAILABLE:
                             yield Static(f"[{faint}]No projects opened yet.[/]", classes="cct-dash-row")
 
                     with Vertical(classes="cct-dash-col cct-dash-card-3d", id="cct-dash-col-notebooks"):
-                        yield Static("[b]Session Notebooks[/b]", classes="cct-dash-col-title")
-                        solved_count = self._notebook_count or 0
-                        if hasattr(self, "app") and hasattr(self.app, "_history"):
-                            solved_count = max(solved_count, len(self.app._history))
-                        try:
-                            summary = cct_workspace.summary()
-                        except Exception:
-                            summary = []
-                        if summary:
-                            first_cat, first_count, _newest, _when = summary[0]
-                            yield Static(f"  \u26a1 [b]{solved_count}[/b] solved  \u00b7  \U0001f4c4 {first_cat}: {first_count}", classes="cct-dash-row")
-                        else:
-                            yield Static(f"  \u26a1 [b]{solved_count}[/b] solved  \u00b7  [{faint}]No exports yet[/]", classes="cct-dash-row")
-
-                        # Working Quick-Solve Notebook Launchers (compact 2-row chips)
-                        yield Static("  [b]Quick Solve & Derive:[/b]", classes="cct-dash-nb-subtitle")
-                        with Horizontal(classes="cct-dash-nb-chips"):
-                            yield Button("\u26a1 Kinetics", id="dash-solve-kinetics", classes="cct-nb-chip")
-                            yield Button("\u26a1 Arrhenius", id="dash-solve-arrhenius", classes="cct-nb-chip")
-                        with Horizontal(classes="cct-dash-nb-chips"):
-                            yield Button("\u26a1 Nernst", id="dash-solve-nernst", classes="cct-nb-chip")
-                            yield Button("\u26a1 Gibbs", id="dash-solve-gibbs", classes="cct-nb-chip")
+                        yield Static("[b]CAT[/b]", classes="cct-dash-col-title")
+                        yield Static(self._cat_section_markup(), id="cct-dash-cat-content")
 
                     if self._workspace_root:
                         with Vertical(classes="cct-dash-col cct-dash-card-3d"):
@@ -357,14 +343,17 @@ if TEXTUAL_AVAILABLE:
 
         # ------------------------------------- v0.7.9.0 live state APIs --
         def set_mode(self, mode_key):
-            """The ACTUAL active AI mode changed: repaint the ready line
-            and the hero art tint (mode gradient) in place."""
+            """The ACTUAL active AI mode changed: repaint the ready line,
+            the hero art tint (mode gradient), and the CAT section in place."""
             self._mode_key = mode_key
             try:
                 self.query_one("#cct-empty-art", Static).update(
                     self._art_markup())
                 self.query_one("#cct-empty-ready", Static).update(
                     self._ready_markup())
+                new_cat = self._cat_section_markup(mode_key=mode_key)
+                self._last_cat_markup = new_cat
+                self.query_one("#cct-dash-cat-content", Static).update(new_cat)
             except Exception:
                 pass
 
@@ -384,6 +373,9 @@ if TEXTUAL_AVAILABLE:
                     self._ready_markup())
                 self.query_one("#cct-dash-ai-status", Static).update(
                     self._ai_status_markup())
+                new_cat = self._cat_section_markup(mode_key=self._mode_key)
+                self._last_cat_markup = new_cat
+                self.query_one("#cct-dash-cat-content", Static).update(new_cat)
             except Exception:
                 pass
 
@@ -396,6 +388,73 @@ if TEXTUAL_AVAILABLE:
             try:
                 self.query_one("#cct-dash-ai-status", Static).update(
                     self._ai_status_markup())
+            except Exception:
+                pass
+
+        def _cat_section_markup(self, mode_key=None):
+            try:
+                fn = get_cat_routine_display
+                if fn is None:
+                    from .cat_greeting import get_cat_routine_display as fn
+                mk = mode_key or self._mode_key
+                accent = None
+                if mk:
+                    try:
+                        from .. import ai_modes
+                        accent = ai_modes.accent_hex(mk)
+                    except Exception:
+                        pass
+                if not accent:
+                    accent = theme_css.current_hex("accent")
+                muted = theme_css.current_hex("text-muted")
+                faint = theme_css.current_hex("text-faint")
+                return fn(
+                    offset=getattr(self, "_greeting_offset", 0),
+                    accent_hex=accent,
+                    text_muted_hex=muted,
+                    text_faint_hex=faint,
+                    mode_key=mk,
+                )
+            except Exception:
+                return "  [b]CAT[/b] > Ready."
+
+        def on_mount(self):
+            try:
+                self.set_interval(60.0, self._tick_routine_greeting)
+            except Exception:
+                pass
+
+        def _tick_routine_greeting(self):
+            try:
+                new_markup = self._cat_section_markup()
+                if new_markup != getattr(self, "_last_cat_markup", None):
+                    self._last_cat_markup = new_markup
+                    content = self.query_one("#cct-dash-cat-content", Static)
+                    content.update(new_markup)
+            except Exception:
+                pass
+
+        def on_click(self, event):
+            try:
+                target = getattr(event, "widget", None)
+                if target is not None:
+                    try:
+                        col = self.query_one("#cct-dash-col-notebooks")
+                    except Exception:
+                        col = None
+                    if col is not None:
+                        is_inside = (target == col or target in getattr(col, "children", []))
+                        if not is_inside and hasattr(target, "ancestors"):
+                            is_inside = col in target.ancestors
+                        if is_inside:
+                            self._greeting_offset = getattr(self, "_greeting_offset", 0) + 1
+                            try:
+                                new_markup = self._cat_section_markup()
+                                self._last_cat_markup = new_markup
+                                content = self.query_one("#cct-dash-cat-content", Static)
+                                content.update(new_markup)
+                            except Exception:
+                                pass
             except Exception:
                 pass
 

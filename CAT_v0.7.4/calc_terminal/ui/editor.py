@@ -331,6 +331,50 @@ if TEXTUAL_AVAILABLE:
     # Back-compat alias (older call sites / external tooling).
     _apply_tokyo_theme = _apply_editor_theme
 
+    _cached_shortcut_mgr = None
+    _cached_ed_actions = None
+    _cached_handle_shortcut = None
+
+    def _resolve_editor_cmd(raw_key):
+        global _cached_shortcut_mgr
+        if _cached_shortcut_mgr is None:
+            try:
+                from ..editor.shortcuts import get_shortcut_manager
+                _cached_shortcut_mgr = get_shortcut_manager()
+            except Exception:
+                pass
+        if _cached_shortcut_mgr is not None:
+            try:
+                return _cached_shortcut_mgr.resolve(raw_key, context="editor")
+            except Exception:
+                return None
+        return None
+
+    def _get_ed_actions():
+        global _cached_ed_actions
+        if _cached_ed_actions is None:
+            try:
+                from ..editor import actions
+                _cached_ed_actions = actions
+            except Exception:
+                pass
+        return _cached_ed_actions
+
+    def _dispatch_gesture_shortcut(key, app):
+        global _cached_handle_shortcut
+        if _cached_handle_shortcut is None:
+            try:
+                from ..gestures.manager import handle_shortcut
+                _cached_handle_shortcut = handle_shortcut
+            except Exception:
+                pass
+        if _cached_handle_shortcut is not None:
+            try:
+                return _cached_handle_shortcut(key, app=app)
+            except Exception:
+                return False
+        return False
+
     class _EditorArea(TextArea, inherit_bindings=False):
         """A TextArea whose Ctrl+W is deliberately unbound. Textual's
         default Ctrl+W deletes the word left of the cursor, but v0.7.4
@@ -388,6 +432,14 @@ if TEXTUAL_AVAILABLE:
             """Intercept keys before TextArea's default handling via centralized ShortcutManager."""
             raw_key = (getattr(event, "key", "") or "").lower().strip()
 
+            # Fast path for regular typing: if it's a printable single character without modifiers,
+            # bypass all shortcut resolution overhead immediately so typing is 100% lag-free!
+            has_ctrl = getattr(event, "ctrl", False)
+            has_alt = getattr(event, "alt", False)
+            has_meta = getattr(event, "meta", False)
+            if len(raw_key) == 1 and not (has_ctrl or has_alt or has_meta):
+                return
+
             # Spec: Shift+Enter / Cmd+Shift+Enter / Ctrl+Shift+Enter / ▷ => Show Web Preview
             # MUST NEVER insert newline into the code editor!
             preview_keys = {
@@ -406,63 +458,61 @@ if TEXTUAL_AVAILABLE:
                 self.action_show_preview()
                 return
 
-            # 1. Centralized CAT Shortcut Manager resolution
+            # 1. Centralized CAT Shortcut Manager resolution (cached, zero dynamic import overhead)
             try:
-                from ..editor.shortcuts import get_shortcut_manager
-                from ..editor import actions as ed_actions
-
-                cmd_id = get_shortcut_manager().resolve(raw_key, context="editor")
+                cmd_id = _resolve_editor_cmd(raw_key)
                 if cmd_id:
+                    ed_actions = _get_ed_actions()
                     # Direct line and editing manipulations
-                    if cmd_id == "editor.toggleComment":
+                    if cmd_id == "editor.toggleComment" and ed_actions:
                         event.stop()
                         try: event.prevent_default()
                         except Exception: pass
                         ed_actions.toggle_line_comment(self)
                         return
-                    elif cmd_id == "editor.deleteLine":
+                    elif cmd_id == "editor.deleteLine" and ed_actions:
                         event.stop()
                         try: event.prevent_default()
                         except Exception: pass
                         ed_actions.delete_line(self)
                         return
-                    elif cmd_id == "editor.moveLineUp":
+                    elif cmd_id == "editor.moveLineUp" and ed_actions:
                         event.stop()
                         try: event.prevent_default()
                         except Exception: pass
                         ed_actions.move_line_up(self)
                         return
-                    elif cmd_id == "editor.moveLineDown":
+                    elif cmd_id == "editor.moveLineDown" and ed_actions:
                         event.stop()
                         try: event.prevent_default()
                         except Exception: pass
                         ed_actions.move_line_down(self)
                         return
-                    elif cmd_id == "editor.copyLineUp":
+                    elif cmd_id == "editor.copyLineUp" and ed_actions:
                         event.stop()
                         try: event.prevent_default()
                         except Exception: pass
                         ed_actions.copy_line_up(self)
                         return
-                    elif cmd_id == "editor.copyLineDown":
+                    elif cmd_id == "editor.copyLineDown" and ed_actions:
                         event.stop()
                         try: event.prevent_default()
                         except Exception: pass
                         ed_actions.copy_line_down(self)
                         return
-                    elif cmd_id == "editor.insertLineBelow":
+                    elif cmd_id == "editor.insertLineBelow" and ed_actions:
                         event.stop()
                         try: event.prevent_default()
                         except Exception: pass
                         ed_actions.insert_line_below(self)
                         return
-                    elif cmd_id == "editor.insertLineAbove":
+                    elif cmd_id == "editor.insertLineAbove" and ed_actions:
                         event.stop()
                         try: event.prevent_default()
                         except Exception: pass
                         ed_actions.insert_line_above(self)
                         return
-                    elif cmd_id == "editor.selectNextOccurrence":
+                    elif cmd_id == "editor.selectNextOccurrence" and ed_actions:
                         event.stop()
                         try: event.prevent_default()
                         except Exception: pass
@@ -549,8 +599,7 @@ if TEXTUAL_AVAILABLE:
                 return
             # Also check for custom shortcuts registered via Gestures
             try:
-                from ..gestures.manager import handle_shortcut
-                if handle_shortcut(event.key, app=getattr(self, "app", None)):
+                if _dispatch_gesture_shortcut(event.key, app=getattr(self, "app", None)):
                     event.stop()
                     try:
                         event.prevent_default()
@@ -1074,6 +1123,7 @@ if TEXTUAL_AVAILABLE:
             self._change_history = {}    # path -> list of changes
             self._last_tb_refresh = 0.0
             self._tb_refresh_timer = None
+            self._last_tb_values = {}
 
         def compose(self):
             with Horizontal(id="cct-editor-toolbar"):
@@ -1329,15 +1379,15 @@ if TEXTUAL_AVAILABLE:
             self._schedule_toolbar_refresh()
 
         def _schedule_toolbar_refresh(self):
-            # Throttle toolbar updates during rapid typing to keep editor smooth and responsive
+            # Throttle toolbar updates during rapid typing to keep editor smooth and 60 FPS responsive
             now = time.time()
-            if getattr(self, "_last_tb_refresh", 0.0) + 0.08 < now:
+            if getattr(self, "_last_tb_refresh", 0.0) + 0.15 < now:
                 self._last_tb_refresh = now
                 self._refresh_toolbar()
             else:
                 if getattr(self, "_tb_refresh_timer", None) is None:
                     try:
-                        self._tb_refresh_timer = self.set_timer(0.08, self._delayed_toolbar_refresh)
+                        self._tb_refresh_timer = self.set_timer(0.15, self._delayed_toolbar_refresh)
                     except Exception:
                         self._refresh_toolbar()
 
@@ -1372,6 +1422,20 @@ if TEXTUAL_AVAILABLE:
             except Exception:
                 pass
             return None, None
+
+        def _update_tb_item(self, sel, val, tooltip=None):
+            """Updates a toolbar static widget ONLY if its content or tooltip has changed.
+            Prevents expensive Textual DOM invalidations and layout recalcs on every keystroke."""
+            old = self._last_tb_values.get(sel)
+            if old != (val, tooltip):
+                self._last_tb_values[sel] = (val, tooltip)
+                try:
+                    st = self.query_one(sel, Static)
+                    st.update(val)
+                    if tooltip is not None:
+                        st.tooltip = tooltip
+                except Exception:
+                    pass
 
         def _refresh_toolbar(self):
             """Syncs the status toolbar to the active tab: file name,
@@ -1418,60 +1482,57 @@ if TEXTUAL_AVAILABLE:
             except Exception:
                 pass
             dirty = area.path in self._dirty
-            icon = get_file_icon(area.path)
-            self.query_one("#cct-tb-file", Static).update(f"{icon} {os.path.basename(area.path)}")
-            try:
-                self.query_one("#cct-tb-file", Static).tooltip = area.path
-            except Exception:
-                pass
-            self.query_one("#cct-tb-language", Static).update(
-                self._language_label(area.language))
-            self.query_one("#cct-tb-pos", Static).update(f"Ln {row + 1}, Col {col + 1}")
-            self.query_one("#cct-tb-spaces", Static).update(
-                f"Spaces: {getattr(area, 'indent_width', 4)}")
-            self.query_one("#cct-tb-modified", Static).update(
-                "\u25cf Modified" if dirty else "")
-            # Ensure code pills visible again (may have been hidden for image)
-            for sel in ("#cct-tb-language", "#cct-tb-encoding", "#cct-tb-pos", "#cct-tb-spaces", "#cct-tb-modified", "#cct-tb-wrap", "#cct-tb-preview"):
+            self._update_tb_item("#cct-tb-file", f"{icon} {os.path.basename(area.path)}", tooltip=area.path)
+            self._update_tb_item("#cct-tb-language", self._language_label(area.language))
+            self._update_tb_item("#cct-tb-pos", f"Ln {row + 1}, Col {col + 1}")
+            self._update_tb_item("#cct-tb-spaces", f"Spaces: {getattr(area, 'indent_width', 4)}")
+            self._update_tb_item("#cct-tb-modified", "\u25cf Modified" if dirty else "")
+
+            # Ensure code pills visible again (only on path / tab switch)
+            cur_path = getattr(area, "path", None)
+            if self._last_tb_values.get("_cached_active_path") != cur_path:
+                self._last_tb_values["_cached_active_path"] = cur_path
+                for sel in ("#cct-tb-language", "#cct-tb-encoding", "#cct-tb-pos", "#cct-tb-spaces", "#cct-tb-modified", "#cct-tb-wrap", "#cct-tb-preview"):
+                    try:
+                        self.query_one(sel, Static).display = True
+                    except Exception:
+                        pass
                 try:
-                    self.query_one(sel, Static).display = True
+                    self.query_one("#cct-tb-encoding", Static).display = True
                 except Exception:
                     pass
-            try:
-                self.query_one("#cct-tb-encoding", Static).display = True
-            except Exception:
-                pass
-            # ▷ and ⿻ — show only for web-previewable files (spec 2)
-            try:
-                run_pill = self.query_one("#cct-tb-run")
-                split_pill = self.query_one("#cct-tb-split")
-                is_web = is_web_previewable(area.path)
-                is_split = is_web or is_markdown_file(area.path)
-                run_pill.display = bool(is_web)
-                split_pill.display = bool(is_split)
+                # ▷ and ⿻ — show only for web-previewable files (spec 2)
                 try:
-                    run_pill.set_class(is_web, "-run")
-                    split_pill.set_class(is_split, "-split")
-                except Exception:
-                    pass
-                try:
-                    if is_web:
-                        run_pill.tooltip = "Open Live Web Preview (▷)"
-                        split_pill.tooltip = "Split editor / preview (⿻)"
-                    elif is_split:
-                        split_pill.tooltip = "Split editor / preview (⿻)"
-                        try:
+                    run_pill = self.query_one("#cct-tb-run")
+                    split_pill = self.query_one("#cct-tb-split")
+                    is_web = is_web_previewable(area.path)
+                    is_split = is_web or is_markdown_file(area.path)
+                    run_pill.display = bool(is_web)
+                    split_pill.display = bool(is_split)
+                    try:
+                        run_pill.set_class(is_web, "-run")
+                        split_pill.set_class(is_split, "-split")
+                    except Exception:
+                        pass
+                    try:
+                        if is_web:
+                            run_pill.tooltip = "Open Live Web Preview (▷)"
+                            split_pill.tooltip = "Split editor / preview (⿻)"
+                        elif is_split:
+                            split_pill.tooltip = "Split editor / preview (⿻)"
+                            try: run_pill.tooltip = ""
+                            except: pass
+                        else:
                             run_pill.tooltip = ""
-                        except: pass
-                    else:
-                        run_pill.tooltip = ""
-                        split_pill.tooltip = ""
+                            split_pill.tooltip = ""
+                    except Exception:
+                        pass
                 except Exception:
                     pass
-            except Exception:
-                pass
+
             self._update_view_pills(area)
-            self._refresh_preview(area)
+            if getattr(self, "_preview_on", False):
+                self._refresh_preview(area)
 
         def _apply_toolbar_compaction(self):
             """v0.7.10: the right pane is now user-resizable down to ~24
@@ -1517,16 +1578,21 @@ if TEXTUAL_AVAILABLE:
             except Exception:
                 return
             try:
-                self._wrap_on = bool(getattr(area, "soft_wrap", True))
+                new_wrap = bool(getattr(area, "soft_wrap", True))
             except Exception:
-                pass
-            wrap_pill.update(f"Wrap: {'On' if self._wrap_on else 'Off'}")
-            wrap_pill.set_class(self._wrap_on, "-on")
-            try:
-                preview_pill = self.query_one("#cct-tb-preview", Static)
-                preview_pill.set_class(self._preview_on, "-on")
-            except Exception:
-                pass
+                new_wrap = True
+            if self._last_tb_values.get("_wrap_state") != new_wrap:
+                self._last_tb_values["_wrap_state"] = new_wrap
+                self._wrap_on = new_wrap
+                wrap_pill.update(f"Wrap: {'On' if self._wrap_on else 'Off'}")
+                wrap_pill.set_class(self._wrap_on, "-on")
+            if self._last_tb_values.get("_preview_state") != self._preview_on:
+                self._last_tb_values["_preview_state"] = self._preview_on
+                try:
+                    preview_pill = self.query_one("#cct-tb-preview", Static)
+                    preview_pill.set_class(self._preview_on, "-on")
+                except Exception:
+                    pass
 
         def _refresh_preview(self, area=None):
             """Shows/hides the live preview pane and refills it from the

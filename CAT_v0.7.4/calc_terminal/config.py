@@ -104,6 +104,10 @@ class CCTConfig:
     startup_page: str = "welcome"                    # "welcome" | "last_session" | "notebook"
     sidebar_collapsed: bool = False                  # Explorer sidebar open/closed (persisted toggle state)
 
+    # --- performance & eco mode (v0.7.9.11) ---
+    eco_mode: bool = False                           # reduced rendering, power-saving timer cadences
+    low_end_device_optimization: bool = True         # auto-detect and adapt for low-spec hardware / integrated GPUs
+
     # --- permissions ---
     default_permission_mode: str = "ask"              # ask|restricted|full
 
@@ -205,6 +209,10 @@ def load_config():
         # first run ever — no point re-asking for a provider the user
         # already set up through /ai before this module existed
         cfg = _seed_from_aicore(cfg)
+    if os.environ.get("CAT_ECO_MODE") == "1":
+        cfg.eco_mode = True
+    elif os.environ.get("CAT_ECO_MODE") == "0":
+        cfg.eco_mode = False
     _cached = cfg
     return cfg
 

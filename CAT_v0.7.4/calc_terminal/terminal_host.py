@@ -199,3 +199,153 @@ def clipboard_payload_override(delivered):
     if clip and len(clip) > len(delivered) and clip.startswith(delivered):
         return clip, "clipboard (terminal payload truncated)"
     return delivered, "terminal"
+
+
+# -----------------------------------------------------------------------------
+# Terminal Sanitation & Mouse/Focus Tracking Teardown
+# -----------------------------------------------------------------------------
+
+TERMINAL_RESET_SEQUENCES = (
+    "\x1b[?1000l"  # Disable VT200 mouse reporting
+    "\x1b[?1002l"  # Disable button-event mouse tracking
+    "\x1b[?1003l"  # Disable any-event / all-event mouse tracking
+    "\x1b[?1004l"  # Disable FocusIn / FocusOut reporting ([I / [O)
+    "\x1b[?1006l"  # Disable SGR extended mouse mode (<...M / <...m)
+    "\x1b[?1015l"  # Disable urxvt extended mouse mode
+    "\x1b[?2004l"  # Disable bracketed paste mode
+    "\x1b[<u"      # Disable Kitty keyboard protocol
+    "\x1b[?1049l"  # Switch from alternate screen back to normal buffer
+    "\x1b[?25h"    # Ensure cursor is visible
+    "\x1b[0m"      # Reset all text attributes and colors
+)
+
+_terminal_guard_installed = False
+
+
+def sanitize_terminal() -> None:
+    """Immediately and unconditionally reset the terminal to a clean state:
+    - Turns off all mouse tracking modes (1000, 1002, 1003, 1006, 1015)
+    - Turns off focus reporting (1004, which causes [I and [O to leak into shell)
+    - Turns off bracketed paste mode (2004)
+    - Turns off Kitty keyboard protocol
+    - Restores normal screen buffer from alternate screen (1049)
+    - Ensures cursor is visible (25h)
+    - Resets text styling and colors (0m)
+    - On Windows: disables ENABLE_VIRTUAL_TERMINAL_INPUT and flushes the console input buffer
+      so lingering mouse packets don't bleed into PowerShell / cmd prompts.
+    """
+    # 1. Output via standard Python streams
+    for stream in (getattr(sys, "__stdout__", None), getattr(sys, "stdout", None),
+                   getattr(sys, "__stderr__", None), getattr(sys, "stderr", None)):
+        if stream is not None:
+            try:
+                stream.write(TERMINAL_RESET_SEQUENCES)
+                stream.flush()
+            except Exception:
+                pass
+
+    # 2. On Windows: Direct Win32 CONOUT$ and CONIN$ manipulation
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            kernel32 = ctypes.windll.kernel32
+
+            # Direct CONOUT$ write with VT processing enabled
+            conout = "CONOUT" + chr(36)
+            h_out = kernel32.CreateFileW(
+                conout, 0x40000000 | 0x80000000, 0x00000001 | 0x00000002, None, 3, 0, None
+            )
+            if h_out != -1 and h_out != 0:
+                try:
+                    mode = ctypes.c_ulong()
+                    if kernel32.GetConsoleMode(h_out, ctypes.byref(mode)):
+                        kernel32.SetConsoleMode(h_out, mode.value | 0x0004)  # ENABLE_VIRTUAL_TERMINAL_PROCESSING
+                    written = ctypes.c_ulong()
+                    raw_bytes = TERMINAL_RESET_SEQUENCES.encode("utf-8")
+                    kernel32.WriteFile(h_out, raw_bytes, len(raw_bytes), ctypes.byref(written), None)
+                finally:
+                    kernel32.CloseHandle(h_out)
+
+            # CONIN$ mode restoration and input buffer flush
+            conin = "CONIN" + chr(36)
+            h_in = kernel32.CreateFileW(
+                conin, 0x40000000 | 0x80000000, 0x00000001 | 0x00000002, None, 3, 0, None
+            )
+            if h_in != -1 and h_in != 0:
+                try:
+                    in_mode = ctypes.c_ulong()
+                    if kernel32.GetConsoleMode(h_in, ctypes.byref(in_mode)):
+                        # Clear ENABLE_VIRTUAL_TERMINAL_INPUT (0x0200) and ENABLE_MOUSE_INPUT (0x0010)
+                        # Set standard line/echo/processed flags: 0x0001 | 0x0002 | 0x0004 | 0x0080
+                        clean_mode = (in_mode.value & ~0x0210) | 0x0087
+                        kernel32.SetConsoleMode(h_in, clean_mode)
+                    # Discard any mouse or focus sequences already sitting in the input queue
+                    kernel32.FlushConsoleInputBuffer(h_in)
+                finally:
+                    kernel32.CloseHandle(h_in)
+
+            # Also attempt on standard input handle
+            std_in = kernel32.GetStdHandle(-10)  # STD_INPUT_HANDLE
+            if std_in != -1 and std_in != 0:
+                try:
+                    in_mode = ctypes.c_ulong()
+                    if kernel32.GetConsoleMode(std_in, ctypes.byref(in_mode)):
+                        clean_mode = (in_mode.value & ~0x0210) | 0x0087
+                        kernel32.SetConsoleMode(std_in, clean_mode)
+                    kernel32.FlushConsoleInputBuffer(std_in)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+
+def install_terminal_guard() -> None:
+    """Install global exit and signal guards ensuring the terminal is always sanitized
+    even on unexpected exit, crash, Ctrl+C, or kill signal."""
+    global _terminal_guard_installed
+    if _terminal_guard_installed:
+        return
+    _terminal_guard_installed = True
+
+    import atexit
+    import signal
+
+    atexit.register(sanitize_terminal)
+
+    def _sig_handler(signum, frame):
+        sanitize_terminal()
+        if signum == getattr(signal, "SIGINT", None):
+            raise KeyboardInterrupt()
+        sys.exit(128 + signum)
+
+    try:
+        if hasattr(signal, "SIGINT"):
+            signal.signal(signal.SIGINT, _sig_handler)
+    except (ValueError, OSError):
+        pass
+
+    try:
+        if hasattr(signal, "SIGTERM"):
+            signal.signal(signal.SIGTERM, _sig_handler)
+    except (ValueError, OSError):
+        pass
+
+    try:
+        if hasattr(signal, "SIGBREAK"):
+            signal.signal(signal.SIGBREAK, _sig_handler)
+    except (ValueError, OSError, AttributeError):
+        pass
+
+    # Exception hook to sanitize terminal before unhandled exception traceback is written
+    orig_excepthook = getattr(sys, "excepthook", None)
+
+    def _sanitizing_excepthook(exc_type, exc_value, exc_tb):
+        try:
+            sanitize_terminal()
+        except Exception:
+            pass
+        if orig_excepthook and orig_excepthook is not _sanitizing_excepthook:
+            orig_excepthook(exc_type, exc_value, exc_tb)
+
+    sys.excepthook = _sanitizing_excepthook
+

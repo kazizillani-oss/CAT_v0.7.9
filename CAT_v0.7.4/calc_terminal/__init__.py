@@ -10,6 +10,12 @@ if sys.platform == "win32":
     except Exception:
         pass
 
+try:
+    from .terminal_host import install_terminal_guard
+    install_terminal_guard()
+except Exception:
+    pass
+
 __version__ = "0.8.b"
 
 
