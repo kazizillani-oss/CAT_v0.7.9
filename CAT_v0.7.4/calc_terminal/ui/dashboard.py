@@ -50,71 +50,37 @@ try:
     from textual.containers import Vertical, Horizontal, Center
     from textual.widgets import Static, Button
     from . import theme_css
+    from .design_system import (
+        RESPONSIVE_LOGOS,
+        select_logo,
+        wordmark_markup,
+        breakpoint_for,
+        CATResponsiveBreakpoints,
+        BP_LARGE,
+        BP_NORMAL,
+        BP_MEDIUM,
+        BP_SMALL,
+        BP_VERY_SMALL,
+        CATBorders,
+        CATSpacing,
+    )
 except Exception:
     TEXTUAL_AVAILABLE = False
 
 
-# ─── 5 RESPONSIVE LAYOUT VARIANTS OF THE CAT WORDMARK LOGO ───────────────────
-# 5 distinct layout tiers engineered to adapt smoothly to any terminal geometry:
-# Tier 1 (Wide & Tall / Desktop Full): 6-row 3D Block Wordmark
-# Tier 2 (Standard / Mid-Wide): 4-row Retro BBS Slanted Wordmark
-# Tier 3 (Medium / Split-Pane): 3-row Cat Face & Block Wordmark Combo
-# Tier 4 (Narrow): 3-row Compact Bevel Wordmark
-# Tier 5 (Micro / Short): 2-row Nano Cat Face & Wordmark Banner
-
-_TIER1_ART = [
-    " ██████╗  █████╗ ████████╗",
-    "██╔════╝ ██╔══██╗╚══██╔══╝",
-    "██║      ███████║   ██║   ",
-    "██║      ██╔══██║   ██║   ",
-    "╚██████╗ ██║  ██║   ██║   ",
-    " ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ",
-]
-
-_TIER2_ART = [
-    "   ____    ___   ______",
-    "  / __/   / _ | /_  __/",
-    " / /__   / __ |  / /   ",
-    " \\___/  /_/ |_| /_/    ",
-]
-
-_TIER3_ART = [
-    "  /\\_/\\   █████  █████  ██████",
-    " ( o.o )  ██     ██▄▄█    ██  ",
-    "  > ^ <   █████  ██  █    ██  ",
-]
-
-_TIER4_ART = [
-    "█▀▀▀ █▀▀█ ▀█▀",
-    "█    █▄▄█  █ ",
-    "▀▀▀▀ ▀  ▀  ▀ ",
-]
-
-_TIER5_ART = [
-    "/\\_/\\ (o.o)  [CAT]",
-    " > ^ <  CAT Intelligence",
-]
-
+# ─── 45 RESPONSIVE LAYOUT VARIANTS OF THE CAT WORDMARK LOGO ───────────────────
 RESPONSIVE_LOGO_TIERS = [
-    {"id": "tier1", "name": "3D Block (Desktop)", "rows": 6, "art": _TIER1_ART},
-    {"id": "tier2", "name": "Retro BBS (Standard)", "rows": 4, "art": _TIER2_ART},
-    {"id": "tier3", "name": "Cat Combo (Medium)", "rows": 3, "art": _TIER3_ART},
-    {"id": "tier4", "name": "Compact Bevel (Narrow)", "rows": 3, "art": _TIER4_ART},
-    {"id": "tier5", "name": "Nano Banner (Micro)", "rows": 2, "art": _TIER5_ART},
+    {"id": f"tier{i+1}", "name": meta["name"], "rows": meta["rows"], "art": meta["lines"], "key": key}
+    for i, (key, meta) in enumerate(RESPONSIVE_LOGOS.items())
 ]
-
 
 
 if TEXTUAL_AVAILABLE:
 
     class _QuickAction(Button):
-        """v0.7.9.6: Quick-action button on the dashboard — picks up the
-        full 3D-skeuomorphic system (tall bevel borders, real lift on
-        hover, real press on activation) so it reads as a hardware key
-        rather than a flat label."""
+        """Clean, sleek horizontal quick-action button matching the favorite terminal UI."""
         def __init__(self, label, action_id):
-            super().__init__(label, id=action_id,
-                             classes="cct-dash-action cct-btn-3d-skeu")
+            super().__init__(label, id=action_id, classes="cct-dash-action")
 
     class WelcomeDashboard(Vertical):
         """spec v0.7 Welcome Dashboard — v0.7.9.0: THE PRIMARY STARTUP
@@ -139,55 +105,44 @@ if TEXTUAL_AVAILABLE:
             self._manual_override_tier = None
 
         def _get_viewport_size(self):
-            w = None
-            h = None
-            last_rw = getattr(self, "_last_resize_w", None)
-            if last_rw and last_rw[0] and last_rw[1]:
-                w, h = last_rw
-            if not w or not h:
-                size = getattr(self, "size", None)
-                w = w or (size.width if size else 0)
-                p = getattr(self, "parent", None)
-                p_h = getattr(getattr(p, "size", None), "height", 0) or getattr(getattr(p, "region", None), "height", 0) or 0
-                p_w = getattr(getattr(p, "size", None), "width", 0) or getattr(getattr(p, "region", None), "width", 0) or 0
-                if p_h > 0:
-                    h = p_h
-                else:
-                    h = h or (size.height if size else 0)
-                if p_w > 0:
-                    w = w or p_w
+            p = getattr(self, "parent", None)
+            w = 0
+            h = 0
+            if p is not None:
+                p_reg = getattr(p, "region", None)
+                p_sz = getattr(p, "size", None)
+                h = (p_reg.height if p_reg and p_reg.height > 0 else 0) or (p_sz.height if p_sz and p_sz.height > 0 else 0)
+                w = (p_reg.width if p_reg and p_reg.width > 0 else 0) or (p_sz.width if p_sz and p_sz.width > 0 else 0)
+                try:
+                    chat_col = p.parent
+                    if chat_col is not None and getattr(chat_col, "region", None) and chat_col.region.height > 0:
+                        comp = chat_col.query_one("#cct-composer")
+                        comp_h = getattr(comp, "_explicit_height", None) or (comp.region.height if getattr(comp, "region", None) and comp.region.height > 0 else 5)
+                        avail_h = max(10, chat_col.region.height - comp_h - 2)
+                        h = min(h, avail_h) if h > 0 else avail_h
+                        if getattr(chat_col, "region", None) and chat_col.region.width > 0:
+                            w = min(w, chat_col.region.width) if w > 0 else chat_col.region.width
+                except Exception:
+                    pass
+
             if not w or not h:
                 if hasattr(self, "app") and self.app and getattr(self.app, "size", None):
                     w = w or self.app.size.width
-                    h = h or max(1, self.app.size.height - 7)
-            return (w or 80, h or 24)
+                    h = h or max(1, self.app.size.height - 8)
+
+            return (max(20, int(w or 80)), max(10, int(h or 24)))
 
         # ----------------------------------------------------- artwork --
         def _art_lines(self):
-            """Pick one of the 5 responsive layout variants of the CAT wordmark logo
+            """Pick one of the 15 responsive layout variants of the CAT wordmark logo
             that perfectly matches the live viewport width and height. Never overflows."""
             if self._manual_override_tier is not None:
                 idx = max(0, min(len(RESPONSIVE_LOGO_TIERS) - 1, self._manual_override_tier))
                 return list(RESPONSIVE_LOGO_TIERS[idx]["art"])
 
             w, h = self._get_viewport_size()
-
-            # Dynamic 5-Tier Responsive Layout Ladder:
-            # Tier 1: Wide & Tall (Desktop: w >= 80, h >= 24) -> 6-row 3D Block Wordmark
-            # Tier 2: Standard (Mid-Wide: w >= 64, h >= 20)  -> 4-row Retro BBS Slanted
-            # Tier 3: Medium (Split-Pane: w >= 46, h >= 15)  -> 3-row Cat Face & Block Combo
-            # Tier 4: Narrow (w >= 28, h >= 11)              -> 3-row Compact Bevel
-            # Tier 5: Micro / Short (w < 28 or h < 11)       -> 2-row Nano Cat Face & Banner
-            if w >= 80 and (h is None or h >= 24):
-                return list(_TIER1_ART)
-            elif w >= 64 and (h is None or h >= 20):
-                return list(_TIER2_ART)
-            elif w >= 46 and (h is None or h >= 15):
-                return list(_TIER3_ART)
-            elif w >= 28 and (h is None or h >= 11):
-                return list(_TIER4_ART)
-            else:
-                return list(_TIER5_ART)
+            _key, lines = select_logo(w, h)
+            return lines
 
         def _art_markup(self):
             """Large CAT word art with a restrained top-to-bottom mode-
@@ -195,24 +150,12 @@ if TEXTUAL_AVAILABLE:
             readable on white). Rendered as plain styled text inside a
             Static — no input widget underneath, so it can never inherit
             a selection/highlight background."""
-            try:
-                from .empty_state import _lerp_hex, _darken
-                from .. import theme as _theme
-                g_start, g_end = theme_css.gradient_hex()
-                if _theme.is_light():
-                    g_start = _darken(g_start, 0.25)
-                    g_end = _darken(g_end, 0.25)
-                art = self._art_lines()
-                if not art:
-                    return f"[b]{g_start}CAT[/]"
-                n = max(1, len(art) - 1)
-                lines = []
-                for i, line in enumerate(art):
-                    color = _lerp_hex(g_start, g_end, i / n)
-                    lines.append(f"[{color} b]{line}[/]")
-                return "\n".join(lines)
-            except Exception:
-                return "[b]CAT[/]"
+            w, h = self._get_viewport_size()
+            override_key = None
+            if self._manual_override_tier is not None:
+                idx = max(0, min(len(RESPONSIVE_LOGO_TIERS) - 1, self._manual_override_tier))
+                override_key = RESPONSIVE_LOGO_TIERS[idx].get("key")
+            return wordmark_markup(w, h, variant_override=override_key)
 
         def set_logo_variant(self, idx):
             """Manually override responsive tier (0-4), or pass None to return to auto."""
@@ -300,7 +243,7 @@ if TEXTUAL_AVAILABLE:
                 with Horizontal(id="cct-dash-actions"):
                     yield _QuickAction("\U0001f4c1 Open", "dash-open-folder")
                     yield _QuickAction("\U0001f4dd New Chat", "dash-new-chat")
-                    yield _QuickAction("\u2699 Settings", "dash-settings")
+                    yield _QuickAction("\u2699  Settings", "dash-settings")
                     yield _QuickAction("\U0001f4d6 Docs", "dash-docs")
 
             # --- Centered 3-Column Responsive Dashboard Cards ----------
@@ -324,17 +267,15 @@ if TEXTUAL_AVAILABLE:
                         solved_count = self._notebook_count or 0
                         if hasattr(self, "app") and hasattr(self.app, "_history"):
                             solved_count = max(solved_count, len(self.app._history))
-                        yield Static(f"  \u26a1 [b]{solved_count}[/b] solved this session", classes="cct-dash-row")
                         try:
                             summary = cct_workspace.summary()
                         except Exception:
                             summary = []
                         if summary:
-                            for cat, count, newest, when in summary[:2]:
-                                yield Static(f"  \U0001f4c4 {cat}: {count} ({newest})",
-                                             classes="cct-dash-row")
+                            first_cat, first_count, _newest, _when = summary[0]
+                            yield Static(f"  \u26a1 [b]{solved_count}[/b] solved  \u00b7  \U0001f4c4 {first_cat}: {first_count}", classes="cct-dash-row")
                         else:
-                            yield Static(f"  [{faint}]No generated exports yet.[/]", classes="cct-dash-row")
+                            yield Static(f"  \u26a1 [b]{solved_count}[/b] solved  \u00b7  [{faint}]No exports yet[/]", classes="cct-dash-row")
 
                         # Working Quick-Solve Notebook Launchers (compact 2-row chips)
                         yield Static("  [b]Quick Solve & Derive:[/b]", classes="cct-dash-nb-subtitle")
@@ -479,86 +420,84 @@ if TEXTUAL_AVAILABLE:
             elif bid == "dash-solve-gibbs":
                 self.post_message(MessageSubmitted("derive gibbs free energy equation step by step"))
 
+        def fit_to_viewport(self):
+            """Immediately re-evaluates live viewport height/width and adapts layout,
+            ensuring zero overflow, zero card clipping, and smooth logo scaling."""
+            self._last_resize_w = None  # Clear cache to force fresh re-evaluation
+            self.on_resize(event=None)
+
         def on_resize(self, event=None):
             """Terminal / pane resized: re-pick art + make actions and cards responsive
             (Horizontal → Vertical stack when chat gets narrow or short).
             """
             if not self.is_attached:
                 return
-            size = getattr(event, "size", None) if event else None
-            if size is not None:
-                w = size.width
-                h = size.height
-            else:
-                w = h = None
-            p = getattr(self, "parent", None)
-            if p is not None:
-                p_h = getattr(getattr(p, "size", None), "height", 0) or getattr(getattr(p, "region", None), "height", 0) or 0
-                p_w = getattr(getattr(p, "size", None), "width", 0) or getattr(getattr(p, "region", None), "width", 0) or 0
-                if p_h > 0:
-                    h = p_h
-                if p_w > 0:
-                    w = w or p_w
-            if not w:
-                try:
-                    w = self.size.width or 0
-                except Exception:
-                    w = 0
-            if not h:
-                try:
-                    h = self.size.height or 0
-                except Exception:
-                    h = 0
-            if (not w or not h) and hasattr(self, "app") and self.app and getattr(self.app, "size", None):
-                w = w or self.app.size.width
-                h = h or max(1, self.app.size.height - 7)
-            if not w:
-                return
 
+            w, h = self._get_viewport_size()
             key = (w, h)
-            if key == getattr(self, "_last_resize_w", None):
+            if key == getattr(self, "_last_resize_w", None) and event is not None:
                 return
             self._last_resize_w = key
 
+            bp = breakpoint_for(w, h)
+
+            # 1. Update logo dynamically & deterministically across all 45 variants
             try:
-                self.query_one("#cct-empty-art", Static).update(
-                    self._art_markup())
+                self.query_one("#cct-empty-art", Static).update(self._art_markup())
             except Exception:
                 pass
 
+            # 2. Adjust vertical breathing room based on available height
             try:
-                # On compact vertical layouts, hide tagline & suggestion lines
-                # so quick actions and cards never get pushed off screen or cut off
-                compact_vert = (h is not None and h < 24)
-                for line_id in ("#cct-empty-tagline", "#cct-empty-suggest"):
-                    try:
-                        self.query_one(line_id).display = not compact_vert
-                    except Exception:
-                        pass
+                # Progressive height compression ensures cards never get cut off
+                self.query_one("#cct-empty-suggest", Static).display = (h >= 32)
+                self.query_one("#cct-empty-tagline", Static).display = (h >= 26)
+                self.query_one("#cct-dash-ai-status", Static).display = (h >= 22)
+                self.query_one("#cct-empty-version", Static).display = (h >= 18)
             except Exception:
                 pass
 
+            # 3. Responsive Button System
             try:
-                # Responsive stacking: only stack when horizontal width cannot fit items side-by-side!
-                # 4 buttons need ~70 cols:
-                actions_stack = (w < 70)
-                # 3 columns need ~78 cols:
-                columns_stack = (w < 78)
                 actions = self.query_one("#cct-dash-actions")
-                columns = self.query_one("#cct-dash-columns")
-                if actions_stack:
-                    if not actions.has_class("stacked"):
-                        actions.add_class("stacked")
-                else:
+                btn_open = self.query_one("#dash-open-folder", Button)
+                btn_chat = self.query_one("#dash-new-chat", Button)
+                btn_settings = self.query_one("#dash-settings", Button)
+                btn_docs = self.query_one("#dash-docs", Button)
+
+                if bp in (BP_LARGE, BP_NORMAL):
+                    btn_open.label = "\U0001f4c1 Open"
+                    btn_chat.label = "\U0001f4dd New Chat"
+                    btn_settings.label = "\u2699 Settings"
+                    btn_docs.label = "\U0001f4d6 Docs"
                     if actions.has_class("stacked"):
                         actions.remove_class("stacked")
+                elif bp == BP_MEDIUM:
+                    btn_open.label = "Open"
+                    btn_chat.label = "Chat"
+                    btn_settings.label = "Settings"
+                    btn_docs.label = "Docs"
+                    if actions.has_class("stacked"):
+                        actions.remove_class("stacked")
+                else:  # BP_SMALL or BP_VERY_SMALL
+                    btn_open.label = "Open"
+                    btn_chat.label = "Chat"
+                    btn_settings.label = "Settings"
+                    btn_docs.label = "Docs"
+                    if not actions.has_class("stacked"):
+                        actions.add_class("stacked")
+            except Exception:
+                pass
 
-                if columns_stack:
-                    if not columns.has_class("stacked"):
-                        columns.add_class("stacked")
-                else:
+            # 4. Responsive Card System: 3 columns -> 2+1 columns -> 1 column stack
+            try:
+                columns = self.query_one("#cct-dash-columns")
+                if bp in (BP_LARGE, BP_NORMAL):
                     if columns.has_class("stacked"):
                         columns.remove_class("stacked")
+                else:  # BP_MEDIUM, BP_SMALL, BP_VERY_SMALL
+                    if not columns.has_class("stacked"):
+                        columns.add_class("stacked")
             except Exception:
                 pass
 

@@ -249,6 +249,14 @@ class CommandRegistry:
         canonical = self._by_alias.get(name_or_alias)
         return self._by_name.get(canonical) if canonical else None
 
+    def __contains__(self, name_or_alias):
+        if not isinstance(name_or_alias, str):
+            return False
+        return self.get(name_or_alias) is not None or self.get("/" + name_or_alias.lstrip("/")) is not None
+
+    def __iter__(self):
+        return iter(self._by_name)
+
     def all(self):
         return list(self._by_name.values())
 

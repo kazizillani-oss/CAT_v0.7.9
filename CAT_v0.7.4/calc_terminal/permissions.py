@@ -179,8 +179,9 @@ class PermissionManager:
     def mode_label(self):
         return MODE_LABELS[self.mode]
 
-    def plain_mode_label(self):
-        return PLAIN_MODE_LABELS.get(self.mode, self.mode.title())
+    def plain_mode_label(self, mode=None):
+        target = mode if mode is not None else self.mode
+        return PLAIN_MODE_LABELS.get(target, target.title())
 
     def needs_prompt(self, key):
         """True if this action should show an inline permission card

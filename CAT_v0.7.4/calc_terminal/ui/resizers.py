@@ -218,6 +218,18 @@ if TEXTUAL_AVAILABLE:
             except Exception:
                 pass
             save_layout(composer_height=None)
+            try:
+                self._shell._do_resize_layout()
+            except Exception:
+                pass
+            try:
+                conv = self._shell.query_one("#cct-conversation")
+                if conv and getattr(conv, "_dashboard", None):
+                    conv._dashboard.fit_to_viewport()
+                    if hasattr(self, "call_after_refresh"):
+                        self.call_after_refresh(conv._dashboard.fit_to_viewport)
+            except Exception:
+                pass
 
         def on_click(self, event):
             import time
@@ -292,7 +304,9 @@ if TEXTUAL_AVAILABLE:
             try:
                 conv = self._shell.query_one("#cct-conversation")
                 if conv and getattr(conv, "_dashboard", None):
-                    conv._dashboard.on_resize(event=None)
+                    conv._dashboard.fit_to_viewport()
+                    if hasattr(self, "call_after_refresh"):
+                        self.call_after_refresh(conv._dashboard.fit_to_viewport)
             except Exception:
                 pass
 

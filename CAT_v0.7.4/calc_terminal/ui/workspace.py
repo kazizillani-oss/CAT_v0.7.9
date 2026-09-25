@@ -422,17 +422,22 @@ if TEXTUAL_AVAILABLE:
             tiny = False
             try:
                 from . import design_system
-                bp = design_system.breakpoint_for(
+                five_bp = design_system.CATResponsiveBreakpoints.classify(
                     self.size.width, self.size.height)
-                for _cls in ("cat-bp-large", "cat-bp-medium",
-                             "cat-bp-small", "cat-bp-tiny"):
-                    self.set_class(bp == _cls[7:], _cls)
+                legacy_bp = design_system.breakpoint_for(
+                    self.size.width, self.size.height)
+                for _tier in (design_system.BP_LARGE, design_system.BP_NORMAL,
+                             design_system.BP_MEDIUM, design_system.BP_SMALL,
+                             design_system.BP_VERY_SMALL):
+                    self.set_class(five_bp == _tier or legacy_bp == _tier, f"cat-bp-{_tier}")
+                # Keep backward compat for any legacy .cat-bp-tiny selectors
+                self.set_class(legacy_bp in (design_system.BP_TINY, "tiny") or five_bp == design_system.BP_VERY_SMALL, "cat-bp-tiny")
                 try:
                     short = (self.size.height or 24) <= 20
                 except Exception:
                     short = False
                 self.set_class(short, "cat-short")
-                tiny = (bp == "tiny")
+                tiny = (legacy_bp in (design_system.BP_TINY, "tiny") or five_bp == design_system.BP_VERY_SMALL)
             except Exception:
                 pass
 

@@ -479,11 +479,7 @@ LiveActivitiesBlock.collapsed #live-header, .live-activities-block.collapsed #li
 
 #cct-composer {
     background: $surface;
-    border: heavy;
-    border-top: heavy $surface-highlight;
-    border-left: heavy $surface-highlight;
-    border-bottom: heavy $surface-shadow;
-    border-right: heavy $surface-shadow;
+    border: solid $border;
     padding: 0 1;
     margin: 0 1 1 1;
     height: auto;
@@ -494,11 +490,7 @@ LiveActivitiesBlock.collapsed #live-header, .live-activities-block.collapsed #li
     transition: border 120ms;
 }
 #cct-composer:focus-within {
-    border: heavy;
-    border-top: heavy $accent-highlight;
-    border-left: heavy $accent-highlight;
-    border-bottom: heavy $accent-shadow;
-    border-right: heavy $accent-shadow;
+    border: solid $accent;
 }
 #cct-composer,
 #cct-composer:focus-within,
@@ -1658,50 +1650,65 @@ Button.cct-dash-action:ansi.-style-flat,
 Screen Button.cct-dash-action {
     width: 18;
     min-width: 14;
-    max-width: 22;
+    max-width: 24;
     height: 3;
     min-height: 3;
     max-height: 3;
-    padding: 0;
+    padding: 0 1;
     margin: 0 1;
     background: $surface-alt;
-    color: #ffffff;
+    color: $text;
     text-style: bold;
     content-align: center middle;
     border: tall;
-    border-top: tall #ffffff;
-    border-left: tall #ffffff;
-    border-bottom: tall $accent-shadow;
-    border-right: tall $accent-shadow;
-    transition: background 80ms, color 80ms, border 80ms, offset 80ms;
+    border-top: tall $surface-highlight;
+    border-left: tall $surface-highlight;
+    border-bottom: tall $surface-dark;
+    border-right: tall $surface-dark;
+    tint: $surface-highlight 6%;
+    transition: background 90ms, border 90ms, offset 70ms, tint 90ms;
 }
 .cct-dash-action:hover, Button.cct-dash-action:hover,
-.cct-dash-action:focus, Button.cct-dash-action:focus,
-Screen Button.cct-dash-action:hover, Screen Button.cct-dash-action:focus {
-    background: $accent 35%;
+Screen Button.cct-dash-action:hover {
+    background: $accent 28%;
     color: #ffffff;
+    text-style: bold;
     border: tall;
     border-top: tall #ffffff;
-    border-left: tall #ffffff;
-    border-bottom: tall $accent-highlight;
-    border-right: tall $accent-highlight;
+    border-left: tall $accent-highlight;
+    border-bottom: tall $accent;
+    border-right: tall $accent;
+    tint: $accent 12%;
+}
+.cct-dash-action:focus, Button.cct-dash-action:focus,
+Screen Button.cct-dash-action:focus {
+    background: $accent 20%;
+    color: #ffffff;
     text-style: bold;
-    offset-y: 0;
+    background-tint: transparent;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall $accent-highlight;
+    border-bottom: tall $accent;
+    border-right: tall $accent;
+    tint: $accent 8%;
 }
 .cct-dash-action.-active, Button.cct-dash-action.-active,
 Screen Button.cct-dash-action.-active {
-    offset-y: 1;
-    background: $accent 50%;
+    background: $accent 40%;
     color: #ffffff;
+    text-style: bold;
     border: tall;
-    border-top: tall $accent-shadow;
-    border-left: tall $accent-shadow;
-    border-bottom: tall #ffffff;
-    border-right: tall #ffffff;
+    border-top: tall $surface-shadow;
+    border-left: tall $surface-shadow;
+    border-bottom: tall $surface-highlight;
+    border-right: tall $surface-highlight;
+    offset-y: 1;
+    tint: $app-background 20%;
 }
 #cct-dash-columns {
     height: auto;
-    width: 108;
+    width: auto;
     max-width: 100%;
     padding-top: 1;
     layout: horizontal;
@@ -1720,14 +1727,32 @@ Screen Button.cct-dash-action.-active {
 #cct-dash-columns.stacked .cct-dash-col { width: 100%; margin: 1 0; }
 .cct-dash-col {
     width: 1fr;
-    min-width: 24;
+    min-width: 28;
     height: auto;
+    background: $surface;
+    border: tall;
+    border-top: tall $surface-highlight;
+    border-left: tall $surface-highlight;
+    border-bottom: tall $surface-shadow;
+    border-right: tall $surface-shadow;
+    tint: $surface-highlight 3%;
+    padding: 0 1;
+    margin: 0 1;
+    transition: border 100ms, tint 100ms;
+}
+.cct-dash-col:hover, .cct-dash-col:focus-within {
+    border: tall;
+    border-top: tall $accent-highlight;
+    border-left: tall $accent-highlight;
+    border-bottom: tall $accent-shadow;
+    border-right: tall $accent-shadow;
+    tint: $accent 6%;
 }
 .cct-dash-col-title {
     color: $accent;
-    padding-bottom: 1;
+    padding-bottom: 0;
     margin-bottom: 1;
-    border-bottom: solid $surface-dark;
+    border-bottom: tall $surface-shadow;
     text-style: bold;
     content-align: center middle;
 }
@@ -1744,46 +1769,64 @@ Screen Button.cct-dash-action.-active {
 .cct-dash-nb-subtitle {
     color: $accent;
     text-style: bold;
-    margin-top: 1;
+    margin-top: 0;
+    margin-bottom: 0;
     padding: 0 1;
 }
 .cct-dash-nb-chips, .cct-dash-nb-actions {
     layout: horizontal;
     width: 100%;
-    height: 2;
-    min-height: 2;
-    max-height: 2;
-    margin: 0 0 1 0;
+    height: 3;
+    min-height: 3;
+    max-height: 3;
+    margin: 0 0 0 0;
     padding: 0;
     align: center middle;
 }
 .cct-nb-chip, Button.cct-nb-chip,
 .cct-nb-chip-btn, Button.cct-nb-chip-btn {
     width: 1fr;
-    height: 2;
-    min-height: 2;
-    max-height: 2;
+    min-width: 11;
+    height: 3;
+    min-height: 3;
+    max-height: 3;
     margin: 0 1;
-    padding: 0 1;
+    padding: 0;
     background: $surface-alt;
     color: $text;
-    border: none;
-    border-left: solid $accent;
+    border: tall;
+    border-top: tall $surface-highlight;
+    border-left: tall $surface-highlight;
+    border-bottom: tall $surface-dark;
+    border-right: tall $surface-dark;
     content-align: center middle;
     text-style: bold;
-    transition: background 80ms, color 80ms;
+    tint: $surface-highlight 4%;
+    transition: background 80ms, color 80ms, border 80ms, offset 70ms;
 }
 .cct-nb-chip:hover, Button.cct-nb-chip:hover,
 .cct-nb-chip:focus, Button.cct-nb-chip:focus,
 .cct-nb-chip-btn:hover, Button.cct-nb-chip-btn:hover,
 .cct-nb-chip-btn:focus, Button.cct-nb-chip-btn:focus {
-    background: $accent 35%;
+    background: $accent 28%;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall $accent-highlight;
+    border-bottom: tall $accent;
+    border-right: tall $accent;
     color: #ffffff;
+    tint: $accent 10%;
 }
 .cct-nb-chip.-active, Button.cct-nb-chip.-active,
 .cct-nb-chip-btn.-active, Button.cct-nb-chip-btn.-active {
-    background: $accent 55%;
+    background: $accent 45%;
+    border: tall;
+    border-top: tall $surface-shadow;
+    border-left: tall $surface-shadow;
+    border-bottom: tall $surface-highlight;
+    border-right: tall $surface-highlight;
     color: #ffffff;
+    offset-y: 1;
 }
 #cct-dash-stats-body { color: $text-muted; height: auto; }
 #cct-workspace { overflow: hidden; }
@@ -4097,14 +4140,20 @@ if TEXTUAL_AVAILABLE:
                 target = welcome if welcome is not None else dash
                 if target is not None and getattr(target, "is_attached", False):
                     try:
-                        target.on_resize(None)
+                        if hasattr(target, "fit_to_viewport"):
+                            target.fit_to_viewport()
+                        else:
+                            target.on_resize(None)
                     except Exception:
                         pass
                 # Only a *distinct* dashboard needs a second pass.
                 if (dash is not None and dash is not target
                         and getattr(dash, "is_attached", False)):
                     try:
-                        dash.on_resize(None)
+                        if hasattr(dash, "fit_to_viewport"):
+                            dash.fit_to_viewport()
+                        else:
+                            dash.on_resize(None)
                     except Exception:
                         pass
             except Exception:
@@ -6708,6 +6757,30 @@ if TEXTUAL_AVAILABLE:
                             )
                         except Exception:
                             pass
+                    try:
+                        from .. import permissions as _perm
+                        _curr_perm_mode = getattr(_perm.manager, "mode", "ask")
+                        if _curr_perm_mode == "restricted":
+                            system_prompt += (
+                                "\n\nCRITICAL ACCESS POLICY — RESTRICTED MODE ACTIVE:\n"
+                                "- You are operating in RESTRICTED access mode.\n"
+                                "- You are strictly an analyzer, advisor, and code reviewer. You MUST NOT execute shell commands, install packages, write or edit files, or make destructive system modifications.\n"
+                                "- You can inspect, read, explain, and propose code or solutions in your text response, but explain that execution/modification is blocked by Restricted mode.\n"
+                            )
+                        elif _curr_perm_mode == "ask":
+                            system_prompt += (
+                                "\n\nCRITICAL ACCESS POLICY — ASK EVERY TIME MODE ACTIVE:\n"
+                                "- You are operating in ASK EVERY TIME access mode.\n"
+                                "- You must ask the user and receive confirmation before executing commands, modifying files, installing packages, or performing state-changing operations.\n"
+                            )
+                        elif _curr_perm_mode == "full":
+                            system_prompt += (
+                                "\n\nCRITICAL ACCESS POLICY — FULL ACCESS MODE ACTIVE:\n"
+                                "- You are operating in FULL ACCESS mode.\n"
+                                "- You have full authority to work automatically within the workspace, autonomously writing, editing, and executing tasks to fulfill the user request efficiently.\n"
+                            )
+                    except Exception:
+                        pass
                     from .. import ai_personalization as _ap
                     try:
                         _pcfg = _ap.request_config()
@@ -7219,9 +7292,14 @@ if TEXTUAL_AVAILABLE:
                 return
 
             # Known classic terminal commands can suspend to terminal
-            from .. import registry as _cmd_reg
-            reg = _cmd_reg.get_registry()
-            if word in reg or word.lstrip("/") in reg:
+            try:
+                from .. import registry as _cmd_reg
+                reg = _cmd_reg.get_registry()
+                has_cmd = (word in reg) or (word.lstrip("/") in reg) or (reg.get(word) is not None) or (reg.get("/" + word.lstrip("/")) is not None)
+            except Exception:
+                has_cmd = False
+
+            if has_cmd:
                 self._run_in_suspended_terminal(raw)
             else:
                 self._system_note(f"Unknown command '{parts[0]}'. Type /help for a list of available commands.")

@@ -564,7 +564,7 @@ if TEXTUAL_AVAILABLE:
             from . import theme_css
             color = theme_css.current_hex(_MODE_TONE[self.mode])
             faint = theme_css.current_hex("text-faint")
-            plain_label = perm.manager.plain_mode_label()
+            plain_label = perm.manager.plain_mode_label(self.mode)
             icon = {"ask": "\U0001f512", "restricted": "\U0001f7e1", "full": "\u26a1"}.get(self.mode, "\u25cf")
             desc = _MODE_DESCRIPTIONS[self.mode]
             check = " \u2713" if self.mode == perm.manager.mode else ""
@@ -825,14 +825,19 @@ if TEXTUAL_AVAILABLE:
             except Exception:
                 pass
 
-        def refresh_label(self):
+        def refresh_label(self, compact=None):
             from . import theme_css
+            if compact is not None:
+                self._compact = compact
+            is_compact = getattr(self, "_compact", False)
             mode = perm.manager.mode
             color = theme_css.current_hex(_MODE_TONE[mode])
-            # v0.7.9.6: Status icon matching Screenshots 1-5 (🟡 Restricted / 🔒 Ask / ⚡ Full)
             icon = {"ask": "\U0001f512", "restricted": "\U0001f7e1", "full": "\u26a1"}.get(mode, "\u25cf")
-            plain_label = perm.manager.plain_mode_label()
-            self.update(f"{icon} [{color} b]{plain_label}[/]")
+            if is_compact:
+                self.update(f"{icon}")
+            else:
+                plain_label = perm.manager.plain_mode_label()
+                self.update(f"{icon} [{color} b]{plain_label}[/]")
             # tooltip for current mode
             try:
                 self.tooltip = _MODE_DESCRIPTIONS.get(mode, "")
@@ -1025,6 +1030,24 @@ if TEXTUAL_AVAILABLE:
                     w.tooltip = new_text
                 except Exception:
                     pass
+            except Exception:
+                pass
+
+        def on_resize(self, event=None):
+            """Responsive header collapse: prevent horizontal overflow at small widths."""
+            w = (event.size.width if event else None) or (self.size.width if self.size else 80)
+            compact = (w < 72)
+            very_compact = (w < 50)
+            try:
+                self.query_one(PermissionPill).refresh_label(compact=compact)
+            except Exception:
+                pass
+            try:
+                w_right = self.query_one("#cct-header-right", Static)
+                if very_compact:
+                    w_right.display = False
+                else:
+                    w_right.display = True
             except Exception:
                 pass
 

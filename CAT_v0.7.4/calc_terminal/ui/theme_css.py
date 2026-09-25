@@ -284,74 +284,44 @@ Screen { background: $app-background; }
 
 .cct-panel {
     background: $surface;
-    border: heavy;
-    border-top: heavy $surface-highlight;
-    border-left: heavy $surface-highlight;
-    border-bottom: heavy $surface-dark;
-    border-right: heavy $surface-dark;
-    tint: $surface-dark 6%;
+    border: solid $border;
     transition: background 80ms;
 }
 
 .cct-panel:focus-within {
-    border: heavy;
-    border-top: heavy #ffffff;
-    border-left: heavy #ffffff;
-    border-bottom: heavy $border-active;
-    border-right: heavy $border-active;
-    tint: $accent 4%;
+    border: solid $accent;
 }
 
 .cct-card-3d, .cct-panel-3d {
     background: $surface;
-    border: heavy;
-    border-top: heavy $surface-highlight;
-    border-left: heavy $surface-highlight;
-    border-bottom: heavy $surface-dark;
-    border-right: heavy $surface-dark;
-    tint: $surface-dark 5%;
+    border: solid $border;
     padding: 1 2;
 }
 
 .cct-panel-3d-raised {
     background: $surface;
-    border: heavy;
-    border-top: heavy #ffffff;
-    border-left: heavy #ffffff;
-    border-bottom: heavy $surface-dark;
-    border-right: heavy $surface-dark;
-    tint: $surface-highlight 6%;
+    border: solid $border;
     padding: 1 2;
 }
 
 .cct-card-3d-inset {
     background: $app-background;
-    border: heavy;
-    border-top: heavy $surface-shadow;
-    border-left: heavy $surface-shadow;
-    border-bottom: heavy $surface-highlight;
-    border-right: heavy $surface-highlight;
-    tint: $surface-dark 10%;
+    border: solid $border;
     padding: 1 2;
 }
 
 .cct-dashboard {
-    background: $surface;
-    border: heavy;
-    border-top: heavy $surface-highlight;
-    border-left: heavy $surface-highlight;
-    border-bottom: heavy $surface-dark;
-    border-right: heavy $surface-dark;
-    tint: $surface-dark 4%;
-    overflow-y: auto;
+    background: transparent;
+    border: none;
+    overflow-y: hidden;
+    overflow-x: hidden;
     height: auto;
     max-height: 100%;
 }
 
 .cct-dashboard-header {
     background: $surface-alt;
-    border-bottom: heavy $surface-dark;
-    tint: $surface-highlight 5%;
+    border-bottom: solid $border;
     padding: 1 2;
 }
 
@@ -529,61 +499,61 @@ Button.cct-dash-action:ansi.-style-default,
 Button.cct-dash-action:ansi.-style-flat,
 Screen Button.cct-dash-action {
     height: 3; min-height: 3; max-height: 3;
-    padding: 0;
-    min-width: 14; max-width: 26; width: 1fr;
+    padding: 0 1;
+    min-width: 14; max-width: 24; width: 1fr;
     margin: 0 1;
-    color: #ffffff;
+    color: $text;
     text-style: bold;
     content-align: center middle;
-    /* DOUBLE BEVEL: outer light, inner darker — physical "raised" keycap */
     background: $surface-alt;
     border: tall;
-    border-top: tall #38bdf8;
-    border-left: tall #38bdf8;
-    border-bottom: tall $accent-shadow;
-    border-right: tall $accent-shadow;
-    tint: $accent 10%;
-    transition: background 90ms, tint 140ms;
+    border-top: tall $surface-highlight;
+    border-left: tall $surface-highlight;
+    border-bottom: tall $surface-dark;
+    border-right: tall $surface-dark;
+    tint: $surface-highlight 6%;
+    transition: background 90ms, border 90ms, offset 70ms, tint 90ms;
 }
 
 Button.cct-dash-action:hover,
 Screen Button.cct-dash-action:hover {
-    background: $accent;
+    background: $accent 28%;
     color: #ffffff;
     text-style: bold;
     border: tall;
     border-top: tall #ffffff;
-    border-left: tall #ffffff;
-    border-bottom: tall $accent-highlight;
-    border-right: tall $accent-highlight;
-    tint: $accent 18%;
+    border-left: tall $accent-highlight;
+    border-bottom: tall $accent;
+    border-right: tall $accent;
+    tint: $accent 12%;
 }
 
 Button.cct-dash-action:focus,
 Screen Button.cct-dash-action:focus {
-    background: $accent 18%;
+    background: $accent 20%;
     color: #ffffff;
     text-style: bold;
     background-tint: transparent;
     border: tall;
     border-top: tall #ffffff;
-    border-left: tall #ffffff;
-    border-bottom: tall $accent-highlight;
-    border-right: tall $accent-highlight;
-    tint: $accent 12%;
+    border-left: tall $accent-highlight;
+    border-bottom: tall $accent;
+    border-right: tall $accent;
+    tint: $accent 8%;
 }
 
 Button.cct-dash-action.-active,
 Screen Button.cct-dash-action.-active {
-    background: $accent-shadow;
+    background: $accent 40%;
     color: #ffffff;
     text-style: bold;
     border: tall;
-    border-top: tall $accent-shadow;
-    border-left: tall $accent-shadow;
-    border-bottom: tall #ffffff;
-    border-right: tall #ffffff;
-    tint: $app-background 22%;
+    border-top: tall $surface-shadow;
+    border-left: tall $surface-shadow;
+    border-bottom: tall $surface-highlight;
+    border-right: tall $surface-highlight;
+    offset-y: 1;
+    tint: $app-background 20%;
 }
 
 Button.cct-dash-action:disabled,
@@ -592,30 +562,24 @@ Screen Button.cct-dash-action:disabled {
     text-style: not bold;
     background: $surface;
     color: $text-muted;
-    border: tall;
-    border-top: tall $surface-shadow;
-    border-left: tall $surface-shadow;
-    border-bottom: tall $surface-highlight;
-    border-right: tall $surface-highlight;
+    border: solid $border;
 }
 
-/* ---- v0.7.9.6: 3D SKEU DASHBOARD CARDS — the dashboard's three
-   columns render through this rule. Two-tone border = physical card
-   sitting on the dashboard surface. On hover a faint accent glow
-   appears so the user can tell where focus lives. */
+/* ---- DASHBOARD CARDS — elevated 3D skeuomorphic surfaces with tactile depth ---- */
 .cct-dash-card-3d,
-.cct-panel-3d-card {
+.cct-panel-3d-card,
+.cct-dash-col {
     background: $surface;
     color: $text;
-    padding: 1 2;
-    margin: 0 1 1 1;
+    padding: 0 1;
+    margin: 0 1;
     border: tall;
     border-top: tall $surface-highlight;
     border-left: tall $surface-highlight;
-    border-bottom: tall $surface-dark;
-    border-right: tall $surface-dark;
-    tint: $surface-highlight 5%;
-    transition: background 100ms, tint 120ms;
+    border-bottom: tall $surface-shadow;
+    border-right: tall $surface-shadow;
+    tint: $surface-highlight 3%;
+    transition: border 100ms, tint 100ms;
 }
 
 .cct-dash-card-3d:hover,
@@ -623,12 +587,76 @@ Screen Button.cct-dash-action:disabled {
 .cct-dash-card-3d:focus-within,
 .cct-panel-3d-card:focus-within {
     background: $surface;
-    tint: $accent 5%;
     border: tall;
     border-top: tall $accent-highlight;
     border-left: tall $accent-highlight;
     border-bottom: tall $accent-shadow;
     border-right: tall $accent-shadow;
+    tint: $accent 6%;
+}
+
+/* Quick-Solve notebook action chips — 3D tactile bevels with visible text */
+.cct-dash-nb-subtitle {
+    color: $accent;
+    text-style: bold;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding: 0 1;
+}
+.cct-dash-nb-chips, .cct-dash-nb-actions {
+    layout: horizontal;
+    width: 100%;
+    height: 3;
+    min-height: 3;
+    max-height: 3;
+    margin: 0 0 0 0;
+    padding: 0;
+    align: center middle;
+}
+.cct-nb-chip, Button.cct-nb-chip,
+.cct-nb-chip-btn, Button.cct-nb-chip-btn {
+    width: 1fr;
+    min-width: 11;
+    height: 3;
+    min-height: 3;
+    max-height: 3;
+    margin: 0 1;
+    padding: 0;
+    background: $surface-alt;
+    color: $text;
+    border: tall;
+    border-top: tall $surface-highlight;
+    border-left: tall $surface-highlight;
+    border-bottom: tall $surface-dark;
+    border-right: tall $surface-dark;
+    content-align: center middle;
+    text-style: bold;
+    tint: $surface-highlight 4%;
+    transition: background 80ms, color 80ms, border 80ms, offset 70ms;
+}
+.cct-nb-chip:hover, Button.cct-nb-chip:hover,
+.cct-nb-chip:focus, Button.cct-nb-chip:focus,
+.cct-nb-chip-btn:hover, Button.cct-nb-chip-btn:hover,
+.cct-nb-chip-btn:focus, Button.cct-nb-chip-btn:focus {
+    background: $accent 28%;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall $accent-highlight;
+    border-bottom: tall $accent;
+    border-right: tall $accent;
+    color: #ffffff;
+    tint: $accent 10%;
+}
+.cct-nb-chip.-active, Button.cct-nb-chip.-active,
+.cct-nb-chip-btn.-active, Button.cct-nb-chip-btn.-active {
+    background: $accent 45%;
+    border: tall;
+    border-top: tall $surface-shadow;
+    border-left: tall $surface-shadow;
+    border-bottom: tall $surface-highlight;
+    border-right: tall $surface-highlight;
+    color: #ffffff;
+    offset-y: 1;
 }
 
 /* v0.7.9.6: dashboard header bar (the title row above the columns) —
@@ -786,59 +814,57 @@ Button.cct-dash-action:ansi.-style-default,
 Button.cct-dash-action:ansi.-style-flat,
 Screen Button.cct-dash-action {
     height: 3; min-height: 3; max-height: 3;
-    padding: 0;
-    min-width: 14; max-width: 26; width: 1fr; margin: 0 1;
+    padding: 0 1;
+    min-width: 14; max-width: 24; width: 1fr; margin: 0 1;
     background: $surface-alt;
-    color: #ffffff;
+    color: $text;
     text-style: bold;
     content-align: center middle;
     border: tall;
-    border-top: tall #38bdf8;
-    border-left: tall #38bdf8;
-    border-bottom: tall $accent-shadow;
-    border-right: tall $accent-shadow;
-    tint: $accent 10%;
-    transition: background 90ms, offset 70ms, tint 140ms;
+    border-top: tall $surface-highlight;
+    border-left: tall $surface-highlight;
+    border-bottom: tall $surface-dark;
+    border-right: tall $surface-dark;
+    tint: $surface-highlight 6%;
+    transition: background 90ms, border 90ms, offset 70ms, tint 90ms;
 }
 Button.cct-dash-action:hover, .cct-dash-action:hover,
 Screen Button.cct-dash-action:hover {
-    background: $accent;
+    background: $accent 28%;
     color: #ffffff;
     border: tall;
     border-top: tall #ffffff;
-    border-left: tall #ffffff;
-    border-bottom: tall $accent-highlight;
-    border-right: tall $accent-highlight;
+    border-left: tall $accent-highlight;
+    border-bottom: tall $accent;
+    border-right: tall $accent;
     text-style: bold;
-    offset: 0 0;
-    tint: $accent 18%;
+    tint: $accent 12%;
 }
 Button.cct-dash-action:focus, .cct-dash-action:focus,
 Screen Button.cct-dash-action:focus {
     background-tint: transparent;
-    background: $accent 18%;
+    background: $accent 20%;
     color: #ffffff;
     border: tall;
     border-top: tall #ffffff;
-    border-left: tall #ffffff;
-    border-bottom: tall $accent-highlight;
-    border-right: tall $accent-highlight;
+    border-left: tall $accent-highlight;
+    border-bottom: tall $accent;
+    border-right: tall $accent;
     text-style: bold;
-    tint: $accent 12%;
-    offset: 0 0;
+    tint: $accent 8%;
 }
 Button.cct-dash-action.-active, .cct-dash-action.-active,
 Screen Button.cct-dash-action.-active {
-    offset: 0 0;
-    background: $accent-shadow;
+    background: $accent 40%;
     color: #ffffff;
     border: tall;
-    border-top: tall $accent-shadow;
-    border-left: tall $accent-shadow;
-    border-bottom: tall #ffffff;
-    border-right: tall #ffffff;
+    border-top: tall $surface-shadow;
+    border-left: tall $surface-shadow;
+    border-bottom: tall $surface-highlight;
+    border-right: tall $surface-highlight;
     text-style: bold;
-    tint: $app-background 22%;
+    offset-y: 1;
+    tint: $app-background 20%;
 }
 
 /* v0.7.9.6: also upgraded to the strong-tall 3D skeu metrics so any
@@ -1628,18 +1654,18 @@ Button#amf-close:hover {
 .cust-btn-size-large Button, .cust-btn-size-large Button:ansi.-style-default { height: 4; min-height: 4; min-width: 16; padding: 1 3; }
 .cust-btn-size-compact Button, .cust-btn-size-compact Button:ansi.-style-default { height: 1; min-height: 1; min-width: 8; padding: 0 1; border: none; }
 
-/* Preserve 3D Action & Dashboard Buttons from flat customization overrides */
+/* Preserve Action & Dashboard Buttons from flat customization overrides */
 Button.cct-dash-action, Button.cct-dash-action.-style-default,
 Screen Button.cct-dash-action, Screen.cust-btn-shape-rounded Button.cct-dash-action,
 Screen.cust-btn-shape-pill Button.cct-dash-action, Screen.cust-btn-shape-square Button.cct-dash-action,
 Screen.cust-btn-shape-ghost Button.cct-dash-action, Screen.cust-btn-shape-outlined Button.cct-dash-action,
 Screen.cust-btn-shape-filled Button.cct-dash-action, Screen.cust-btn-shape-minimal Button.cct-dash-action,
 Button#cct-open-folder-btn, Screen Button#cct-open-folder-btn {
-    border: heavy;
-    border-top: heavy #ffffff;
-    border-left: heavy #ffffff;
-    border-bottom: heavy $accent-shadow;
-    border-right: heavy $accent-shadow;
+    border: tall;
+    border-top: tall $surface-highlight;
+    border-left: tall $surface-highlight;
+    border-bottom: tall $surface-dark;
+    border-right: tall $surface-dark;
 }
 
 /* ====================================================================

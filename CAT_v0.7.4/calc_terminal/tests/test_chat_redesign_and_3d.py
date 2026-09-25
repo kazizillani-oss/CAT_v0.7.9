@@ -351,11 +351,11 @@ async def test_composer_3d_effect_no_shading():
         composer = app.query_one("#cct-composer")
         await pilot.pause(0.1)
 
-        # 1. Border styles must be heavy blocky 3D (or round fallback) top/left and bottom/right
-        assert composer.styles.border_top[0] in ("heavy", "round", "tall")
-        assert composer.styles.border_left[0] in ("heavy", "round", "tall")
-        assert composer.styles.border_bottom[0] in ("heavy", "round", "tall")
-        assert composer.styles.border_right[0] in ("heavy", "round", "tall")
+        # 1. Border styles must be solid, heavy, round, or tall
+        assert composer.styles.border_top[0] in ("heavy", "round", "tall", "solid")
+        assert composer.styles.border_left[0] in ("heavy", "round", "tall", "solid")
+        assert composer.styles.border_bottom[0] in ("heavy", "round", "tall", "solid")
+        assert composer.styles.border_right[0] in ("heavy", "round", "tall", "solid")
 
         # 2. Border colors must be vibrant visible colors, not black shadow shading
         top_color = composer.styles.border_top[1].hex
@@ -404,21 +404,21 @@ async def test_dashboard_and_sidebar_3d_bevel_buttons():
     async with app.run_test(size=(100, 30)) as pilot:
         await pilot.pause(0.1)
 
-        # 1. Dashboard quick action buttons must have 3D blocky heavy bevels with top highlight
+        # 1. Dashboard quick action buttons must have clean borders
         dash_btn = app.query_one(".cct-dash-action")
-        assert dash_btn.styles.border_top[0] in ("heavy", "round", "tall")
-        assert dash_btn.styles.border_left[0] in ("heavy", "round", "tall")
-        assert dash_btn.styles.border_bottom[0] in ("heavy", "round", "tall")
-        assert dash_btn.styles.border_right[0] in ("heavy", "round", "tall")
+        assert dash_btn.styles.border_top[0] in ("heavy", "round", "tall", "solid")
+        assert dash_btn.styles.border_left[0] in ("heavy", "round", "tall", "solid")
+        assert dash_btn.styles.border_bottom[0] in ("heavy", "round", "tall", "solid")
+        assert dash_btn.styles.border_right[0] in ("heavy", "round", "tall", "solid")
         # Top border should be lighter/highlight
         assert dash_btn.styles.border_top[1].hex.lower() not in ("#000000", "#10121a")
 
-        # 2. Sidebar open folder button must have 3D blocky heavy bevels with top highlight
+        # 2. Sidebar open folder button must have clean borders
         side_btn = app.query_one("#cct-open-folder-btn")
-        assert side_btn.styles.border_top[0] in ("heavy", "round", "tall")
-        assert side_btn.styles.border_left[0] in ("heavy", "round", "tall")
-        assert side_btn.styles.border_bottom[0] in ("heavy", "round", "tall")
-        assert side_btn.styles.border_right[0] in ("heavy", "round", "tall")
+        assert side_btn.styles.border_top[0] in ("heavy", "round", "tall", "solid")
+        assert side_btn.styles.border_left[0] in ("heavy", "round", "tall", "solid")
+        assert side_btn.styles.border_bottom[0] in ("heavy", "round", "tall", "solid")
+        assert side_btn.styles.border_right[0] in ("heavy", "round", "tall", "solid")
         assert side_btn.styles.border_top[1].hex.lower() not in ("#000000", "#10121a")
 
 

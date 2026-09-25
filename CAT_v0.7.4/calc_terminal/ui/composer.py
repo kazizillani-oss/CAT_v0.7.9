@@ -435,34 +435,21 @@ if TEXTUAL_AVAILABLE:
                     event.text = text
             except Exception:
                 pass
-            # v0.7.8.45 clipboard-input fix: a paste larger than 5 KiB
-            # must not silently vanish (or hide behind a chip nobody
-            # clicks). Show the "Paste anyway / Cancel" warning and, on
-            # confirmation, write the ENTIRE clipboard text into the
-            # composer in one atomic document operation.
-            if (self._composer is not None
-                    and len(text) > LARGE_PASTE_THRESHOLD):
-                event.stop()
-                try:
-                    event.prevent_default()
-                except Exception:
-                    pass
-                self._composer.confirm_large_paste(text)
-                return
-            line_count = text.count("\n") + 1 if text else 0
-            word_count = len(text.split())
-            if ((line_count < PASTE_COLLAPSE_THRESHOLD and word_count < PASTE_WORD_THRESHOLD)
-                    or self._composer is None):
-                # TextArea._on_paste is async since Textual 8.x; without
-                # awaiting, its document insert never runs.
-                await super()._on_paste(event)
-                return
+            # Normalize Windows CRLF to LF so TextArea handles lines cleanly
+            if "\r" in text:
+                text = text.replace("\r\n", "\n").replace("\r", "\n")
+
+            # Always insert pasted text directly into the composer input — allowing big
+            # sentences, large word counts, code snippets, and multiline text
+            # to paste cleanly without getting blocked by a 5 KiB dialog or forced collapse chip.
             event.stop()
             try:
                 event.prevent_default()
             except Exception:
                 pass
-            self._composer.collapse_paste(text, line_count, word_count)
+            self.insert(text)
+            self.focus()
+            return
 
     class StickyComposer(Vertical):
         """THE composer card. See module docstring."""
@@ -920,6 +907,7 @@ if TEXTUAL_AVAILABLE:
                 except Exception:
                     pass
                 editor.insert(text)
+                editor.focus()
                 self.log.debug(
                     "large paste: approved=%d chars, inserted=%d",
                     len(text), len(text))

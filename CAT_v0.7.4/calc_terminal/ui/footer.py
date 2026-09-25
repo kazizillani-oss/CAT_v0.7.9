@@ -145,6 +145,20 @@ if TEXTUAL_AVAILABLE:
             self.query_one("#badge-workspace", _Badge).update(name)
             self.post_message(WorkspaceChanged(name))
 
+        def on_resize(self, event=None):
+            """Responsive footer collapse at narrow viewports: ensures send button never gets pushed off."""
+            w = (event.size.width if event else None) or (self.size.width if self.size else 80)
+            try:
+                center = self.query_one("#cct-center-status", Static)
+                center.display = (w >= 70)
+            except Exception:
+                pass
+            try:
+                ws_badge = self.query_one("#badge-workspace", _Badge)
+                ws_badge.display = (w >= 56)
+            except Exception:
+                pass
+
     class StatusLine(Static):
         """One compact bottom status line for the whole app — no boxes,
         no oversized labels. `get_fields` is a zero-arg callable
