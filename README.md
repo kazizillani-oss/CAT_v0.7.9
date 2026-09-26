@@ -18,7 +18,7 @@
  ╚██████╗██║  ██║   ██║   
   ╚═════╝╚═╝  ╚═╝   ╚═╝   
 
-CODING AGENT TERMINAL · v0.8.ab [final version]
+CODING AGENT TERMINAL · v0.8.ab [BETA version]
 ```
 ### A terminal-first AI coding environment for developers who live in the command line.
 [![Version](https://img.shields.io/badge/version-0.8.ab-blue.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9)
