@@ -13,7 +13,7 @@
 CODING AGENT TERMINAL · v0.8.ab [final version]
 ```
 
-[![CI](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/badge.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml)
+[![CI]<img width="2778" height="1284" alt="Image" src="https://github.com/user-attachments/assets/d6c233c6-1d15-49bf-bb9a-5db8420bbf1b" />(https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/badge/version-0.8.ab-blue.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9)
 [![VS Code Extension](https://img.shields.io/badge/VS%20Code%20Extension-v0.8.6-blue.svg)](https://marketplace.visualstudio.com/items?itemName=KaziZillani.cat-cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
