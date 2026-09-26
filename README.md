@@ -179,7 +179,7 @@ Tested on Python 3.10 – 3.13
 
 Download the latest Windows installer from:
 
-**[CAT Releases](https://github.com/kazizillani-oss/cat-cli/README.md)**
+**[CAT Releases](https://github.com/kazizillani-oss/CAT_v0.7.9/blob/main/cat-cli/README.md)**
 
 The native installer is designed for per-user installation and does not require administrator privileges.
 
