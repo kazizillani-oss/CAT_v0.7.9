@@ -20,6 +20,7 @@
 
 CODING AGENT TERMINAL · v0.8.ab [BETA version]
 ```
+
 ### A terminal-first AI coding environment for developers who live in the command line.
 [![Version](https://img.shields.io/badge/version-0.8.ab-blue.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9)
 [![VS Code](https://img.shields.io/badge/VS%20Code-0.8.6-007ACC.svg)](https://marketplace.visualstudio.com/items?itemName=KaziZillani.cat-cli)
