@@ -156,7 +156,7 @@ When invoking or automating CAT/CCT from scripts, VS Code tasks, or external too
 
 ## Release Notes
 
-### 0.8.6
+### 0.8.ab (0.8.6)
 
 - Fixed sidebar collapse button border bleed and divider collision artifact in terminal TUI.
 - Added dedicated sidebar expand toggle button when sidebar is collapsed.
