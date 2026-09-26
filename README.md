@@ -2,19 +2,16 @@
 
 <div align="center">
 
-```text
-
-   ██████╗ █████╗ ████████╗
-  ██╔════╝██╔══██╗╚══██╔══╝
-  ██║     ███████║   ██║
-  ██║     ██╔══██║   ██║
-  ╚██████╗██║  ██║   ██║
-   ╚═════╝╚═╝  ╚═╝   ╚═╝
-
-  CODING AGENT TERMINAL
-  v0.8.ab · PUBLIC RELEASE
 ```
+  ██████╗ █████╗ ████████╗
+ ██╔════╝██╔══██╗╚══██╔══╝
+ ██║     ███████║   ██║   
+ ██║     ██╔══██║   ██║   
+ ╚██████╗██║  ██║   ██║   
+  ╚═════╝╚═╝  ╚═╝   ╚═╝   
 
+CODING AGENT TERMINAL · v0.8.ab [final version]
+```
 ### A terminal-first AI coding environment for developers who live in the command line.
 
 [![CI](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml/badge.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml)
