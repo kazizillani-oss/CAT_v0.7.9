@@ -162,7 +162,7 @@ When invoking or automating CAT/CCT from scripts, VS Code tasks, or external too
 - Added dedicated sidebar expand toggle button when sidebar is collapsed.
 - Restored iconic hero CAT ASCII art banner across normal terminal heights (>= 8 rows).
 - Fixed double icon bug in permission dropdown (clean single icon + checkmarks).
-- Updated core CLI version target to `0.8.b` [beta version].
+- Updated core CLI version target to `0.8.ab` [final version].
 
 ### 0.8.4
 

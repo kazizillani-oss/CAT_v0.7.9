@@ -11,7 +11,7 @@ All notable changes to the "cat-cli" extension will be documented in this file.
   - Fixed dashboard ASCII art downgrade: restored iconic hero CAT ASCII art banner across normal terminal heights (>= 8 rows), resolving premature reduction to 2-row mini cat face.
   - Fixed double icon glitch in permission dropdown: cleaned mode labels to eliminate duplicate indicator emojis (`🟡 🟡 Restricted` -> `🟡 Restricted`) and redundant menu row bullets.
 - CLI Integration & Version Sync:
-  - Updated core CLI version target to `0.8.b` [beta version].
+  - Updated core CLI version target to `0.8.ab` [final version].
   - Updated `.vsix` extension package to `0.8.6`.
 
 ## [0.8.5] - 2026-09-24

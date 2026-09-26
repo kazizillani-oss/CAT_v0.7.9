@@ -110,6 +110,66 @@ class TestBlankScreenAndPerformance(unittest.TestCase):
         pane._update_tb_item("#cct-tb-pos", "Ln 1, Col 2")
         mock_static.update.assert_called_once_with("Ln 1, Col 2")
 
+    def test_editor_common_typing_keys_bypass(self):
+        """Verify space, enter, backspace, and navigation keys bypass all shortcut resolution."""
+        area = _EditorArea()
+        area.action_show_preview = MagicMock()
+
+        for key_name in ["space", "enter", "backspace", "delete", "tab", "up", "down", "left", "right"]:
+            evt = MagicMock()
+            evt.key = key_name
+            evt.ctrl = False
+            evt.alt = False
+            evt.meta = False
+            evt.shift = False
+            area._on_key(evt)
+            evt.stop.assert_not_called()
+            area.action_show_preview.assert_not_called()
+
+    def test_gestures_disk_io_throttling(self):
+        """Verify gestures._load() caches in-memory without repetitive filesystem stats."""
+        from calc_terminal.gestures import manager
+        with patch("os.path.getmtime") as mock_mtime:
+            mock_mtime.return_value = 12345.0
+            # Force cache reset
+            manager._cache = [{"id": "test_g", "trigger": "test", "target": "test", "enabled": True}]
+            manager._last_check_time = time.time()
+            
+            # Consecutive loads should NOT call os.path.getmtime
+            res1 = manager._load()
+            res2 = manager._load()
+            self.assertEqual(len(res1), 1)
+            self.assertEqual(len(res2), 1)
+            mock_mtime.assert_not_called()
+
+    def test_shortcut_manager_o1_resolution(self):
+        """Verify ShortcutManager resolves indexed keys in O(1)."""
+        from calc_terminal.editor.shortcuts import ShortcutManager
+        mgr = ShortcutManager()
+        self.assertIn("ctrl+s", mgr._by_key)
+        self.assertEqual(mgr.resolve("ctrl+s", context="editor"), "editor.save")
+        self.assertEqual(mgr.resolve("shift+enter", context="editor"), "preview.open")
+        self.assertIsNone(mgr.resolve("non_existent_key_xyz"))
+
+    def test_version_sync_v0_8_ab(self):
+        """Verify core and identity versions report 0.8.ab."""
+        from calc_terminal import identity, __version__
+        self.assertEqual(identity.APP_VERSION, "0.8.ab")
+        self.assertEqual(__version__, "0.8.ab")
+
+    def test_statusbar_no_seconds_flicker(self):
+        """Verify statusbar output has minute-level time to prevent 1.6s redraw flicker."""
+        from calc_terminal.ui.statusbar import StatusFields
+        sf = StatusFields(lambda: {"workspace": "test", "model_label": "qwen2.5"})
+        fields = sf.fields()
+        # Find clock field
+        clock_fields = [f[1] for f in fields if f[0] == "" and ":" in f[1]]
+        self.assertTrue(len(clock_fields) >= 1)
+        clock_val = clock_fields[0]
+        # Should be HH:MM format (5 chars), NOT HH:MM:SS (8 chars)
+        self.assertEqual(len(clock_val), 5)
+        self.assertEqual(clock_val.count(":"), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

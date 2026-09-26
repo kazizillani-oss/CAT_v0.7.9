@@ -20,6 +20,8 @@ STORE_PATH = os.path.join(os.path.expanduser("~"), ".cct_gestures.json")
 # In-memory cache
 _cache: Optional[List[Dict]] = None
 _cache_mtime: float = 0
+_last_check_time: float = 0.0
+_CHECK_INTERVAL: float = 5.0  # Only stat disk at most once every 5 seconds
 
 
 class Gesture(dict):
@@ -27,7 +29,13 @@ class Gesture(dict):
 
 
 def _load() -> List[Dict]:
-    global _cache, _cache_mtime
+    global _cache, _cache_mtime, _last_check_time
+    now = time.time()
+    # Fast path: Return cached gestures in-memory without filesystem I/O
+    if _cache is not None and (now - _last_check_time) < _CHECK_INTERVAL:
+        return list(_cache)
+    _last_check_time = now
+
     try:
         mtime = os.path.getmtime(STORE_PATH) if os.path.exists(STORE_PATH) else 0
         if _cache is not None and mtime == _cache_mtime:
@@ -59,11 +67,12 @@ def _load() -> List[Dict]:
 
 
 def _save(data: List[Dict]) -> bool:
-    global _cache, _cache_mtime
+    global _cache, _cache_mtime, _last_check_time
     try:
         with open(STORE_PATH, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
         _cache = list(data)
+        _last_check_time = time.time()
         try:
             _cache_mtime = os.path.getmtime(STORE_PATH)
         except Exception:

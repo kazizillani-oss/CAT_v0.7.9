@@ -97,6 +97,30 @@ class TestUnifiedStartupAndBrowser(unittest.TestCase):
         modal.on_click(MagicMock())
         self.assertEqual(dismissed, ["key", "button", "click"])
 
+    def test_browser_state_tab_lifecycle(self):
+        """Verify BrowserState accurately tracks tabs, active tab, and URL transitions."""
+        from calc_terminal.browser.browser_state import BrowserState
+        state = BrowserState()
+        initial_tab_count = len(state.tabs)
+        self.assertGreaterEqual(initial_tab_count, 1)
+
+        # Create additional tab
+        t1 = state.new_tab("https://example.com")
+        self.assertEqual(len(state.tabs), initial_tab_count + 1)
+        self.assertEqual(state.active_tab_id, t1.id)
+        self.assertEqual(state.active_tab.url, "https://example.com")
+
+        # Close the newly created tab
+        state.close_tab(t1.id)
+        self.assertEqual(len(state.tabs), initial_tab_count)
+
+    def test_anti_tearing_vsync_flags(self):
+        """Verify --disable-gpu-vsync is never set so frames do not tear or flicker."""
+        from calc_terminal.host.launcher import get_optimal_chromium_flags
+        flags = get_optimal_chromium_flags()
+        self.assertNotIn("--disable-gpu-vsync", flags)
+        self.assertNotIn("--disable-gpu-compositing", flags)
+
 
 if __name__ == "__main__":
     unittest.main()

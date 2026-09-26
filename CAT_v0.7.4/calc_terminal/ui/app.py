@@ -2420,9 +2420,9 @@ if TEXTUAL_AVAILABLE:
                 return v
             try:
                 from .. import app as _backend
-                return getattr(_backend, "VERSION", "0.8.b")
+                return getattr(_backend, "VERSION", "0.8.ab")
             except Exception:
-                return "0.8.b"
+                return "0.8.ab"
 
         def _tick_idle_animation(self):
             """Cheap idle-heartbeat: paints the status bar once per cycle
@@ -2623,19 +2623,32 @@ if TEXTUAL_AVAILABLE:
             _IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico"}
             if ext in _IMAGE_EXTS or ext in (".pdf", ".csv"):
                 if self._workspace_shell is not None:
-                    if not self._workspace_shell.open_file(event.path):
-                        self._system_note(f"Can't open '{event.path}' (viewer failed).")
+                    try:
+                        if not self._workspace_shell.open_file(event.path):
+                            self._system_note(f"Can't open '{event.path}' (viewer failed).")
+                    except Exception as e:
+                        self._system_note(f"Can't open '{event.path}': {e}")
                 return
             # v0.8.1: sidebar double-click on a .txt opens the 3-way
             # choice (editor / attach+import / cancel); attached-file TXT
             # uses the focused 2-way import popup instead. Exclude media/data viewers.
             if ext in (".txt", ".log", ".json", ".xml", ".yaml", ".yml"):
-                self._show_file_open_popup(event.path)
+                try:
+                    self._show_file_open_popup(event.path)
+                except Exception:
+                    if self._workspace_shell is not None:
+                        try:
+                            self._workspace_shell.open_file(event.path)
+                        except Exception:
+                            pass
                 return
             if self._workspace_shell is not None:
-                if not self._workspace_shell.open_file(event.path):
-                    self._system_note(f"Can't open '{event.path}' in the editor "
-                                       "(not a recognized text format).")
+                try:
+                    if not self._workspace_shell.open_file(event.path):
+                        self._system_note(f"Can't open '{event.path}' in the editor "
+                                           "(not a recognized text format).")
+                except Exception as e:
+                    self._system_note(f"Can't open '{event.path}': {e}")
 
         def _toggle_or_focus_explorer(self):
             """Open Folder (v0.7.7 spec section 3): the Folder Panel
@@ -4733,10 +4746,13 @@ if TEXTUAL_AVAILABLE:
 
         def open_file_at(self, path, line=1, col=1):
             """Open file in workspace editor and position cursor at line, col."""
-            if self._workspace_shell is not None:
-                if hasattr(self._workspace_shell, "open_file_at"):
-                    return self._workspace_shell.open_file_at(path, line, col)
-                return self._workspace_shell.open_file(path)
+            try:
+                if self._workspace_shell is not None:
+                    if hasattr(self._workspace_shell, "open_file_at"):
+                        return self._workspace_shell.open_file_at(path, line, col)
+                    return self._workspace_shell.open_file(path)
+            except Exception:
+                pass
             return False
 
         def action_preview_close(self):
@@ -5491,12 +5507,15 @@ if TEXTUAL_AVAILABLE:
                     self.dismiss(None)
 
             def _on_file_open_result(result):
-                if result == "import":
-                    self.attach_files_from_ui([path], source="sidebar")
-                elif result == "editor":
-                    if self._workspace_shell is not None:
-                        if not self._workspace_shell.open_file(path):
-                            self._system_note(f"Can't open '{path}' in the editor.")
+                try:
+                    if result == "import":
+                        self.attach_files_from_ui([path], source="sidebar")
+                    elif result == "editor":
+                        if self._workspace_shell is not None:
+                            if not self._workspace_shell.open_file(path):
+                                self._system_note(f"Can't open '{path}' in the editor.")
+                except Exception as e:
+                    self._system_note(f"Can't open '{path}': {e}")
 
             self.push_screen(FileOpenPopup(path, basename, size_str),
                              _on_file_open_result)
@@ -7736,10 +7755,12 @@ def launch_chat_app(repl, history, stats):
         try:
             app.run()
         except SystemExit as e:
-            print(f"[CAT DEBUG] CCTApp.run() called sys.exit({e.code!r}) internally "
-                  "(this is almost always Textual's own crash handler) \u2014 "
-                  "re-raising so you see the real traceback below:", flush=True)
-            raise
+            code = getattr(e, "code", 0)
+            if code in (0, None):
+                _dbg("CCTApp.run() exited normally.")
+                return True, ""
+            _dbg(f"CCTApp.run() exited with error code {code!r}.")
+            return False, f"Chat UI exited unexpectedly (code {code})"
         except BaseException as e:
             import traceback
             print(f"[CAT DEBUG] CCTApp.run() raised: {type(e).__name__}: {e}", flush=True)

@@ -10,11 +10,11 @@
  ╚██████╗██║  ██║   ██║   
   ╚═════╝╚═╝  ╚═╝   ╚═╝   
 
-CODING AGENT TERMINAL · v0.8.b [beta version]
+CODING AGENT TERMINAL · v0.8.ab [final version]
 ```
 
 [![CI](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml/badge.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-0.8.b-blue.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9)
+[![Version](https://img.shields.io/badge/version-0.8.ab-blue.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9)
 [![VS Code Extension](https://img.shields.io/badge/VS%20Code%20Extension-v0.8.6-blue.svg)](https://marketplace.visualstudio.com/items?itemName=KaziZillani.cat-cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
@@ -32,7 +32,7 @@ CAT is distributed across multiple channels. Choose the method that best fits yo
 ### Option 1: Install from PyPI (Recommended for most users)
 
 > **Status: Coming after PyPI release — not yet published.**
-> The PyPI distribution `cct-cli` v0.8.b has been built and validated
+> The PyPI distribution `cct-cli` v0.8.ab has been built and validated
 > locally (`python -m build`, `twine check dist/*`) but has **not** been
 > uploaded to PyPI yet. Do not expect `pip install cct-cli` to work until
 > the first successful publish is confirmed. Once published, use:

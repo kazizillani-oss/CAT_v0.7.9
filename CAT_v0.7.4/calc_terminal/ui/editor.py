@@ -432,13 +432,10 @@ if TEXTUAL_AVAILABLE:
             """Intercept keys before TextArea's default handling via centralized ShortcutManager."""
             raw_key = (getattr(event, "key", "") or "").lower().strip()
 
-            # Fast path for regular typing: if it's a printable single character without modifiers,
-            # bypass all shortcut resolution overhead immediately so typing is 100% lag-free!
             has_ctrl = getattr(event, "ctrl", False)
             has_alt = getattr(event, "alt", False)
             has_meta = getattr(event, "meta", False)
-            if len(raw_key) == 1 and not (has_ctrl or has_alt or has_meta):
-                return
+            has_shift = getattr(event, "shift", False)
 
             # Spec: Shift+Enter / Cmd+Shift+Enter / Ctrl+Shift+Enter / ▷ => Show Web Preview
             # MUST NEVER insert newline into the code editor!
@@ -457,6 +454,20 @@ if TEXTUAL_AVAILABLE:
                     pass
                 self.action_show_preview()
                 return
+
+            # Ultra-fast path for regular editing & typing:
+            # If no Ctrl, Alt, or Meta modifier is held, common typing/editing keys bypass all
+            # shortcut evaluation and disk/gesture checks completely. This guarantees zero-lag
+            # typing and cursor navigation on low-end PCs and devices!
+            COMMON_TYPING_KEYS = {
+                "space", "enter", "return", "linefeed", "backspace", "delete", "tab",
+                "up", "down", "left", "right", "home", "end", "pageup", "pagedown"
+            }
+            if not (has_ctrl or has_alt or has_meta):
+                if len(raw_key) == 1 or raw_key in COMMON_TYPING_KEYS or (
+                    has_shift and any(raw_key.endswith(k) for k in ("up", "down", "left", "right", "home", "end"))
+                ):
+                    return
 
             # 1. Centralized CAT Shortcut Manager resolution (cached, zero dynamic import overhead)
             try:
@@ -1166,30 +1177,36 @@ if TEXTUAL_AVAILABLE:
         # ------------------------------------------------------- open/save --
         def _create_tab(self, path, content_widget, is_text=False, text_content=""):
             """Helper to create a new tab with proper label and tracking."""
-            self._tab_counter += 1
-            tab_id = f"tab-{self._tab_counter}-{abs(hash(path)) % 100000}"
-            pane = TabPane(self._tab_label(path, dirty=False), content_widget, id=tab_id)
-            tabs = self.query_one(TabbedContent)
-            tabs.add_pane(pane)
-            self._open_paths[path] = tab_id
             try:
-                tabs.remove_pane("tab-welcome")
+                self._tab_counter += 1
+                tab_id = f"tab-{self._tab_counter}-{abs(hash(path)) % 100000}"
+                pane = TabPane(self._tab_label(path, dirty=False), content_widget, id=tab_id)
+                tabs = self.query_one(TabbedContent)
+                tabs.add_pane(pane)
+                self._open_paths[path] = tab_id
+                try:
+                    tabs.remove_pane("tab-welcome")
+                except Exception:
+                    pass
+                tabs.active = tab_id
+                if is_text:
+                    self.store_original(path, text_content)
+                self._post_tab_count()
+                try:
+                    self._refresh_toolbar()
+                except Exception:
+                    pass
+                try:
+                    from .. import customization as _cust
+                    if _cust.is_active():
+                        shell = self.app.query_one("#cct-workspace") if hasattr(self, "app") and self.app else None
+                        if shell and hasattr(shell, "apply_custom_layout"):
+                            shell.apply_custom_layout()
+                except Exception:
+                    pass
+                return True
             except Exception:
-                pass
-            tabs.active = tab_id
-            if is_text:
-                self.store_original(path, text_content)
-            self._post_tab_count()
-            self._refresh_toolbar()
-            try:
-                from .. import customization as _cust
-                if _cust.is_active():
-                    shell = self.app.query_one("#cct-workspace") if hasattr(self, "app") and self.app else None
-                    if shell and hasattr(shell, "apply_custom_layout"):
-                        shell.apply_custom_layout()
-            except Exception:
-                pass
-            return True
+                return False
 
         def open_file(self, path):
             """Unified file-type-aware opener: routes to correct visual viewer or code editor."""
@@ -1426,6 +1443,8 @@ if TEXTUAL_AVAILABLE:
         def _update_tb_item(self, sel, val, tooltip=None):
             """Updates a toolbar static widget ONLY if its content or tooltip has changed.
             Prevents expensive Textual DOM invalidations and layout recalcs on every keystroke."""
+            if not hasattr(self, "_last_tb_values") or self._last_tb_values is None:
+                self._last_tb_values = {}
             old = self._last_tb_values.get(sel)
             if old != (val, tooltip):
                 self._last_tb_values[sel] = (val, tooltip)
@@ -1446,93 +1465,95 @@ if TEXTUAL_AVAILABLE:
                 bar = self.query_one("#cct-editor-toolbar")
             except Exception:
                 return
-            area = self.active_text_area()
-            content, path = self._get_active_content()
-            if area is None and (content is not None or path is not None):
-                bar.display = True
-                icon = get_file_icon(path or "")
-                name = os.path.basename(path) if path else "Viewer"
-                self.query_one("#cct-tb-file", Static).update(f"{icon} {name}")
-                try:
-                    self.query_one("#cct-tb-file", Static).tooltip = path or ""
-                except Exception:
-                    pass
-                for sel in ("#cct-tb-language", "#cct-tb-pos", "#cct-tb-spaces", "#cct-tb-modified", "#cct-tb-wrap", "#cct-tb-preview"):
+            try:
+                area = self.active_text_area()
+                content, path = self._get_active_content()
+                if area is None and (content is not None or path is not None):
+                    bar.display = True
+                    icon = get_file_icon(path or "")
+                    name = os.path.basename(path) if path else "Viewer"
+                    self._update_tb_item("#cct-tb-file", f"{icon} {name}", tooltip=path or "")
+                    for sel in ("#cct-tb-language", "#cct-tb-pos", "#cct-tb-spaces", "#cct-tb-modified", "#cct-tb-wrap", "#cct-tb-preview"):
+                        try:
+                            self.query_one(sel).display = False
+                        except Exception:
+                            pass
                     try:
-                        self.query_one(sel).display = False
+                        self.query_one("#cct-tb-run").display = False
+                        self.query_one("#cct-tb-split").display = False
                     except Exception:
                         pass
+                    try:
+                        self.query_one("#cct-tb-close", Static).display = True
+                    except Exception:
+                        pass
+                    return
+                if area is None or not hasattr(area, "path"):
+                    bar.display = False
+                    return
+                bar.display = True
+                row, col = (0, 0)
                 try:
-                    self.query_one("#cct-tb-run").display = False
-                    self.query_one("#cct-tb-split").display = False
+                    row, col = area.cursor_location
                 except Exception:
                     pass
-                try:
-                    self.query_one("#cct-tb-close", Static).display = True
-                except Exception:
-                    pass
-                return
-            if area is None or not hasattr(area, "path"):
-                bar.display = False
-                return
-            bar.display = True
-            row, col = (0, 0)
-            try:
-                row, col = area.cursor_location
+                dirty = area.path in self._dirty
+                icon = get_file_icon(area.path)
+                self._update_tb_item("#cct-tb-file", f"{icon} {os.path.basename(area.path)}", tooltip=area.path)
+                self._update_tb_item("#cct-tb-language", self._language_label(area.language))
+                self._update_tb_item("#cct-tb-pos", f"Ln {row + 1}, Col {col + 1}")
+                self._update_tb_item("#cct-tb-spaces", f"Spaces: {getattr(area, 'indent_width', 4)}")
+                self._update_tb_item("#cct-tb-modified", "\u25cf Modified" if dirty else "")
+
+                # Ensure code pills visible again (only on path / tab switch)
+                cur_path = getattr(area, "path", None)
+                if not hasattr(self, "_last_tb_values") or self._last_tb_values is None:
+                    self._last_tb_values = {}
+                if self._last_tb_values.get("_cached_active_path") != cur_path:
+                    self._last_tb_values["_cached_active_path"] = cur_path
+                    for sel in ("#cct-tb-language", "#cct-tb-encoding", "#cct-tb-pos", "#cct-tb-spaces", "#cct-tb-modified", "#cct-tb-wrap", "#cct-tb-preview"):
+                        try:
+                            self.query_one(sel, Static).display = True
+                        except Exception:
+                            pass
+                    try:
+                        self.query_one("#cct-tb-encoding", Static).display = True
+                    except Exception:
+                        pass
+                    # ▷ and ⿻ — show only for web-previewable files (spec 2)
+                    try:
+                        run_pill = self.query_one("#cct-tb-run")
+                        split_pill = self.query_one("#cct-tb-split")
+                        is_web = is_web_previewable(area.path)
+                        is_split = is_web or is_markdown_file(area.path)
+                        run_pill.display = bool(is_web)
+                        split_pill.display = bool(is_split)
+                        try:
+                            run_pill.set_class(is_web, "-run")
+                            split_pill.set_class(is_split, "-split")
+                        except Exception:
+                            pass
+                        try:
+                            if is_web:
+                                run_pill.tooltip = "Open Live Web Preview (▷)"
+                                split_pill.tooltip = "Split editor / preview (⿻)"
+                            elif is_split:
+                                split_pill.tooltip = "Split editor / preview (⿻)"
+                                try: run_pill.tooltip = ""
+                                except: pass
+                            else:
+                                run_pill.tooltip = ""
+                                split_pill.tooltip = ""
+                        except Exception:
+                            pass
+                    except Exception:
+                        pass
+
+                self._update_view_pills(area)
+                if getattr(self, "_preview_on", False):
+                    self._refresh_preview(area)
             except Exception:
                 pass
-            dirty = area.path in self._dirty
-            self._update_tb_item("#cct-tb-file", f"{icon} {os.path.basename(area.path)}", tooltip=area.path)
-            self._update_tb_item("#cct-tb-language", self._language_label(area.language))
-            self._update_tb_item("#cct-tb-pos", f"Ln {row + 1}, Col {col + 1}")
-            self._update_tb_item("#cct-tb-spaces", f"Spaces: {getattr(area, 'indent_width', 4)}")
-            self._update_tb_item("#cct-tb-modified", "\u25cf Modified" if dirty else "")
-
-            # Ensure code pills visible again (only on path / tab switch)
-            cur_path = getattr(area, "path", None)
-            if self._last_tb_values.get("_cached_active_path") != cur_path:
-                self._last_tb_values["_cached_active_path"] = cur_path
-                for sel in ("#cct-tb-language", "#cct-tb-encoding", "#cct-tb-pos", "#cct-tb-spaces", "#cct-tb-modified", "#cct-tb-wrap", "#cct-tb-preview"):
-                    try:
-                        self.query_one(sel, Static).display = True
-                    except Exception:
-                        pass
-                try:
-                    self.query_one("#cct-tb-encoding", Static).display = True
-                except Exception:
-                    pass
-                # ▷ and ⿻ — show only for web-previewable files (spec 2)
-                try:
-                    run_pill = self.query_one("#cct-tb-run")
-                    split_pill = self.query_one("#cct-tb-split")
-                    is_web = is_web_previewable(area.path)
-                    is_split = is_web or is_markdown_file(area.path)
-                    run_pill.display = bool(is_web)
-                    split_pill.display = bool(is_split)
-                    try:
-                        run_pill.set_class(is_web, "-run")
-                        split_pill.set_class(is_split, "-split")
-                    except Exception:
-                        pass
-                    try:
-                        if is_web:
-                            run_pill.tooltip = "Open Live Web Preview (▷)"
-                            split_pill.tooltip = "Split editor / preview (⿻)"
-                        elif is_split:
-                            split_pill.tooltip = "Split editor / preview (⿻)"
-                            try: run_pill.tooltip = ""
-                            except: pass
-                        else:
-                            run_pill.tooltip = ""
-                            split_pill.tooltip = ""
-                    except Exception:
-                        pass
-                except Exception:
-                    pass
-
-            self._update_view_pills(area)
-            if getattr(self, "_preview_on", False):
-                self._refresh_preview(area)
 
         def _apply_toolbar_compaction(self):
             """v0.7.10: the right pane is now user-resizable down to ~24
@@ -1581,11 +1602,16 @@ if TEXTUAL_AVAILABLE:
                 new_wrap = bool(getattr(area, "soft_wrap", True))
             except Exception:
                 new_wrap = True
+            if not hasattr(self, "_last_tb_values") or self._last_tb_values is None:
+                self._last_tb_values = {}
             if self._last_tb_values.get("_wrap_state") != new_wrap:
                 self._last_tb_values["_wrap_state"] = new_wrap
                 self._wrap_on = new_wrap
-                wrap_pill.update(f"Wrap: {'On' if self._wrap_on else 'Off'}")
-                wrap_pill.set_class(self._wrap_on, "-on")
+                try:
+                    wrap_pill.update(f"Wrap: {'On' if self._wrap_on else 'Off'}")
+                    wrap_pill.set_class(self._wrap_on, "-on")
+                except Exception:
+                    pass
             if self._last_tb_values.get("_preview_state") != self._preview_on:
                 self._last_tb_values["_preview_state"] = self._preview_on
                 try:
@@ -1748,13 +1774,17 @@ if TEXTUAL_AVAILABLE:
                 return
 
         def active_text_area(self):
-            tabs = self.query_one(TabbedContent)
             try:
+                tabs = self.query_one(TabbedContent)
+                if not tabs or not getattr(tabs, "active", None):
+                    return None
                 pane = tabs.get_pane(tabs.active)
+                if pane is None:
+                    return None
+                areas = pane.query(TextArea)
+                return areas.first() if areas else None
             except Exception:
                 return None
-            areas = pane.query(TextArea)
-            return areas.first() if areas else None
 
         def save_active(self):
             area = self.active_text_area()
@@ -1810,49 +1840,51 @@ if TEXTUAL_AVAILABLE:
             """Closes the active tab (or a specific one, used by the
             per-tab ✕) and restores the Welcome placeholder when the
             last file tab goes away. Ctrl+W routes here too."""
-            tabs = self.query_one(TabbedContent)
-            active = tab_id or tabs.active
-            if active == "tab-welcome" or not active:
-                return
-            path = next((p for p, t in self._open_paths.items() if t == active), None)
-            if path:
-                del self._open_paths[path]
-                self._dirty.discard(path)
-            tabs.remove_pane(active)
-            if not self._open_paths:
-                tabs.add_pane(TabPane("Editor", Static(
-                    "Open a file from the Explorer to start editing.",
-                    classes="cct-editor-placeholder"), id="tab-welcome"))
-                # add_pane mounts panes hidden, so the placeholder must
-                # be explicitly activated once it has actually landed.
-                self.call_after_refresh(self._activate_tab, "tab-welcome")
-                # If we were in fullscreen with no files left, exit fullscreen
-                # so header/sidebar/chat become visible again (fix for glitch
-                # where closing all tabs while fullscreen leaves header hidden).
+            try:
+                tabs = self.query_one(TabbedContent)
+                active = tab_id or tabs.active
+                if active == "tab-welcome" or not active:
+                    return
+                path = next((p for p, t in list(self._open_paths.items()) if t == active), None)
+                if path:
+                    del self._open_paths[path]
+                    self._dirty.discard(path)
                 try:
-                    # Find workspace shell and check fullscreen
-                    node = self._parent
-                    while node is not None and not hasattr(node, "fullscreen"):
-                        node = getattr(node, "_parent", None)
-                    if node is not None and getattr(node, "fullscreen", False):
-                        # Exit fullscreen via app action to restore header/status
-                        try:
-                            self.app.action_toggle_right_pane_fullscreen()
-                        except Exception:
-                            # fallback: directly restore
-                            try:
-                                node.set_fullscreen(False)
-                            except Exception:
-                                pass
-                            try:
-                                self.app.brand_header.display = True
-                                self.app.status_line.display = True
-                            except Exception:
-                                pass
+                    tabs.remove_pane(active)
                 except Exception:
                     pass
-            self._refresh_toolbar()
-            self._post_tab_count()
+                if not self._open_paths:
+                    try:
+                        tabs.add_pane(TabPane("Editor", Static(
+                            "Open a file from the Explorer to start editing.",
+                            classes="cct-editor-placeholder"), id="tab-welcome"))
+                        self.call_after_refresh(self._activate_tab, "tab-welcome")
+                    except Exception:
+                        pass
+                    try:
+                        # Find workspace shell and check fullscreen
+                        node = self._parent
+                        while node is not None and not hasattr(node, "fullscreen"):
+                            node = getattr(node, "_parent", None)
+                        if node is not None and getattr(node, "fullscreen", False):
+                            try:
+                                self.app.action_toggle_right_pane_fullscreen()
+                            except Exception:
+                                try:
+                                    node.set_fullscreen(False)
+                                except Exception:
+                                    pass
+                                try:
+                                    self.app.brand_header.display = True
+                                    self.app.status_line.display = True
+                                except Exception:
+                                    pass
+                    except Exception:
+                        pass
+                self._refresh_toolbar()
+                self._post_tab_count()
+            except Exception:
+                pass
 
         def action_close_active(self):
             self.close_active()

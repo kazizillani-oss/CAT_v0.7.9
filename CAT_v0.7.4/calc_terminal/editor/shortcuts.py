@@ -22,10 +22,16 @@ class Keybinding:
     enabled: bool = True
 
 
+_NORMALIZE_CACHE: Dict[str, str] = {}
+
+
 def normalize_key(key: str) -> str:
     """Normalize key combinations into canonical lowercase format: [ctrl+][alt+][shift+]key."""
     if not key:
         return ""
+    cached = _NORMALIZE_CACHE.get(key)
+    if cached is not None:
+        return cached
     parts = [p.strip().lower() for p in key.replace("-", "+").split("+")]
     modifiers = set()
     base_key = ""
@@ -47,7 +53,10 @@ def normalize_key(key: str) -> str:
         ordered.append("shift")
     if base_key:
         ordered.append(base_key)
-    return "+".join(ordered)
+    result = "+".join(ordered)
+    if len(_NORMALIZE_CACHE) < 512:
+        _NORMALIZE_CACHE[key] = result
+    return result
 
 
 class ShortcutManager:
@@ -57,6 +66,7 @@ class ShortcutManager:
 
     def __init__(self) -> None:
         self._bindings: List[Keybinding] = []
+        self._by_key: Dict[str, List[Keybinding]] = {}
         self._register_default_bindings()
         self.load_user_bindings()
 
@@ -118,10 +128,19 @@ class ShortcutManager:
         for kb in defaults:
             self.register(kb)
 
+    def _rebuild_index(self) -> None:
+        idx: Dict[str, List[Keybinding]] = {}
+        for b in self._bindings:
+            if b.enabled:
+                idx.setdefault(b.key, []).append(b)
+        self._by_key = idx
+
     def register(self, binding: Keybinding) -> None:
         """Register a keybinding with normalized key representation."""
         binding.key = normalize_key(binding.key)
         self._bindings.append(binding)
+        if binding.enabled:
+            self._by_key.setdefault(binding.key, []).append(binding)
 
     def unregister(self, command_id: str, key: Optional[str] = None) -> None:
         """Remove a keybinding by command ID and optionally key string."""
@@ -130,17 +149,18 @@ class ShortcutManager:
             b for b in self._bindings
             if not (b.command_id == command_id and (norm_key is None or b.key == norm_key))
         ]
+        self._rebuild_index()
 
     def detect_conflicts(self, key: str, when: Optional[str] = None) -> List[Keybinding]:
         """Detect any existing enabled keybindings that share the same key and compatible context."""
         norm_key = normalize_key(key)
+        candidates = self._by_key.get(norm_key, [])
         conflicts = []
-        for b in self._bindings:
+        for b in candidates:
             if not b.enabled:
                 continue
-            if b.key == norm_key:
-                if when is None or b.when is None or b.when == "global" or when == "global" or b.when == when:
-                    conflicts.append(b)
+            if when is None or b.when is None or b.when == "global" or when == "global" or b.when == when:
+                conflicts.append(b)
         return conflicts
 
     def resolve(self, raw_key: str, context: Optional[str] = None) -> Optional[str]:
@@ -151,9 +171,12 @@ class ShortcutManager:
     def _resolve_impl(self, raw_key: str, context: Optional[str] = None) -> Optional[str]:
         """Resolve a raw keyboard input event into the winning command ID."""
         norm_key = normalize_key(raw_key)
+        candidates = self._by_key.get(norm_key)
+        if not candidates:
+            return None
         matching = []
-        for b in self._bindings:
-            if not b.enabled or b.key != norm_key:
+        for b in candidates:
+            if not b.enabled:
                 continue
             # Context match: exact context wins, or global matches if no specific binding
             if context and b.when == context:

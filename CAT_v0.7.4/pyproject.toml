@@ -10,8 +10,8 @@ build-backend = "setuptools.build_meta"
 # bare `cat` is TAKEN — dist is `cct-cli`, command is `cat`.
 # (`cat-cli` was rejected at upload by PyPI's similarity check vs `catcli`.)
 name = "cct-cli"
-version = "0.8.b"
-description = "CAT CLI v0.8.b [beta version] — Coding Agent Terminal / terminal AI coding agent"
+version = "0.8.ab"
+description = "CAT CLI v0.8.ab [beta version] — Coding Agent Terminal / terminal AI coding agent"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"

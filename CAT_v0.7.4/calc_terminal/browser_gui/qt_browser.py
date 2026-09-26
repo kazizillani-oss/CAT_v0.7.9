@@ -378,12 +378,9 @@ class _NewTabWidget(QWidget):
         v.addWidget(search_frame)
 
         # 3. Quick Dials (6 rich interactive cards in a 3x2 grid)
-        try:
-            from PySide6.QtWidgets import QGridLayout
-        except ImportError:
-            from PyQt6.QtWidgets import QGridLayout  # type: ignore
-
-        grid = QGridLayout()
+        grid_wrap = QWidget()
+        grid = QGridLayout(grid_wrap)
+        grid.setContentsMargins(0, 0, 0, 0)
         grid.setSpacing(10)
 
         shortcuts = [
@@ -400,9 +397,7 @@ class _NewTabWidget(QWidget):
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {c['surface_hover']}, stop:1 {c['surface']});
                 border: 1px solid {c['border']};
                 border-radius: 12px;
-                color: {c['text']};
-                text-align: left;
-                padding: 8px 12px;
+                padding: 4px 8px;
             }}
             QPushButton:hover {{
                 border: 1.5px solid {c['accent']};
@@ -411,7 +406,7 @@ class _NewTabWidget(QWidget):
             QPushButton:pressed {{
                 background: {c['surface']};
                 border: 1.5px solid {c['border']};
-                padding-top: 10px;
+                padding-top: 6px;
             }}
         """
 
@@ -422,17 +417,38 @@ class _NewTabWidget(QWidget):
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.setFixedHeight(56)
             btn.setStyleSheet(card_style)
-            btn.setText(
-                f'<span style="font-size:16px;">{icon}</span> '
-                f'<span style="font-size:12px;font-weight:bold;color:{c["text"]};">{label}</span><br>'
-                f'<span style="font-size:10px;color:{c["text_muted"]};margin-left:22px;">{sub}</span>'
-            )
-            btn.setTextFormat(Qt.TextFormat.RichText)
+
+            btn_lay = QHBoxLayout(btn)
+            btn_lay.setContentsMargins(10, 4, 10, 4)
+            btn_lay.setSpacing(10)
+
+            icon_lbl = QLabel(icon)
+            icon_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+            icon_lbl.setStyleSheet(f"font-size: 20px; color: {tag_color}; background: transparent; border: none;")
+            btn_lay.addWidget(icon_lbl)
+
+            tb = QWidget()
+            tb.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+            tb.setStyleSheet("background: transparent; border: none;")
+            tb_lay = QVBoxLayout(tb)
+            tb_lay.setContentsMargins(0, 0, 0, 0)
+            tb_lay.setSpacing(1)
+
+            title_lbl = QLabel(label)
+            title_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+            title_lbl.setStyleSheet(f"font-size: 12px; font-weight: bold; color: {c['text']}; background: transparent; border: none;")
+            tb_lay.addWidget(title_lbl)
+
+            sub_lbl = QLabel(sub)
+            sub_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+            sub_lbl.setStyleSheet(f"font-size: 10px; color: {c['text_muted']}; background: transparent; border: none;")
+            tb_lay.addWidget(sub_lbl)
+
+            btn_lay.addWidget(tb, 1)
+
             btn.clicked.connect(lambda _=None, u=url: self.navigateRequested.emit(u))
             grid.addWidget(btn, row, col)
 
-        grid_wrap = QWidget()
-        grid_wrap.setLayout(grid)
         v.addWidget(grid_wrap)
 
         # 4. Footer & Shortcut Helper

@@ -90,7 +90,6 @@ def get_optimal_chromium_flags() -> str:
         "--disable-dev-shm-usage",
         "--disable-features=CalculateNativeWinOcclusion",
         "--no-sandbox",
-        "--disable-gpu-vsync",
         "--disable-checker-imaging",
         "--enable-features=SmoothScrolling,OverlayScrollbar",
         "--disable-background-timer-throttling",
@@ -106,11 +105,14 @@ def get_optimal_chromium_flags() -> str:
     try:
         from ..hardware_analyzer import HardwareAnalyzer
         prof = HardwareAnalyzer.analyze()
+        ai_cap = getattr(prof, "ai_capability", "")
+        if not ai_cap and hasattr(prof, "local_ai_tier"):
+            ai_cap = getattr(prof.local_ai_tier, "value", str(prof.local_ai_tier))
         is_low_end = (
             not prof.has_gpu
             or prof.ram_total_gb <= 8.5
             or prof.cpu_threads <= 4
-            or getattr(prof.local_ai_tier, "value", str(prof.local_ai_tier)) in ("LIMITED", "MODERATE")
+            or ai_cap in ("LIMITED", "MODERATE")
         )
     except Exception:
         is_low_end = True
@@ -367,12 +369,7 @@ def launch_cat_host(
 def _launch_with_qt(start_browser_url, start_mode, repl) -> int:
     """Create the browser window AND run the event loop. BLOCKS until closed."""
     try:
-        os.environ.setdefault(
-            "QTWEBENGINE_CHROMIUM_FLAGS",
-            "--disable-dev-shm-usage --enable-gpu-rasterization "
-            "--ignore-gpu-blocklist --enable-zero-copy "
-            "--disable-background-networking --disable-default-apps"
-        )
+        os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = get_optimal_chromium_flags()
         app, created = _ensure_qt_app()
 
         from .desktop import CATDesktopWindow
@@ -404,12 +401,7 @@ def create_browser_window(start_browser_url=None, start_mode="browser", repl=Non
     Returns (app, window, created_new).
     Caller MUST call app.exec() after setting up other Qt objects.
     """
-    os.environ.setdefault(
-        "QTWEBENGINE_CHROMIUM_FLAGS",
-        "--disable-dev-shm-usage --enable-gpu-rasterization "
-        "--ignore-gpu-blocklist --enable-zero-copy "
-        "--disable-background-networking --disable-default-apps"
-    )
+    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = get_optimal_chromium_flags()
     app, created = _ensure_qt_app()
 
     from .desktop import CATDesktopWindow

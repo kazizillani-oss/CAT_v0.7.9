@@ -127,7 +127,7 @@ def _usage(prog: str = None) -> str:
     return (
         f"usage: {prog} [path] [options]\n"
         "\n"
-        "CAT CLI v0.8.b [beta] \u2014 Coding Agent Terminal / terminal AI coding agent.\n"
+        "CAT CLI v0.8.ab [beta] \u2014 Coding Agent Terminal / terminal AI coding agent.\n"
         "Protected by Fomoji authentication — no valid Fomoji identity = no access.\n"
         "\n"
         "positional arguments:\n"
@@ -205,7 +205,7 @@ def _version():
         from .app import VERSION
         return VERSION
     except Exception:
-        return "0.8.b"
+        return "0.8.ab"
 
 
 def _format_context(ctx: int) -> str:

@@ -622,25 +622,31 @@ if TEXTUAL_AVAILABLE:
             Web Preview (spec section 11: tabs and preview are
             independent). Only when the right pane is already in CODE
             mode do we bring it forward in stacked layouts."""
-            editor = self.editor
-            if editor is None:
+            try:
+                editor = self.editor
+                if editor is None:
+                    return False
+                if self._mode is WorkspaceMode.CODE and not self._fullscreen:
+                    self._showing = "files"
+                    self._relayout()
+                return editor.open_file(path)
+            except Exception:
                 return False
-            if self._mode is WorkspaceMode.CODE and not self._fullscreen:
-                self._showing = "files"
-                self._relayout()
-            return editor.open_file(path)
 
         def open_file_at(self, path, line=1, col=1):
             """Open a file in the editor and navigate cursor to (line, col)."""
-            editor = self.editor
-            if editor is None:
+            try:
+                editor = self.editor
+                if editor is None:
+                    return False
+                if self._mode is WorkspaceMode.CODE and not self._fullscreen:
+                    self._showing = "files"
+                    self._relayout()
+                if hasattr(editor, "open_file_at"):
+                    return editor.open_file_at(path, line, col)
+                return editor.open_file(path)
+            except Exception:
                 return False
-            if self._mode is WorkspaceMode.CODE and not self._fullscreen:
-                self._showing = "files"
-                self._relayout()
-            if hasattr(editor, "open_file_at"):
-                return editor.open_file_at(path, line, col)
-            return editor.open_file(path)
 
         def show_chat(self):
             self._showing = "chat"

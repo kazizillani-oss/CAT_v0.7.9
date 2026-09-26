@@ -59,7 +59,9 @@ _QT_BINDING = None
 try:
     from PySide6.QtWidgets import (
         QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-        QStackedWidget, QPushButton, QLabel, QTabBar, QLineEdit
+        QStackedWidget, QPushButton, QLabel, QTabBar, QLineEdit,
+        QFrame, QProgressBar, QGridLayout, QDialog, QListWidget,
+        QListWidgetItem, QDialogButtonBox, QMessageBox, QMenu, QSizePolicy
     )
     from PySide6.QtCore import Qt, QUrl, Signal, QTimer, QSize
     from PySide6.QtGui import QAction, QKeySequence, QShortcut
@@ -73,7 +75,9 @@ except ImportError:
     try:
         from PyQt6.QtWidgets import (
             QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-            QStackedWidget, QPushButton, QLabel, QTabBar, QLineEdit
+            QStackedWidget, QPushButton, QLabel, QTabBar, QLineEdit,
+            QFrame, QProgressBar, QGridLayout, QDialog, QListWidget,
+            QListWidgetItem, QDialogButtonBox, QMessageBox, QMenu, QSizePolicy
         )
         from PyQt6.QtCore import Qt, QUrl, pyqtSignal as Signal, QTimer, QSize
         from PyQt6.QtGui import QAction, QKeySequence, QShortcut
@@ -578,12 +582,9 @@ if _QT_AVAILABLE:
             vw.addWidget(search_frame)
 
             # 3. Quick Dials (6 rich interactive cards in a 3x2 grid)
-            try:
-                from PySide6.QtWidgets import QGridLayout
-            except ImportError:
-                from PyQt6.QtWidgets import QGridLayout  # type: ignore
-
-            grid = QGridLayout()
+            grid_w = QWidget()
+            grid = QGridLayout(grid_w)
+            grid.setContentsMargins(0, 0, 0, 0)
             grid.setSpacing(10)
 
             shortcuts = [
@@ -600,9 +601,7 @@ if _QT_AVAILABLE:
                     background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {surface_hover}, stop:1 {surface});
                     border: 1px solid {border};
                     border-radius: 12px;
-                    color: {text};
-                    text-align: left;
-                    padding: 8px 12px;
+                    padding: 4px 8px;
                 }}
                 QPushButton:hover {{
                     border: 1.5px solid {accent};
@@ -611,7 +610,7 @@ if _QT_AVAILABLE:
                 QPushButton:pressed {{
                     background: {surface};
                     border: 1.5px solid {border};
-                    padding-top: 10px;
+                    padding-top: 6px;
                 }}
             """
 
@@ -622,16 +621,41 @@ if _QT_AVAILABLE:
                 btn.setCursor(Qt.CursorShape.PointingHandCursor)
                 btn.setFixedHeight(56)
                 btn.setStyleSheet(card_style)
-                btn.setText(
-                    f'<span style="font-size:16px;">{icon}</span> '
-                    f'<span style="font-size:12px;font-weight:bold;color:{text};">{label}</span><br>'
-                    f'<span style="font-size:10px;color:{text_muted};margin-left:22px;">{sub}</span>'
-                )
-                btn.clicked.connect(lambda _=None, u=url: self.navigate(u))
+
+                btn_lay = QHBoxLayout(btn)
+                btn_lay.setContentsMargins(10, 4, 10, 4)
+                btn_lay.setSpacing(10)
+
+                icon_lbl = QLabel(icon)
+                icon_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+                icon_lbl.setStyleSheet(f"font-size: 20px; color: {tag_color}; background: transparent; border: none;")
+                btn_lay.addWidget(icon_lbl)
+
+                tb = QWidget()
+                tb.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+                tb.setStyleSheet("background: transparent; border: none;")
+                tb_lay = QVBoxLayout(tb)
+                tb_lay.setContentsMargins(0, 0, 0, 0)
+                tb_lay.setSpacing(1)
+
+                title_lbl = QLabel(label)
+                title_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+                title_lbl.setStyleSheet(f"font-size: 12px; font-weight: bold; color: {text}; background: transparent; border: none;")
+                tb_lay.addWidget(title_lbl)
+
+                sub_lbl = QLabel(sub)
+                sub_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+                sub_lbl.setStyleSheet(f"font-size: 10px; color: {text_muted}; background: transparent; border: none;")
+                tb_lay.addWidget(sub_lbl)
+
+                btn_lay.addWidget(tb, 1)
+
+                if url == "about:home":
+                    btn.clicked.connect(lambda _=None: self.new_tab("about:home"))
+                else:
+                    btn.clicked.connect(lambda _=None, u=url: self.navigate(u))
                 grid.addWidget(btn, row, col)
 
-            grid_w = QWidget()
-            grid_w.setLayout(grid)
             vw.addWidget(grid_w)
 
             # 4. Footer & Shortcut Helper
@@ -684,6 +708,11 @@ if _QT_AVAILABLE:
                 self._views.append(w)
                 fav = "○"
                 title = "New Tab"
+                if self.state:
+                    self.state.new_tab("about:home")
+                    if self.state.tabs:
+                        self.state.tabs[-1].title = "New Tab"
+                        self.state.tabs[-1].favicon = "○"
             else:
                 view = SecureWebEngineView()
                 try:
@@ -725,8 +754,8 @@ if _QT_AVAILABLE:
             tab_idx = self.tab_bar.addTab(f"{fav}  {title[:28]}")
             self.tab_bar.setCurrentIndex(tab_idx)
             self.viewport_stack.setCurrentIndex(idx)
-            if not is_newtab_url and self.state:
-                self.state.active_tab_id = self.state.tabs[-1].id if self.state.tabs else ""
+            if self.state and self.state.tabs:
+                self.state.active_tab_id = self.state.tabs[-1].id
             self._rebuild_view_index()
             self._sync_chrome()
             return tab_idx
@@ -1108,6 +1137,11 @@ if _QT_AVAILABLE:
                 self.viewport_stack.setCurrentIndex(new_idx)
                 self._sync_chrome()
 
+        def close_active_tab(self):
+            cur = self.tab_bar.currentIndex()
+            if 0 <= cur < len(self._views):
+                self._close_tab(cur)
+
         def _on_address_enter(self):
             self.navigate(self.address_input.text())
 
@@ -1439,6 +1473,7 @@ if _QT_AVAILABLE:
             shortcuts = [
                 ("F11", self.toggle_fullscreen),
                 ("Ctrl+Q", self.close),
+                ("Ctrl+W", self._close_active_tab),
                 ("Ctrl+L", self._focus_address),
                 ("Alt+Left", self._browser_back),
                 ("Alt+Right", self._browser_forward),
@@ -1498,6 +1533,15 @@ if _QT_AVAILABLE:
             except Exception:
                 pass
 
+        def _close_active_tab(self):
+            try:
+                if hasattr(self.browser, "close_active_tab"):
+                    self.browser.close_active_tab()  # type: ignore
+                elif hasattr(self.browser, "_close_tab") and hasattr(self.browser, "tab_bar"):
+                    self.browser._close_tab(self.browser.tab_bar.currentIndex())
+            except Exception:
+                pass
+
         def _bring_to_front(self):
             try:
                 state = self.windowState()
@@ -1516,8 +1560,9 @@ if _QT_AVAILABLE:
                         hwnd = int(self.winId()) if hasattr(self, "winId") else 0
                         if hwnd > 0:
                             user32 = ctypes.windll.user32
-                            user32.ShowWindow(hwnd, 9)  # SW_RESTORE
-                            # Smooth window activation without DWM surface recreation flicker
+                            # Only restore if minimized to avoid DWM flicker
+                            if user32.IsIconic(hwnd):
+                                user32.ShowWindow(hwnd, 9)  # SW_RESTORE
                             if hasattr(user32, "SwitchToThisWindow"):
                                 user32.SwitchToThisWindow(hwnd, True)
                             user32.BringWindowToTop(hwnd)
