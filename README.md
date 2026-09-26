@@ -13,8 +13,6 @@
 CODING AGENT TERMINAL · v0.8.ab [final version]
 ```
 ### A terminal-first AI coding environment for developers who live in the command line.
-
-[![CI](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml/badge.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/badge/version-0.8.ab-blue.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9)
 [![VS Code](https://img.shields.io/badge/VS%20Code-0.8.6-007ACC.svg)](https://marketplace.visualstudio.com/items?itemName=KaziZillani.cat-cli)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-yellow.svg)](https://www.python.org/)
@@ -23,11 +21,8 @@ CODING AGENT TERMINAL · v0.8.ab [final version]
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9)
 [![GitHub Stars](https://img.shields.io/github/stars/kazizillani-oss/CAT_v0.7.9?style=flat)](https://github.com/kazizillani-oss/CAT_v0.7.9/stargazers)
 [![GitHub Issues](https://img.shields.io/github/issues/kazizillani-oss/CAT_v0.7.9?style=flat)](https://github.com/kazizillani-oss/CAT_v0.7.9/issues)
-
 <br>
-
 <img width="2778" height="1284" alt="CAT Terminal Interface" src="https://github.com/user-attachments/assets/7eb60f01-fcaa-427b-ab8b-dcbfe7be4b79" />
-
 <br>
 
 **Terminal AI · Coding Agent · Workspace Tools · Science Utilities · Multi-Provider AI**
