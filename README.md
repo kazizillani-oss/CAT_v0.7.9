@@ -660,9 +660,9 @@ See [LICENSE](LICENSE) for the complete license text.
 ╭──────────────────────────────────────────────╮
 │                                              │
 │        C A T   ·   C O D I N G   A G E N T   │
-│                                              │
+│                         T E R M I N A L      │
 │             Built for the terminal.          │
-│             Powered by AI.                   │
+│            Created by kazi Zillani.          │
 │             Built by one developer.          │
 │                                              │
 ╰──────────────────────────────────────────────╯
