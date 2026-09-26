@@ -1,6 +1,13 @@
 # 🐈 Coding Agent Terminal (CAT)
-> ### 🐈 **A coding agent that keeps coding — even when rate limits hit.**
-> **Powered by CAT's Backup Provider system.**
+<div align="center">
+
+> **“A coding agent that keeps coding when rate limits get in the way.”**
+>
+> — **CAT · Coding Agent Terminal**
+
+*Powered by Backup Providers.*
+
+</div>
 <div align="center">
 
 ```
