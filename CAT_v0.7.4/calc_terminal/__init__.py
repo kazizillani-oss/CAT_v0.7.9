@@ -16,7 +16,7 @@ try:
 except Exception:
     pass
 
-__version__ = "0.8.ab"
+__version__ = "0.8.0b1"
 
 
 def _sync_version():

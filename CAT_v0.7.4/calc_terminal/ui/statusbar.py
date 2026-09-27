@@ -77,7 +77,7 @@ class StatusFields:
     thinking.py stays dependency-free — StatusBar below only renders
     what this computes."""
 
-    def __init__(self, app_state_getter, version="0.8.ab"):
+    def __init__(self, app_state_getter, version="0.8.0b1"):
         """`app_state_getter` is a zero-arg callable returning a dict
         with keys this module doesn't otherwise know: 'model_label',
         'workspace', 'notebook_count', 'simulation', 'ollama_checked_at'.

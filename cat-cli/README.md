@@ -156,13 +156,13 @@ When invoking or automating CAT/CCT from scripts, VS Code tasks, or external too
 
 ## Release Notes
 
-### 0.8.ab (0.8.6)
+### 0.8.0b1 (0.8.6)
 
 - Fixed sidebar collapse button border bleed and divider collision artifact in terminal TUI.
 - Added dedicated sidebar expand toggle button when sidebar is collapsed.
 - Restored iconic hero CAT ASCII art banner across normal terminal heights (>= 8 rows).
 - Fixed double icon bug in permission dropdown (clean single icon + checkmarks).
-- Updated core CLI version target to `0.8.ab` [final version].
+- Updated core CLI version target to `0.8.0b1` [beta].
 
 ### 0.8.4
 

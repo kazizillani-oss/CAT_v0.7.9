@@ -152,10 +152,10 @@ class TestBlankScreenAndPerformance(unittest.TestCase):
         self.assertIsNone(mgr.resolve("non_existent_key_xyz"))
 
     def test_version_sync_v0_8_ab(self):
-        """Verify core and identity versions report 0.8.ab."""
+        """Verify core and identity versions report 0.8.0b1."""
         from calc_terminal import identity, __version__
-        self.assertEqual(identity.APP_VERSION, "0.8.ab")
-        self.assertEqual(__version__, "0.8.ab")
+        self.assertEqual(identity.APP_VERSION, "0.8.0b1")
+        self.assertEqual(__version__, "0.8.0b1")
 
     def test_statusbar_no_seconds_flicker(self):
         """Verify statusbar output has minute-level time to prevent 1.6s redraw flicker."""

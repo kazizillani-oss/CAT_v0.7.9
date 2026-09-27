@@ -2420,9 +2420,9 @@ if TEXTUAL_AVAILABLE:
                 return v
             try:
                 from .. import app as _backend
-                return getattr(_backend, "VERSION", "0.8.ab")
+                return getattr(_backend, "VERSION", "0.8.0b1")
             except Exception:
-                return "0.8.ab"
+                return "0.8.0b1"
 
         def _tick_idle_animation(self):
             """Cheap idle-heartbeat: paints the status bar once per cycle
