@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="280" height="36" viewBox="0 0 280 36">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#1a1b2e"/>
+      <stop offset="100%" style="stop-color:#16172b"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#7aa2f7"/>
+      <stop offset="100%" style="stop-color:#bb9af7"/>
+    </linearGradient>
+  </defs>
+  <rect width="280" height="36" rx="6" fill="url(#bg)"/>
+  <rect width="280" height="36" rx="6" fill="none" stroke="#2a2b3d" stroke-width="1"/>
+  <rect x="0" y="0" width="280" height="2" rx="6" fill="url(#accent)" opacity="0.6"/>
+  <!-- CAT label -->
+  <rect x="8" y="8" width="44" height="20" rx="4" fill="#7aa2f7" opacity="0.15"/>
+  <text x="30" y="22" font-family="'Cascadia Code','Fira Code',monospace" font-size="11" fill="#7aa2f7" text-anchor="middle" font-weight="700">CAT</text>
+  <!-- Separator -->
+  <rect x="60" y="10" width="1" height="16" fill="#2a2b3d"/>
+  <!-- Text -->
+  <text x="70" y="22" font-family="'Inter','SF Pro Display','Segoe UI',sans-serif" font-size="11.5" fill="#c0caf5" letter-spacing="0.2">Coding Agent Terminal</text>
+  <!-- Version -->
+  <text x="228" y="22" font-family="'Cascadia Code','Fira Code',monospace" font-size="10" fill="#565f89">v0.8.0b1</text>
+</svg>

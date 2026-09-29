@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "7ee125b5-b006-47d8-ba73-a499e4c5d350",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "C:\\Users\\ADMIN\\OneDrive\\PlayGround_Official\\Dev_Project_PlayGorund{Dp{P} }_Official_v0.5\\CAT_v0.7.9\\cat-architecture.architecture.json",
+  "output": "C:\\Users\\ADMIN\\OneDrive\\PlayGround_Official\\Dev_Project_PlayGorund{Dp{P} }_Official_v0.5\\CAT_v0.7.9\\cat-architecture.html",
+  "specification": {
+    "sha256": "220c435e5553748ccdeb59f714ec520ef4f0b3c15963efb1392984dda6a9a37e",
+    "bytes": 11939
+  },
+  "artifact": {
+    "sha256": "a4a913ebd04cadd80cfd65810e756c52a365c949ebc36c4d871730ad0ab22925",
+    "bytes": 833728
+  }
+}

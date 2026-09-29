@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Web Request — Cache Miss Flow",
+    "output": "web-request-cache-miss.html",
+    "viewBox": [960, 560],
+    "column_fit": "spread",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    { "id": "browser", "type": "external", "label": "Browser", "sublabel": "client request" },
+    { "id": "api", "type": "backend", "label": "API", "sublabel": "application server" },
+    { "id": "redis", "type": "database", "label": "Redis", "sublabel": "cache layer" },
+    { "id": "pg", "type": "database", "label": "PostgreSQL", "sublabel": "primary store" }
+  ],
+  "segments": [
+    { "from": 150, "to": 240, "label": "Cache Lookup" },
+    { "from": 250, "to": 360, "label": "Fallback to DB" },
+    { "from": 370, "to": 450, "label": "Response" }
+  ],
+  "messages": [
+    { "id": "http-request", "from": "browser", "to": "api", "y": 160, "label": "HTTP request", "variant": "emphasis" },
+    { "id": "cache-get", "from": "api", "to": "redis", "y": 200, "label": "GET cached data", "variant": "default" },
+    { "id": "cache-miss", "from": "redis", "to": "api", "y": 228, "label": "cache miss", "variant": "return" },
+    { "id": "db-query", "from": "api", "to": "pg", "y": 270, "label": "SELECT query", "variant": "emphasis" },
+    { "id": "db-rows", "from": "pg", "to": "api", "y": 305, "label": "result rows", "variant": "return" },
+    { "id": "cache-set", "from": "api", "to": "redis", "y": 340, "label": "SET cache (TTL)", "variant": "dashed" },
+    { "id": "http-response", "from": "api", "to": "browser", "y": 390, "label": "200 JSON response", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "api", "from": 160, "to": 400, "type": "backend" },
+    { "participant": "redis", "from": 195, "to": 234, "type": "database" },
+    { "participant": "pg", "from": 265, "to": 311, "type": "database" },
+    { "participant": "redis", "from": 335, "to": 350, "type": "database" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Cache Lookup",
+      "items": [
+        "Browser sends an HTTP request to the API",
+        "API checks Redis for cached data first",
+        "A cache miss triggers the database fallback"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "DB Fallback & Cache Fill",
+      "items": [
+        "On miss, API queries PostgreSQL for fresh data",
+        "Result rows are written back to Redis with a TTL",
+        "Subsequent requests will hit the warm cache"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "Response Path",
+      "items": [
+        "API assembles the JSON response from DB rows",
+        "Cache write is fire-and-forget (dashed)",
+        "Browser receives the same payload regardless of cache state"
+      ]
+    }
+  ]
+}

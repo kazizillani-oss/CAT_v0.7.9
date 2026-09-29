@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "7bb378c7-a741-4e2b-945a-58497469c601",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "C:\\Users\\ADMIN\\OneDrive\\PlayGround_Official\\Dev_Project_PlayGorund{Dp{P} }_Official_v0.5\\CAT_v0.7.9\\web-request-cache-miss.sequence.json",
+  "output": "C:\\Users\\ADMIN\\OneDrive\\PlayGround_Official\\Dev_Project_PlayGorund{Dp{P} }_Official_v0.5\\CAT_v0.7.9\\web-request-cache-miss.html",
+  "specification": {
+    "sha256": "e96d8422a2c7fbfa1cc5c468e2a45a46ffaa64062d1094b14d4ae90f6dfd86bf",
+    "bytes": 2817
+  },
+  "artifact": {
+    "sha256": "ba49cb2c989facee4f92ff8cbc385cfd770479f0773150c2743543f7fe1fc332",
+    "bytes": 753817
+  }
+}

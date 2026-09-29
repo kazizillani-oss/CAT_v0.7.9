@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "CAT v0.8.0 — Coding Agent Terminal Architecture",
+    "output": "cat-architecture.html",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    { "id": "cli", "type": "backend", "label": "CLI", "sublabel": "cat / catx / cct", "pos": [40, 40], "size": [140, 60] },
+    { "id": "vscode-ext", "type": "frontend", "label": "VS Code Ext", "sublabel": "cat-cli VSIX", "pos": [260, 40], "size": [140, 60] },
+
+    { "id": "app", "type": "backend", "label": "app.py", "sublabel": "command dispatcher", "pos": [40, 180], "size": [150, 60] },
+    { "id": "engine", "type": "backend", "label": "engine.py", "sublabel": "step runner + config", "pos": [280, 180], "size": [160, 60] },
+    { "id": "eventbus", "type": "backend", "label": "eventbus", "sublabel": "pub/sub + SSE", "pos": [530, 180], "size": [140, 60] },
+
+    { "id": "aicore", "type": "backend", "label": "aicore.py", "sublabel": "LLM orchestrator", "pos": [40, 360], "size": [150, 60] },
+    { "id": "agent", "type": "backend", "label": "agent.py", "sublabel": "agent loop + sandbox", "pos": [280, 360], "size": [160, 60] },
+    { "id": "ai-modes", "type": "backend", "label": "ai_modes", "sublabel": "chat / code / auto", "pos": [530, 360], "size": [140, 60] },
+    { "id": "pipeline", "type": "backend", "label": "pipeline.py", "sublabel": "task pipeline", "pos": [760, 360], "size": [140, 60] },
+
+    { "id": "provider-mgr", "type": "backend", "label": "provider_mgr", "sublabel": "multi-provider hub", "pos": [40, 540], "size": [160, 60] },
+    { "id": "openai", "type": "external", "label": "OpenAI", "sublabel": "GPT models", "pos": [290, 540], "size": [120, 60] },
+    { "id": "anthropic", "type": "external", "label": "Anthropic", "sublabel": "Claude models", "pos": [500, 540], "size": [130, 60] },
+    { "id": "gemini", "type": "external", "label": "Gemini", "sublabel": "Google AI", "pos": [290, 660], "size": [120, 60] },
+    { "id": "ollama", "type": "external", "label": "Ollama", "sublabel": "local LLMs", "pos": [500, 660], "size": [120, 60] },
+
+    { "id": "model-mgr", "type": "backend", "label": "model_mgr", "sublabel": "registry + validator", "pos": [720, 540], "size": [160, 60] },
+    { "id": "metadata-json", "type": "database", "label": "metadata.json", "sublabel": "103 KB catalog", "pos": [720, 660], "size": [160, 60] },
+
+    { "id": "ui-app", "type": "frontend", "label": "ui/app.py", "sublabel": "Textual TUI root", "pos": [40, 840], "size": [140, 60] },
+    { "id": "composer", "type": "frontend", "label": "composer.py", "sublabel": "input + chat view", "pos": [270, 840], "size": [150, 60] },
+    { "id": "editor-panel", "type": "frontend", "label": "editor.py", "sublabel": "code editor", "pos": [510, 840], "size": [140, 60] },
+    { "id": "sidebar", "type": "frontend", "label": "sidebar.py", "sublabel": "nav + 54 panels", "pos": [740, 840], "size": [150, 60] },
+
+    { "id": "web-server", "type": "backend", "label": "web/server.py", "sublabel": "FastAPI app", "pos": [40, 980], "size": [150, 60] },
+    { "id": "web-static", "type": "database", "label": "static/", "sublabel": "CSS + JS + icons", "pos": [280, 980], "size": [140, 60] },
+    { "id": "cat-browser", "type": "frontend", "label": "cat_browser", "sublabel": "PySide6 + Playwright", "pos": [510, 980], "size": [170, 60] },
+
+    { "id": "workspace", "type": "backend", "label": "workspace.py", "sublabel": "files + index", "pos": [40, 1130], "size": [150, 60] },
+    { "id": "fs-watcher", "type": "backend", "label": "fs_watcher", "sublabel": "watchdog events", "pos": [280, 1130], "size": [150, 60] },
+    { "id": "git-sync", "type": "backend", "label": "git_sync.py", "sublabel": "git bridge", "pos": [520, 1130], "size": [140, 60] },
+
+    { "id": "extensions", "type": "backend", "label": "extensions.py", "sublabel": "plugin loader", "pos": [40, 1270], "size": [150, 60] },
+    { "id": "registry", "type": "backend", "label": "registry.py", "sublabel": "capability bus", "pos": [280, 1270], "size": [150, 60] },
+    { "id": "mcp", "type": "backend", "label": "mcp.py", "sublabel": "MCP protocol", "pos": [520, 1270], "size": [140, 60] },
+
+    { "id": "solver", "type": "backend", "label": "solver.py", "sublabel": "math + formulas", "pos": [40, 1410], "size": [140, 60] },
+    { "id": "sim3d", "type": "backend", "label": "sim3d + gpu3d", "sublabel": "3D + atom sim", "pos": [270, 1410], "size": [150, 60] },
+    { "id": "graphs", "type": "backend", "label": "graphs.py", "sublabel": "plots + LaTeX", "pos": [510, 1410], "size": [140, 60] },
+    { "id": "scires", "type": "backend", "label": "scires.py", "sublabel": "sci research", "pos": [740, 1410], "size": [140, 60] },
+
+    { "id": "vision", "type": "backend", "label": "vision/", "sublabel": "capture + analysis", "pos": [40, 1550], "size": [150, 60] },
+    { "id": "circuit-break", "type": "security", "label": "resilience/", "sublabel": "breaker + failover", "pos": [280, 1550], "size": [160, 60] },
+    { "id": "doctor", "type": "security", "label": "diagnostics/", "sublabel": "doctor + health", "pos": [530, 1550], "size": [150, 60] },
+
+    { "id": "collaboration", "type": "backend", "label": "collaboration", "sublabel": "multi-user", "pos": [40, 1690], "size": [150, 60] },
+    { "id": "fomoji-auth", "type": "security", "label": "fomoji_auth", "sublabel": "OAuth + tokens", "pos": [280, 1690], "size": [150, 60] },
+    { "id": "memory", "type": "database", "label": "memory + store", "sublabel": "history + long-term", "pos": [520, 1690], "size": [160, 60] },
+
+    { "id": "pyproject", "type": "database", "label": "pyproject.toml", "sublabel": "build config", "pos": [40, 1830], "size": [150, 60] },
+    { "id": "dist-whl", "type": "database", "label": "dist/*.whl", "sublabel": "PyPI package", "pos": [280, 1830], "size": [140, 60] },
+    { "id": "vsix", "type": "database", "label": "*.vsix", "sublabel": "VS Code extension", "pos": [510, 1830], "size": [140, 60] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Entry Points", "wraps": ["cli", "vscode-ext"] },
+    { "kind": "region", "label": "Core Engine", "wraps": ["app", "engine", "eventbus"] },
+    { "kind": "region", "label": "AI / LLM Layer", "wraps": ["aicore", "agent", "ai-modes", "pipeline"] },
+    { "kind": "region", "label": "Provider System", "wraps": ["provider-mgr", "openai", "anthropic", "gemini", "ollama"] },
+    { "kind": "region", "label": "Model Registry", "wraps": ["model-mgr", "metadata-json"] },
+    { "kind": "region", "label": "TUI (Textual UI)", "wraps": ["ui-app", "composer", "editor-panel", "sidebar"] },
+    { "kind": "region", "label": "Web + Browser", "wraps": ["web-server", "web-static", "cat-browser"] },
+    { "kind": "region", "label": "Workspace & Files", "wraps": ["workspace", "fs-watcher", "git-sync"] },
+    { "kind": "region", "label": "Extensions & MCP", "wraps": ["extensions", "registry", "mcp"] },
+    { "kind": "region", "label": "Science & Compute", "wraps": ["solver", "sim3d", "graphs", "scires"] },
+    { "kind": "region", "label": "Vision + Resilience", "wraps": ["vision", "circuit-break", "doctor"] },
+    { "kind": "region", "label": "Collaboration", "wraps": ["collaboration", "fomoji-auth", "memory"] },
+    { "kind": "region", "label": "Build & Distribution", "wraps": ["pyproject", "dist-whl", "vsix"] }
+  ],
+  "connections": [
+    { "id": "cli-app", "from": "cli", "to": "app", "label": "launches", "variant": "emphasis" },
+    { "id": "vsc-cli", "from": "vscode-ext", "to": "cli", "label": "spawns" },
+
+    { "id": "app-engine", "from": "app", "to": "engine", "label": "runs steps" },
+    { "id": "app-eventbus", "from": "app", "to": "eventbus", "label": "pub/sub" },
+    { "id": "app-aicore", "from": "app", "to": "aicore", "label": "AI dispatch", "variant": "emphasis", "fromSide": "bottom", "toSide": "top" },
+    { "id": "app-ui", "from": "app", "to": "ui-app", "label": "mounts TUI", "variant": "dashed", "fromSide": "bottom", "toSide": "top" },
+    { "id": "app-web", "from": "app", "to": "web-server", "label": "starts web", "variant": "dashed" },
+
+    { "id": "aicore-agent", "from": "aicore", "to": "agent", "label": "agent loop" },
+    { "id": "aicore-modes", "from": "aicore", "to": "ai-modes", "label": "picks mode" },
+    { "id": "aicore-prov", "from": "aicore", "to": "provider-mgr", "label": "selects provider", "variant": "emphasis", "fromSide": "bottom", "toSide": "top" },
+    { "id": "agent-pipe", "from": "agent", "to": "pipeline", "label": "task exec" },
+
+    { "id": "prov-openai", "from": "provider-mgr", "to": "openai", "label": "GPT" },
+    { "id": "prov-anth", "from": "provider-mgr", "to": "anthropic", "label": "Claude" },
+    { "id": "prov-gem", "from": "provider-mgr", "to": "gemini", "label": "Gemini", "fromSide": "bottom", "toSide": "left" },
+    { "id": "prov-oll", "from": "provider-mgr", "to": "ollama", "label": "Ollama", "variant": "dashed" },
+    { "id": "prov-model", "from": "provider-mgr", "to": "model-mgr", "label": "model lookup", "fromSide": "right", "toSide": "left" },
+    { "id": "model-meta", "from": "model-mgr", "to": "metadata-json", "label": "reads catalog", "fromSide": "bottom", "toSide": "top" },
+
+    { "id": "ui-comp", "from": "ui-app", "to": "composer", "label": "input" },
+    { "id": "ui-edit", "from": "ui-app", "to": "editor-panel", "label": "code", "variant": "dashed" },
+    { "id": "ui-side", "from": "ui-app", "to": "sidebar", "label": "nav" },
+
+    { "id": "web-stat", "from": "web-server", "to": "web-static", "label": "serves" },
+    { "id": "web-browser", "from": "web-server", "to": "cat-browser", "label": "hosts", "variant": "dashed" },
+
+    { "id": "ws-watch", "from": "workspace", "to": "fs-watcher", "label": "watches" },
+    { "id": "ws-git", "from": "workspace", "to": "git-sync", "label": "git ops" },
+
+    { "id": "ext-reg", "from": "extensions", "to": "registry", "label": "registers" },
+    { "id": "ext-mcp", "from": "extensions", "to": "mcp", "label": "MCP tools" },
+
+    { "id": "prov-cb", "from": "provider-mgr", "to": "circuit-break", "label": "circuit breaker", "variant": "security", "fromSide": "bottom", "toSide": "top" },
+
+    { "id": "collab-auth", "from": "collaboration", "to": "fomoji-auth", "label": "authenticates", "variant": "security" },
+    { "id": "collab-mem", "from": "collaboration", "to": "memory", "label": "persists" },
+
+    { "id": "build-dist", "from": "pyproject", "to": "dist-whl", "label": "builds wheel" },
+    { "id": "build-vsix", "from": "vscode-ext", "to": "vsix", "label": "packages", "variant": "dashed" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Entry & Core",
+      "items": [
+        "CLI entry (cat / catx / cct) → app.py → engine step runner",
+        "VS Code extension spawns CLI in integrated terminal",
+        "EventBus pub/sub connects all subsystems"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "AI / LLM Stack",
+      "items": [
+        "aicore.py orchestrates LLM calls via provider_manager",
+        "4 providers: OpenAI, Anthropic, Gemini, Ollama (local)",
+        "Dynamic model registry with 103 KB metadata catalog",
+        "Agent loop with sandbox runtime and task pipeline"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "UI Surfaces",
+      "items": [
+        "Textual TUI: 54+ panels covering chat, editor, workspace",
+        "FastAPI web server with static frontend and SSE events",
+        "PySide6 browser host with Playwright engine"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Science & Compute",
+      "items": [
+        "Math solver, 3D sims (atom, reaction, GPU-accel)",
+        "Formula library, graph plotting, LaTeX rendering"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Resilience & Distribution",
+      "items": [
+        "Circuit breaker, failover, health monitoring, doctor",
+        "PyPI wheel + VS Code VSIX dual distribution"
+      ]
+    }
+  ]
+}
