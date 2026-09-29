@@ -19,7 +19,7 @@ if __name__ == "__main__":
 import os
 
 from .. import projects
-from .events import FolderOpened, FileOpenRequested, SidebarToggled
+from .events import FolderOpened, FileOpenRequested, SidebarToggled, WorkspaceChanged
 
 TEXTUAL_AVAILABLE = True
 try:

@@ -27,6 +27,7 @@ import random
 import re
 import subprocess
 import time
+import uuid
 
 from . import theme
 from . import aicore
@@ -2424,7 +2425,7 @@ def _remember_turn(user_text, final_text, steps, mode):
         mm.add_session_turn("assistant", final_text, mode=mode)
         # Emit event for the event stream
         try:
-            from .event_stream import stream
+            from .event_stream import stream, AGENT_COMPLETED
             stream.emit(AGENT_COMPLETED, source="agent",
                         user_text=user_text[:200], steps_count=len(steps), mode=mode)
         except Exception:

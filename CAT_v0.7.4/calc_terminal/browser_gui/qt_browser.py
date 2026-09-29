@@ -28,7 +28,7 @@ from pathlib import Path
 _QT_BINDING = None
 try:
     from PySide6.QtWidgets import (
-        QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+        QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
         QTabWidget, QToolBar, QLineEdit, QPushButton, QLabel, QStackedWidget,
         QDialog, QListWidget, QListWidgetItem, QDialogButtonBox, QMessageBox,
         QProgressBar, QFrame, QSizePolicy,
@@ -41,7 +41,7 @@ try:
 except ImportError:
     try:
         from PyQt6.QtWidgets import (
-            QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+            QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
             QTabWidget, QToolBar, QLineEdit, QPushButton, QLabel, QStackedWidget,
             QDialog, QListWidget, QListWidgetItem, QDialogButtonBox, QMessageBox,
             QProgressBar, QFrame, QSizePolicy,

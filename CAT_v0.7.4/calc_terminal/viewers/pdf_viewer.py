@@ -72,6 +72,7 @@ class PdfViewer(Vertical):
             return None
         try:
             from PIL import Image
+            import fitz
             page = self._doc[page_idx]
             # Render page at 72dpi * zoom scale factor
             scale = 0.6 if self._fit else max(0.4, self._zoom * 0.8)

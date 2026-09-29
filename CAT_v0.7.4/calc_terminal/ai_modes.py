@@ -464,7 +464,6 @@ def move_mode(key, direction):
 
 def reset_all_modes():
     """Reset to factory defaults: clear snapshot and restore defaults."""
-    global MODE_META, MODE_ORDER
     MODE_META.clear()
     for k, v in _DEFAULT_MODE_META.items():
         MODE_META[k] = _copy.deepcopy(v)

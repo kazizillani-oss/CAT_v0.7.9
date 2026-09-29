@@ -96,7 +96,7 @@ _LAST_THEME_MODE = None
 
 
 def invalidate_css_cache():
-    global _LAST_THEME_MODE, _CSS_VAR_CACHE
+    global _LAST_THEME_MODE
     _LAST_THEME_MODE = None
     _CSS_VAR_CACHE.clear()
 
