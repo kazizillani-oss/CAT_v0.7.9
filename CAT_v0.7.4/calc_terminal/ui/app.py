@@ -147,11 +147,11 @@ from .events import (
 )
 # v0.7.9.0: real backend agent-state crossings driving the CAT Agent
 # ASCII indicator (ui/cat_agent.py).
-from .events import AgentActivity
+from .events import AgentActivity, QuestionAnswered
 from .conversation import ConversationView, TEXTUAL_AVAILABLE as _CONV_OK
 from .composer import StickyComposer, ComposerInput, TEXTUAL_AVAILABLE as _COMP_OK
 from .footer import StatusLine, TEXTUAL_AVAILABLE as _FOOTER_OK
-from .permission_panel import PermissionCard, TEXTUAL_AVAILABLE as _PERM_OK
+from .permission_panel import PermissionCard, QuestionCard, TEXTUAL_AVAILABLE as _PERM_OK
 from .header import BrandHeader, TEXTUAL_AVAILABLE as _HEADER_OK
 from .statusbar import StatusBar, StatusFields, TEXTUAL_AVAILABLE as _STATUSBAR_OK
 from .dashboard import WelcomeDashboard, TEXTUAL_AVAILABLE as _DASH_OK
@@ -962,14 +962,245 @@ Button.cct-toggle-3d.-active {
     offset: 0 0;
 }
 
+/* ------------------------------------------------ 3D Skeuomorphic Permission & Inquiry Cards -- */
 .cct-permcard {
-    background: $surface; border: round $warning; margin: 1 2;
-    padding: 1 2; height: auto;
+    background: #18192c;
+    border-top: tall #f59e0b;
+    border-left: tall #d97706;
+    border-bottom: tall #451a03;
+    border-right: tall #451a03;
+    margin: 1 1;
+    padding: 1 2;
+    height: auto;
 }
-.cct-permcard-title { color: $warning; text-style: bold; }
-.cct-permcard-path { color: $text-muted; text-style: italic; }
-.cct-permcard-reason { color: $text-faint; }
-.cct-permcard-buttons { height: 3; margin-top: 1; }
+
+.cct-questioncard {
+    background: #15192e;
+    border-top: tall #38bdf8;
+    border-left: tall #0284c7;
+    border-bottom: tall #1e3a8a;
+    border-right: tall #1e3a8a;
+}
+
+.cct-permcard-badge {
+    color: #0f172a;
+    background: #f59e0b;
+    text-style: bold;
+    padding: 0 1;
+    margin-bottom: 1;
+    width: auto;
+}
+
+.cct-questioncard-badge {
+    color: #ffffff;
+    background: #0284c7;
+    text-style: bold;
+    padding: 0 1;
+    margin-bottom: 1;
+    width: auto;
+}
+
+.cct-permcard-title {
+    color: #f8fafc;
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+.cct-permcard-action {
+    color: #cbd5e1;
+    margin-bottom: 0;
+}
+
+.cct-permcard-path {
+    color: #94a3b8;
+    text-style: italic;
+    margin-bottom: 0;
+}
+
+.cct-permcard-reason {
+    color: #94a3b8;
+    margin-bottom: 1;
+}
+
+.cct-permcard-buttons {
+    height: auto;
+    min-height: 3;
+    margin-top: 1;
+    layout: horizontal;
+    align: left middle;
+}
+
+/* 3D Skeuomorphic Physical Buttons */
+Button.cct-perm-btn {
+    height: 3;
+    min-height: 3;
+    max-height: 3;
+    min-width: 9;
+    width: auto;
+    padding: 0 1;
+    margin-right: 1;
+    margin-bottom: 1;
+    text-style: bold;
+    content-align: center middle;
+    transition: background 100ms, offset 60ms, border 100ms;
+}
+
+/* Allow Once: 3D Tactile Emerald */
+Button.cct-perm-btn-allow {
+    background: #059669;
+    color: #ffffff;
+    border-top: tall #34d399;
+    border-left: tall #10b981;
+    border-bottom: tall #064e3b;
+    border-right: tall #064e3b;
+}
+Button.cct-perm-btn-allow:hover {
+    background: #10b981;
+    border-top: tall #6ee7b7;
+    border-left: tall #34d399;
+    border-bottom: tall #047857;
+    border-right: tall #047857;
+}
+Button.cct-perm-btn-allow.-active {
+    offset: 0 1;
+    border-top: tall #064e3b;
+    border-left: tall #064e3b;
+    border-bottom: tall #34d399;
+    border-right: tall #34d399;
+}
+
+/* Always Allow: 3D Tactile Cyan */
+Button.cct-perm-btn-always {
+    background: #0284c7;
+    color: #ffffff;
+    border-top: tall #38bdf8;
+    border-left: tall #0ea5e9;
+    border-bottom: tall #0c4a6e;
+    border-right: tall #0c4a6e;
+}
+Button.cct-perm-btn-always:hover {
+    background: #0ea5e9;
+    border-top: tall #7dd3fc;
+    border-left: tall #38bdf8;
+    border-bottom: tall #0369a1;
+    border-right: tall #0369a1;
+}
+Button.cct-perm-btn-always.-active {
+    offset: 0 1;
+    border-top: tall #0c4a6e;
+    border-left: tall #0c4a6e;
+    border-bottom: tall #38bdf8;
+    border-right: tall #38bdf8;
+}
+
+/* Deny: 3D Tactile Crimson */
+Button.cct-perm-btn-deny {
+    background: #dc2626;
+    color: #ffffff;
+    border-top: tall #f87171;
+    border-left: tall #ef4444;
+    border-bottom: tall #7f1d1d;
+    border-right: tall #7f1d1d;
+}
+Button.cct-perm-btn-deny:hover {
+    background: #ef4444;
+    border-top: tall #fca5a5;
+    border-left: tall #f87171;
+    border-bottom: tall #991b1b;
+    border-right: tall #991b1b;
+}
+Button.cct-perm-btn-deny.-active {
+    offset: 0 1;
+    border-top: tall #7f1d1d;
+    border-left: tall #7f1d1d;
+    border-bottom: tall #f87171;
+    border-right: tall #f87171;
+}
+
+/* Always Deny: 3D Tactile Dark Slate/Red */
+Button.cct-perm-btn-always-deny {
+    background: #334155;
+    color: #fca5a5;
+    border-top: tall #64748b;
+    border-left: tall #475569;
+    border-bottom: tall #0f172a;
+    border-right: tall #0f172a;
+}
+Button.cct-perm-btn-always-deny:hover {
+    background: #475569;
+    color: #ffffff;
+    border-top: tall #94a3b8;
+    border-left: tall #64748b;
+    border-bottom: tall #1e293b;
+    border-right: tall #1e293b;
+}
+Button.cct-perm-btn-always-deny.-active {
+    offset: 0 1;
+    border-top: tall #0f172a;
+    border-left: tall #0f172a;
+    border-bottom: tall #64748b;
+    border-right: tall #64748b;
+}
+
+/* Cancel / Option: 3D Tactile Slate */
+Button.cct-perm-btn-cancel, Button.cct-perm-btn-option {
+    background: #1e293b;
+    color: #cbd5e1;
+    border-top: tall #475569;
+    border-left: tall #334155;
+    border-bottom: tall #020617;
+    border-right: tall #020617;
+}
+Button.cct-perm-btn-cancel:hover, Button.cct-perm-btn-option:hover {
+    background: #334155;
+    color: #f8fafc;
+    border-top: tall #64748b;
+    border-left: tall #475569;
+    border-bottom: tall #0f172a;
+    border-right: tall #0f172a;
+}
+Button.cct-perm-btn-cancel.-active, Button.cct-perm-btn-option.-active {
+    offset: 0 1;
+    border-top: tall #020617;
+    border-left: tall #020617;
+    border-bottom: tall #475569;
+    border-right: tall #475569;
+}
+
+Button.cct-perm-close-btn {
+    min-width: 5;
+    width: 5;
+    height: 3;
+    content-align: center middle;
+    background: #1e293b;
+    color: #94a3b8;
+    border-top: tall #475569;
+    border-left: tall #334155;
+    border-bottom: tall #0f172a;
+    border-right: tall #0f172a;
+}
+Button.cct-perm-close-btn:hover {
+    color: #ef4444;
+    background: #334155;
+}
+
+.cct-perm-input {
+    background: #0f172a;
+    color: #f8fafc;
+    border: tall #334155;
+    margin-right: 1;
+    height: 3;
+    min-width: 28;
+}
+.cct-perm-input:focus {
+    border: tall #38bdf8;
+}
+
+.cct-permcard-verdict {
+    margin-top: 1;
+    text-style: bold;
+}
+
 
 #cct-statusline {
     height: 1; background: $app-background; color: $text-faint;
@@ -1913,6 +2144,7 @@ if TEXTUAL_AVAILABLE:
             self.session = chat_session.ChatSession()
             self._pending_permissions = {}  # request_id -> (text, attachments)
             self._pending_tool_permissions = {}  # request_id -> (threading.Event, result_dict)
+            self._pending_tool_questions = {}  # request_id -> (threading.Event, result_dict)
             # v0.7.8.2: start in the saved mode (ai_modes restores it
             # from ~/.cct_config.json) — never a hardcoded Notebook, so
             # a restart can't silently switch the user's mode.
@@ -2874,6 +3106,8 @@ if TEXTUAL_AVAILABLE:
                 from .permission_panel import PermissionCard
                 # Show permissions via header pill flow
                 try:
+                    from .header import CATHeader
+                    PermissionPill = CATHeader.PermissionPill
                     self.query_one(PermissionPill).on_click(type("E", (), {"stop": lambda: None})())
                 except Exception:
                     self._system_note("Permissions: use the header pill or /permissions")
@@ -3573,6 +3807,10 @@ if TEXTUAL_AVAILABLE:
                     return
             except Exception:
                 pass
+
+            # If a modal or subscreen is currently pushed/active, NEVER forward typing to background composer!
+            if len(getattr(self, "screen_stack", [])) > 1:
+                return
 
             # Auto-forward typing to composer if not focused on an editable text input
             focused = self.focused
@@ -5825,18 +6063,15 @@ if TEXTUAL_AVAILABLE:
                 self._begin_assistant_turn(text, attachments, parent_turn_id=parent_turn_id)
 
         def on_permission_granted(self, event: PermissionGranted):
+            try:
+                self.composer.resume_streaming_timer()
+            except Exception:
+                pass
             tool_pending = self._pending_tool_permissions.pop(event.request_id, None)
             if tool_pending is not None:
-                # Mid-agent-loop tool call (write_file/delete_file/...) —
-                # agent._check_permission (running on the worker thread)
-                # is blocked waiting on this exact decision string and
-                # calls perm.manager.decide() itself once we hand it
-                # back; this side just relays the button choice and
-                # unblocks the wait.
                 waiter, result = tool_pending
                 result["decision"] = "always_allow" if event.remember else "allow_once"
                 waiter.set()
-                # v0.7.9.0: allowed -> the tool actually runs now.
                 try:
                     self.post_message(AgentActivity(None, "tool_execution"))
                 except Exception:
@@ -5854,14 +6089,16 @@ if TEXTUAL_AVAILABLE:
                     self._begin_assistant_turn(text, attachments, parent_turn_id=parent_turn_id)
 
         def on_permission_denied(self, event: PermissionDenied):
+            try:
+                self.composer.resume_streaming_timer()
+            except Exception:
+                pass
             decision = "always_deny" if event.remember else "deny"
             tool_pending = self._pending_tool_permissions.pop(event.request_id, None)
             if tool_pending is not None:
                 waiter, result = tool_pending
                 result["decision"] = decision
                 waiter.set()
-                # v0.7.9.0: refused -> the agent loop goes back to the
-                # model with the denial observation (thinking again).
                 try:
                     self.post_message(AgentActivity(None, "thinking"))
                 except Exception:
@@ -5877,6 +6114,10 @@ if TEXTUAL_AVAILABLE:
                                             mode_snapshot=note.mode_snapshot)
 
         def on_permission_cancelled(self, event: PermissionCancelled):
+            try:
+                self.composer.resume_streaming_timer()
+            except Exception:
+                pass
             tool_pending = self._pending_tool_permissions.pop(event.request_id, None)
             if tool_pending is not None:
                 waiter, result = tool_pending
@@ -5895,20 +6136,28 @@ if TEXTUAL_AVAILABLE:
             self.conversation.add_complete(note.turn_id, "system", note.text,
                                             mode_snapshot=note.mode_snapshot)
 
-        def _tool_permission_callback(self, key, action_label, path, reason):
+        def on_question_answered(self, event: QuestionAnswered):
+            try:
+                self.composer.resume_streaming_timer()
+            except Exception:
+                pass
+            tool_pending = self._pending_tool_questions.pop(event.request_id, None)
+            if tool_pending is not None:
+                waiter, result = tool_pending
+                result["decision"] = event.answer
+                result["answer"] = event.answer
+                waiter.set()
+                try:
+                    self.post_message(AgentActivity(None, "thinking"))
+                except Exception:
+                    pass
+
+        def _tool_permission_callback(self, key, action_label, path, reason, options=None):
             """Passed into agent.run_agent() as permission_callback for
             agent-mode turns. Runs on the streaming worker's background
-            thread (see @work(thread=True) _stream_worker below) — it
-            must never touch widgets directly, so it hands the actual
-            card-mounting over to the main thread via call_from_thread,
-            then blocks THIS thread (not the UI) on a plain
-            threading.Event until on_permission_granted/denied above
-            sets it from a real button press. This mirrors
-            _maybe_gate_then_run's existing pre-turn gate, just resolved
-            mid-loop instead of before the turn starts, and without
-            perm.manager.decide() being called twice (agent.py's
-            _check_permission does that once, using the decision this
-            returns).
+            thread — hands actual card mounting over to the main thread via call_from_thread,
+            pauses the streaming timer during user interaction, and blocks on threading.Event
+            until on_permission_* or on_question_answered resolves it.
             """
             import threading
             waiter = threading.Event()
@@ -5916,12 +6165,21 @@ if TEXTUAL_AVAILABLE:
             request_id = perm.manager.new_request_id()
 
             def _mount_card():
-                card = PermissionCard(request_id, key, action_label, reason, path=path)
-                self._pending_tool_permissions[request_id] = (waiter, result)
-                self.conversation.mount_item(card)
-                # v0.7.9.0: blocked on the user's decision — the CAT
-                # Agent indicator switches to its waiting state (it does
-                # NOT stop; the turn is still genuinely in flight).
+                # Pause streaming timer during user review or question response
+                try:
+                    self.composer.pause_streaming_timer()
+                except Exception:
+                    pass
+
+                if key == "ask_question":
+                    card = QuestionCard(request_id, reason, options=options)
+                    self._pending_tool_questions[request_id] = (waiter, result)
+                    self.conversation.mount_item(card)
+                else:
+                    card = PermissionCard(request_id, key, action_label, reason, path=path)
+                    self._pending_tool_permissions[request_id] = (waiter, result)
+                    self.conversation.mount_item(card)
+
                 try:
                     from .events import AgentActivity as _AA
                     self.post_message(_AA(None, "waiting_permission"))
@@ -5930,6 +6188,10 @@ if TEXTUAL_AVAILABLE:
 
             self.call_from_thread(_mount_card)
             waiter.wait()
+            try:
+                self.composer.resume_streaming_timer()
+            except Exception:
+                pass
             return result.get("decision", "deny")
 
         def _begin_assistant_turn(self, text, attachments=None, parent_turn_id=None):
@@ -7335,14 +7597,40 @@ if TEXTUAL_AVAILABLE:
 
             # AI Modes (spec section 3, 4, 55, 56)
             if word in ("/agent", "/build", "/plan", "/notebook", "/ai",
-                        "/research", "/debug"):
-                target = "notebook" if word == "/ai" else word.lstrip("/")
+                        "/research", "/debug", "/debugger"):
+                target = "debugger" if word == "/debugger" else ("notebook" if word == "/ai" else word.lstrip("/"))
                 self._switch_mode_command(target)
                 return
+
+            if word in ("/kitties", "/agents", "/modes"):
+                try:
+                    from .mode_colors_panel import ModeColorsPanel
+                    self.push_screen(ModeColorsPanel(initial_edit=arg.strip() if arg else None))
+                except Exception as e:
+                    self._system_note(f"Kitties Studio unavailable: {e}")
+                return
+
             if word == "/mode":
                 sub_parts = arg.split(None, 1) if arg else []
                 sub = sub_parts[0].lower() if sub_parts else ""
                 sub_arg = sub_parts[1].strip() if len(sub_parts) > 1 else ""
+
+                if not arg:
+                    # Bare /mode opens the Kitties & AI Modes manager directly
+                    try:
+                        from .mode_colors_panel import ModeColorsPanel
+                        self.push_screen(ModeColorsPanel())
+                    except Exception as e:
+                        self._system_note(f"Mode Studio unavailable: {e}")
+                    return
+
+                if sub in ("edit", "customize", "manage"):
+                    try:
+                        from .mode_colors_panel import ModeColorsPanel
+                        self.push_screen(ModeColorsPanel(initial_edit=sub_arg or self._current_ai_mode))
+                    except Exception as e:
+                        self._system_note(f"Mode Studio unavailable: {e}")
+                    return
 
                 if sub == "list":
                     from ..core.mode_registry import mode_registry

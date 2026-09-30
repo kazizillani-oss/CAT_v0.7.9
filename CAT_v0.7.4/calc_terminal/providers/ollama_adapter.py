@@ -252,6 +252,7 @@ class OllamaProvider:
     def cancel_active(self) -> bool:
         """Explicitly cancel current in-flight generation."""
         with self._lock:
+            had_active = (self._active_response is not None) or (self._active_request_id is not None)
             self._state = RequestState.CANCELLED
             if getattr(self, "_active_thinking_act_id", None):
                 try:
@@ -279,8 +280,8 @@ class OllamaProvider:
                     except Exception:
                         pass
                 threading.Thread(target=_abort_slot, daemon=True).start()
-                return True
-        return False
+            self._active_request_id = None
+            return had_active
 
     def stream_chat(
         self,

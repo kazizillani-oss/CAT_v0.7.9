@@ -164,6 +164,15 @@ class PermissionCancelled(Message):
         super().__init__()
 
 
+class QuestionAnswered(Message):
+    """User -> AI agent. The user selected an option or typed an answer to an AI question."""
+
+    def __init__(self, request_id, answer):
+        self.request_id = request_id
+        self.answer = str(answer)
+        super().__init__()
+
+
 # ------------------------------------------------------------ attachments --
 class AttachmentAdded(Message):
     def __init__(self, chip_id, label, kind="file"):

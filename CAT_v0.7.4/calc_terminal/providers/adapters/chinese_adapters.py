@@ -106,6 +106,29 @@ class DeepSeekAdapter(BaseOpenAICompatibleChineseAdapter):
             "availability": AVAILABILITY_OPEN_WEIGHT,
             "recommendation_badges": ["Best for Reasoning", "Best Budget Model"],
         },
+        "deepseek-4.1-pro": {
+            "display_name": "DeepSeek 4.1 Pro",
+            "family": "DeepSeek",
+            "version": "4.1 Pro",
+            "context_window": 256000,
+            "max_output_tokens": 65536,
+            "reasoning_levels": ["high", "max"],
+            "capabilities": ["reasoning", "coding", "tools", "streaming", "long_context"],
+            "pricing": {"input_price_per_1m": 0.8, "output_price_per_1m": 3.2},
+            "availability": AVAILABILITY_OPEN_WEIGHT,
+            "recommendation_badges": ["Best for Reasoning", "Best for Coding"],
+        },
+        "deepseek-4.1-flash": {
+            "display_name": "DeepSeek 4.1 Flash",
+            "family": "DeepSeek",
+            "version": "4.1 Flash",
+            "context_window": 128000,
+            "max_output_tokens": 16384,
+            "capabilities": ["chat", "coding", "tools", "streaming", "fast"],
+            "pricing": {"input_price_per_1m": 0.1, "output_price_per_1m": 0.2},
+            "availability": AVAILABILITY_OPEN_WEIGHT,
+            "recommendation_badges": ["Best Fast Model", "Best Budget Model"],
+        },
     }
 
 
@@ -179,6 +202,33 @@ class MoonshotAdapter(BaseOpenAICompatibleChineseAdapter):
     documentation_url = "https://platform.moonshot.cn/docs"
 
     catalog = {
+        "kimi-latest": {
+            "display_name": "Kimi Latest",
+            "family": "Kimi",
+            "context_window": 256000,
+            "max_output_tokens": 32768,
+            "capabilities": ["reasoning", "coding", "long_context", "tools", "streaming", "search"],
+            "pricing": {"input_price_per_1m": 1.5, "output_price_per_1m": 6.0},
+            "recommendation_badges": ["Best for Research", "Best for Coding"],
+        },
+        "kimi-k1.5": {
+            "display_name": "Kimi K1.5 (Multimodal)",
+            "family": "Kimi",
+            "context_window": 256000,
+            "max_output_tokens": 16384,
+            "capabilities": ["vision", "reasoning", "coding", "long_context", "tools", "streaming"],
+            "pricing": {"input_price_per_1m": 1.5, "output_price_per_1m": 6.0},
+            "recommendation_badges": ["Best for Vision", "Best for Research"],
+        },
+        "moonshot-k1": {
+            "display_name": "Moonshot K1 (Reasoning)",
+            "family": "Kimi",
+            "context_window": 128000,
+            "max_output_tokens": 32768,
+            "capabilities": ["reasoning", "math", "coding", "tools", "streaming"],
+            "pricing": {"input_price_per_1m": 1.2, "output_price_per_1m": 4.8},
+            "recommendation_badges": ["Best for Reasoning"],
+        },
         "kimi-k3": {
             "display_name": "Kimi K3",
             "family": "Kimi",
@@ -196,6 +246,14 @@ class MoonshotAdapter(BaseOpenAICompatibleChineseAdapter):
             "capabilities": ["coding", "tools", "streaming"],
             "pricing": {"input_price_per_1m": 1.0, "output_price_per_1m": 4.0},
         },
+        "moonshot-v1-auto": {
+            "display_name": "Moonshot v1 Auto",
+            "family": "Kimi",
+            "context_window": 128000,
+            "max_output_tokens": 16384,
+            "capabilities": ["long_context", "tools", "streaming"],
+            "pricing": {"input_price_per_1m": 1.2, "output_price_per_1m": 4.8},
+        },
         "moonshot-v1-128k": {
             "display_name": "Moonshot v1 128k",
             "family": "Kimi",
@@ -203,6 +261,22 @@ class MoonshotAdapter(BaseOpenAICompatibleChineseAdapter):
             "max_output_tokens": 8192,
             "capabilities": ["long_context", "tools", "streaming"],
             "pricing": {"input_price_per_1m": 1.2, "output_price_per_1m": 4.8},
+        },
+        "moonshot-v1-32k": {
+            "display_name": "Moonshot v1 32k",
+            "family": "Kimi",
+            "context_window": 32768,
+            "max_output_tokens": 8192,
+            "capabilities": ["tools", "streaming"],
+            "pricing": {"input_price_per_1m": 0.6, "output_price_per_1m": 2.4},
+        },
+        "moonshot-v1-8k": {
+            "display_name": "Moonshot v1 8k",
+            "family": "Kimi",
+            "context_window": 8192,
+            "max_output_tokens": 4096,
+            "capabilities": ["tools", "streaming", "fast"],
+            "pricing": {"input_price_per_1m": 0.3, "output_price_per_1m": 1.2},
         },
     }
 

@@ -477,10 +477,10 @@ if TEXTUAL_AVAILABLE:
                     with Horizontal(classes="user-prefs"):
                         yield Button("  Model / Provider  ", id="user-modelcfg", classes="cct-btn cct-btn-sm")
                         yield Button("  Permissions  ", id="user-perms", classes="cct-btn cct-btn-sm")
-                    yield Static("AI Mode Colors", classes="user-section")
+                    yield Static("🐱 Kitties", classes="user-section")
                     yield Static("", id="user-modecolors-preview", classes="user-detail")
                     with Horizontal(classes="user-prefs"):
-                        yield Button("  \U0001f3a8 Mode Colors  ", id="user-modecolors", classes="cct-btn cct-btn-sm")
+                        yield Button("  🐱 Kitties  ", id="user-modecolors", classes="cct-btn cct-btn-sm")
                     yield Static("Workspace & Preferences", classes="user-section")
                     yield Static("", id="user-memory", classes="user-detail")
                     yield Static("", id="user-sessions", classes="user-detail")

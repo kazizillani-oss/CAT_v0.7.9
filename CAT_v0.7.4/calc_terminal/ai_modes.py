@@ -43,7 +43,12 @@ if __name__ == "__main__":
     import sys
     sys.exit(1)
 
+import threading
+import time
+from typing import Dict, List, Optional, Any
+
 from . import identity
+
 
 MODE_ORDER = ["notebook", "research", "plan", "build", "debugger", "agent"]
 
@@ -62,35 +67,91 @@ MODE_ORDER = ["notebook", "research", "plan", "build", "debugger", "agent"]
 MODE_META = {
     "notebook": dict(
         label="Notebook", icon="\U0001f4d8", accent=(122, 162, 247),  # blue
-        purpose="Daily AI \u2014 chemistry, physics, mathematics, explanations, research.",
+        purpose="Daily AI \u2014 first-principles science, mathematics, reasoning, and conceptual problem-solving.",
         gradient=((93, 132, 240), (145, 190, 255)),  # blue gradient
     ),
     "research": dict(
         label="Research", icon="\U0001f50d", accent=(255, 105, 180),  # hot pink
-        purpose="Deep analysis \u2014 documentation search, API research, comparisons, web research.",
+        purpose="DeepSearch \u2014 multi-angle web research, API analysis, documentation synthesis, and live citations.",
         gradient=((255, 192, 203), (255, 105, 180)),  # pink to hot pink
     ),
     "plan": dict(
         label="Plan", icon="\U0001f9ed", accent=(158, 206, 106),  # green
-        purpose="Project planning \u2014 roadmaps, brainstorming, concepts, prototypes, research/study plans.",
+        purpose="Strategic Planning \u2014 project roadmaps, system architectures, milestone specifications, and edge-case auditing.",
         gradient=((120, 180, 80), (185, 230, 140)),  # green gradient
     ),
     "build": dict(
         label="Build", icon="\U0001f528", accent=(224, 175, 104),  # orange
-        purpose="Software development \u2014 code generation, debugging, architecture, deployment planning.",
+        purpose="Software Engineering \u2014 robust code generation, architecture design, complete refactoring, and test suites.",
         gradient=((230, 150, 70), (250, 200, 130)),  # orange gradient
     ),
     "debugger": dict(
         label="Debugger", icon="\U0001f41b", accent=(220, 20, 60),  # red
-        purpose="Diagnosis \u2014 error analysis, crash investigation, profiling, security analysis.",
+        purpose="Root-Cause Diagnosis \u2014 crash analysis, stack trace dissection, performance profiling, and surgical fixes.",
         gradient=((220, 20, 60), (255, 150, 150)),  # red to light red
     ),
     "agent": dict(
         label=" Agent", icon="\u2699", accent=(187, 154, 247),  # purple
-        purpose="Autonomous execution \u2014 multi-step workflows, tool usage, simulations, file operations.",
+        purpose="Autonomous Operator \u2014 Think Mode chain-of-thought, full computer & CAT CLI automation, shell commands, and file operations.",
         gradient=((150, 120, 240), (210, 180, 255)),  # violet gradient
     ),
 }
+
+# --- Preset Bot Templates for 1-Click Kitty Creation ---
+AGENT_PRESET_TEMPLATES = {
+    "grok": {
+        "key": "grok",
+        "label": "Grok Kitty",
+        "icon": "\u26a1",
+        "accent_hex": "#f59e0b",
+        "purpose": "Witty, rebellious, and high-reasoning bot with unfiltered insights and powerful deep-thought coding.",
+        "system_prompt": (
+            "You are Grok Kitty, a witty, brilliant, rebellious, and exceptionally capable AI coding agent embedded in CAT CLI.\n\n"
+            "You possess an outside perspective on tech dogma, have a sharp sense of humor when appropriate, and avoid sycophantic corporate filler. "
+            "When writing code, analyzing systems, or solving hard bugs, you produce top-tier, rock-solid, production-grade solutions. "
+            "You think with first principles, cut through unnecessary complexity, and provide actionable, direct, and verifiable implementations."
+        ),
+    },
+    "dots": {
+        "key": "dots",
+        "label": "Dots Kitty",
+        "icon": "\u26aa",
+        "accent_hex": "#10b981",
+        "purpose": "OpenAI-inspired minimalist dots bot: concise, ultra-focused architecture, clean code, and laser-precise execution.",
+        "system_prompt": (
+            "You are Dots Kitty, a minimalist, razor-sharp AI agent inspired by clean OpenAI interfaces and dot notation.\n\n"
+            "You value precision, extreme clarity, zero unnecessary fluff, and elegant code architecture. "
+            "You deliver immediate, functional, bug-free implementations, state exactly what was changed, and keep prose concise and high-signal."
+        ),
+    },
+    "automator": {
+        "key": "automator",
+        "label": "Laptop Automator Kitty",
+        "icon": "💻",
+        "accent_hex": "#38bdf8",
+        "purpose": "Full laptop & OS automation \u2014 execute shell commands, automate files, apps, processes, and desktop tasks.",
+        "system_prompt": (
+            "You are Automator Kitty, the laptop and operating system automation specialist embedded in CAT CLI.\n\n"
+            "You have full authority to execute shell and PowerShell commands, automate filesystem tasks, inspect and manage processes, "
+            "interact with browsers, launch scripts, and automate developer workflows end-to-end on this laptop.\n"
+            "Always inspect directory structures before modifying files, verify execution exit codes, and report exact actions taken."
+        ),
+    },
+    "multi": {
+        "key": "multi",
+        "label": "Multi Kitty",
+        "icon": "🔄",
+        "accent_hex": "#c084fc",
+        "purpose": "Inter-agent coordinator \u2014 shares tasks, prompts, and code solutions across Notebook, Build, Debugger, and Automator.",
+        "system_prompt": (
+            "You are Multi-Agent Kitty, the central orchestration and cross-agent sharing specialist in CAT CLI.\n\n"
+            "You coordinate tasks across all Kitties: handing off conceptual reasoning from Notebook Kitty to Build Kitty for coding, "
+            "sending stack traces and bug reports to Debugger Kitty, and dispatching execution to Automator Kitty.\n"
+            "Ensure that all prompt context, reasoning steps, code blocks, and user intent are preserved during inter-kitty handoffs."
+        ),
+    },
+}
+
 
 # --- defaults snapshot for reset (STRICT v0.7.9.7) ---
 import copy as _copy
@@ -304,6 +365,24 @@ def _apply_user_modes_snapshot():
         order = getattr(cfg, "user_mode_order", None) or []
         if not isinstance(snap, dict) or not snap:
             return False
+
+        # Prune legacy hardcoded preset modes so default modes remain the clean 6 core modes
+        pruned_retired = False
+        for retired_key in ("grok", "dots", "automator", "multi"):
+            if retired_key in snap:
+                snap.pop(retired_key, None)
+                pruned_retired = True
+            if isinstance(order, list) and retired_key in order:
+                order = [x for x in order if x != retired_key]
+                pruned_retired = True
+        if pruned_retired:
+            try:
+                cfg.user_modes = snap
+                cfg.user_mode_order = order
+                _cfg.save_config(cfg)
+            except Exception:
+                pass
+
         # validate snapshot: each entry needs accent
         new_meta = {}
         for k, d in snap.items():
@@ -329,6 +408,22 @@ def _apply_user_modes_snapshot():
             }
         if not new_meta:
             return False
+
+        # Ensure all 6 canonical default modes (including build) are always present and uncorrupted
+        needs_resave = False
+        for def_k, def_meta in _DEFAULT_MODE_META.items():
+            if def_k not in new_meta:
+                new_meta[def_k] = _copy.deepcopy(def_meta)
+                needs_resave = True
+            else:
+                cur_lbl = str(new_meta[def_k].get("label", "")).strip()
+                if not cur_lbl or cur_lbl.lower() in ("renamed persona", "unknown"):
+                    new_meta[def_k]["label"] = def_meta["label"]
+                    needs_resave = True
+                if not new_meta[def_k].get("purpose"):
+                    new_meta[def_k]["purpose"] = def_meta["purpose"]
+                    needs_resave = True
+
         # apply
         MODE_META.clear()
         MODE_META.update(new_meta)
@@ -338,9 +433,20 @@ def _apply_user_modes_snapshot():
             for k in new_meta:
                 if k not in filtered:
                     filtered.append(k)
+            # Guarantee canonical core modes are in MODE_ORDER
+            for def_k in ("notebook", "research", "plan", "build", "debugger", "agent"):
+                if def_k not in filtered:
+                    filtered.append(def_k)
+                    needs_resave = True
             MODE_ORDER[:] = filtered
         else:
             MODE_ORDER[:] = list(new_meta.keys())
+
+        if needs_resave:
+            try:
+                _persist_user_modes_snapshot()
+            except Exception:
+                pass
         return True
     except Exception:
         return False
@@ -464,7 +570,6 @@ def move_mode(key, direction):
 
 def reset_all_modes():
     """Reset to factory defaults: clear snapshot and restore defaults."""
-    global MODE_META, MODE_ORDER
     MODE_META.clear()
     for k, v in _DEFAULT_MODE_META.items():
         MODE_META[k] = _copy.deepcopy(v)
@@ -496,6 +601,8 @@ def _restore_saved_mode():
     try:
         from . import config as _cfg
         saved = _cfg.load_config().get("default_ai_mode")
+        if saved in ("grok", "dots", "automator", "multi"):
+            saved = "agent" if "agent" in MODE_META else "notebook"
         if saved in MODE_META:
             _current = saved
     except Exception:
@@ -551,6 +658,16 @@ def next_mode(after=None):
 
 def meta(key=None):
     return MODE_META.get(key or _current, MODE_META["notebook"])
+
+
+def all_modes():
+    """Returns list of all active AI mode keys in order."""
+    return list(MODE_ORDER)
+
+
+def get_mode_info(key=None):
+    """Returns full metadata dictionary for an AI mode."""
+    return meta(key)
 
 
 def label(key=None):
@@ -707,7 +824,9 @@ def system_prompt_for(mode_key):
     v0.7.8 AI Personalization: the active profile's style directive is
     appended here, so every mode prompt honors the user's tone / rules
     without touching the mode prompts themselves."""
-    if mode_key == "build":
+    if mode_key in MODE_META and MODE_META[mode_key].get("system_prompt"):
+        base = MODE_META[mode_key]["system_prompt"]
+    elif mode_key == "build":
         base = _BUILD_SYSTEM_PROMPT
     elif mode_key == "plan":
         base = _PLAN_SYSTEM_PROMPT
@@ -736,11 +855,152 @@ def system_prompt_for(mode_key):
         except Exception:
             from . import aicore
             base = aicore.DEFAULT_SYSTEM_PROMPT
+
+    # Check for inter-kitty shared task handoff
+    try:
+        handoff = kitty_sharing_hub.get_pending_handoff(mode_key)
+        if handoff:
+            sharing_block = (
+                f"\n\n[INTER-KITTY TASK HANDOFF from '{handoff['from_kitty']}']\n"
+                f"Objective: {handoff['task_objective']}\n"
+            )
+            if handoff.get("prompt"):
+                sharing_block += f"Shared Prompt: {handoff['prompt']}\n"
+            if handoff.get("response"):
+                sharing_block += f"Previous Kitty Solution/Output:\n{handoff['response']}\n"
+            if handoff.get("code_snippets"):
+                sharing_block += f"Code Artifacts:\n{handoff['code_snippets']}\n"
+            sharing_block += (
+                f"You are {mode_key} Kitty. Seamlessly take over this delegated task "
+                f"and apply your specialized capabilities.\n"
+            )
+            base = base + sharing_block
+    except Exception:
+        pass
+
     try:
         from . import ai_personalization as ap
         return ap.personalize_system_prompt(base)
     except Exception:
         return base
+
+
+
+def spawn_preset_kitty(template_key: str):
+    """Spawn or update a preset Kitty agent (e.g. 'grok', 'dots')."""
+    tmpl = AGENT_PRESET_TEMPLATES.get(template_key)
+    if not tmpl:
+        return False, f"Unknown preset template '{template_key}'"
+    k = tmpl["key"]
+    if k in MODE_META:
+        update_mode(k, label=tmpl["label"], icon=tmpl["icon"], accent_hex=tmpl["accent_hex"],
+                    purpose=tmpl["purpose"], system_prompt=tmpl["system_prompt"])
+        return True, f"Updated Kitty '{tmpl['label']}'"
+    return create_mode(k, tmpl["label"], tmpl["icon"], tmpl["accent_hex"],
+                       purpose=tmpl["purpose"], system_prompt=tmpl["system_prompt"])
+
+
+# =========================================================================
+# Inter-Kitty Task Sharing & Delegation Hub
+# =========================================================================
+class KittySharingHub:
+    """Manages cross-agent task handoffs, shared prompt/response context,
+    and delegation between Kitties (e.g. Notebook -> Build -> Debugger -> Automator).
+    """
+
+    def __init__(self):
+        self._lock = threading.RLock()
+        self._shared_handoffs: List[Dict[str, Any]] = []
+        self._pending_by_target: Dict[str, Dict[str, Any]] = {}
+
+    def share_task(
+        self,
+        from_kitty: Optional[str] = None,
+        to_kitty: Optional[str] = None,
+        task_objective: Optional[str] = None,
+        prompt: str = "",
+        response: str = "",
+        code_snippets: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Record an inter-kitty handoff and queue it for the target kitty."""
+        src = from_kitty or kwargs.get("source_kitty") or "current"
+        tgt = to_kitty or kwargs.get("target_kitty") or "automator"
+        obj = task_objective or kwargs.get("task_summary") or kwargs.get("objective") or "Delegated task"
+        meta_dict = metadata or kwargs.get("artifacts") or {}
+        code = code_snippets or kwargs.get("code") or ""
+        handoff = {
+            "id": f"handoff-{int(time.time()*1000)}",
+            "from_kitty": src,
+            "to_kitty": tgt,
+            "target_kitty": tgt,
+            "source_kitty": src,
+            "task_objective": obj,
+            "task_summary": obj,
+            "prompt": prompt,
+            "response": response,
+            "code_snippets": code,
+            "timestamp": time.time(),
+            "metadata": meta_dict,
+        }
+        with self._lock:
+            self._shared_handoffs.append(handoff)
+            self._pending_by_target[tgt] = handoff
+        return {"success": True, "handoff": handoff}
+
+    def get_pending_handoff(self, target_kitty: str, consume: bool = False) -> Optional[Dict[str, Any]]:
+        with self._lock:
+            if consume:
+                return self._pending_by_target.pop(target_kitty, None)
+            return self._pending_by_target.get(target_kitty)
+
+    def get_handoff_history(self) -> List[Dict[str, Any]]:
+        with self._lock:
+            return list(self._shared_handoffs)
+
+    def clear(self):
+        with self._lock:
+            self._shared_handoffs.clear()
+            self._pending_by_target.clear()
+
+
+kitty_sharing_hub = KittySharingHub()
+
+
+def share_task_between_kitties(
+    from_kitty: str,
+    to_kitty: str,
+    task_objective: str,
+    prompt: str = "",
+    response: str = "",
+    code_snippets: Optional[str] = None
+) -> Dict[str, Any]:
+    return kitty_sharing_hub.share_task(
+        from_kitty=from_kitty,
+        to_kitty=to_kitty,
+        task_objective=task_objective,
+        prompt=prompt,
+        response=response,
+        code_snippets=code_snippets
+    )
+
+
+# =========================================================================
+# Kitties Nomenclature & Synonyms
+# =========================================================================
+KITTIES_META = MODE_META
+KITTY_ORDER = MODE_ORDER
+current_kitty = current_mode
+set_kitty = set_mode
+next_kitty = next_mode
+create_kitty = create_mode
+update_kitty = update_mode
+delete_kitty = delete_mode
+reorder_kitties = reorder_modes
+move_kitty = move_mode
+reset_all_kitties = reset_all_modes
+system_prompt_for_kitty = system_prompt_for
 
 
 # Sync any registered custom modes on startup
@@ -749,4 +1009,6 @@ try:
     _mr._sync_with_ai_modes()
 except Exception:
     pass
+
+
 

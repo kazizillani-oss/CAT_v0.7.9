@@ -42,7 +42,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 # ---------------------------------------------------------------------------
 # Config — keep these in sync with fomoji-connector-py/connector.py and

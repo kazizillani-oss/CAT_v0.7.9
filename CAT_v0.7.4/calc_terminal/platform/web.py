@@ -455,7 +455,7 @@ class ServerBridgePlatform(PlatformBase):
     
     async def _connect(self):
         if self._ws is None:
-            from js import WebSocket  # type: ignore
+            from js import WebSocket, location  # type: ignore
             self._ws = WebSocket(f"ws://{location.host}{self._bridge_url}/ws")
             
             def on_message(event):

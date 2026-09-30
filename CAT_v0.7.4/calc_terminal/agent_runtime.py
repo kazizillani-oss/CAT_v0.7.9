@@ -341,6 +341,21 @@ class AgentRuntime:
         if not perm_key:
             return True, None
 
+        if perm_key == "ask_question":
+            describe = spec.get("describe")
+            if describe:
+                action_label, path, reason = describe(args)
+            else:
+                action_label, path, reason = "Ask Question", "", str(args.get("question", ""))
+            if permission_callback:
+                try:
+                    decision = permission_callback(perm_key, action_label, path, reason, options=args.get("options"))
+                except TypeError:
+                    decision = permission_callback(perm_key, action_label, path, reason)
+            else:
+                decision = "Acknowledged"
+            return True, f"User answered: {decision}"
+
         from . import permissions as perm
         if perm.manager.refused_by_always_deny(perm_key):
             return False, "Blocked by permission setting — previously denied for this session."
@@ -355,7 +370,10 @@ class AgentRuntime:
             action_label, path, reason = name, str(args.get("path", "")), "Requested by the AI."
 
         if permission_callback:
-            decision = permission_callback(perm_key, action_label, path, reason)
+            try:
+                decision = permission_callback(perm_key, action_label, path, reason, options=args.get("options"))
+            except TypeError:
+                decision = permission_callback(perm_key, action_label, path, reason)
         else:
             decision = "allow_once"
 

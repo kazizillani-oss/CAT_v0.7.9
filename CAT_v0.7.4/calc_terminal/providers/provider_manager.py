@@ -513,9 +513,15 @@ def _generic_fetch_models_ollama(config: dict,
     try:
         resp = requests.get(url, timeout=12)
     except requests.exceptions.ConnectionError:
-        _log(f"generic_ollama [{provider_id}]: ConnectionError "
-             f"— is Ollama running at {base_url}? — returning catalog")
-        return _catalog_fallback() or []
+        # Retry with alternate loopback (Windows IPv6 localhost resolution fix)
+        alt_url = url.replace("localhost", "127.0.0.1") if "localhost" in url else url.replace("127.0.0.1", "localhost")
+        try:
+            resp = requests.get(alt_url, timeout=12)
+            url = alt_url
+        except Exception:
+            _log(f"generic_ollama [{provider_id}]: ConnectionError "
+                 f"— is Ollama running at {base_url}? — returning catalog")
+            return _catalog_fallback() or []
     except requests.exceptions.Timeout:
         _log(f"generic_ollama [{provider_id}]: Timeout "
              f"— {url} did not respond within 12s — returning catalog")
@@ -925,6 +931,8 @@ def get_env_api_key(provider_id: str) -> str:
         candidates.extend(["TOGETHER_API_KEY", "TOGETHERAI_API_KEY"])
     elif pid == "fireworks":
         candidates.extend(["FIREWORKS_API_KEY"])
+    elif pid in ("moonshot", "kimi"):
+        candidates.extend(["MOONSHOT_API_KEY", "KIMI_API_KEY"])
 
     for c in candidates:
         val = os.environ.get(c, "").strip()

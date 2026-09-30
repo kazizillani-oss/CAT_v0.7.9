@@ -1,20 +1,13 @@
 """
-CCT UI — the single permission renderer. Two widgets, both reading and
-writing through calc_terminal/permissions.py's shared PermissionManager
-(the one source of truth for permission state — this module never
-tracks its own copy):
-
-  * PermissionCard — an inline "AI wants permission" request, mounted
-    as a ConversationItem in the conversation stream (per the redesign
-    brief: "Permission requests become part of conversation history",
-    never a modal/popup).
-  * PermissionsSettingsPanel — the full on/off checklist, opened from
-    the footer's Permissions button.
-
-Both post events (PermissionGranted/PermissionDenied/PermissionCancelled)
-rather than deciding what a decision means — calc_terminal/permissions.py
-records it, calc_terminal/ui/app.py resolves whatever backend call was
-waiting.
+CCT UI — the single permission & interaction renderer.
+Provides:
+  * PermissionCard — an inline 3D Skeuomorphic "AI wants permission" request,
+    mounted into conversation history with tactile physical buttons.
+  * QuestionCard — an interactive 3D Skeuomorphic card for when the AI coding
+    agent asks questions with choices or free-form text input.
+  * Toggle3D — tactile 3D On/Off physical rocker switch.
+  * PermissionRow — row component with label and 3D toggle.
+  * PermissionsSettingsPanel — the full on/off checklist opened from footer.
 """
 
 if __name__ == "__main__":
@@ -23,12 +16,12 @@ if __name__ == "__main__":
     sys.exit(1)
 
 from .. import permissions as perm
-from .events import PermissionGranted, PermissionDenied, PermissionCancelled
+from .events import PermissionGranted, PermissionDenied, PermissionCancelled, QuestionAnswered
 
 TEXTUAL_AVAILABLE = True
 try:
     from textual.containers import Horizontal, Vertical
-    from textual.widgets import Static, Button, Switch, Label
+    from textual.widgets import Static, Button, Switch, Label, Input
 except Exception:
     TEXTUAL_AVAILABLE = False
 
@@ -37,7 +30,7 @@ if TEXTUAL_AVAILABLE:
 
     class PermissionCard(Vertical):
         """Inline 'AI wants permission' request — mounted into the
-        conversation log as its own item, never a popup."""
+        conversation log as its own item with 3D skeuomorphic tactile styling."""
 
         def __init__(self, request_id, key, action_text, reason_text, id=None, path=None):
             super().__init__(id=id, classes="cct-permcard")
@@ -49,33 +42,26 @@ if TEXTUAL_AVAILABLE:
             self._resolved = False
 
         def compose(self):
-            # Restricted mode (spec Mode 2) reviews this as a suggested
-            # patch — Accept/Reject — instead of Ask mode's (spec Mode 1)
-            # Allow-Once/Always-Allow/Deny. Same request, same event
-            # contract either way; only the labels/verb change.
             self._restricted = perm.manager.restricted_review(self.key)
-            title = "Suggested action \u2014 review required" if self._restricted else "Permission required"
-            yield Static(title, classes="cct-permcard-title")
-            yield Static(f"The AI wants to [b]{self._action_text}[/b]")
+            badge_title = "⚡ ACTION REVIEW REQUIRED" if self._restricted else "🛡 PERMISSION REQUIRED"
+            yield Static(f" [b]{badge_title}[/] ", classes="cct-permcard-badge")
+            yield Static(f"The AI wants to execute: [bold #e0e7ff]{self._action_text}[/]", classes="cct-permcard-action")
             if self._path:
-                yield Static(f"Path: {self._path}", classes="cct-permcard-path")
-            yield Static(f"Reason: {self._reason_text}", classes="cct-permcard-reason")
+                yield Static(f"📁 Path: [bold #38bdf8]{self._path}[/]", classes="cct-permcard-path")
+            yield Static(f"💬 Reason: [dim]{self._reason_text}[/]", classes="cct-permcard-reason")
+
+            # Tactile 3D Buttons Row
             with Horizontal(classes="cct-permcard-buttons"):
                 if self._restricted:
-                    yield Button("Accept", id="allow-once", classes="cct-ctrl")
-                    yield Button("Reject", id="deny", classes="cct-ctrl")
+                    yield Button("✔ Accept", id="allow-once", classes="cct-perm-btn cct-perm-btn-allow")
+                    yield Button("✖ Reject", id="deny", classes="cct-perm-btn cct-perm-btn-deny")
+                    yield Button("✕ Cancel", id="cancel", classes="cct-perm-btn cct-perm-btn-cancel")
                 else:
-                    # v0.7.7 spec section 3: the dialog offers five
-                    # choices — Allow Once / Always Allow / Deny /
-                    # Always Deny / Cancel (wrapped on a second row so
-                    # the card stays compact).
-                    yield Button("Allow Once", id="allow-once", classes="cct-ctrl")
-                    yield Button("Always Allow", id="always-allow", classes="cct-ctrl")
-                    yield Button("Deny", id="deny", classes="cct-ctrl")
-            if not self._restricted:
-                with Horizontal(classes="cct-permcard-buttons"):
-                    yield Button("Always Deny", id="always-deny", classes="cct-ctrl")
-                    yield Button("Cancel", id="cancel", classes="cct-ctrl")
+                    yield Button("✔ Allow Once", id="allow-once", classes="cct-perm-btn cct-perm-btn-allow")
+                    yield Button("⚡ Always Allow", id="always-allow", classes="cct-perm-btn cct-perm-btn-always")
+                    yield Button("✖ Deny", id="deny", classes="cct-perm-btn cct-perm-btn-deny")
+                    yield Button("🚫 Always Deny", id="always-deny", classes="cct-perm-btn cct-perm-btn-always-deny")
+                    yield Button("✕ Cancel", id="cancel", classes="cct-perm-btn cct-perm-btn-cancel")
 
         def on_button_pressed(self, event: Button.Pressed):
             if self._resolved:
@@ -88,28 +74,108 @@ if TEXTUAL_AVAILABLE:
             if bid == "always-allow":
                 self.post_message(PermissionGranted(self.request_id, self.key, remember=True))
                 tone = "success"
-                verb = "always allow"
+                verb = "Always Allowed"
             elif bid == "allow-once":
                 self.post_message(PermissionGranted(self.request_id, self.key, remember=False))
                 tone = "success"
-                verb = "accept" if getattr(self, "_restricted", False) else "allow once"
+                verb = "Accepted" if getattr(self, "_restricted", False) else "Allowed Once"
             elif bid == "always-deny":
-                # v0.7.7: permanent (session) refusal — recorded in the
-                # shared PermissionManager so future requests for this
-                # key are refused without prompting at all.
                 self.post_message(PermissionDenied(self.request_id, self.key, remember=True))
                 tone = "error"
-                verb = "always deny"
+                verb = "Always Denied"
             elif bid == "cancel":
                 self.post_message(PermissionCancelled(self.request_id, self.key))
                 tone = "warn"
-                verb = "cancel"
+                verb = "Cancelled"
             else:
                 self.post_message(PermissionDenied(self.request_id, self.key, remember=False))
                 tone = "error"
-                verb = "reject" if getattr(self, "_restricted", False) else "deny"
+                verb = "Rejected" if getattr(self, "_restricted", False) else "Denied"
+
             color = theme_css.current_hex(tone)
-            self.mount(Static(f"[{color}]\u2192 {verb}[/]", classes="cct-permcard-verdict"))
+            self.mount(Static(f"[{color} bold]➜ Decision: {verb}[/]", classes="cct-permcard-verdict"))
+
+
+    class QuestionCard(Vertical):
+        """Interactive 3D Skeuomorphic card for when the AI coding agent
+        asks the user a question with choices or custom text response."""
+
+        def __init__(self, request_id, question, options=None, id=None):
+            super().__init__(id=id, classes="cct-permcard cct-questioncard")
+            self.request_id = request_id
+            self.question = question
+            self.options = options or []
+            self._resolved = False
+
+        def compose(self):
+            yield Static(" ❓ AI CODING INQUIRY ", classes="cct-questioncard-badge")
+            yield Static(f"[bold #f8fafc]{self.question}[/]", classes="cct-permcard-title")
+
+            # If preset options are provided, render 3D tactile buttons
+            if self.options:
+                with Horizontal(classes="cct-permcard-buttons"):
+                    for idx, opt in enumerate(self.options):
+                        yield Button(f"{idx + 1}. {opt}", id=f"q-opt-{idx}", classes="cct-perm-btn cct-perm-btn-option")
+
+            # Free-form input row for typing own answer
+            with Horizontal(classes="cct-permcard-buttons"):
+                yield Input(placeholder="Type your answer here (or pick an option above)...",
+                            id=f"q-input-{self.request_id}",
+                            classes="cct-perm-input")
+                yield Button("Respond ↵", id=f"q-submit-{self.request_id}", classes="cct-perm-btn cct-perm-btn-allow")
+
+        def on_input_changed(self, event: Input.Changed):
+            try:
+                app = self.app
+                if hasattr(app, "composer") and app.composer:
+                    app.composer.resume_streaming_timer()
+            except Exception:
+                pass
+
+        def on_input_submitted(self, event: Input.Submitted):
+            if self._resolved:
+                return
+            ans = event.value.strip()
+            if ans:
+                self._submit_answer(ans)
+
+        def on_button_pressed(self, event: Button.Pressed):
+            if self._resolved:
+                return
+            bid = event.button.id
+            if bid.startswith("q-opt-"):
+                try:
+                    idx = int(bid.replace("q-opt-", ""))
+                    ans = self.options[idx]
+                    self._submit_answer(ans)
+                    return
+                except Exception:
+                    pass
+            elif bid.startswith("q-submit-"):
+                inp = self.query_one(f"#q-input-{self.request_id}", Input)
+                ans = inp.value.strip()
+                if not ans and self.options:
+                    ans = self.options[0]
+                self._submit_answer(ans or "Acknowledged")
+
+        def _submit_answer(self, answer: str):
+            self._resolved = True
+            try:
+                app = self.app
+                if hasattr(app, "composer") and app.composer:
+                    app.composer.resume_streaming_timer()
+            except Exception:
+                pass
+            for b in self.query(Button):
+                b.disabled = True
+            try:
+                inp = self.query_one(f"#q-input-{self.request_id}", Input)
+                inp.disabled = True
+            except Exception:
+                pass
+            self.post_message(QuestionAnswered(self.request_id, answer))
+            self.mount(Static(f"[#38bdf8 bold]➜ Responded:[/] [italic #e2e8f0]\"{answer}\"[/]", classes="cct-permcard-verdict"))
+
 
     class Toggle3D(Button):
         """Skeuomorphic 3D On/Off tactile slider switch with physical rail,
@@ -128,7 +194,6 @@ if TEXTUAL_AVAILABLE:
 
         @staticmethod
         def _format_label(is_on: bool) -> str:
-            # Tactile physical slider switch with 3D track and knob
             return "[──● ON ]" if is_on else "[○── OFF]"
 
         @property
@@ -173,8 +238,7 @@ if TEXTUAL_AVAILABLE:
                 pass
 
     class PermissionsSettingsPanel(Vertical):
-        """Redesigned 3D Skeuomorphic Permissions & Settings Dashboard with
-        header bar, security mode cycler, close button, and 2-column organized grid."""
+        """Redesigned 3D Skeuomorphic Permissions & Security Controls Dashboard."""
 
         def __init__(self, id="cct-permission-panel"):
             super().__init__(id=id)
@@ -195,11 +259,11 @@ if TEXTUAL_AVAILABLE:
                     yield Static("Permissions & Security Controls", id="cct-perm-title")
                 yield Button(self._mode_badge_text(), id="cct-perm-mode-btn", tooltip="Click to cycle Security Mode (Ask / Restricted / Full)")
                 yield Static("", id="cct-perm-spacer")
-                yield Button("✕", id="cct-perm-close", classes="cct-icon-btn", tooltip="Close permissions panel (Esc)")
+                yield Button("✕", id="cct-perm-close", classes="cct-perm-close-btn", tooltip="Close permissions panel (Esc)")
 
             # 2. Body: Two organized 3D columns
             exec_keys = {"read_files", "write_files", "execute_python", "shell_commands", "install_packages"}
-            tools_keys = {"device_control", "internet", "formula_library", "notebook", "calculator"}
+            tools_keys = {"device_control", "internet", "browser_automation", "formula_library", "notebook", "calculator"}
 
             with Horizontal(id="cct-perm-grid"):
                 with Vertical(classes="cct-perm-col"):
@@ -265,5 +329,7 @@ if TEXTUAL_AVAILABLE:
 
 else:
     PermissionCard = None
+    QuestionCard = None
+    Toggle3D = None
     PermissionRow = None
     PermissionsSettingsPanel = None

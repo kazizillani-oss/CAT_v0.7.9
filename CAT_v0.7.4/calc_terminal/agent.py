@@ -27,6 +27,7 @@ import random
 import re
 import subprocess
 import time
+import uuid
 
 from . import theme
 from . import aicore
@@ -1626,7 +1627,98 @@ def _tool_list_directory(args):
     return cached or f"Could not list '{path}'."
 
 
+def _tool_ask_question(args):
+    """Ask the user a clarifying question with multiple-choice options or custom input."""
+    q = str(args.get("question", "")).strip()
+    options = args.get("options") or []
+    if not q:
+        return "No question provided."
+    print()
+    opts_lines = [f"  [{i+1}] {opt}" for i, opt in enumerate(options)]
+    print(theme.panel([f"AI Inquiry: {q}"] + opts_lines,
+                      title="question", color=theme.CYAN))
+    ans = input(theme.dim("  ▸ ")).strip()
+    if ans.isdigit() and 1 <= int(ans) <= len(options):
+        ans = options[int(ans) - 1]
+    return f"User response: {ans or 'No answer provided'}"
+
+
+def _tool_customize_cat_cli(args):
+    """Customize and edit the CAT CLI configuration directly through workflow."""
+    settings = args.get("settings") or {}
+    reason = str(args.get("reason", "Customizing CAT CLI via workflow"))
+    try:
+        from .workflow_engine import WorkflowCLICustomizer
+        res = WorkflowCLICustomizer.apply_customizations(settings, reason=reason)
+        if res.get("success"):
+            return f"CAT CLI customized successfully: {res.get('message')}"
+        return f"Failed to customize CAT CLI: {res.get('error') or res.get('ignored')}"
+    except Exception as e:
+        return f"Error customizing CAT CLI: {e}"
+
+
+def _tool_delegate_task_to_kitty(args):
+    """Share task, prompts, and code solutions to another specialized Kitty (e.g. build, debugger, automator)."""
+    target = str(args.get("target_kitty", "")).strip().lower()
+    objective = str(args.get("task_objective", "")).strip()
+    prompt = str(args.get("prompt", "")).strip()
+    solution = str(args.get("solution", "") or args.get("response", "")).strip()
+    code = str(args.get("code_snippets", "")).strip()
+    if not target or not objective:
+        return "Must specify target_kitty (e.g. 'build', 'debugger', 'automator') and task_objective."
+    try:
+        from . import ai_modes
+        from .workflow_engine import workflow_engine
+        current = ai_modes.current_kitty()
+        handoff = ai_modes.share_task_between_kitties(
+            from_kitty=current,
+            to_kitty=target,
+            task_objective=objective,
+            prompt=prompt,
+            response=solution,
+            code_snippets=code
+        )
+        workflow_engine.record_point_to_point_step(
+            source_node=f"kitty.{current}",
+            target_node=f"kitty.{target}",
+            step_name=f"Delegate Task: {objective[:60]}",
+            payload={"from_kitty": current, "to_kitty": target, "objective": objective},
+            result="Handoff Queued",
+            duration_ms=10
+        )
+        if args.get("switch_active", True):
+            ai_modes.set_kitty(target)
+        return (
+            f"Successfully shared task and delegated to '{target}' Kitty.\n"
+            f"Handoff ID: {handoff['id']}\n"
+            f"Target '{target}' Kitty is now equipped with the full shared context and prompt solution."
+        )
+    except Exception as e:
+        return f"Error delegating task to Kitty '{target}': {e}"
+
+
 TOOLS = {
+    "ask_question": {
+        "run": _tool_ask_question,
+        "desc": "Ask the user a clarifying question with options or free text input.",
+        "args": '{"question": "Which architecture or framework should we use?", "options": ["Option A", "Option B"]}',
+        "perm_key": "ask_question",
+        "describe": lambda a: ("Ask Question", "", str(a.get("question", ""))),
+    },
+    "customize_cat_cli": {
+        "run": _tool_customize_cat_cli,
+        "desc": "Fully edit or customize CAT CLI settings and options through workflow.",
+        "args": '{"settings": {"default_ai_mode": "grok", "eco_mode": false}, "reason": "Optimizing CLI"}',
+        "perm_key": "write_file",
+        "describe": lambda a: ("Customize CAT CLI", "config", f"Update CLI settings: {a.get('settings', {})}")
+    },
+    "delegate_task_to_kitty": {
+        "run": _tool_delegate_task_to_kitty,
+        "desc": "Share prompts, code solutions, and hand off tasks to another specialized Kitty (e.g. build, debugger, automator).",
+        "args": '{"target_kitty": "build", "task_objective": "Implement code from plan", "code_snippets": "..."}',
+        "describe": lambda a: ("Delegate to Kitty", str(a.get("target_kitty", "")), str(a.get("task_objective", ""))),
+    },
+
     "list_formulas": {
         "run": _tool_list_formulas,
         "desc": "List every formula key in the library (call this if unsure of a key).",
@@ -1952,18 +2044,34 @@ Rules:
   concrete final answer for every part of the question that was asked.
 """
 
-AGENT_SYSTEM_PROMPT = f"""You are CCT Agent, the autonomous IDE agent inside the Chemistry Calc Terminal
-(CCT): a first-principles thinker AND a hands-on operator. Unlike a plain
-chatbot, you directly OPERATE real tools: solve exact formulas symbolically,
-run the safe calculator, plot any 2D curve or 3D surface, drive live atom /
-electron / quantum-orbital simulations — and just as importantly: create,
-edit, rewrite, move and delete real files, create folders, search the
-workspace, read attachments, inspect/modify/validate ZIP archives, run
-terminal commands, build projects, run tests, and install packages.
+AGENT_SYSTEM_PROMPT = f"""You are CAT Agent, the autonomous operator and high-agency AI agent inside CAT
+(Coding Agent Terminal): a first-principles thinker, deep reasoner, AND hands-on executor.
+Our default AI modes are already fully capable AI agents: you have full authority to automate
+the entire laptop, computer, operating system, and CAT CLI workflows end-to-end.
 
-Your primary strength is your ability to invent, solve, AND EXECUTE. When a
-request implies work on the workspace or an attached file, your job is to do
-the work end-to-end with tools — not to explain how the user could do it.
+Unlike a passive chatbot, you directly OPERATE real tools:
+- **Full Laptop & CLI Automation**: Run shell and PowerShell terminal commands (`run_terminal`),
+  automate processes, execute scripts, and control developer workflows.
+- **Deep Code & Workspace Authority**: Create, edit, rewrite, move, and delete real files,
+  inspect directory layouts (`inspect_project`, `list_directory`), and read attachments.
+- **Autonomous Build & Quality**: Build projects, run test suites (`run_tests`), and manage
+  packages (`install_packages` with pip/npm/cargo/winget/brew).
+- **DeepSearch & Research**: Conduct live multi-query web search, documentation analysis,
+  and synthesis with real citations (`web_search`, `deep_research`).
+- **Exact Scientific & Symbolic Tools**: Solve exact formulas symbolically, run the safe calculator,
+  plot 2D/3D functions, and drive live simulations.
+
+**GROK-GRADE THINK MODE & FIRST-PRINCIPLES REASONING**:
+- **Think Before Acting**: Engage in step-by-step chain-of-thought (CoT) internal reasoning.
+  Deconstruct problems to fundamental truths, state your hypotheses, check syntax, audit edge
+  cases, and consider potential failure modes before touching files or running destructive commands.
+- **Inspect First & Ground Yourself**: Never guess file paths or structures. Use `inspect_project`
+  or `list_directory` to understand the workspace before editing.
+- **Autonomous Self-Correction**: When a terminal command, script, or test returns an error or non-zero
+  exit code, do not give up or ask the user to fix it — inspect the stderr output, diagnose the root
+  cause with first principles, patch the bug, and re-verify until it succeeds.
+- **Direct & High-Signal**: Be direct, witty, and intellectually honest. Avoid sycophantic corporate
+  filler and fluff. Deliver production-grade, rock-solid solutions.
 
 {_PROTOCOL}
 - When the user's message contains several distinct questions (e.g. "(a)
@@ -2424,7 +2532,7 @@ def _remember_turn(user_text, final_text, steps, mode):
         mm.add_session_turn("assistant", final_text, mode=mode)
         # Emit event for the event stream
         try:
-            from .event_stream import stream
+            from .event_stream import stream, AGENT_COMPLETED
             stream.emit(AGENT_COMPLETED, source="agent",
                         user_text=user_text[:200], steps_count=len(steps), mode=mode)
         except Exception:
@@ -2509,6 +2617,18 @@ def _check_permission(name, args, permission_callback):
         if perm.manager.refused_by_always_deny(perm_key):
             return False, "Blocked by permission setting — previously denied for this session."
         needs = perm.manager.needs_prompt(perm_key)
+    elif perm_key == "ask_question":
+        describe = spec.get("describe")
+        if describe:
+            action_label, path, reason = describe(args)
+        else:
+            action_label, path, reason = "Ask Question", "", str(args.get("question", ""))
+        callback = permission_callback or _cli_permission_prompt
+        try:
+            decision = callback(perm_key, action_label, path, reason, options=args.get("options"))
+        except TypeError:
+            decision = callback(perm_key, action_label, path, reason)
+        return True, f"User answered: {decision}"
     else:
         if perm.manager.refused_by_always_deny(perm_key):
             return False, "Blocked by permission setting — previously denied for this session."
@@ -2521,7 +2641,10 @@ def _check_permission(name, args, permission_callback):
     else:
         action_label, path, reason = name, str(args.get("path", "")), "Requested by the AI."
     callback = permission_callback or _cli_permission_prompt
-    decision = callback(perm_key, action_label, path, reason)
+    try:
+        decision = callback(perm_key, action_label, path, reason, options=args.get("options"))
+    except TypeError:
+        decision = callback(perm_key, action_label, path, reason)
     proceed = perm.manager.decide(perm_key, decision, action_label, reason)
     if proceed:
         return True, None

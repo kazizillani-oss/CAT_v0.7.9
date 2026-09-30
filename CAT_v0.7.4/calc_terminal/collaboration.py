@@ -648,7 +648,7 @@ class MultiAgentOrchestrator:
                                       ARCHITECT, UI_DESIGNER) if r in roster]
         if parallel_roles:
             try:
-                from .event_stream import stream as _es
+                from .event_stream import stream as _es, MULTI_AGENT_PROGRESS
                 _es.emit(MULTI_AGENT_PROGRESS, source="multi_ai",
                          agent="review-team",
                          status="start",

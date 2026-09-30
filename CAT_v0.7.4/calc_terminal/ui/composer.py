@@ -380,7 +380,11 @@ if TEXTUAL_AVAILABLE:
                 if event.key == "down" and self._composer.history_active():
                     event.stop()
                     self._composer.recall_history(1, self)
-                    return
+            if self._composer is not None and getattr(self._composer, "_timer_paused", False):
+                try:
+                    self._composer.resume_streaming_timer()
+                except Exception:
+                    pass
 
             await super()._on_key(event)
 
@@ -461,6 +465,9 @@ if TEXTUAL_AVAILABLE:
             self._history_index = None
             self._stream_start = None
             self._stream_timer = None
+            self._timer_paused = False
+            self._paused_at = 0.0
+            self._total_paused_time = 0.0
             self._prompt_hint = ""
             self._chunk_seen = False
             self._spin_tick = 0
@@ -729,6 +736,24 @@ if TEXTUAL_AVAILABLE:
                     pass
                 self._stream_turn_id = None
 
+        def pause_streaming_timer(self):
+            """Pauses the responding timer while user reviews permissions or answers questions."""
+            import time
+            if not self._timer_paused and self._stream_start is not None:
+                self._timer_paused = True
+                self._paused_at = time.time()
+                self._update_streaming_text()
+
+        def resume_streaming_timer(self):
+            """Resumes the responding timer once user responds or starts typing."""
+            import time
+            if self._timer_paused and self._stream_start is not None:
+                if self._paused_at > 0:
+                    self._total_paused_time += (time.time() - self._paused_at)
+                self._timer_paused = False
+                self._paused_at = 0.0
+                self._update_streaming_text()
+
         def note_chunk_received(self):
             """Tells the status bar real tokens have started arriving,
             so stage detection switches from the pre-token progression
@@ -741,7 +766,10 @@ if TEXTUAL_AVAILABLE:
             import time
             if self._stream_start is None:
                 return
-            elapsed = time.time() - self._stream_start
+            if self._timer_paused:
+                elapsed = max(0.0, self._paused_at - self._stream_start - self._total_paused_time)
+            else:
+                elapsed = max(0.0, time.time() - self._stream_start - self._total_paused_time)
             self._spin_tick += 1
             bar = self.query_one("#cct-streaming-status", Static)
             # ── REAL activity: query the single source of truth ──
@@ -755,7 +783,7 @@ if TEXTUAL_AVAILABLE:
                     target = running[-1] if running else (acts[-1] if acts else None)
                     if target:
                         # real spinner
-                        spin = self._real_spinner[self._spin_tick % len(self._real_spinner)]
+                        spin = self._real_spinner[self._spin_tick % len(self._real_spinner)] if not self._timer_paused else "⏸"
                         # color by status
                         try:
                             from . import theme_css as _tc
@@ -783,6 +811,8 @@ if TEXTUAL_AVAILABLE:
                             real_elapsed = elapsed
                         from . import thinking as _th
                         timer_text = _th.format_timer(real_elapsed)
+                        if self._timer_paused:
+                            timer_text = f"⏸ {timer_text} (paused)"
                         # model/provider - only if real
                         mp = ""
                         if target.provider or target.model:
@@ -803,8 +833,8 @@ if TEXTUAL_AVAILABLE:
                         step_txt = f" — {target.current_step[:32]}" if target.current_step else ""
                         # status suffix for WAITING
                         status_suf = ""
-                        if target.status == _act.WAITING:
-                            status_suf = " (waiting for permission)"
+                        if target.status == _act.WAITING or self._timer_paused:
+                            status_suf = " (waiting for response)"
                         elif target.status == _act.FAILED and target.error:
                             status_suf = f" — {target.error[:40]}"
                         bar.update(
@@ -818,10 +848,13 @@ if TEXTUAL_AVAILABLE:
             try:
                 from . import thinking as _th
                 timer_text = _th.format_timer(elapsed)
-                spin = self._real_spinner[self._spin_tick % len(self._real_spinner)]
+                if self._timer_paused:
+                    timer_text = f"⏸ {timer_text} (paused)"
+                spin = self._real_spinner[self._spin_tick % len(self._real_spinner)] if not self._timer_paused else "⏸"
                 bar.update(f"[{_th.stage_info('thinking')[1]}]{spin}[/] Working…  ·  [dim]{self._model_label}[/dim]  ·  {timer_text}")
             except Exception:
                 bar.update(f"Working…  ·  {self._model_label}  ·  {elapsed:.1f}s")
+
 
         # ----------------------------------------------------- rewrite --
         def start_edit(self, turn_id, text):

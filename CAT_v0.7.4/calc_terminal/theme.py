@@ -782,7 +782,7 @@ def compile_theme_vars(t):
     vivid = blend(t.accent_alt, (255, 255, 255), 0.15) if dark else t.accent_alt
     status_amber = fit_contrast(t.warning, bg, 3.0)
 
-    return {
+    res = {
         "CYAN": fit_contrast(t.accent_alt, bg, 3.0),
         "PURPLE": fit_contrast(t.accent_secondary, bg, 3.0),
         "GREEN": fit_contrast(t.success, bg, 3.0),

@@ -1,15 +1,45 @@
 {
-  "version": "0.7.9.0",
-  "total_capabilities": 296,
+  "version": "0.7.9.8",
+  "total_capabilities": 297,
   "summary": {
-    "tools_count": 37,
+    "tools_count": 38,
     "commands_count": 86,
-    "modes_count": 6,
+    "modes_count": 8,
     "permissions_count": 10,
     "extensions_count": 2,
     "providers_count": 155
   },
   "tools": [
+    {
+      "name": "delegate_task_to_kitty",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Share prompts, code, context, and delegate tasks to another Kitty AI mode (e.g. automator, debugger, build, notebook).",
+      "args_signature": "{\"target_kitty\": \"automator|debugger|build|...\", \"task_summary\": \"...\", \"shared_context\": \"...\", \"artifacts\": {...}}",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "ask_question",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Ask the user a clarifying question with choices or custom text response.",
+      "args_signature": "{\"question\": \"...\", \"options\": [\"...\"]}",
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
+    {
+      "name": "customize_cat_cli",
+      "category": "agent_tool",
+      "source": "calc_terminal/agent.py",
+      "description": "Fully edit or customize CAT CLI settings and options through workflow.",
+      "args_signature": "{\"settings\": {\"...\"}, \"reason\": \"...\"}",
+      "permission_required": true,
+      "fatty_cat_status": "connected_via_runtime",
+      "browser_compatible": true
+    },
     {
       "name": "list_formulas",
       "category": "agent_tool",

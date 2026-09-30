@@ -315,6 +315,34 @@ if TEXTUAL_AVAILABLE:
             elif a.details and a.details != a.title and not (is_thinking and (a.details or a.stdout)):
                 lines.append(f"  [{faint}]Details:[/] [{text_color}]{a.details[:200]}[/]")
 
+            # Point-to-Point workflow trace & data payload
+            meta = a.metadata or {}
+            source_node = meta.get("source_node")
+            target_node = meta.get("target_node")
+            payload = meta.get("payload")
+            p2p_trace = meta.get("point_to_point_trace")
+            applied_settings = meta.get("applied_settings")
+            
+            if source_node or target_node or payload or p2p_trace or applied_settings:
+                lines.append(f"  [{accent} bold]╭─ ⇄ Point-to-Point Data & Workflow Routing ─────────────────────────[/]")
+                if source_node or target_node:
+                    lines.append(f"  [{accent}]│[/]  [{faint}]Flow Route:[/] [{accent}]{source_node or 'origin'}[/] ➔ [{accent}]{target_node or 'destination'}[/]")
+                if applied_settings:
+                    for sk, sv in applied_settings.items():
+                        lines.append(f"  [{accent}]│[/]  [{faint}]CLI Setting:[/] [green]{sk}[/] = [{text_color}]{sv}[/]")
+                if payload and isinstance(payload, dict):
+                    for pk, pv in list(payload.items())[:6]:
+                        pv_str = str(pv)[:80] + ("..." if len(str(pv)) > 80 else "")
+                        lines.append(f"  [{accent}]│[/]  [{faint}]Payload [{pk}]:[/] [{text_color}]{pv_str}[/]")
+                if p2p_trace and isinstance(p2p_trace, list):
+                    for hop in p2p_trace[:4]:
+                        if isinstance(hop, dict):
+                            h_from = hop.get('from', '')
+                            h_to = hop.get('to', '')
+                            h_st = hop.get('status', '')
+                            lines.append(f"  [{accent}]│[/]  [{faint}]Hop Trace:[/] {h_from} → {h_to} ([green]{h_st}[/])")
+                lines.append(f"  [{accent} bold]╰───────────────────────────────────────────────────────────────────[/]")
+
             # Stderr or stdout tails
             if a.stderr:
                 lines.append(f"  [{color}]Stderr:[/]")

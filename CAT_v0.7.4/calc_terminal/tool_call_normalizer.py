@@ -177,27 +177,34 @@ def _parse_json_protocol(text: str, known_tools: set) -> List[ToolCall]:
             idx = brace_pos + 1
             continue
         if isinstance(obj, dict):
-            action = obj.get("action", "")
-            tool = obj.get("tool", obj.get("name", ""))
+            raw_action = obj.get("action", "")
+            raw_tool = obj.get("tool", obj.get("name", ""))
+            resolved_action = resolve_tool_name(raw_action)
+            resolved_tool = resolve_tool_name(raw_tool)
             args = obj.get("args", obj.get("parameters", obj.get("arguments", {})))
-            if action == "tool" and tool in known_tools:
+            if not isinstance(args, dict):
+                args = {}
+            extra_params = {k: v for k, v in obj.items() if k not in ("action", "tool", "name", "args", "parameters", "arguments")}
+            merged_args = {**extra_params, **args}
+
+            if raw_action == "tool" and (resolved_tool in known_tools or not known_tools or resolved_tool in TOOL_ALIASES.values()):
                 calls.append(ToolCall(
-                    name=tool,
-                    arguments=args if isinstance(args, dict) else {},
+                    name=resolved_tool,
+                    arguments=merged_args,
                     source_format="json_protocol_action",
                     confidence=0.9,
                 ))
-            elif action in known_tools:
+            elif resolved_action and (resolved_action in known_tools or resolved_action in TOOL_ALIASES.values() or not known_tools):
                 calls.append(ToolCall(
-                    name=action,
-                    arguments={k: v for k, v in obj.items() if k != "action"},
+                    name=resolved_action,
+                    arguments=merged_args,
                     source_format="json_protocol_action",
                     confidence=0.85,
                 ))
-            elif tool in known_tools and tool:
+            elif resolved_tool and (resolved_tool in known_tools or resolved_tool in TOOL_ALIASES.values() or not known_tools):
                 calls.append(ToolCall(
-                    name=tool,
-                    arguments=args if isinstance(args, dict) else {},
+                    name=resolved_tool,
+                    arguments=merged_args,
                     source_format="json_protocol",
                     confidence=0.8,
                 ))
@@ -401,6 +408,7 @@ def is_tool_call_response(response_text: str, known_tools: Optional[List[str]] =
         return False
     tool_indicators = [
         r'"action"\s*:\s*"tool"',
+        r'"action"\s*:\s*"([a-zA-Z0-9_\-]+)"',
         r'"tool"\s*:\s*"[^"]+"',
         r'"name"\s*:\s*"[^"]+"\s*,\s*"arguments"',
         r'<minimax:toolcall>',
@@ -408,8 +416,15 @@ def is_tool_call_response(response_text: str, known_tools: Optional[List[str]] =
         r'<invoke\s+name=',
     ]
     for indicator in tool_indicators:
-        if re.search(indicator, response_text):
-            return True
+        m = re.search(indicator, response_text)
+        if m:
+            if "([a-zA-Z0-9_\\-]+)" in indicator:
+                act = m.group(1).lower()
+                res = resolve_tool_name(act)
+                if res in TOOL_ALIASES.values() or (known_tools and res in set(known_tools)):
+                    return True
+            else:
+                return True
     if known_tools:
         tools_set = set(known_tools)
         func_pattern = r'(\w+)\s*\('

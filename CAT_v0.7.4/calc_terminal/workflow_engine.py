@@ -95,6 +95,7 @@ EVENT_AGENT_COMPLETED = "agent.completed"
 class ExecutionEvent:
     """Structured telemetry event emitted by the CAT Execution Engine.
     Uses monotonic timing internally so ordering remains 100% reliable.
+    Captures every single point-to-point data point between workflow nodes.
     """
     event_id: str
     trace_id: str
@@ -109,9 +110,14 @@ class ExecutionEvent:
     progress: Optional[float] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
     duration_ms: int = 0
+    source_node: str = ""
+    target_node: str = ""
+    payload: Dict[str, Any] = field(default_factory=dict)
+    point_to_point_trace: List[Dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
+
 
 
 # ── 3. CAT Live Activity Event Bus ──────────────────────────────────────────
@@ -523,8 +529,22 @@ class WorkflowEngine:
         """Validates and executes an action on behalf of a weaker model, emitting real
         execution events and returning structured observation.
         """
-        action = intention.get("action") or intention.get("tool") or ""
+        raw_action = intention.get("action") or intention.get("tool") or ""
+        try:
+            from .tool_call_normalizer import resolve_tool_name
+            action = resolve_tool_name(raw_action)
+        except Exception:
+            action = raw_action
+
         target = intention.get("target") or intention.get("args") or {}
+        if isinstance(target, dict):
+            args = dict(target)
+        else:
+            args = {"target": target} if target else {}
+
+        for k, v in intention.items():
+            if k not in ("action", "tool", "args", "target") and k not in args:
+                args[k] = v
 
         tid = f"trace-{uuid.uuid4().hex[:12]}"
         evt = ExecutionEvent(
@@ -542,7 +562,7 @@ class WorkflowEngine:
 
         try:
             if tool_executor:
-                res = tool_executor(action, target if isinstance(target, dict) else {"target": target})
+                res = tool_executor(action, args)
             else:
                 res = f"Action {action} executed successfully"
 
@@ -727,7 +747,16 @@ class WorkflowEngine:
                 category = act_mod.CAT_PLANNING
                 phase = act_mod.PHASE_DISCOVERY
 
-            meta = event.metadata or {}
+            meta = dict(event.metadata or {})
+            if event.source_node:
+                meta["source_node"] = event.source_node
+            if event.target_node:
+                meta["target_node"] = event.target_node
+            if event.payload:
+                meta["payload"] = event.payload
+            if event.point_to_point_trace:
+                meta["point_to_point_trace"] = event.point_to_point_trace
+
             target_path = meta.get("path") or meta.get("file") or meta.get("target_path") or ""
             command = meta.get("command") or meta.get("cmd") or ""
             exit_code = meta.get("exit_code")
@@ -765,5 +794,155 @@ class WorkflowEngine:
         except Exception as e:
             logger.debug(f"Could not bridge workflow event to activity manager: {e}")
 
+    def record_point_to_point_step(
+        self,
+        source_node: str,
+        target_node: str,
+        step_name: str,
+        payload: Optional[Dict[str, Any]] = None,
+        result: Optional[Any] = None,
+        duration_ms: int = 0,
+        status: str = STATE_SUCCEEDED,
+        trace_id: Optional[str] = None,
+        turn_id: Optional[str] = None
+    ) -> str:
+        """Record an explicit point-to-point workflow execution event with full payload & trace."""
+        tid = trace_id or f"trace-p2p-{uuid.uuid4().hex[:8]}"
+        evt = ExecutionEvent(
+            event_id=f"evt-p2p-{uuid.uuid4().hex[:8]}",
+            trace_id=tid,
+            parent_id="",
+            event_type="workflow.point_to_point",
+            status=status,
+            source=source_node,
+            tool="point_to_point_bus",
+            description=f"[{source_node} ➔ {target_node}] {step_name}",
+            duration_ms=duration_ms,
+            source_node=source_node,
+            target_node=target_node,
+            payload=payload or {},
+            metadata={
+                "source_node": source_node,
+                "target_node": target_node,
+                "step_name": step_name,
+                "payload": payload or {},
+                "result": str(result) if result is not None else "",
+                "point_to_point_trace": [
+                    {"hop": 1, "from": source_node, "to": target_node, "timestamp": time.time(), "status": status}
+                ]
+            }
+        )
+        event_bus.emit(evt)
+        self._sync_to_activity_bus(evt, turn_id)
+        return evt.event_id
+
 
 workflow_engine = WorkflowEngine()
+
+
+# ── 5. Workflow-Driven CAT CLI Customization ──────────────────────────────
+class WorkflowCLICustomizer:
+    """Allows fully customizing and editing CAT CLI configuration directly through workflows.
+    Emits real point-to-point telemetry events for every modified parameter so
+    changes are 100% visible in the workflow activity timeline.
+    """
+
+    ALLOWED_SETTINGS = {
+        "default_ai_mode": str,
+        "default_permission_mode": str,
+        "eco_mode": bool,
+        "low_end_device_optimization": bool,
+        "animation_speed": (int, float),
+        "default_theme": str,
+        "timeout_simple": int,
+        "timeout_normal": int,
+        "timeout_large": int,
+        "model_idle_timeout": int,
+        "workflow_auto_verify": bool,
+        "workflow_strategy": str,
+    }
+
+    @classmethod
+    def get_current_settings(cls) -> Dict[str, Any]:
+        try:
+            from . import config as _cfg
+            cfg = _cfg.load_config()
+            out = {}
+            for key in cls.ALLOWED_SETTINGS:
+                out[key] = getattr(cfg, key, None)
+            return out
+        except Exception:
+            return {}
+
+    @classmethod
+    def apply_customizations(cls, settings: Dict[str, Any], reason: str = "", turn_id: Optional[str] = None) -> Dict[str, Any]:
+        try:
+            from . import config as _cfg
+            cfg = _cfg.load_config()
+            applied = {}
+            ignored = {}
+
+            for k, v in (settings or {}).items():
+                if k in cls.ALLOWED_SETTINGS:
+                    expected_type = cls.ALLOWED_SETTINGS[k]
+                    try:
+                        if expected_type is bool and isinstance(v, str):
+                            val = v.lower() in ("true", "1", "yes", "on")
+                        elif isinstance(expected_type, tuple):
+                            val = float(v)
+                        elif expected_type is int:
+                            val = int(v)
+                        elif expected_type is str:
+                            val = str(v)
+                        else:
+                            val = v
+                        setattr(cfg, k, val)
+                        applied[k] = val
+                    except Exception as ex:
+                        ignored[k] = f"Validation error: {ex}"
+                else:
+                    ignored[k] = "Unknown or protected CLI setting"
+
+            if applied:
+                _cfg.save_config(cfg)
+                if "default_ai_mode" in applied:
+                    try:
+                        from . import ai_modes
+                        ai_modes.set_mode(applied["default_ai_mode"])
+                    except Exception:
+                        pass
+
+            tid = f"trace-cli-custom-{uuid.uuid4().hex[:8]}"
+            desc = f"CLI Customized via Workflow: {', '.join(f'{k}={v}' for k, v in applied.items())}" if applied else "No valid CLI customizations provided"
+            evt = ExecutionEvent(
+                event_id=f"evt-{uuid.uuid4().hex[:8]}",
+                trace_id=tid,
+                parent_id="",
+                event_type="cli.customization",
+                status=STATE_SUCCEEDED if applied else STATE_FAILED,
+                source="workflow.customizer",
+                tool="customize_cat_cli",
+                description=desc,
+                source_node="workflow.editor",
+                target_node="cat.cli.config",
+                payload={"requested": settings, "applied": applied, "reason": reason},
+                metadata={
+                    "applied_settings": applied,
+                    "ignored_settings": ignored,
+                    "reason": reason,
+                    "source_node": "workflow.editor",
+                    "target_node": "cat.cli.config",
+                }
+            )
+            event_bus.emit(evt)
+            workflow_engine._sync_to_activity_bus(evt, turn_id)
+
+            return {
+                "success": bool(applied),
+                "applied": applied,
+                "ignored": ignored,
+                "message": desc,
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+

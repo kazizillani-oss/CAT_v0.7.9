@@ -275,6 +275,7 @@
       "description": "Claude 4 Fable & Sonnet — latest AI models",
       "last_updated": "2026-09-03T00:00:00+00:00",
       "fallback_models": [
+        "claude-opus-5.5",
         "claude-2.1",
         "claude-3-5-haiku-20241022",
         "claude-3-5-sonnet-20240620",
@@ -291,7 +292,7 @@
         "claude-4-fable",
         "claude-4-fable-5.1"
       ],
-      "default_model": "claude-4-fable-5.1"
+      "default_model": "claude-opus-5.5"
     },
     {
       "id": "anyscale",
@@ -1028,13 +1029,15 @@
       "description": "DeepSeek-V3 & DeepSeek-R1 — strong reasoning",
       "last_updated": "2026-09-03T00:00:00+00:00",
       "fallback_models": [
+        "deepseek-4.1-pro",
+        "deepseek-4.1-flash",
         "deepseek-chat",
         "deepseek-coder",
         "deepseek-reasoner",
         "deepseek-v3",
         "deepseek-r1"
       ],
-      "default_model": "deepseek-chat"
+      "default_model": "deepseek-4.1-pro"
     },
     {
       "id": "deployai",
@@ -2420,15 +2423,19 @@
       "free_models_available": true,
       "paid_models_available": true,
       "needs_key": true,
-      "description": "Kimi K3 — latest long-context Chinese LLM",
-      "last_updated": "2026-09-03T00:00:00+00:00",
+      "description": "Moonshot AI / Kimi — Long context, reasoning, and multimodal research models",
+      "last_updated": "2026-09-30T12:00:00+00:00",
       "fallback_models": [
+        "kimi-latest",
+        "kimi-k1.5",
+        "moonshot-k1",
         "kimi-k3",
+        "moonshot-v1-auto",
         "moonshot-v1-128k",
         "moonshot-v1-32k",
         "moonshot-v1-8k"
       ],
-      "default_model": "kimi-k3"
+      "default_model": "kimi-latest"
     },
     {
       "id": "ncloud",
@@ -2763,6 +2770,10 @@
       "description": "GPT-4o & o1 — industry standard",
       "last_updated": "2026-09-03T00:00:00+00:00",
       "fallback_models": [
+        "gpt-6-sol",
+        "gpt-6-luna",
+        "gpt-6-terra",
+        "gpt-6-astra",
         "dall-e-3",
         "gpt-3.5-turbo",
         "gpt-4",

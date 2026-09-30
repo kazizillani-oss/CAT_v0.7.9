@@ -1,0 +1,116 @@
+/* Global Resets */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #1a1a2e; /* Dark background for a sci-fi/3D look */
+    color: #e0e7ff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+/* Main Calculator Container */
+.calculator-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px;
+    background-color: #2c2d5b; /* Slightly lighter background for the main body */
+    border-radius: 14px;
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.55), 0 0 20px rgba(122, 162, 247, 0.15);
+    border: 1px solid #3b4261;
+}
+
+/* Display Screen Area */
+#display { 
+    width: 90%;
+    max-width: 500px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    background-color: #1a1a2e; /* Deep black/blue for the screen */
+    border-radius: 8px;
+    text-align: right;
+    font-size: 2.5em;
+    color: #00ff99;
+    min-height: 60px;
+    box-shadow: inset 0 0 12px rgba(0, 255, 153, 0.45);
+    border: 1px solid #00ff99;
+    box-sizing: border-box;
+    overflow-x: auto;
+}
+
+/* Three.js Canvas Area (The 3D Display) */
+#threejs-canvas { 
+    width: 90%;
+    max-width: 800px;
+    height: 380px; /* Fixed height for the 3D view */
+    background-color: #0f0e21; /* Very dark background for the canvas */
+    border-radius: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #565f89;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6);
+}
+
+/* Buttons Grid & Layout */
+.buttons-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    width: 90%;
+    max-width: 500px;
+}
+
+.calc-btn {
+    padding: 16px;
+    font-size: 1.25em;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    background: #1f2335;
+    color: #e0e7ff;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.35);
+}
+
+.calc-btn:hover {
+    background: #3b4261;
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.45);
+}
+
+.calc-btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.calc-btn.operator {
+    background: #7aa2f7;
+    color: #0f0f14;
+}
+
+.calc-btn.operator:hover {
+    background: #89b4fa;
+}
+
+.calc-btn.equal {
+    background: #10b981;
+    color: #ffffff;
+    grid-column: span 2;
+}
+
+.calc-btn.equal:hover {
+    background: #059669;
+}
+
+.calc-btn.clear {
+    background: #e06c75;
+    color: #ffffff;
+}
+
+.calc-btn.clear:hover {
+    background: #ff5370;
+}

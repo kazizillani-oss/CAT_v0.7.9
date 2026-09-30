@@ -31,7 +31,7 @@ try:
         QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
         QTabWidget, QToolBar, QLineEdit, QPushButton, QLabel, QStackedWidget,
         QDialog, QListWidget, QListWidgetItem, QDialogButtonBox, QMessageBox,
-        QProgressBar, QFrame, QSizePolicy,
+        QProgressBar, QFrame, QSizePolicy, QGridLayout,
     )
     from PySide6.QtCore import Qt, QUrl, Signal, QSize, QTimer, QPropertyAnimation, QEasingCurve
     from PySide6.QtGui import QAction, QIcon, QKeySequence, QShortcut, QColor, QPalette, QFont
@@ -44,7 +44,7 @@ except ImportError:
             QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
             QTabWidget, QToolBar, QLineEdit, QPushButton, QLabel, QStackedWidget,
             QDialog, QListWidget, QListWidgetItem, QDialogButtonBox, QMessageBox,
-            QProgressBar, QFrame, QSizePolicy,
+            QProgressBar, QFrame, QSizePolicy, QGridLayout,
         )
         from PyQt6.QtCore import Qt, QUrl, pyqtSignal as Signal, QSize, QTimer, QPropertyAnimation, QEasingCurve
         from PyQt6.QtGui import QAction, QIcon, QKeySequence, QShortcut, QColor, QPalette, QFont

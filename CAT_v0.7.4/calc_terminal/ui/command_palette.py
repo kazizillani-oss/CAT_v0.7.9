@@ -46,7 +46,8 @@ _CATEGORY_OF = {
     "build": "build", "codepad": "build", "edit": "build",
 
     "plan": "plan", "mode": "plan", "notebook": "plan", "agent": "plan", "ai": "plan",
-    "research": "research", "debug": "debug",
+    "research": "research", "debug": "debug", "debugger": "debug",
+    "kitties": "plan", "modes": "plan", "agents": "plan",
 
     "install": "install", "packages": "install", "pipeline": "pipeline",
     "orchestrate": "pipeline", "devices": "devices",
