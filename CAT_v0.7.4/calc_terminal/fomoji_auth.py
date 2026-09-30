@@ -444,6 +444,42 @@ def delete_oauth_credentials(provider: str) -> Dict[str, Any]:
     )
 
 
+def get_user_email() -> str:
+    """Resolve the active user's email from local token, git, environment, or config."""
+    # 1. Check local token identity
+    local = _load_local()
+    if local and isinstance(local.get("identity"), dict):
+        em = str(local["identity"].get("email") or "").strip()
+        if em and "@" in em:
+            return em
+    # 2. Check environment variables
+    for ev in ("CAT_USER_EMAIL", "USER_EMAIL", "GIT_AUTHOR_EMAIL", "EMAIL"):
+        v = os.environ.get(ev, "").strip()
+        if v and "@" in v:
+            return v
+    # 3. Check cct_config.json
+    try:
+        from .config import load_config
+        cfg = load_config()
+        cfg_em = getattr(cfg, "user_email", None) or getattr(cfg, "email", None)
+        if cfg_em and "@" in str(cfg_em):
+            return str(cfg_em).strip()
+    except Exception:
+        pass
+    # 4. Check git config
+    try:
+        import subprocess
+        res = subprocess.run(["git", "config", "user.email"], capture_output=True, text=True, timeout=2)
+        if res.returncode == 0 and res.stdout.strip() and "@" in res.stdout.strip():
+            return res.stdout.strip()
+        res_g = subprocess.run(["git", "config", "--global", "user.email"], capture_output=True, text=True, timeout=2)
+        if res_g.returncode == 0 and res_g.stdout.strip() and "@" in res_g.stdout.strip():
+            return res_g.stdout.strip()
+    except Exception:
+        pass
+    return ""
+
+
 def is_authenticated() -> bool:
     if is_skip_enabled():
         return True
@@ -456,7 +492,18 @@ def get_identity() -> Optional[Dict[str, Any]]:
         return None
     if status() != "connected":
         return None
-    return local.get("identity")
+    ident = local.get("identity")
+    if ident and isinstance(ident, dict):
+        if not ident.get("email"):
+            em = get_user_email()
+            if em:
+                ident["email"] = em
+                try:
+                    local["identity"] = ident
+                    _save_local(local)
+                except Exception:
+                    pass
+    return ident
 
 
 def get_identity_display() -> str:
@@ -466,7 +513,9 @@ def get_identity_display() -> str:
     name = ident.get("name", "?")
     fid = ident.get("fomojiId", "?")
     itype = ident.get("identityType", "PERSON")
-    return f"{name} ({fid}) [{itype}]"
+    em = ident.get("email", "")
+    em_part = f" <{em}>" if em else ""
+    return f"{name}{em_part} ({fid}) [{itype}]"
 
 
 # ---------------------------------------------------------------------------
@@ -568,9 +617,11 @@ def device_login(
         result = _device_poll(device_code)
         st = result.get("status")
         if st == "approved":
+            email = result.get("email") or get_user_email()
             identity = {
                 "fomojiId": result.get("fomojiId"),
                 "name": result.get("name"),
+                "email": email,
                 "identityType": result.get("identityType", "PERSON"),
                 "permissions": result.get("permissions", perms),
                 "applicationId": result.get("applicationId", APPLICATION_ID),

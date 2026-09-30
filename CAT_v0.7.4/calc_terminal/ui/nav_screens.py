@@ -521,19 +521,14 @@ if TEXTUAL_AVAILABLE:
             sessions = v.get("chat_sessions", "0 saved")
             authenticated = v.get("authenticated", False)
             name = user.get("name", "Anonymous")
-            email = user.get("email", "Not signed in")
-            # Get current wordwrap state from editor if available
-            wrap_on = True
-            try:
-                # Try to get from app's editor
-                app = self.app
-                if hasattr(app, '_workspace_shell') and app._workspace_shell and app._workspace_shell.editor:
-                    wrap_on = getattr(app._workspace_shell.editor, '_wrap_on', True)
-                else:
-                    # Fallback to config or default
-                    wrap_on = True
-            except Exception:
-                wrap_on = True
+            email = (user.get("email") or "").strip()
+            if not email:
+                try:
+                    from ..fomoji_auth import get_user_email
+                    email = get_user_email()
+                except Exception:
+                    email = ""
+            email_display = f"[b]{email}[/b]" if email else ("[dim]Not configured[/dim]" if authenticated else "[dim]Not signed in[/dim]")
 
             def _set(widget_id, text):
                 try:
@@ -542,7 +537,7 @@ if TEXTUAL_AVAILABLE:
                     pass
 
             _set("#user-name", f"  Name:  [b]{name}[/b]")
-            _set("#user-email", f"  Email:  {email}")
+            _set("#user-email", f"  Email:  {email_display}")
             _set("#user-status", f"  Status:  {'[b]\u2713 Signed In[/b]' if authenticated else '[dim]Signed Out[/dim]'}")
             _set("#user-model", f"  Active:  [b]{model}[/b]")
             _set("#user-provider", f"  Provider:  {provider}")
@@ -564,6 +559,13 @@ if TEXTUAL_AVAILABLE:
             _set("#user-memory", f"  Conversation memory:  {memory}")
             _set("#user-sessions", f"  Saved chats:  {sessions}")
             # Update wordwrap switch state
+            wrap_on = True
+            try:
+                app = self.app
+                if hasattr(app, '_workspace_shell') and app._workspace_shell and app._workspace_shell.editor:
+                    wrap_on = getattr(app._workspace_shell.editor, '_wrap_on', True)
+            except Exception:
+                wrap_on = True
             try:
                 sw = self.query_one("#user-wordwrap-switch", Switch)
                 sw.value = wrap_on

@@ -3035,10 +3035,20 @@ if TEXTUAL_AVAILABLE:
             """Live value snapshot for the User panel."""
             user = {}
             try:
-                from ..fomoji_auth import get_identity
+                from ..fomoji_auth import get_identity, get_user_email
                 ident = get_identity()
+                email = get_user_email()
                 if ident:
-                    user = {"name": ident.get("name", "User"), "email": ident.get("email", "")}
+                    user = {
+                        "name": ident.get("name", "User"),
+                        "email": ident.get("email") or email,
+                        "fomojiId": ident.get("fomojiId", ""),
+                    }
+                elif email:
+                    user = {
+                        "name": os.environ.get("USERNAME", "User"),
+                        "email": email,
+                    }
             except Exception:
                 pass
             try:

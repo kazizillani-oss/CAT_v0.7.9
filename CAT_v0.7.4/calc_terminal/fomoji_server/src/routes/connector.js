@@ -437,6 +437,7 @@ router.post('/device/poll', (req, res) => {
     connectorToken: token,
     fomojiId: user.fomoji_id,
     name: user.name,
+    email: user.email || '',
     identityType: user.identity_type,
     permissions: JSON.parse(conn.permissions_granted || '[]'),
     applicationId: conn.application_id,

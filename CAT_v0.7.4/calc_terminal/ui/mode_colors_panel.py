@@ -177,7 +177,7 @@ if TEXTUAL_AVAILABLE:
             background: rgba(15, 15, 20, 0.65);
         }
         #mcc-box {
-            width: 104; max-width: 98%; height: auto; max-height: 48;
+            width: 104; max-width: 98%; height: auto; max-height: 98%;
             background: #1a1b26;
             border: tall #565f89;
             border-top: tall #7aa2f7;
@@ -187,20 +187,21 @@ if TEXTUAL_AVAILABLE:
             padding: 0; layout: vertical; overflow: hidden;
         }
         #mcc-titlebar {
-            height: 5; min-height: 5; padding: 0 2;
+            height: 4; min-height: 4; max-height: 4; padding: 0 2;
             background: #1f2335;
             border-bottom: tall #0f0f14;
             layout: horizontal; align: center middle;
         }
         #mcc-title {
             width: 1fr; text-style: bold; color: #7aa2f7;
-            height: 3; content-align: left middle;
+            height: 1; content-align: left middle;
         }
         #mcc-close {
             width: auto; min-width: 11; height: 3; min-height: 3; max-height: 3;
             padding: 0 1; margin: 0;
             background: #e06c75; color: #ffffff;
             text-style: bold;
+            border: tall;
             border-top: tall #ff9999;
             border-left: tall #ff9999;
             border-bottom: tall #4a151b;
@@ -219,15 +220,15 @@ if TEXTUAL_AVAILABLE:
             border-right: tall #ff9999;
         }
         #mcc-subtitle {
-            color: #7982a9; height: auto; padding: 0 2;
+            color: #7982a9; height: 1; min-height: 1; max-height: 1; padding: 0 2;
         }
         #mcc-spawners {
-            height: 5; min-height: 5; padding: 0 2; layout: horizontal;
+            height: 4; min-height: 4; max-height: 4; padding: 0 2; layout: horizontal;
             border-bottom: solid #24283b; background: #16161e;
             align: center middle;
         }
         #mcc-spawners-label {
-            width: auto; color: #c0caf5; text-style: bold; height: 3;
+            width: auto; color: #c0caf5; text-style: bold; height: 1;
             content-align: center middle; padding-right: 1;
         }
         .mcc-spawner-btn {
@@ -250,17 +251,18 @@ if TEXTUAL_AVAILABLE:
             background: #16161e;
         }
         #mcc-presets {
-            height: 5; min-height: 5; padding: 0 2; layout: horizontal;
+            height: 4; min-height: 4; max-height: 4; padding: 0 2; layout: horizontal;
             border-bottom: solid #24283b; background: #14151f;
             align: center middle;
         }
         #mcc-presets-label {
-            width: auto; color: #c0caf5; text-style: bold; height: 3;
+            width: auto; color: #c0caf5; text-style: bold; height: 1;
             content-align: center middle; padding-right: 1;
         }
         .mcc-preset {
             width: 5; min-width: 5; height: 3; min-height: 3; padding: 0;
             margin-right: 1;
+            border: tall;
             border-top: tall #ffffff 45%;
             border-left: tall #ffffff 45%;
             border-bottom: tall #000000 65%;
@@ -279,25 +281,50 @@ if TEXTUAL_AVAILABLE:
             border-right: tall #ffffff;
         }
         #mcc-create {
-            height: auto; padding: 1 2; border-bottom: tall #0f0f14; background: #1f2335 40%;
+            height: auto; padding: 1 2; border-bottom: tall #0f0f14; background: #1f2335 50%;
+            display: none;
         }
-        #mcc-create-title { height: 1; text-style: bold; color: #7aa2f7; }
+        #mcc-create.show {
+            display: block;
+        }
+        #mcc-create-header {
+            height: 3; layout: horizontal; align: center middle; margin-bottom: 1;
+        }
+        #mcc-create-title { width: 1fr; height: 1; text-style: bold; color: #7aa2f7; }
+        #mcc-create-close { width: auto; height: 3; }
+        #mcc-create-templates {
+            height: 4; min-height: 4; max-height: 4; layout: horizontal; align: center middle;
+            margin-bottom: 1;
+        }
+        #mcc-templates-label {
+            width: auto; color: #c0caf5; text-style: bold; margin-right: 1; height: 1;
+        }
+        .mcc-tpl-btn {
+            height: 3; min-height: 3; max-height: 3; margin-right: 1; padding: 0 1;
+            background: #24283b; color: #c0caf5;
+            border: tall;
+            border-top: tall #565f89; border-left: tall #565f89;
+            border-bottom: tall #0f0f14; border-right: tall #0f0f14;
+        }
+        .mcc-tpl-btn:hover {
+            background: #3b4261; color: #ffffff;
+            border-top: tall #7aa2f7; border-left: tall #7aa2f7;
+        }
         #mcc-create-row1 { height: 3; layout: horizontal; margin-top: 1; }
         #mcc-create-row1 Input { width: 1fr; margin-right: 1; }
         #mcc-create-row2 { height: 3; layout: horizontal; margin-top: 1; }
-        #mcc-create-row2 Input { width: 1fr; margin-right: 1; }
-        #mcc-create-row3 { height: 3; layout: horizontal; margin-top: 1; }
-        #mcc-create-row3 Input { width: 1fr; }
-        #mcc-create-actions { height: 3; layout: horizontal; margin-top: 1; }
-        #mcc-create-actions Button { margin-right: 1; }
+        #mcc-create-row2 Input { width: 1fr; }
+        #mcc-create-row3 { height: auto; layout: vertical; margin-top: 1; }
+        #mcc-create-actions { height: 4; min-height: 4; layout: horizontal; margin-top: 1; align: left middle; }
+        #mcc-create-actions Button { margin-right: 1; height: 3; min-height: 3; }
         #mcc-list {
-            height: 1fr; min-height: 12; max-height: 26;
+            height: 1fr; min-height: 3;
             overflow-y: auto; overflow-x: hidden;
             scrollbar-gutter: stable; scrollbar-size: 1 1;
             margin: 0 1; padding: 0;
         }
         .mcc-row {
-            height: auto; min-height: 7; padding: 1 1;
+            height: auto; min-height: 5; padding: 0 1;
             border-bottom: solid #24283b;
             border-top: tall #3b4261; border-left: tall #3b4261;
             border-right: tall #16161e;
@@ -313,7 +340,6 @@ if TEXTUAL_AVAILABLE:
         .mcc-label { width: auto; height: 1; text-style: bold; margin-right: 1; color: #c0caf5; }
         .mcc-key { width: auto; height: 1; color: #7982a9; }
         .mcc-purpose { width: auto; height: 1; color: #7982a9; }
-        .mcc-preview { width: auto; height: 1; color: #9aa5ce; }
         .mcc-preview { width: auto; height: 1; color: #9aa5ce; }
         .mcc-editbox {
             height: auto; margin-top: 1; display: none; background: #13141f; padding: 1;
@@ -334,14 +360,15 @@ if TEXTUAL_AVAILABLE:
             background: #1a1b26; border: solid #565f89;
             margin-bottom: 1;
         }
-        .mcc-edit-actions { height: 3; layout: horizontal; margin-top: 1; }
-        .mcc-edit-actions Button { margin-right: 1; }
+        .mcc-edit-actions { height: 4; min-height: 4; layout: horizontal; margin-top: 1; align: left middle; }
+        .mcc-edit-actions Button { margin-right: 1; height: 3; min-height: 3; }
         .mcc-actions {
             width: auto; height: auto; min-width: 18;
             layout: vertical; align: right middle;
         }
         .mcc-actions Button { min-width: 14; height: 3; margin-bottom: 1; }
         .mcc-3d-btn {
+            height: 3; min-height: 3; max-height: 3;
             border: tall;
             border-top: tall #565f89; border-left: tall #565f89;
             border-bottom: tall #0f0f14; border-right: tall #0f0f14;
@@ -356,27 +383,25 @@ if TEXTUAL_AVAILABLE:
             border-bottom: tall #7aa2f7; border-right: tall #7aa2f7;
             background: #16161e;
         }
-        #mcc-create {
-            height: auto; padding: 1 2; border-bottom: tall #0f0f14; background: #1f2335 40%;
-            display: none;
+        .mcc-list-cta-btn {
+            width: 100%; height: 3; min-height: 3; margin-top: 1; margin-bottom: 1;
+            background: #1f2335; color: #7aa2f7; text-style: bold;
+            border: tall #3b4261;
+            content-align: center middle;
         }
-        #mcc-create.show {
-            display: block;
+        .mcc-list-cta-btn:hover {
+            background: #24283b; color: #ffffff; border: tall #7aa2f7;
         }
-        #mcc-create-header {
-            height: 3; layout: horizontal; align: center middle; margin-bottom: 1;
-        }
-        #mcc-create-title { width: 1fr; height: 1; text-style: bold; color: #7aa2f7; }
-        #mcc-create-close { width: auto; height: 3; }
         #mcc-actions {
-            height: auto; padding: 1 2; border-top: tall #0f0f14; background: #1f2335;
-            layout: horizontal;
+            height: 5; min-height: 5; max-height: 5; padding: 0 2;
+            border-top: tall #0f0f14; background: #1f2335;
+            layout: horizontal; align: center middle;
         }
-        #mcc-actions-left { width: 1fr; layout: horizontal; }
-        #mcc-actions-left Button { margin-right: 1; }
-        #mcc-actions-right { width: auto; layout: horizontal; }
-        #mcc-actions-right Button { margin-left: 1; }
-        #mcc-hint { color: #7982a9; height: auto; padding: 0 2 1 2; text-align: center; }
+        #mcc-actions-left { width: auto; height: 3; min-height: 3; layout: horizontal; align: left middle; }
+        #mcc-actions-left Button { margin-right: 1; height: 3; min-height: 3; }
+        #mcc-hint { width: 1fr; height: 1; min-height: 1; color: #7982a9; text-align: center; content-align: center middle; }
+        #mcc-actions-right { width: auto; height: 3; min-height: 3; layout: horizontal; align: right middle; }
+        #mcc-actions-right Button { margin-left: 1; height: 3; min-height: 3; }
         #mcc-error { color: #f7768e; height: 1; padding: 0 2; display: none; text-style: bold; }
         #mcc-error.show { display: block; }
         .cct-compact .mcc-row { layout: vertical; min-height: 10; }
@@ -416,18 +441,24 @@ if TEXTUAL_AVAILABLE:
                         btn._preset_hex = hx
                         yield btn
 
-                # Create form (hidden by default until '＋ Create Agent' is clicked)
+                # Create form (toggled via '＋ Create Agent' or quick templates)
                 with Vertical(id="mcc-create"):
                     with Horizontal(id="mcc-create-header"):
-                        yield Static("＋ Create Custom AI Agent Persona", id="mcc-create-title")
+                        yield Static("🤖 ＋ Create Custom AI Agent Bot", id="mcc-create-title")
                         yield Button("✕ Cancel", id="mcc-create-close", classes="cct-btn-sm mcc-3d-btn")
+                    with Horizontal(id="mcc-create-templates"):
+                        yield Static("Quick Presets:", id="mcc-templates-label")
+                        yield Button("⚡ Grok Bot", id="mcc-tpl-grok", classes="mcc-tpl-btn")
+                        yield Button("⚪ Dots Bot", id="mcc-tpl-dots", classes="mcc-tpl-btn")
+                        yield Button("💻 Automator", id="mcc-tpl-laptop", classes="mcc-tpl-btn")
+                        yield Button("🧠 Thinker", id="mcc-tpl-thinker", classes="mcc-tpl-btn")
                     with Horizontal(id="mcc-create-row1"):
-                        yield Input(placeholder="key (e.g. my_agent, coder, dev)", id="mcc-new-key", classes="mcc-input-sm")
-                        yield Input(placeholder="Label (e.g. Master Coder)", id="mcc-new-label", classes="mcc-input-sm")
-                        yield Input(placeholder="Icon (⚡, 🚀, 🐱, ✨)", id="mcc-new-icon", classes="mcc-input-sm mcc-input-icon")
+                        yield Input(placeholder="key (e.g. grok_bot, dev, coder)", id="mcc-new-key", classes="mcc-input-sm")
+                        yield Input(placeholder="Label (e.g. Grok Bot, Automator)", id="mcc-new-label", classes="mcc-input-sm")
+                        yield Input(placeholder="Icon (⚡, ⚪, 💻, 🧠, 🐱)", id="mcc-new-icon", classes="mcc-input-sm mcc-input-icon")
                         yield Input(placeholder="#rrggbb", id="mcc-new-color", classes="mcc-input")
                     with Horizontal(id="mcc-create-row2"):
-                        yield Input(placeholder="Purpose (e.g. Autonomous AI agent with full computer & CAT CLI automation)", id="mcc-new-purpose", classes="mcc-input-sm")
+                        yield Input(placeholder="Purpose (e.g. Autonomous agent with full CLI & laptop automation)", id="mcc-new-purpose", classes="mcc-input-sm")
                     with Vertical(id="mcc-create-row3"):
                         yield Static("System Prompt & Behavior Instructions (Multi-line):", classes="mcc-prompt-label")
                         yield MultiLinePromptArea(id="mcc-new-prompt", classes="mcc-prompt-area")
@@ -440,13 +471,14 @@ if TEXTUAL_AVAILABLE:
                 with VerticalScroll(id="mcc-list"):
                     for key in list(ai_modes.MODE_ORDER):
                         yield _ModeRow(key)
+                    yield Button("🤖 ＋ Create New AI Agent Bot", id="mcc-list-create-cta", classes="mcc-list-cta-btn")
 
                 with Horizontal(id="mcc-actions"):
                     with Horizontal(id="mcc-actions-left"):
                         yield Button("↺ Restore Defaults", id="mcc-reset-all", classes="mcc-3d-btn")
+                    yield Static("Tip: Click '✎ Edit Mode' on any Kitty to configure colors & prompts", id="mcc-hint")
                     with Horizontal(id="mcc-actions-right"):
                         yield Button("Done ↵", id="mcc-close2", variant="primary", classes="mcc-3d-btn")
-                yield Static("Tip: Click '✎ Edit Mode' on any Kitty to configure colors, purpose, and custom system prompts.", id="mcc-hint")
 
         def on_mount(self):
             try:
@@ -461,7 +493,7 @@ if TEXTUAL_AVAILABLE:
                     btn.tooltip = f"Apply {hx} to selected Kitty"
             except Exception:
                 pass
-            if self.size.width < 96 or self.size.height < 36:
+            if self.size.width < 96:
                 try:
                     self.query_one("#mcc-box").add_class("cct-compact")
                 except Exception:
@@ -598,26 +630,38 @@ if TEXTUAL_AVAILABLE:
                 self.dismiss(None)
                 return
 
-            # 3. Agent Workshop Actions
-            if bid == "mcc-action-new":
+            # 3. Agent Workshop Actions & Quick Bot Presets
+            if bid in ("mcc-action-new", "mcc-list-create-cta"):
                 try:
                     cbox = self.query_one("#mcc-create", Vertical)
-                    cbox.add_class("show")
-                    self.query_one("#mcc-new-key", Input).value = "custom_agent"
-                    self.query_one("#mcc-new-label", Input).value = "Custom Agent"
-                    self.query_one("#mcc-new-icon", Input).value = "✨"
-                    self.query_one("#mcc-new-color", Input).value = "#bb9af7"
-                    self.query_one("#mcc-new-purpose", Input).value = "Autonomous AI agent with full computer & CAT CLI automation."
-                    self.query_one("#mcc-new-prompt", MultiLinePromptArea).value = (
-                        "You are a specialized autonomous AI agent in CAT CLI. You operate with first-principles "
-                        "reasoning, Think Mode chain-of-thought, and full authority to run commands and automate workflows."
-                    )
-                    self.query_one("#mcc-new-key", Input).focus()
-                    self._show_info("Ready to create custom agent. Adjust details above and click 'Create Kitty'.")
-                    try:
-                        self.app._system_note("Ready to create a custom AI agent. Enter details and click 'Create Kitty'.")
-                    except Exception:
-                        pass
+                    is_shown = "show" in cbox.classes
+                    if is_shown and bid == "mcc-action-new":
+                        cbox.remove_class("show")
+                        self.query_one("#mcc-action-new", Button).label = "＋ Create Agent"
+                        self._show_info("")
+                    else:
+                        cbox.add_class("show")
+                        try:
+                            self.query_one("#mcc-action-new", Button).label = "✕ Hide Create Form"
+                        except Exception:
+                            pass
+                        cur_key = self.query_one("#mcc-new-key", Input).value.strip()
+                        if not cur_key:
+                            self.query_one("#mcc-new-key", Input).value = "custom_agent"
+                            self.query_one("#mcc-new-label", Input).value = "Custom Agent"
+                            self.query_one("#mcc-new-icon", Input).value = "✨"
+                            self.query_one("#mcc-new-color", Input).value = "#bb9af7"
+                            self.query_one("#mcc-new-purpose", Input).value = "Autonomous AI agent with full computer & CAT CLI automation."
+                            self.query_one("#mcc-new-prompt", MultiLinePromptArea).value = (
+                                "You are a specialized autonomous AI agent in CAT CLI. You operate with first-principles "
+                                "reasoning, Think Mode chain-of-thought, and full authority to run commands and automate workflows."
+                            )
+                        self.query_one("#mcc-new-key", Input).focus()
+                        self._show_info("Ready to create custom agent bot. Enter details or choose a preset template.")
+                        try:
+                            self.app._system_note("Ready to create custom AI agent bot. Fill in details and click 'Create Kitty'.")
+                        except Exception:
+                            pass
                 except Exception:
                     pass
                 return
@@ -625,6 +669,89 @@ if TEXTUAL_AVAILABLE:
             if bid == "mcc-create-close":
                 try:
                     self.query_one("#mcc-create", Vertical).remove_class("show")
+                    try:
+                        self.query_one("#mcc-action-new", Button).label = "＋ Create Agent"
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+                return
+
+            if bid == "mcc-tpl-grok":
+                try:
+                    self.query_one("#mcc-create", Vertical).add_class("show")
+                    self.query_one("#mcc-action-new", Button).label = "✕ Hide Create Form"
+                    self.query_one("#mcc-new-key", Input).value = "grok_bot"
+                    self.query_one("#mcc-new-label", Input).value = "Grok Bot"
+                    self.query_one("#mcc-new-icon", Input).value = "⚡"
+                    self.query_one("#mcc-new-color", Input).value = "#f59e0b"
+                    self.query_one("#mcc-new-purpose", Input).value = "Fast, witty, autonomous deep-thinking assistant with real-time CLI automation."
+                    self.query_one("#mcc-new-prompt", MultiLinePromptArea).value = (
+                        "You are Grok Bot, an ultra-fast, unfiltered, witty, and deeply analytical AI agent. "
+                        "You approach problems from first principles, reason step-by-step, "
+                        "and possess full authority to execute CLI tools and automate laptop workflows."
+                    )
+                    self._show_info("✓ Loaded Grok Bot preset template. Adjust details or click 'Create Kitty'.")
+                    self.query_one("#mcc-new-key", Input).focus()
+                except Exception:
+                    pass
+                return
+
+            if bid == "mcc-tpl-dots":
+                try:
+                    self.query_one("#mcc-create", Vertical).add_class("show")
+                    self.query_one("#mcc-action-new", Button).label = "✕ Hide Create Form"
+                    self.query_one("#mcc-new-key", Input).value = "dots_bot"
+                    self.query_one("#mcc-new-label", Input).value = "Dots Bot"
+                    self.query_one("#mcc-new-icon", Input).value = "⚪"
+                    self.query_one("#mcc-new-color", Input).value = "#bb9af7"
+                    self.query_one("#mcc-new-purpose", Input).value = "OpenAI Dots-style modular autonomous multi-agent specialist."
+                    self.query_one("#mcc-new-prompt", MultiLinePromptArea).value = (
+                        "You are Dots Bot, an autonomous agent inspired by OpenAI's modular multi-agent architecture. "
+                        "You coordinate specialized sub-tasks, delegate workflows, think systematically before acting, "
+                        "and manage complex tasks with meticulous precision."
+                    )
+                    self._show_info("✓ Loaded Dots Bot preset template. Adjust details or click 'Create Kitty'.")
+                    self.query_one("#mcc-new-key", Input).focus()
+                except Exception:
+                    pass
+                return
+
+            if bid == "mcc-tpl-laptop":
+                try:
+                    self.query_one("#mcc-create", Vertical).add_class("show")
+                    self.query_one("#mcc-action-new", Button).label = "✕ Hide Create Form"
+                    self.query_one("#mcc-new-key", Input).value = "laptop_automator"
+                    self.query_one("#mcc-new-label", Input).value = "Laptop Automator"
+                    self.query_one("#mcc-new-icon", Input).value = "💻"
+                    self.query_one("#mcc-new-color", Input).value = "#10b981"
+                    self.query_one("#mcc-new-purpose", Input).value = "Autonomous OS controller for file management, background jobs, and laptop automation."
+                    self.query_one("#mcc-new-prompt", MultiLinePromptArea).value = (
+                        "You are Laptop Automator Kitty, an autonomous systems orchestrator. "
+                        "You automate file operations, execute command pipelines, run background tasks, "
+                        "and manage development workflows across the laptop."
+                    )
+                    self._show_info("✓ Loaded Laptop Automator preset template. Adjust details or click 'Create Kitty'.")
+                    self.query_one("#mcc-new-key", Input).focus()
+                except Exception:
+                    pass
+                return
+
+            if bid == "mcc-tpl-thinker":
+                try:
+                    self.query_one("#mcc-create", Vertical).add_class("show")
+                    self.query_one("#mcc-action-new", Button).label = "✕ Hide Create Form"
+                    self.query_one("#mcc-new-key", Input).value = "thinker_bot"
+                    self.query_one("#mcc-new-label", Input).value = "Thinker Bot"
+                    self.query_one("#mcc-new-icon", Input).value = "🧠"
+                    self.query_one("#mcc-new-color", Input).value = "#7aa2f7"
+                    self.query_one("#mcc-new-purpose", Input).value = "Deep research & mathematical reasoning specialist with thorough chain-of-thought."
+                    self.query_one("#mcc-new-prompt", MultiLinePromptArea).value = (
+                        "You are Thinker Bot, an elite reasoning agent dedicated to rigorous proof, "
+                        "architectural design, scientific inquiry, and exhaustive conceptual analysis."
+                    )
+                    self._show_info("✓ Loaded Thinker Bot preset template. Adjust details or click 'Create Kitty'.")
+                    self.query_one("#mcc-new-key", Input).focus()
                 except Exception:
                     pass
                 return
