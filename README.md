@@ -3,9 +3,9 @@
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="badge.svg">
-  <source media="(prefers-color-scheme: light)" srcset="badge.svg">
-  <img alt="CAT — Coding Agent Terminal" src="badge.svg" width="820">
+  <source media="(prefers-color-scheme: dark)" srcset="badge-mini.svg">
+  <source media="(prefers-color-scheme: light)" srcset="badge-mini.svg">
+  <img alt="CAT — Coding Agent Terminal" src="badge-mini.svg" width="820">
 </picture>
 
 <br>

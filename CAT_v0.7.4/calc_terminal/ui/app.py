@@ -153,6 +153,10 @@ from .composer import StickyComposer, ComposerInput, TEXTUAL_AVAILABLE as _COMP_
 from .footer import StatusLine, TEXTUAL_AVAILABLE as _FOOTER_OK
 from .permission_panel import PermissionCard, QuestionCard, TEXTUAL_AVAILABLE as _PERM_OK
 from .header import BrandHeader, TEXTUAL_AVAILABLE as _HEADER_OK
+try:
+    from .header import PermissionPill
+except Exception:
+    PermissionPill = None  # type: ignore
 from .statusbar import StatusBar, StatusFields, TEXTUAL_AVAILABLE as _STATUSBAR_OK
 from .dashboard import WelcomeDashboard, TEXTUAL_AVAILABLE as _DASH_OK
 from .workspace import WorkspaceShell, TEXTUAL_AVAILABLE as _WORKSPACE_OK
@@ -170,11 +174,12 @@ try:
     from textual.app import App as TextualApp
     from textual.screen import Screen
     from textual.containers import Vertical
-    from textual.widgets import Static, Button
+    from textual.widgets import Static, Button, Input
     from textual import work, events
 except Exception:
     TEXTUAL_AVAILABLE = False
     Button = None
+    Input = None  # type: ignore
 
 try:
     from ..input import TouchHitZone, auto_promote_touch_mode

@@ -11,7 +11,7 @@ from __future__ import annotations
 import os
 import xml.etree.ElementTree as ET
 import zipfile
-from typing import List, Optional
+from typing import Any, List, Optional
 
 TEXTUAL_AVAILABLE = True
 try:
