@@ -929,6 +929,72 @@ Button.cct-btn-3d.-active {
     tint: $app-background 22%;
 }
 
+/* 3D Skeuomorphic Modal Close Button */
+.cct-modal-close-btn,
+Button.cct-modal-close-btn {
+    height: 3; min-height: 3; max-height: 3;
+    min-width: 9; max-width: 12;
+    padding: 0 1;
+    margin: 0;
+    border: tall;
+    border-top: tall #ffa198;
+    border-left: tall #ffa198;
+    border-bottom: tall #b8324f;
+    border-right: tall #b8324f;
+    background: #2b1d24;
+    color: #ff7b72;
+    text-style: bold;
+    content-align: center middle;
+    transition: background 80ms, border 80ms, color 80ms;
+}
+.cct-modal-close-btn:hover,
+Button.cct-modal-close-btn:hover {
+    border-top: tall #ffffff;
+    border-left: tall #ffffff;
+    border-bottom: tall #ff7b72;
+    border-right: tall #ff7b72;
+    background: #3e2430;
+    color: #ffffff;
+}
+.cct-modal-close-btn:focus,
+Button.cct-modal-close-btn:focus {
+    border-top: tall #ffffff;
+    border-left: tall #ffffff;
+    border-bottom: tall #ffa198;
+    border-right: tall #ffa198;
+    background: #472635;
+    color: #ffffff;
+}
+.cct-modal-close-btn.-active,
+Button.cct-modal-close-btn.-active {
+    border-top: tall #b8324f;
+    border-left: tall #b8324f;
+    border-bottom: tall #ffa198;
+    border-right: tall #ffa198;
+    background: #201319;
+    color: #ff7b72;
+}
+
+Screen.-light .cct-modal-close-btn,
+.-light .cct-modal-close-btn {
+    border-top: tall #ffa198;
+    border-left: tall #ffa198;
+    border-bottom: tall #cb2431;
+    border-right: tall #cb2431;
+    background: #ffeef0;
+    color: #cb2431;
+}
+Screen.-light .cct-modal-close-btn:hover,
+.-light .cct-modal-close-btn:hover {
+    border-top: tall #ffffff;
+    border-left: tall #ffffff;
+    border-bottom: tall #d73a49;
+    border-right: tall #d73a49;
+    background: #ffdce0;
+    color: #b31d28;
+}
+
+
 /* Universal 3D Skeuomorphic Button Keycaps */
 Button.cct-btn, Button.cct-modal-btn, Button.cct-btn-sm, Button.cct-btn-primary {
     border: tall;

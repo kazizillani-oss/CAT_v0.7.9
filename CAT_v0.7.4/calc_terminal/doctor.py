@@ -467,6 +467,155 @@ def report(fix=False):
     except Exception as e:
         print(f"    Git Status  : {e}")
 
+    # --- CAT Core Dependencies ------------------------------------------
+    print("[7] Core Dependencies:")
+    core_pkgs = ["textual", "rich", "requests", "watchdog", "plyer"]
+    for pkg in core_pkgs:
+        try:
+            from importlib.metadata import version as _pver
+            pv = _pver(pkg)
+            print(f"    {pkg:<12}: v{pv}")
+        except Exception:
+            print(f"    {pkg:<12}: NOT INSTALLED")
+            ok = False
+
+    # --- AI Providers & Resilience --------------------------------------
+    print("[8] AI Providers & Resilience Pool:")
+    try:
+        from . import aicore
+        from .providers import provider_manager as pm
+        from .resilience.health_monitor import get_health_monitor
+        cfg = aicore.load_config() or {}
+        p_name = cfg.get("provider", "Not configured")
+        p_model = cfg.get("model", "(default)")
+        mon = get_health_monitor()
+        badge, lbl = mon.get_status_badge(p_name, p_model)
+        print(f"    Primary     : {badge} {p_name} [{p_model}] ({lbl})")
+        backups = pm.load_backup_providers()
+        print(f"    Backup Pool : {len(backups)} failover candidate(s) configured")
+        for i, b in enumerate(backups[:3]):
+            bp = b.get("provider", "?")
+            bm = b.get("model", "?")
+            b_badge, b_lbl = mon.get_status_badge(bp, bm)
+            print(f"      [{i+1}] {b_badge} {bp} ({bm}) [{b_lbl}]")
+    except Exception as e:
+        print(f"    Provider Err: {e}")
+
+    # --- Agent Registry -------------------------------------------------
+    print("[9] Agent Platform & Registry:")
+    try:
+        from .agents import get_agent_registry
+        reg = get_agent_registry()
+        agents = reg.list(include_disabled=True)
+        enabled_count = sum(1 for a in agents if a.enabled)
+        builtin_count = sum(1 for a in agents if a.builtin)
+        custom_count = len(agents) - builtin_count
+        print(f"    Registered  : {len(agents)} agents ({enabled_count} enabled)")
+        print(f"    Breakdown   : {builtin_count} built-in, {custom_count} custom")
+        print(f"    Storage Dir : {reg.agents_dir}")
+    except Exception as e:
+        print(f"    Agent Err   : {e}")
+
+    # --- Missions & Checkpoints -----------------------------------------
+    print("[10] Mission & Task System:")
+    try:
+        from .missions import get_mission_manager
+        mm = get_mission_manager()
+        missions = mm.list()
+        pending = sum(1 for m in missions if m.status in ("pending", "running", "paused"))
+        print(f"    Total       : {len(missions)} mission(s) tracked ({pending} active/in-progress)")
+        print(f"    Storage Dir : {mm.missions_dir}")
+    except Exception as e:
+        print(f"    Mission Err : {e}")
+
+    # --- MCP (Model Context Protocol) -----------------------------------
+    print("[11] MCP (Model Context Protocol):")
+    try:
+        from . import mcp
+        servers = mcp.load_servers()
+        en_srv = sum(1 for s in servers if s.get("enabled"))
+        print(f"    Servers     : {len(servers)} configured ({en_srv} active)")
+        for s in servers[:3]:
+            print(f"      - {s.get('name', 'Server')} [{s.get('kind', 'remote')}]")
+    except Exception as e:
+        print(f"    MCP Err     : {e}")
+
+    # --- Ollama Local Models --------------------------------------------
+    print("[12] Local Ollama Environment:")
+    try:
+        import requests
+        r = requests.get("http://localhost:11434/api/tags", timeout=0.6)
+        if r.status_code == 200:
+            models_data = r.json().get("models", [])
+            print(f"    Status      : Online on localhost:11434 ({len(models_data)} local models)")
+        else:
+            print(f"    Status      : HTTP {r.status_code} on localhost:11434")
+    except Exception:
+        print("    Status      : Offline (run `ollama serve` to enable local models)")
+
+    # --- Workspace & User Storage ---------------------------------------
+    print("[13] User Storage & File Health:")
+    try:
+        from . import storage
+        st_info = storage.get_storage_status()
+        print(f"    Storage Path: {st_info['base_path']}")
+        print(f"    Total Usage : {st_info['readable_total']} ({st_info['total_files']} files)")
+        writable = os.access(st_info['base_path'], os.W_OK)
+        print(f"    Permissions : {'Read/Write (OK)' if writable else 'READ ONLY (Permission Issue)'}")
+        if not writable:
+            ok = False
+    except Exception as e:
+        print(f"    Storage Err : {e}")
+
+    # --- Extensions -----------------------------------------------------
+    print("[14] Extensions & Customization:")
+    try:
+        from . import extensions
+        all_exts = extensions.discover() if hasattr(extensions, "discover") else []
+        en_ext = sum(1 for x in all_exts if extensions.is_enabled(x.get("id", "")))
+        print(f"    Extensions  : {len(all_exts)} registered ({en_ext} enabled)")
+    except Exception as e:
+        print(f"    Ext Err     : {e}")
+
+    # --- Modular Integrations -------------------------------------------
+    print("[15] Modular Integration Center:")
+    try:
+        from .integrations import get_integration_registry
+        ireg = get_integration_registry()
+        ilist = ireg.list()
+        connected = sum(1 for i in ilist if i.status == "Connected")
+        print(f"    Integrations: {len(ilist)} available ({connected} connected)")
+        for item in ilist:
+            if item.status == "Connected":
+                print(f"      ✓ {item.name:<16}: {item.details}")
+    except Exception as e:
+        print(f"    Integ Err   : {e}")
+
+    # --- CAT Lab Environment -------------------------------------------
+    print("[16] CAT Lab & Machine Learning Environment:")
+    try:
+        from .lab import (
+            get_model_registry,
+            get_benchmark_registry,
+            get_dataset_registry,
+            get_experiment_tracker,
+            get_hardware_profile,
+        )
+        hw = get_hardware_profile()
+        m_count = len(get_model_registry().list())
+        b_count = len(get_benchmark_registry().list())
+        d_count = len(get_dataset_registry().list())
+        e_count = len(get_experiment_tracker().list())
+        print(f"    Compute Dev : {hw['primary_device']}")
+        print(f"    PyTorch     : {hw['pytorch']['version']} ({hw['pytorch']['details']})")
+        cuda_status = "Available" if hw["cuda"]["available"] else "Unavailable"
+        cuda_ver = hw["cuda"]["version"] or "N/A"
+        cuda_rt = hw["cuda"]["runtime"] or "None"
+        print(f"    CUDA        : {cuda_status} (v{cuda_ver} via {cuda_rt}, PyTorch CUDA: {'Yes' if hw['pytorch']['cuda_available'] else 'No'})")
+        print(f"    Lab Objects : {m_count} models, {b_count} benchmarks, {d_count} datasets, {e_count} experiments")
+    except Exception as e:
+        print(f"    Lab Err     : {e}")
+
     print("=" * 60)
     if ok:
         print("Everything looks good. Run `cat` from any terminal.")

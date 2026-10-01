@@ -250,10 +250,11 @@ _COMPONENT_CSS = """
     padding: 1 2 0 2;
     overflow-y: auto;
     overflow-x: hidden;
-    scrollbar-size: 1 1;
-    scrollbar-color: $border transparent;
-    scrollbar-color-hover: $accent transparent;
-    scrollbar-color-active: $accent-highlight transparent;
+    scrollbar-size: 2 1;
+    scrollbar-gutter: stable;
+    scrollbar-color: #565f89 #14151f;
+    scrollbar-color-hover: #7aa2f7 #1a1b26;
+    scrollbar-color-active: #bb9af7 #101018;
 }
 
 #cct-welcome { content-align: center middle; text-align: center; padding: 2 2; color: $text; }
@@ -286,22 +287,28 @@ _COMPONENT_CSS = """
 }
 .cct-msg-card-user {
     width: auto;
-    min-width: 24;
-    max-width: 82%;
+    min-width: 50;
+    max-width: 84%;
     align-horizontal: right;
+    margin-top: 1;
+    margin-bottom: 0;
 }
 .cct-msg-card-assistant {
     width: 100%;
-    max-width: 100%;
+    min-width: 50;
+    max-width: 96%;
     align-horizontal: left;
+    margin-top: 1;
+    margin-bottom: 0;
 }
 .cct-msg-actions {
     height: 1;
     min-height: 1;
-    width: 100%;
+    max-height: 1;
+    width: auto;
     margin-top: 0;
     margin-bottom: 0;
-    padding: 0 1;
+    padding: 0;
     layout: horizontal;
 }
 .cct-msg-card-user .cct-msg-actions {
@@ -314,54 +321,72 @@ Button.cct-msg-btn, .cct-msg-btn {
     height: 1;
     min-height: 1;
     max-height: 1;
-    width: auto;
-    min-width: 8;
-    max-width: 14;
-    padding: 0 1;
-    margin-right: 1;
-    background: $surface-alt;
-    color: $text-muted;
+    width: 11;
+    min-width: 11;
+    max-width: 11;
+    padding: 0;
+    margin-left: 1;
+    margin-right: 0;
+    background: #1e2233;
+    color: #94a3b8;
     border: none;
+    outline: none;
     text-style: bold;
     content-align: center middle;
-    transition: color 120ms, background 120ms;
+    transition: background 100ms, color 100ms;
 }
 Button.cct-msg-btn:hover, .cct-msg-btn:hover {
     background: $accent;
     color: #ffffff;
+    border: none;
+    outline: none;
     text-style: bold;
+}
+Button.cct-msg-btn:focus, .cct-msg-btn:focus {
+    background: $accent 40%;
+    color: #ffffff;
+    border: none;
+    outline: none;
+    text-style: bold;
+}
+Button.cct-msg-btn.-active, .cct-msg-btn.-active {
+    background: $accent 60%;
+    color: #ffffff;
+    border: none;
+    outline: none;
+    text-style: bold;
+}
+.-light Button.cct-msg-btn,
+Screen.-light Button.cct-msg-btn {
+    background: #e2e8f0;
+    color: #334155;
+}
+.-light Button.cct-msg-btn:hover,
+Screen.-light Button.cct-msg-btn:hover {
+    background: $accent;
+    color: #ffffff;
+}
+.-light #cct-conversation,
+Screen.-light #cct-conversation {
+    scrollbar-color: #94a3b8 #f1f5f9;
+    scrollbar-color-hover: $accent #e2e8f0;
+    scrollbar-color-active: $accent-highlight #cbd5e1;
 }
 
 .cct-bubble { height: auto; }
 .cct-bubble-user {
     width: 100%;
+    min-width: 50;
     max-width: 100%;
-    background: $surface-alt;
-    color: $text;
-    border: tall;
-    border-top: tall $accent-highlight;
-    border-left: tall $accent-highlight;
-    border-right: tall $surface-dark;
-    border-bottom: tall $surface-dark;
+    height: auto;
     padding: 1 2;
     transition: background 150ms, border 150ms;
 }
 .cct-bubble-user:hover {
-    background: $surface-highlight;
-    border: tall;
-    border-top: tall #ffffff;
-    border-left: tall $accent-highlight;
-    border-right: tall $surface-dark;
-    border-bottom: tall $surface-dark;
     offset-y: 0;
 }
 .cct-bubble-user.-active {
     offset-y: 0;
-    border: tall;
-    border-top: tall $surface-dark;
-    border-left: tall $surface-dark;
-    border-bottom: tall $accent-highlight;
-    border-right: tall $accent-highlight;
 }
 .cct-bubble-assistant {
     width: 100%;
@@ -462,32 +487,6 @@ LiveActivitiesBlock.collapsed #live-header, .live-activities-block.collapsed #li
     border-bottom: none;
 }
 
-.cct-msg-actions {
-    height: 1;
-    width: auto;
-    margin-top: 0;
-    layout: horizontal;
-}
-.cct-msg-btn {
-    height: 1;
-    min-height: 1;
-    max-height: 1;
-    padding: 0 1;
-    margin-right: 1;
-    background: $surface-alt;
-    color: $text-muted;
-    border: none;
-    text-style: bold;
-    transition: background 80ms, color 80ms;
-}
-.cct-msg-btn:hover {
-    background: $accent 25%;
-    color: $accent;
-}
-.cct-msg-btn.-active {
-    background: $accent 40%;
-    color: #ffffff;
-}
 
 #cct-composer {
     background: $surface;
@@ -1491,11 +1490,12 @@ Screen Button#cct-open-folder-btn.-active {
     color: #ffffff;
 }
 .cct-sidebar-project-del {
-    width: 3; height: 1; color: $text-faint;
-    content-align: center middle;
+    width: 3; min-width: 3; height: 1; min-height: 1; padding: 0;
+    border: none; background: transparent; color: $text-faint;
+    content-align: center middle; text-align: center;
     transition: color 150ms;
 }
-.cct-sidebar-project-del:hover { color: $error; }
+.cct-sidebar-project-del:hover { color: #ff7b72; background: #3e1b24; text-style: bold; }
 .cct-sidebar-clear-recent {
     height: 1; color: $text-faint; width: auto; padding: 1 1 0 1;
     transition: color 150ms;
@@ -2077,7 +2077,7 @@ Screen Button.cct-dash-action.-active {
 #cct-workspace-body { overflow: hidden; layout: horizontal; }
 #cct-chat-col { width: 1fr; min-width: 24; height: 100%; overflow: hidden; }
 #cct-right-pane { width: 44; min-width: 24; height: 100%; overflow: hidden; border-left: solid $border; }
-#cct-conversation { overflow-y: auto; overflow-x: hidden; padding: 0 1; }
+#cct-conversation { overflow-y: auto; overflow-x: hidden; padding: 0 1; scrollbar-size: 2 1; scrollbar-gutter: stable; scrollbar-color: #565f89 #14151f; scrollbar-color-hover: #7aa2f7 #1a1b26; scrollbar-color-active: #bb9af7 #101018; }
 #cct-composer { overflow: hidden; }
 """
 
@@ -3536,7 +3536,7 @@ if TEXTUAL_AVAILABLE:
 
             transcript_lines = []
             for t in turns:
-                role_label = "User" if t.role == "user" else "CAT Assistant"
+                role_label = "User" if t.role == "user" else "CAT Bot"
                 transcript_lines.append(f"**{role_label}:** {t.text.strip()}")
             full_transcript = "\n\n".join(transcript_lines)
 
@@ -7759,7 +7759,7 @@ if TEXTUAL_AVAILABLE:
                 ""
             ]
             for t in turns:
-                role = "You" if t.role == "user" else "CAT Assistant"
+                role = "You" if t.role == "user" else "CAT Bot"
                 ts = _t.strftime('%H:%M:%S', _t.localtime(t.created_at)) if hasattr(t, "created_at") and t.created_at else ""
                 header = f"### {role} ({ts})" if ts else f"### {role}"
                 lines.append(header)

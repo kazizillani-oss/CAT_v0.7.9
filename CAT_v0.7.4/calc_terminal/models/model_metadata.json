@@ -2115,6 +2115,78 @@
       "release_date": null
     },
     {
+      "id": "nvidia/nemotron-3-ultra-550b-a55b",
+      "display_name": "Nemotron 3 Ultra (550B)",
+      "provider": "nvidia",
+      "family": "nemotron",
+      "category": "nemotron",
+      "reasoning": true,
+      "vision": false,
+      "image_generation": false,
+      "embedding": false,
+      "speech": false,
+      "coding": true,
+      "tools": true,
+      "streaming": true,
+      "context_length": 131072,
+      "free": true,
+      "paid": false,
+      "preview": false,
+      "deprecated": false,
+      "recommended": true,
+      "input_price_per_1m": 0,
+      "output_price_per_1m": 0,
+      "release_date": null
+    },
+    {
+      "id": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "display_name": "Nemotron 3.5 Lightning (30B)",
+      "provider": "nvidia",
+      "family": "nemotron",
+      "category": "nemotron",
+      "reasoning": true,
+      "vision": false,
+      "image_generation": false,
+      "embedding": false,
+      "speech": false,
+      "coding": true,
+      "tools": true,
+      "streaming": true,
+      "context_length": 131072,
+      "free": true,
+      "paid": false,
+      "preview": false,
+      "deprecated": false,
+      "recommended": true,
+      "input_price_per_1m": 0,
+      "output_price_per_1m": 0,
+      "release_date": null
+    },
+    {
+      "id": "nvidia/llama-3.1-nemotron-70b-instruct",
+      "display_name": "Llama 3.1 Nemotron 70B Instruct",
+      "provider": "nvidia",
+      "family": "nemotron",
+      "category": "nemotron",
+      "reasoning": true,
+      "vision": false,
+      "image_generation": false,
+      "embedding": false,
+      "speech": false,
+      "coding": true,
+      "tools": true,
+      "streaming": true,
+      "context_length": 131072,
+      "free": true,
+      "paid": false,
+      "preview": false,
+      "deprecated": false,
+      "recommended": true,
+      "input_price_per_1m": 0,
+      "output_price_per_1m": 0,
+      "release_date": null
+    },
+    {
       "id": "meta/llama-3.3-70b-instruct",
       "display_name": "meta/llama-3.3-70b-instruct",
       "provider": "nvidia",
@@ -3785,6 +3857,41 @@
       "provider": "cohere",
       "from": "command-medium-beta",
       "to": "command-r"
+    },
+    {
+      "provider": "nvidia",
+      "from": "nemotron-3-ultra",
+      "to": "nvidia/nemotron-3-ultra-550b-a55b"
+    },
+    {
+      "provider": "nvidia",
+      "from": "nemotron-3-ultra-550b",
+      "to": "nvidia/nemotron-3-ultra-550b-a55b"
+    },
+    {
+      "provider": "nvidia",
+      "from": "3.5-lightning",
+      "to": "nvidia/nemotron-3.5-lightning-30b-a3b"
+    },
+    {
+      "provider": "nvidia",
+      "from": "3.5-lightning-ai",
+      "to": "nvidia/nemotron-3.5-lightning-30b-a3b"
+    },
+    {
+      "provider": "nvidia",
+      "from": "nemotron-3.5-lightning",
+      "to": "nvidia/nemotron-3.5-lightning-30b-a3b"
+    },
+    {
+      "provider": "nvidia",
+      "from": "nemotron-3.5-lightning-30b",
+      "to": "nvidia/nemotron-3.5-lightning-30b-a3b"
+    },
+    {
+      "provider": "nvidia",
+      "from": "llama-3.1-nemotron-70b",
+      "to": "nvidia/llama-3.1-nemotron-70b-instruct"
     }
   ]
 }

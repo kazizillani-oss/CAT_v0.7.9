@@ -129,7 +129,7 @@ def test_assistant_bubble_3d_and_telemetry():
     )
     content = item._build_content()
     rendered_plain = _render_to_text(content)
-    assert "CAT Assistant" in rendered_plain
+    assert "CAT Bot" in rendered_plain
 
     # Telemetry chip bar with rich tags cleanly stripped
     telemetry_table = item._format_telemetry()
@@ -263,7 +263,9 @@ async def test_bubble_top_border_and_no_negative_offset_clipping():
         # 6. User header does not wrap Notebook onto line 2
         lines = [l for l in svg.splitlines() if "Notebook" in l]
         assert len(lines) > 0
-        assert "You" in lines[0] and "Notebook" in lines[0]
+        from calc_terminal.ui.conversation import _current_username
+        user_name = _current_username()
+        assert (user_name in lines[0] or "👤" in lines[0]) and "Notebook" in lines[0]
 
 
 @pytest.mark.anyio
@@ -420,8 +422,141 @@ async def test_dashboard_and_sidebar_3d_bevel_buttons():
         assert side_btn.styles.border_bottom[0] in ("heavy", "round", "tall", "solid")
         assert side_btn.styles.border_right[0] in ("heavy", "round", "tall", "solid")
         assert side_btn.styles.border_top[1].hex.lower() not in ("#000000", "#10121a")
+@pytest.mark.anyio
+async def test_assistant_bubble_3d_and_skeuomorphism():
+    snap = {"mode": "debugger", "accent_hex": "#10b981", "icon": "🐛", "label": "Debugger"}
+    item = ConversationItem(
+        turn_id="turn-assistant-1",
+        role="assistant",
+        text="All systems operational. No memory leaks detected.",
+        mode_snapshot=snap,
+        show_timestamp=True,
+    )
+    content = item._build_content()
+    rendered_plain = _render_to_text(content)
+    assert "CAT Bot" in rendered_plain
+    assert "Debugger" in rendered_plain
+    assert "─" in rendered_plain
+
+    # Verify 3D beveled borders and background tint
+    item._freeze_mode_style()
+    top_style, top_color = item.styles.border_top
+    bot_style, bot_color = item.styles.border_bottom
+    assert top_style in ("tall", "double", "heavy", "round")
+    assert bot_style in ("tall", "double", "heavy", "round")
+    assert item.styles.background is not None
 
 
+@pytest.mark.anyio
+async def test_sidebar_project_row_delete_button():
+    from textual.app import App, ComposeResult
+    from calc_terminal.ui.sidebar import _ProjectRow, FolderOpened
+    from textual.widgets import Button
 
+    deleted_paths = []
+    opened_paths = []
+
+    def on_delete(p):
+        deleted_paths.append(p)
+
+    class SidebarRowApp(App):
+        def compose(self) -> ComposeResult:
+            yield _ProjectRow("c:/test/project_alpha", on_delete=on_delete)
+
+        def on_folder_opened(self, event: FolderOpened):
+            opened_paths.append(event.path)
+
+    app = SidebarRowApp()
+    async with app.run_test() as pilot:
+        row = pilot.app.query_one(_ProjectRow)
+        del_btn = row.query_one(".cct-sidebar-project-del", Button)
+        assert del_btn is not None
+
+        # Click the delete button
+        await pilot.click(".cct-sidebar-project-del")
+        await pilot.pause(0.05)
+
+        # Deletion must be invoked and FolderOpened must NOT be fired!
+        assert "c:/test/project_alpha" in deleted_paths
+        assert len(opened_paths) == 0
+
+
+@pytest.mark.anyio
+async def test_modal_close_buttons_3d():
+    from textual.app import App, ComposeResult
+    from calc_terminal.ui.sidebar import OpenWorkspaceScreen, RecentWorkspacesScreen
+    from calc_terminal.ui.extensions_panel import ExtensionsPanel
+    from textual.widgets import Button
+
+    class ModalTestApp(App):
+        def compose(self) -> ComposeResult:
+            yield OpenWorkspaceScreen()
+
+    app = ModalTestApp()
+    async with app.run_test() as pilot:
+        ows = pilot.app.query_one(OpenWorkspaceScreen)
+        close_btn = ows.query_one("#ows-close-btn", Button)
+        assert close_btn is not None
+        assert "✕ Close" in str(close_btn.label)
+        assert "cct-modal-close-btn" in close_btn.classes
+
+    class RecentWsTestApp(App):
+        def compose(self) -> ComposeResult:
+            yield RecentWorkspacesScreen()
+
+    app2 = RecentWsTestApp()
+    async with app2.run_test() as pilot:
+        rws = pilot.app.query_one(RecentWorkspacesScreen)
+        rws_close = rws.query_one("#cct-recentws-close", Button)
+        assert rws_close is not None
+        assert "✕ Close" in str(rws_close.label)
+        assert "cct-modal-close-btn" in rws_close.classes
+
+    class ExtPanelTestApp(App):
+        def compose(self) -> ComposeResult:
+            yield ExtensionsPanel()
+
+    app3 = ExtPanelTestApp()
+    async with app3.run_test() as pilot:
+        ext = pilot.app.query_one(ExtensionsPanel)
+        ext_close = ext.query_one("#ext-close", Button)
+        assert ext_close is not None
+        assert "✕ Close" in str(ext_close.label)
+        assert "cct-modal-close-btn" in ext_close.classes
+
+
+def test_delete_button_kitties_and_username_and_cat_bot():
+    from calc_terminal.ui.conversation import ConversationItem, _current_username
+    from calc_terminal.ui.mode_colors_panel import _ModeRow, ModeColorsPanel
+    from textual.widgets import Button
+
+    # 1. Username in User Bubble
+    u_name = _current_username()
+    assert u_name
+    u_item = ConversationItem(turn_id="t-u", role="user", text="test query")
+    rendered_u = _render_to_text(u_item._build_content())
+    assert u_name in rendered_u
+    assert "👤" in rendered_u
+
+    # 2. CAT Bot in Assistant Bubble
+    a_item = ConversationItem(turn_id="t-a", role="assistant", text="test response")
+    rendered_a = _render_to_text(a_item._build_content())
+    assert "CAT Bot" in rendered_a
+    assert "CAT Assistant" not in rendered_a
+
+    # 3. Kitties Mode Edit Delete Button
+    import inspect
+    compose_src = inspect.getsource(_ModeRow.compose)
+    assert 'Button("   🗑  Delete   "' in compose_src
+    assert 'mcc-delete-btn' in compose_src
+    assert 'variant="error"' not in compose_src
+
+    # Check CSS contains full 3D styling and 16 width with 0 2 padding
+    css = ModeColorsPanel.CSS
+    assert ".mcc-delete-btn" in css
+    assert "min-width: 16" in css
+    assert "padding: 0 2" in css
+    assert "#mcc-titlebar" in css
+    assert "height: 5" in css
 
 

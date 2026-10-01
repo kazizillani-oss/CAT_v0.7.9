@@ -1218,6 +1218,8 @@ manager = ActivityManager()
 def create_activity(type: str, action: str, title: str, **kwargs) -> Activity:
     return manager.create(type=type, action=action, title=title, **kwargs)
 
+publish = create_activity
+
 def update_activity(activity_id: str, **kwargs) -> Optional[Activity]:
     return manager.update(activity_id, **kwargs)
 

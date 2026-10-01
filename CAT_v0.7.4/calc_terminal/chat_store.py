@@ -678,7 +678,7 @@ def export_chat_markdown(chat_id: str) -> Optional[str]:
     ]
     for turn in chat.get("turns", []):
         role = turn.get("role", "user")
-        label = "You" if role == "user" else "CAT Assistant" if role == "assistant" else "System"
+        label = "You" if role == "user" else "CAT Bot" if role == "assistant" else "System"
         ts = turn.get("timestamp", 0)
         when = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S") if ts else ""
         mode = turn.get("mode") or (turn.get("mode_snapshot") or {}).get("mode", "")

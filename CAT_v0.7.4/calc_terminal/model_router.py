@@ -36,7 +36,7 @@ if __name__ == "__main__":
 import re
 import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 # ----------------------------------------------------------------- types --
 
@@ -663,3 +663,57 @@ def describe_decision(dec: RouteDecision) -> str:
         line += (f" → {dec.vision_config.get('provider', '?')}/"
                  f"{dec.vision_config.get('model', '?')}")
     return line
+
+
+def route_task_to_agent_and_mission(
+    prompt: str,
+    attachments: Optional[List] = None,
+    mode: Optional[str] = None,
+) -> Dict[str, Any]:
+    """CAT Intelligence Router: inspects request, selects best specialist agent,
+    primary AI mode, and determines whether an orchestrated mission team is required."""
+    types = classify(prompt, attachments, mode)
+    p_lower = (prompt or "").lower()
+
+    if "debugging" in types or any(w in p_lower for w in ("error", "traceback", "exception", "bug", "crash", "fix failure")):
+        agent_id = "cat-debugger"
+        primary_mode = "debugger"
+    elif "research" in types or any(w in p_lower for w in ("search", "paper", "documentation", "docs", "latest", "compare")):
+        agent_id = "cat-researcher"
+        primary_mode = "research"
+    elif "planning" in types or any(w in p_lower for w in ("roadmap", "milestone", "architecture", "plan", "design")):
+        agent_id = "cat-planner"
+        primary_mode = "plan"
+    elif any(w in p_lower for w in ("git", "commit", "branch", "repo", "sync", "push")):
+        agent_id = "cat-git"
+        primary_mode = "agent"
+    elif any(w in p_lower for w in ("terminal", "shell", "bash", "powershell", "install", "npm", "pip")):
+        agent_id = "cat-terminal"
+        primary_mode = "agent"
+    elif any(w in p_lower for w in ("test", "pytest", "unit test", "coverage")):
+        agent_id = "cat-tester"
+        primary_mode = "build"
+    elif any(w in p_lower for w in ("review", "audit", "diff", "security")):
+        agent_id = "cat-reviewer"
+        primary_mode = "build"
+    else:
+        agent_id = "cat-coder"
+        primary_mode = "build"
+
+    is_complex = complexity_score(types, prompt) >= 0.45 or len(prompt) > 120 or any(w in p_lower for w in ("end-to-end", "full", "microservice", "pipeline", "architect"))
+    if is_complex:
+        suggested_team = ["cat-planner", agent_id, "cat-tester", "cat-reviewer"]
+        # Deduplicate preserving order
+        seen = set()
+        suggested_team = [x for x in suggested_team if not (x in seen or seen.add(x))]
+    else:
+        suggested_team = [agent_id]
+
+    return {
+        "primary_agent": agent_id,
+        "primary_mode": primary_mode,
+        "is_complex": is_complex,
+        "suggested_team": suggested_team,
+        "task_types": list(types),
+    }
+

@@ -2622,12 +2622,15 @@
       "description": "NVIDIA Inference Microservices",
       "last_updated": "2026-07-31T05:17:14+00:00",
       "fallback_models": [
+        "nvidia/nemotron-3-ultra-550b-a55b",
+        "nvidia/nemotron-3.5-lightning-30b-a3b",
+        "nvidia/llama-3.1-nemotron-70b-instruct",
+        "meta/llama-3.3-70b-instruct",
         "meta/llama-3.2-11b-vision-instruct",
         "mistralai/mistral-large-2-instruct",
-        "nvidia/llama-3.1-nemotron-70b-instruct",
         "ibm/granite-3.0-8b-instruct"
       ],
-      "default_model": "meta/llama-3.2-11b-vision-instruct"
+      "default_model": "nvidia/nemotron-3-ultra-550b-a55b"
     },
     {
       "id": "oci-genai",

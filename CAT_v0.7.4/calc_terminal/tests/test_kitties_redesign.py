@@ -205,6 +205,45 @@ class TestKittiesRedesign(unittest.IsolatedAsyncioTestCase):
             # 6. Restore defaults
             ai_modes.reset_all_modes()
 
+    async def test_custom_agent_preset_templates_and_scroll_layout(self):
+        app = KittiesTestApp()
+        async with app.run_test() as pilot:
+            panel = app.query_one(ModeColorsPanel)
+
+            # Ensure Grok Bot and Dots Bot are removed
+            self.assertEqual(len(panel.query("#mcc-tpl-grok")), 0)
+            self.assertEqual(len(panel.query("#mcc-tpl-dots")), 0)
+
+            # Ensure Automator, Thinker, Coder, and Researcher presets are present
+            tpl_laptop = panel.query_one("#mcc-tpl-laptop")
+            tpl_thinker = panel.query_one("#mcc-tpl-thinker")
+            tpl_coder = panel.query_one("#mcc-tpl-coder")
+            tpl_researcher = panel.query_one("#mcc-tpl-researcher")
+            self.assertIsNotNone(tpl_laptop)
+            self.assertIsNotNone(tpl_thinker)
+            self.assertIsNotNone(tpl_coder)
+            self.assertIsNotNone(tpl_researcher)
+
+            # Verify scroll body exists and contains create form and list header
+            scroll_body = panel.query_one("#mcc-scroll-body")
+            self.assertIsNotNone(scroll_body)
+            list_header = panel.query_one("#mcc-list-header")
+            self.assertIsNotNone(list_header)
+            self.assertIn("Active AI Modes", str(list_header.render()))
+
+            # Test activating Coder Bot template
+            panel.on_button_pressed(type("E", (), {"button": tpl_coder})())
+            await pilot.pause()
+            self.assertEqual(panel.query_one("#mcc-new-key").value, "coder_bot")
+            self.assertEqual(panel.query_one("#mcc-new-label").value, "Coder Bot")
+            self.assertEqual(panel.query_one("#mcc-new-color").value, "#38bdf8")
+
+            # Test activating Researcher Bot template
+            panel.on_button_pressed(type("E", (), {"button": tpl_researcher})())
+            await pilot.pause()
+            self.assertEqual(panel.query_one("#mcc-new-key").value, "research_bot")
+            self.assertEqual(panel.query_one("#mcc-new-label").value, "Research Bot")
+
 
 if __name__ == "__main__":
     unittest.main()

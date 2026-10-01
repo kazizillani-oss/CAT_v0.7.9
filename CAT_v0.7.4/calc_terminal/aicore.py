@@ -1695,6 +1695,37 @@ class _TotalTimeout(Exception):
     expires (distinct from requests' idle read timeout)."""
 
 
+def _normalize_provider_model(provider: str, model: str, base_url: str = "") -> str:
+    """Resolve aliases and standardise model names for specialized backends (e.g. NVIDIA NIM)."""
+    if not model:
+        return model
+    prov_lower = (provider or "").lower()
+    url_lower = str(base_url or "").lower()
+    is_nvidia = prov_lower == "nvidia" or "integrate.api.nvidia.com" in url_lower
+
+    if is_nvidia:
+        m_str = str(model).strip()
+        m_low = m_str.lower()
+        if "nemotron-3-ultra" in m_low or "nemotron-3_ultra" in m_low or ("nemotron" in m_low and "ultra" in m_low) or "3-ultra" in m_low or "3_ultra" in m_low:
+            return "nvidia/nemotron-3-ultra-550b-a55b"
+        if "3.5-lightning" in m_low or "3.5_lightning" in m_low or ("nemotron" in m_low and "lightning" in m_low) or ("3.5" in m_low and "lightning" in m_low):
+            return "nvidia/nemotron-3.5-lightning-30b-a3b"
+        if "nemotron-70b" in m_low or ("nemotron" in m_low and "70b" in m_low):
+            return "nvidia/llama-3.1-nemotron-70b-instruct"
+        if m_low.startswith("nemotron-") and not m_str.startswith("nvidia/"):
+            return f"nvidia/{m_str}"
+        return m_str
+
+    try:
+        from .providers.provider_manager import validate_and_resolve_model
+        res = validate_and_resolve_model(provider, model)
+        if res.get("model"):
+            return res["model"]
+    except Exception:
+        pass
+    return model
+
+
 def _stream_ai_once(prompt, system_prompt=DEFAULT_SYSTEM_PROMPT,
                     history=None, config=None, attachments=None,
                     size_class="normal", request_id=None):
@@ -1782,6 +1813,8 @@ def _stream_ai_once(prompt, system_prompt=DEFAULT_SYSTEM_PROMPT,
         if not base_url:
             yield "AI not configured — no base URL set for this provider. Run /ai to reconfigure."
             return
+
+        model = _normalize_provider_model(provider, model, base_url)
         if not model:
             yield "AI not configured — no model selected. Run /model to choose one."
             return
@@ -1805,10 +1838,13 @@ def _stream_ai_once(prompt, system_prompt=DEFAULT_SYSTEM_PROMPT,
             }
             mod_lower = (model or "").lower()
             is_o_reasoning = ("o1" in mod_lower or "o3" in mod_lower) and "openrouter" not in str(base_url).lower()
+            is_nvidia = (provider == "nvidia") or ("integrate.api.nvidia.com" in str(base_url).lower())
             if is_o_reasoning:
                 payload["max_completion_tokens"] = 4096
             elif temperature is not None:
                 payload["temperature"] = temperature
+            if is_nvidia:
+                payload.setdefault("max_tokens", 4096)
             resp = _track(requests.post(url, headers=headers, json=payload,
                                          timeout=t_connect_idle, stream=True))
             _raise_for_status(resp)
@@ -2105,9 +2141,15 @@ def _raise_for_status(resp):
     if resp.status_code >= 400:
         try:
             body = resp.json()
-            err = (body.get("error", {}).get("message")
-                   or body.get("error", {}).get("status")
-                   or str(body)[:300])
+            err = None
+            if isinstance(body, dict):
+                err = (body.get("error", {}).get("message")
+                       if isinstance(body.get("error"), dict)
+                       else body.get("error"))
+                if not err:
+                    err = body.get("detail") or body.get("message") or body.get("status")
+            if not err:
+                err = str(body)[:300]
         except Exception:
             err = resp.text[:300] if resp.text else resp.reason
         raise RuntimeError(f"HTTP {resp.status_code}: {err}")
@@ -2508,6 +2550,7 @@ def query_ai_with_image(prompt, image_path,
     base_url = base_url.rstrip("/")
     api_key = used_config.get("api_key", "")
     model = used_config.get("model") or (info["default_model"] if info else "gpt-4o-mini")
+    model = _normalize_provider_model(provider, model, base_url)
     extra_headers = info["extra_headers"] if info else {}
 
     try:

@@ -124,6 +124,8 @@ class OpenAIProvider(BaseProvider):
                 "model": self.get_model(),
                 "messages": self._build_messages(system_prompt, history, prompt),
             }
+            if self.provider_id == "nvidia" or "integrate.api.nvidia.com" in str(base).lower():
+                payload.setdefault("max_tokens", 4096)
             temp = self.config.get("temperature")
             if temp is not None:
                 payload["temperature"] = temp
@@ -153,6 +155,8 @@ class OpenAIProvider(BaseProvider):
                 "messages": self._build_messages(system_prompt, history, prompt),
                 "stream": True,
             }
+            if self.provider_id == "nvidia" or "integrate.api.nvidia.com" in str(base).lower():
+                payload.setdefault("max_tokens", 4096)
             temp = self.config.get("temperature")
             if temp is not None:
                 payload["temperature"] = temp
@@ -227,9 +231,15 @@ class OpenAIProvider(BaseProvider):
         if resp.status_code >= 400:
             try:
                 body = resp.json()
-                err = (body.get("error", {}).get("message")
-                       or body.get("error", {}).get("status")
-                       or str(body)[:300])
+                err = None
+                if isinstance(body, dict):
+                    err = (body.get("error", {}).get("message")
+                           if isinstance(body.get("error"), dict)
+                           else body.get("error"))
+                    if not err:
+                        err = body.get("detail") or body.get("message") or body.get("status")
+                if not err:
+                    err = str(body)[:300]
             except Exception:
                 err = resp.text[:300] if resp.text else resp.reason
             raise RuntimeError(f"HTTP {resp.status_code}: {err}")

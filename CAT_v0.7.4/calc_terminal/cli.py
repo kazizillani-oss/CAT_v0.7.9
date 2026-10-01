@@ -109,6 +109,36 @@ def get_command_safety(argv=None) -> dict:
             "reason": "Repair operation repairs or modifies filesystem permissions, directory structures, or configurations.",
         }
 
+    if args and args[0] in ("models", "--models") and len(args) == 1:
+        pass
+    elif args and args[0] in (
+        "agents", "agent", "missions", "mission", "storage", "integrations", "integration",
+        "doctor", "--doctor", "hardware", "--hardware", "lab", "--lab",
+        "benchmark", "benchmarks", "--benchmark", "model", "--model",
+        "dataset", "datasets", "--dataset", "experiment", "experiments", "--experiment"
+    ):
+        if len(args) == 1 or args[1] in ("list", "ls", "search", "status", "path", "info", "view", "open", "gpu", "cpu", "memory"):
+            return {
+                "classification": SAFETY_READ_ONLY,
+                "safe_to_automate": True,
+                "changes_state": False,
+                "reason": f"Read-only query of CAT {args[0]} state.",
+            }
+        return {
+            "classification": SAFETY_STATE_CHANGING,
+            "safe_to_automate": False,
+            "changes_state": True,
+            "reason": f"Modifies CAT {args[0]} state.",
+        }
+
+    if args and args[0] in ("backup", "restore", "import", "export"):
+        return {
+            "classification": SAFETY_STATE_CHANGING,
+            "safe_to_automate": False,
+            "changes_state": True,
+            "reason": f"State-changing CAT {args[0]} operation.",
+        }
+
     # 3. INTERACTIVE / WORKSPACE / COMPLEX COMMANDS
     return {
         "classification": SAFETY_INTERACTIVE,
@@ -153,6 +183,12 @@ def _usage(prog: str = None) -> str:
         "  models          dynamic AI models: [--provider <id>] [--new] [--updated] [--deprecated] [refresh]\n"
         "  providers       manage AI providers: list | audit | refresh | status | test | backup\n"
         "  offline         activate Emergency Local Mode (zero cloud, Ollama local only)\n"
+        "  agents, agent   manage AI agents: list | search | create | edit | delete | run | status\n"
+        "  missions        persistent missions & tasks: list | create | open | pause | resume\n"
+        "  storage         user file storage & health: status | path | open | clean\n"
+        "  backup, restore local backup & restore of user state\n"
+        "  integrations    external platform & tool integrations: list | status | connect\n"
+        "  import, export  import/export portable .cat files (agents, missions)\n"
         "\n"
         "Automation safety:\n"
         "  Read-only (safe to automate):\n"
@@ -179,8 +215,12 @@ def _usage(prog: str = None) -> str:
         f"  {prog} --auth login    pair this device with your Fomoji identity\n"
         f"  {prog} --auth status   check Fomoji session\n"
         f"  {prog} models          list dynamically registered AI models\n"
-        f"  {prog} providers status check real-time provider health\n"
-        f"  {prog} offline         switch to local-only emergency fallback mode\n"
+        f"  {prog} lab             open CAT Lab AI experimentation studio & benchmark hub\n"
+        f"  {prog} benchmark list  list and run standardized AI benchmarks\n"
+        f"  {prog} model list      inspect registered models and check hardware compatibility\n"
+        f"  {prog} dataset list    view and inspect local training and eval datasets\n"
+        f"  {prog} experiment list track and reproduce machine learning experiments\n"
+        f"  {prog} hardware        inspect hardware accelerators, CUDA, PyTorch, and VRAM\n"
         f"  {prog} fatty           launch Fatty CAT (opens browser + starts server)\n"
         f"  {prog} browse https://example.com   open CAT Browser at a URL\n"
     )
@@ -1041,9 +1081,9 @@ def main(argv=None):
     except Exception:
         pass
 
-    if argv in (["--doctor"], ["doctor"]):
+    if argv and argv[0] in ("--doctor", "doctor"):
         from .doctor import main as _doctor_main
-        return _doctor_main()
+        return _doctor_main(argv[1:])
 
     # --- Fomoji auth subcommands (never gated — they ARE the gate) ---
     if argv and argv[0] in ("--auth", "auth"):
@@ -1190,8 +1230,40 @@ def main(argv=None):
         print("  pip install PySide6", file=sys.stderr)
         return 1
 
-    # --- Dynamic Model & Provider CLI (v2026.09) -------------------------
+    # --- Hardware & ML Accelerators Profiler ----------------------------
+    if argv and argv[0] in ("hardware", "--hardware"):
+        from .cli_commands import hardware_cli
+        return hardware_cli(argv)
+
+    # --- CAT Lab AI Experimentation Studio ------------------------------
+    if argv and argv[0] in ("lab", "--lab"):
+        from .cli_commands import lab_cli
+        return lab_cli(argv)
+
+    # --- Benchmark Studio -----------------------------------------------
+    if argv and argv[0] in ("benchmark", "benchmarks", "--benchmark", "--benchmarks"):
+        from .cli_commands import benchmark_cli
+        return benchmark_cli(argv)
+
+    # --- Dataset Registry -----------------------------------------------
+    if argv and argv[0] in ("dataset", "datasets", "--dataset", "--datasets"):
+        from .cli_commands import dataset_cli
+        return dataset_cli(argv)
+
+    # --- Experiment Tracker & PyTorch Lab -------------------------------
+    if argv and argv[0] in ("experiment", "experiments", "--experiment", "--experiments"):
+        from .cli_commands import experiment_cli
+        return experiment_cli(argv)
+
+    # --- Dynamic Model & Provider CLI -----------------------------------
     if argv and argv[0] in ("models", "--models", "model", "--model"):
+        # If user runs Model Lab actions (add, test, capacity, info, remove), dispatch to model_cli
+        if len(argv) > 1 and argv[1] in ("add", "test", "capacity", "remove", "benchmark"):
+            from .cli_commands import model_cli
+            return model_cli(argv)
+        if len(argv) == 1 or (len(argv) > 1 and argv[1] in ("list", "ls") and ("--provider" not in argv and "-p" not in argv)):
+            from .cli_commands import model_cli
+            return model_cli(argv)
         return _models_cli(argv)
 
     if argv and argv[0] in ("providers", "--providers", "provider", "--provider"):
@@ -1199,6 +1271,35 @@ def main(argv=None):
 
     if argv and argv[0] in ("offline", "--offline", "local-only", "--local-only"):
         return _offline_cli(argv)
+
+    # --- Agents & AI Bots System ----------------------------------------
+    if argv and argv[0] in ("agents", "--agents", "agent", "--agent"):
+        from .cli_commands import agents_cli
+        return agents_cli(argv)
+
+    # --- Missions & Tasks System ----------------------------------------
+    if argv and argv[0] in ("missions", "--missions", "mission", "--mission"):
+        from .cli_commands import missions_cli
+        return missions_cli(argv)
+
+    # --- Storage & Native .cat Subsystem --------------------------------
+    if argv and argv[0] in ("storage", "--storage"):
+        from .cli_commands import storage_cli
+        return storage_cli(argv)
+
+    if argv and argv[0] in ("backup", "--backup", "restore", "--restore"):
+        from .cli_commands import backup_cli
+        return backup_cli(argv)
+
+    # --- Integrations Center --------------------------------------------
+    if argv and argv[0] in ("integrations", "--integrations", "integration", "--integration"):
+        from .cli_commands import integrations_cli
+        return integrations_cli(argv)
+
+    # --- Generic .cat Import / Export -----------------------------------
+    if argv and argv[0] in ("import", "export"):
+        from .cli_commands import cat_file_cli
+        return cat_file_cli(argv)
 
     # Optional single positional: the workspace/project directory.
     path = None

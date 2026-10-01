@@ -634,6 +634,48 @@ def current_mode():
     return _current
 
 
+_active_agent_id = None
+
+
+def active_agent_id():
+    """Returns ID of currently active custom or built-in agent, if any."""
+    global _active_agent_id
+    return _active_agent_id
+
+
+def set_active_agent(agent_id):
+    """Sets active agent by ID, synchronizing primary AI mode. Returns AgentSpec or None."""
+    global _active_agent_id
+    if not agent_id:
+        _active_agent_id = None
+        return None
+    try:
+        from .agents import get_agent_registry
+        reg = get_agent_registry()
+        ag = reg.get(agent_id)
+        if ag:
+            _active_agent_id = ag.id
+            if ag.primary_mode in MODE_META:
+                set_mode(ag.primary_mode)
+            return ag
+    except Exception:
+        pass
+    _active_agent_id = agent_id
+    return None
+
+
+def get_active_agent():
+    """Returns AgentSpec for currently active agent, or None."""
+    global _active_agent_id
+    if not _active_agent_id:
+        return None
+    try:
+        from .agents import get_agent_registry
+        return get_agent_registry().get(_active_agent_id)
+    except Exception:
+        return None
+
+
 def set_mode(key):
     """Sets the active mode if valid; returns the (possibly unchanged)
     current mode. Callers that need to know whether it actually
@@ -875,6 +917,17 @@ def system_prompt_for(mode_key):
                 f"and apply your specialized capabilities.\n"
             )
             base = base + sharing_block
+    except Exception:
+        pass
+
+    # Check for active custom or built-in agent instructions
+    try:
+        cur_ag = get_active_agent()
+        if cur_ag and cur_ag.system_instructions:
+            agent_header = f"[CAT Agent: {cur_ag.name} ({cur_ag.id})]\n{cur_ag.system_instructions}"
+            if cur_ag.personality:
+                agent_header += f"\nPersonality: {cur_ag.personality}"
+            base = f"{agent_header}\n\n---\n{base}"
     except Exception:
         pass
 

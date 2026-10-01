@@ -167,6 +167,20 @@ _MODEL_ALIASES: dict[tuple[str, str], str] = {
     ("cohere", "command-xlarge-beta"): "command",
     ("cohere", "command-medium"): "command-r",
     ("cohere", "command-medium-beta"): "command-r",
+
+    # NVIDIA NIM
+    ("nvidia", "nemotron-3-ultra"): "nvidia/nemotron-3-ultra-550b-a55b",
+    ("nvidia", "nemotron-3-ultra-550b"): "nvidia/nemotron-3-ultra-550b-a55b",
+    ("nvidia", "nvidia/nemotron-3-ultra"): "nvidia/nemotron-3-ultra-550b-a55b",
+    ("nvidia", "nvidia/nemotron-3-ultra-550b"): "nvidia/nemotron-3-ultra-550b-a55b",
+    ("nvidia", "nemotron-3.5-lightning"): "nvidia/nemotron-3.5-lightning-30b-a3b",
+    ("nvidia", "nemotron-3.5-lightning-30b"): "nvidia/nemotron-3.5-lightning-30b-a3b",
+    ("nvidia", "3.5-lightning"): "nvidia/nemotron-3.5-lightning-30b-a3b",
+    ("nvidia", "3.5-lightning-ai"): "nvidia/nemotron-3.5-lightning-30b-a3b",
+    ("nvidia", "nvidia/nemotron-3.5-lightning"): "nvidia/nemotron-3.5-lightning-30b-a3b",
+    ("nvidia", "nvidia/nemotron-3.5-lightning-30b"): "nvidia/nemotron-3.5-lightning-30b-a3b",
+    ("nvidia", "llama-3.1-nemotron-70b"): "nvidia/llama-3.1-nemotron-70b-instruct",
+    ("nvidia", "nemotron-70b"): "nvidia/llama-3.1-nemotron-70b-instruct",
 }
 
 

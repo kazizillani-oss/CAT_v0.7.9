@@ -196,10 +196,10 @@ if TEXTUAL_AVAILABLE:
         #cust-box { width: 98; max-width: 98%; height: 92%; max-height: 96%; background: $surface; border: round $border; padding: 0; layout: vertical; overflow: hidden; }
         #cust-box Button { min-height: 3; height: 3; min-width: 10; padding: 0 1; }
         #cust-box Button.-style-default, #cust-box Button:ansi.-style-default { min-height: 3; height: 3; min-width: 10; padding: 0 1; }
-        #cust-titlebar { height: 3; min-height: 3; padding: 0 2; border-bottom: solid $border; layout: horizontal; align: center middle; }
+        #cust-titlebar { height: 4; min-height: 4; padding: 0 2; border-bottom: solid $border; layout: horizontal; align: center middle; }
         #cust-title { width: 1fr; text-style: bold; color: $text; }
         #cust-subtitle { width: auto; color: $text-faint; padding-right: 1; }
-        #cust-close { min-width: 3; width: 3; height: 1; min-height: 1; }
+        #cust-box Button#cust-close, #cust-close { min-width: 5; width: 5; max-width: 5; height: 1; min-height: 1; max-height: 1; padding: 0; margin: 0; border: none; }
         #cust-disabled { height: auto; padding: 2 2; align: center middle; }
         .cust-disabled-msg { color: $warning; text-style: bold; height: auto; text-align: center; }
         .cust-disabled-hint { color: $text-faint; height: auto; text-align: center; padding-top: 1; }

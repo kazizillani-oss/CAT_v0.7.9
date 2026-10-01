@@ -165,7 +165,7 @@ if TEXTUAL_AVAILABLE:
         CSS = """
         _DetailsPanel { align: center middle; background: $surface-darken-2 70%; }
         #det-box { width: 72; max-width: 96%; height: auto; max-height: 46; background: $surface; border: tall $border; padding: 0; layout: vertical; overflow: hidden; }
-        #det-titlebar { height: 3; padding: 1 2 0 2; border-bottom: solid $border; layout: horizontal; }
+        #det-titlebar { height: 5; min-height: 5; max-height: 5; padding: 0 2; border-bottom: solid $border; layout: horizontal; align: center middle; }
         #det-title { width: 1fr; text-style: bold; }
         #det-body { height: 1fr; overflow-y: auto; padding: 1 2; }
         .det-icon { width: 100%; height: 3; text-align: center; text-style: bold; }
@@ -203,7 +203,7 @@ if TEXTUAL_AVAILABLE:
             with Vertical(id="det-box"):
                 with Horizontal(id="det-titlebar"):
                     yield Static(f"{icon}  {name}", id="det-title")
-                    yield Button("✕", id="det-close", classes="cct-ctrl")
+                    yield Button("✕ Close", id="det-close", classes="cct-modal-close-btn")
                 with VerticalScroll(id="det-body"):
                     if state in ("INSTALLING", "UNINSTALLING") and LoadingIndicator:
                         yield LoadingIndicator(classes="det-loading")
@@ -371,7 +371,7 @@ if TEXTUAL_AVAILABLE:
             background: $surface; border: tall $border; padding: 0;
             layout: vertical; overflow: hidden;
         }
-        #create-ext-titlebar { height: 3; padding: 1 2 0 2; border-bottom: solid $border; layout: horizontal; align: center middle; }
+        #create-ext-titlebar { height: 5; min-height: 5; max-height: 5; padding: 0 2; border-bottom: solid $border; layout: horizontal; align: center middle; }
         #create-ext-title { width: 1fr; text-style: bold; color: $text; }
         #create-ext-body { height: auto; padding: 1 2; layout: vertical; }
         .create-field-label { width: 100%; height: 1; color: $text-muted; margin-top: 1; }
@@ -391,7 +391,7 @@ if TEXTUAL_AVAILABLE:
             with Vertical(id="create-ext-box"):
                 with Horizontal(id="create-ext-titlebar"):
                     yield Static("⚡  Create Custom Extension", id="create-ext-title")
-                    yield Button("✕", id="create-close", classes="cct-ctrl")
+                    yield Button("✕ Close", id="create-close", classes="cct-modal-close-btn")
                 with Vertical(id="create-ext-body"):
                     yield Static("Extension Name *", classes="create-field-label")
                     yield Input(placeholder="e.g. Code Formatter Pro", id="input-ext-name")
@@ -469,7 +469,7 @@ if TEXTUAL_AVAILABLE:
             background: $surface; border: tall $border; padding: 0;
             layout: vertical; overflow: hidden;
         }
-        #ext-titlebar { height: 3; min-height: 3; padding: 1 2 0 2; border-bottom: solid $border; layout: horizontal; align: center middle; }
+        #ext-titlebar { height: 5; min-height: 5; max-height: 5; padding: 0 2; border-bottom: solid $border; layout: horizontal; align: center middle; }
         #ext-title { width: 1fr; text-style: bold; color: $text; }
         #ext-search { height: 3; padding: 0 2; margin: 0; }
         #ext-search Input { width: 1fr; height: 3; border: tall $border; background: $surface; }
@@ -504,7 +504,7 @@ if TEXTUAL_AVAILABLE:
         #ext-error { color: $error; background: $surface; height: 1; padding: 0 2; display: none; }
         #ext-error.show { display: block; }
         .cct-compact #ext-box { width: 96; max-height: 88%; }
-        .cct-compact #ext-titlebar { height: 2; min-height: 2; }
+        .cct-compact #ext-titlebar { height: 5; min-height: 5; }
         .cct-compact #ext-list { min-height: 6; }
         .cct-compact .ext-card { layout: vertical; min-height: 7; }
         .cct-compact .ext-card-info { width: 100%; }
@@ -527,7 +527,7 @@ if TEXTUAL_AVAILABLE:
             with Vertical(id="ext-box"):
                 with Horizontal(id="ext-titlebar"):
                     yield Static("▣  Extensions", id="ext-title")
-                    yield Button("✕", id="ext-close", classes="cct-ctrl")
+                    yield Button("✕ Close", id="ext-close", classes="cct-modal-close-btn")
                 with Vertical(id="ext-search"):
                     yield Input(placeholder="Search extensions...", id="ext-search-input")
                 yield Static("Install to enable. Disable hides from menu.", id="ext-subtitle")

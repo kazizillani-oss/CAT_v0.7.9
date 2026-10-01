@@ -87,15 +87,29 @@ if TEXTUAL_AVAILABLE:
         def compose(self):
             yield self._label
             if self._on_delete is not None:
-                yield Static("\u2715", classes="cct-sidebar-project-del")
+                yield Button("\u2715", classes="cct-sidebar-project-del", tooltip="Remove from history")
 
         def on_mount(self):
             if self._on_delete is not None:
                 self._label.styles.width = "auto"
 
+        def on_button_pressed(self, event):
+            classes = getattr(event.button, "classes", set())
+            if "cct-sidebar-project-del" in classes or "del" in classes:
+                event.stop()
+                if self._on_delete:
+                    self._on_delete(self.path)
+
         def on_click(self, event):
-            if event.widget and "del" in getattr(event.widget, "classes", set()):
-                return
+            w = getattr(event, "widget", None)
+            targets = [w] + list(getattr(w, "ancestors", [])) if w else []
+            for t in targets:
+                classes = getattr(t, "classes", set())
+                if "cct-sidebar-project-del" in classes or "del" in classes:
+                    event.stop()
+                    if self._on_delete:
+                        self._on_delete(self.path)
+                    return
             self.post_message(FolderOpened(self.path))
 
     class _ConfirmClearRecent(Screen):
@@ -230,15 +244,14 @@ if TEXTUAL_AVAILABLE:
         }
         #cct-recentws-box.open { opacity: 1; offset-y: 0; }
         #cct-recentws-titlebar {
-            height: 3; padding: 1 2 0 2;
+            height: 5; min-height: 5; max-height: 5; padding: 0 2;
             border-bottom: solid $border;
+            layout: horizontal; align: center middle;
         }
         #cct-recentws-title { text-style: bold; width: 1fr; }
         #cct-recentws-close {
-            width: 3; min-width: 3; height: 1;
-            color: $text-faint; content-align: center middle;
+            min-width: 9; max-width: 12; height: 3; min-height: 3; padding: 0 1;
         }
-        #cct-recentws-close:hover { color: $error; }
         #cct-recentws-search { margin: 1 2 0 2; }
         #cct-recentws-count { color: $text-faint; height: 1; padding: 0 2; margin-top: 1; }
         #cct-recentws-list {
@@ -316,7 +329,7 @@ if TEXTUAL_AVAILABLE:
             with Vertical(id="cct-recentws-box"):
                 with Horizontal(id="cct-recentws-titlebar"):
                     yield Static("\U0001f553  Recent Workspaces", id="cct-recentws-title")
-                    yield Static("\u2715", id="cct-recentws-close")
+                    yield Button("✕ Close", id="cct-recentws-close", classes="cct-modal-close-btn")
                 yield Input(placeholder="Search workspaces\u2026", id="cct-recentws-search")
                 yield Static("", id="cct-recentws-count")
                 with ScrollableContainer(id="cct-recentws-list"):
@@ -458,17 +471,14 @@ if TEXTUAL_AVAILABLE:
         }
         #ows-box.open { opacity: 1; offset-y: 0; }
         #ows-titlebar {
-            height: 3; padding: 1 2 0 2;
+            height: 5; min-height: 5; max-height: 5; padding: 0 2;
             border-bottom: solid $border; margin-bottom: 0;
+            layout: horizontal; align: center middle;
         }
         #ows-title { text-style: bold; width: 1fr; }
         #ows-close-btn {
-            width: 3; min-width: 3;
-            content-align: center middle;
-            color: $text-faint;
-            transition: color 80ms;
+            min-width: 9; max-width: 12; height: 3; min-height: 3; padding: 0 1;
         }
-        #ows-close-btn:hover { color: $error; }
         #ows-body { padding: 1 2 1 2; }
         #ows-path-label { color: $text-faint; padding-bottom: 0; height: 1; }
         #ows-path-input { margin: 0 0 0 0; }
@@ -510,7 +520,7 @@ if TEXTUAL_AVAILABLE:
             with Vertical(id="ows-box"):
                 with Horizontal(id="ows-titlebar"):
                     yield Static("\U0001f4c2  Open Workspace", id="ows-title")
-                    yield Button("\u2715", id="ows-close-btn", classes="cct-ctrl")
+                    yield Button("✕ Close", id="ows-close-btn", classes="cct-modal-close-btn")
                 with Vertical(id="ows-body"):
                     yield Static("Workspace Folder", id="ows-path-label")
                     yield Input(placeholder="C:\\Users\\...  or  /home/user/project", id="ows-path-input")
@@ -532,7 +542,10 @@ if TEXTUAL_AVAILABLE:
         def on_mount(self):
             self.call_after_refresh(
                 lambda: self.query_one("#ows-box").add_class("open"))
-            self.query_one("#ows-path-input", Input).focus()
+            try:
+                self.query_one("#ows-path-input", Input).focus()
+            except Exception:
+                pass
 
         def on_input_submitted(self, event):
             if event.input.id == "ows-path-input":

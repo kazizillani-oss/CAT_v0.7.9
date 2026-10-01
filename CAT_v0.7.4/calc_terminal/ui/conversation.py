@@ -153,6 +153,20 @@ def _bevel_colors(hex_color):
         return hex_color or "#38bdf8", hex_color or "#0284c7"
 
 
+def _current_username() -> str:
+    """Returns the user's OS account username, or 'User' as fallback."""
+    try:
+        import os, getpass
+        u = os.environ.get("USERNAME") or os.environ.get("USER")
+        if not u:
+            u = getpass.getuser()
+        if u and str(u).strip():
+            return str(u).strip()
+    except Exception:
+        pass
+    return "User"
+
+
 def _code_theme_for_current_theme():
     """Fenced code blocks in assistant replies get syntax highlighting via
     Rich's pygments integration. Pick a theme that's actually readable
@@ -228,7 +242,8 @@ if TEXTUAL_AVAILABLE:
                 snap = self._mode_snapshot or {}
                 ic = snap.get("icon", "")
                 lb = snap.get("label", "")
-                header_text = f"👤 You  {ts}  {ic} {lb}".strip()
+                user_name = _current_username()
+                header_text = f"👤 {user_name}  {ts}  {ic} {lb}".strip()
                 header_len = len(header_text) + 4
                 max_w = max(max_line, header_len, 28)
                 max_cap = int(container.width * 0.8) if container and container.width else 80
@@ -386,18 +401,31 @@ if TEXTUAL_AVAILABLE:
             snap = self._mode_snapshot or {}
             accent = snap.get("accent_hex", "#38bdf8")
             hi, sh = _bevel_colors(accent)
+            try:
+                from .. import theme as _theme
+                is_light = _theme.is_light()
+                t = _theme.get_theme_obj()
+            except Exception:
+                is_light = False
+                t = None
 
             if self.role == "user":
+                mode_lbl = snap.get("label", "Notebook")
+                mode_ic = snap.get("icon", "🐱")
+                user_name = _current_username()
+                badge_style = f"bold on {accent} #ffffff" if not is_light else f"bold on {accent} #0f172a"
                 header_elements = [
-                    Text("👤 You", style=f"{accent} bold"),
+                    Text(f" 👤 {user_name} ", style=badge_style),
+                    Text(" "),
+                    Text(f" {mode_ic} {mode_lbl} ", style=f"{accent} bold"),
                 ]
                 if ts:
-                    header_elements.append(Text(f"  {ts}", style="dim"))
-                if snap:
-                    header_elements.append(Text(f"  {snap.get('icon', '')} {snap.get('label', '')}", style=f"{accent} bold"))
+                    header_elements.append(Text(f" {ts}", style="dim"))
                 header_row = Text.assemble(*header_elements)
-                body = Text(_render_inline(self._text), style="bold")
-                parts = [header_row, Text(""), body]
+                divider = Text("─" * 46, style=f"{accent} dim")
+                body_style = "bold #ffffff" if not is_light else "bold #0f172a"
+                body = Text(_render_inline(self._text), style=body_style)
+                parts = [header_row, divider, body]
                 cards = self._attachment_cards()
                 if cards is not None:
                     parts.append(cards)
@@ -405,13 +433,6 @@ if TEXTUAL_AVAILABLE:
 
             if self.role == "system":
                 snap = self._mode_snapshot or {}
-                try:
-                    from .. import theme as _theme
-                    is_light = _theme.is_light()
-                    t = _theme.get_theme_obj()
-                except Exception:
-                    is_light = False
-                    t = None
 
                 if is_light and t:
                     icon_accent = t.hex("accent")
@@ -486,13 +507,16 @@ if TEXTUAL_AVAILABLE:
 
             mode_lbl = snap.get("label", "Assistant")
             mode_ic = snap.get("icon", "🤖")
+            badge_style = f"bold on {accent} #ffffff" if not is_light else f"bold on {accent} #0f172a"
             header_elements = [
-                Text(f"{mode_ic} CAT Assistant", style=f"{accent} bold"),
-                Text(f" · {mode_lbl}", style=f"{accent}"),
+                Text(f" {mode_ic} CAT Bot ", style=badge_style),
+                Text(" "),
+                Text(f" {mode_lbl} ", style=f"{accent} bold"),
             ]
             if ts and not self._streaming:
                 header_elements.append(Text(f"  {ts}", style="dim"))
             header_row = Text.assemble(*header_elements)
+            divider = Text("─" * 48, style=f"{accent} dim")
 
             thought_widget = None
             if thought_text:
@@ -500,14 +524,16 @@ if TEXTUAL_AVAILABLE:
                 th_word_count = len(thought_text.split())
                 th_title = f"💭 Thought Process ({th_word_count} words)" if not self._streaming else "💭 Thinking…"
                 th_title_esc = escape(th_title)
+                th_border = accent if not is_light else (t.hex("accent") if t else accent)
+                th_text_style = "dim italic" if not is_light else "italic #475569"
                 thought_lines = [
-                    f"[{accent} bold]┌─ {th_title_esc} " + "─" * max(4, 42 - len(th_title)) + "[/]"
+                    f"[{th_border} bold]┌─ {th_title_esc} " + "─" * max(4, 42 - len(th_title)) + "[/]"
                 ]
                 for tl in thought_text.splitlines():
-                    thought_lines.append(f"[{accent}]│[/] [dim italic]{escape(tl)}[/]")
+                    thought_lines.append(f"[{th_border}]│[/] [{th_text_style}]{escape(tl)}[/]")
                 if self._streaming and "</think>" not in raw_text:
-                    thought_lines.append(f"[{accent}]│[/] [dim italic]… ▌[/]")
-                thought_lines.append(f"[{accent} bold]└" + "─" * 46 + "[/]")
+                    thought_lines.append(f"[{th_border}]│[/] [{th_text_style}]… ▌[/]")
+                thought_lines.append(f"[{th_border} bold]└" + "─" * 46 + "[/]")
                 try:
                     thought_widget = Text.from_markup("\n".join(thought_lines))
                 except Exception:
@@ -518,7 +544,7 @@ if TEXTUAL_AVAILABLE:
                 body += " \u258c"  # trailing cursor glyph while tokens arrive
             md = Markdown(body or ("\u2026" if not thought_widget else ""), code_theme=_code_theme_for_current_theme())
 
-            parts = [header_row, Text("")]
+            parts = [header_row, divider]
             if thought_widget:
                 parts.append(thought_widget)
                 if body.strip():
@@ -548,36 +574,72 @@ if TEXTUAL_AVAILABLE:
 
             try:
                 if self.role == "user":
-                    self.styles.background = "#f8fafc" if is_light else "#141c2c"
-                    self.styles.color = "#0f172a" if is_light else "#f8fafc"
                     if is_light:
-                        b_top = "#ffffff"
-                        b_bot = "#94a3b8"
-                        self.styles.border_top = ("tall", b_top)
-                        self.styles.border_left = ("tall", b_top)
-                        self.styles.border_right = ("tall", b_bot)
-                        self.styles.border_bottom = ("tall", b_bot)
+                        self.styles.background = "#ffffff"
+                        self.styles.color = "#0f172a"
+                        self.styles.border_top = ("tall", "#ffffff")
+                        self.styles.border_left = ("tall", "#e2e8f0")
+                        self.styles.border_right = ("tall", "#cbd5e1")
+                        self.styles.border_bottom = ("tall", accent)
                     else:
+                        rgb = None
+                        try:
+                            from .. import ai_modes
+                            if hasattr(ai_modes, "accent_rgb"):
+                                rgb = ai_modes.accent_rgb(snap.get("mode", "notebook"))
+                        except Exception:
+                            pass
+                        if not rgb:
+                            try:
+                                from textual.color import Color
+                                c = Color.parse(accent)
+                                rgb = (int(c.r * 255), int(c.g * 255), int(c.b * 255))
+                            except Exception:
+                                rgb = (56, 189, 248)
+                        bg_r = max(14, min(38, int(rgb[0] * 0.12 + 16 * 0.88)))
+                        bg_g = max(14, min(38, int(rgb[1] * 0.12 + 18 * 0.88)))
+                        bg_b = max(18, min(46, int(rgb[2] * 0.12 + 24 * 0.88)))
+                        bg_hex = f"#{bg_r:02x}{bg_g:02x}{bg_b:02x}"
+                        self.styles.background = bg_hex
+                        self.styles.color = "#f8fafc"
                         self.styles.border_top = ("tall", hi)
                         self.styles.border_left = ("tall", hi)
-                        self.styles.border_right = ("tall", accent)
-                        self.styles.border_bottom = ("tall", accent)
+                        self.styles.border_right = ("tall", sh)
+                        self.styles.border_bottom = ("tall", sh)
                     self.styles.padding = (1, 2, 1, 2)
                 elif self.role == "assistant":
-                    self.styles.background = "#ffffff" if is_light else "#0f172a"
-                    self.styles.color = "#0f172a" if is_light else "#e2e8f0"
                     if is_light:
-                        b_top = "#ffffff"
-                        b_bot = "#cbd5e1"
-                        self.styles.border_top = ("tall", b_top)
-                        self.styles.border_left = ("tall", b_top)
-                        self.styles.border_right = ("tall", b_bot)
-                        self.styles.border_bottom = ("tall", b_bot)
+                        self.styles.background = "#ffffff"
+                        self.styles.color = "#0f172a"
+                        self.styles.border_top = ("tall", "#ffffff")
+                        self.styles.border_left = ("tall", "#cbd5e1")
+                        self.styles.border_right = ("tall", "#94a3b8")
+                        self.styles.border_bottom = ("tall", "#64748b")
                     else:
+                        rgb = None
+                        try:
+                            from .. import ai_modes
+                            if hasattr(ai_modes, "accent_rgb"):
+                                rgb = ai_modes.accent_rgb(snap.get("mode", "notebook"))
+                        except Exception:
+                            pass
+                        if not rgb:
+                            try:
+                                from textual.color import Color
+                                c = Color.parse(accent)
+                                rgb = (int(c.r * 255), int(c.g * 255), int(c.b * 255))
+                            except Exception:
+                                rgb = (56, 189, 248)
+                        bg_r = max(13, min(32, int(rgb[0] * 0.08 + 16 * 0.92)))
+                        bg_g = max(14, min(34, int(rgb[1] * 0.08 + 18 * 0.92)))
+                        bg_b = max(19, min(42, int(rgb[2] * 0.08 + 24 * 0.92)))
+                        bg_hex = f"#{bg_r:02x}{bg_g:02x}{bg_b:02x}"
+                        self.styles.background = bg_hex
+                        self.styles.color = "#f1f5f9"
                         self.styles.border_top = ("tall", hi)
                         self.styles.border_left = ("tall", hi)
-                        self.styles.border_right = ("tall", accent)
-                        self.styles.border_bottom = ("tall", accent)
+                        self.styles.border_right = ("tall", sh)
+                        self.styles.border_bottom = ("tall", sh)
                     self.styles.padding = (1, 2)
                 elif self.role == "system":
                     self.styles.background = "#ffffff" if is_light else theme_css.current_hex("surface-alt")
@@ -738,36 +800,12 @@ if TEXTUAL_AVAILABLE:
             from .events import MessageContextAction
             self.post_message(MessageContextAction(action, self.turn_id))
 
-        def _copy_text(self):
+        def _copy_text(self, skip_flash: bool = False):
             """Copy Text (both menus): real clipboard write via the same
             code_editor.copy_to_clipboard used by /copycode and the code
-            pad's :copy — not a placeholder. Shows a brief inline
-            confirmation ('\u2713 Copied' / '\u2717 Copy failed' on a
-            real error) using this widget's own update()/styles, the
-            same mechanism append_chunk/finalize already use, rather
-            than mounting a second overlay widget — Static (this
-            class's base) is a leaf renderable, not normally a child-
-            hosting container, so reusing update() is the more reliably
-            correct choice here.
-
-            v0.7.2 roadmap's "Copy rendered equation": copies the
-            render_math()-converted Unicode text (what's actually on
-            screen — \\frac{a}{b} as a real stacked fraction, \\sum as
-            \u2211, etc.), not the raw LaTeX source underneath it. Scoped
-            to the whole message, not a single equation — there's no
-            per-equation click target inside a bubble (Rich/Textual
-            doesn't address sub-spans of one Static's content), so
-            "copy just this equation" isn't implemented; copying the
-            one rendered equation a short message consists of already
-            works today through this same path."""
+            pad's :copy — not a placeholder."""
             from .. import code_editor
             rendered = _render_math(self._text) if self.role == "assistant" else self._text
-            # v0.8.0 (requirement #23): the clipboard receives only clean,
-            # rendered user-facing content — every form of internal tool
-            # protocol (XML invoke/parameter blocks, tool_call wrappers,
-            # JSON action blobs) is stripped before the copy. The full
-            # clean_final_text pipeline is used, not just the per-chunk
-            # filter, so even a leaked multi-line protocol blob is removed.
             if self.role == "assistant":
                 try:
                     from ..agent import strip_tool_markup
@@ -775,7 +813,8 @@ if TEXTUAL_AVAILABLE:
                 except Exception:
                     pass
             ok, detail = code_editor.copy_to_clipboard(rendered)
-            self._flash_copy_status(ok)
+            if not skip_flash:
+                self._flash_copy_status(ok)
 
         def _flash_copy_status(self, ok):
             label = "\u2713 Copied" if ok else "\u2717 Copy failed"
@@ -901,14 +940,25 @@ if TEXTUAL_AVAILABLE:
         }
         MessageRow .cct-msg-card {
             width: auto;
+            min-width: 50;
+            max-width: 96%;
             height: auto;
         }
         MessageRow .cct-msg-actions {
             height: 1;
+            min-height: 1;
+            max-height: 1;
             width: auto;
+            margin-top: 0;
+            padding: 0;
         }
         MessageRow .cct-msg-btn {
             height: 1;
+            min-height: 1;
+            max-height: 1;
+            width: 11;
+            min-width: 11;
+            max-width: 11;
         }
         """
 
@@ -932,8 +982,19 @@ if TEXTUAL_AVAILABLE:
             bid = getattr(event.button, "id", "") or ""
             if bid.startswith("msg-copy-"):
                 event.stop()
+                btn = event.button
+                try:
+                    btn.label = "\u2713 Copied"
+                    def _restore():
+                        try:
+                            btn.label = "\U0001f4cb Copy"
+                        except Exception:
+                            pass
+                    btn.set_timer(1.2, _restore)
+                except Exception:
+                    pass
                 if hasattr(self._bubble, "_copy_text"):
-                    self._bubble._copy_text()
+                    self._bubble._copy_text(skip_flash=True)
             elif bid.startswith("msg-edit-"):
                 event.stop()
                 from .events import MessageContextAction
@@ -975,12 +1036,22 @@ if TEXTUAL_AVAILABLE:
 
         def on_click(self, event) -> None:
             # Clicking empty chat area or conversation view focuses composer input
-            # unless clicking an interactive control like a button
+            # unless clicking an interactive control like a button or scrollbar
             target = getattr(event, "widget", None)
             if target is not None:
                 from textual.widgets import Button
-                if isinstance(target, Button) or any(isinstance(p, Button) for p in getattr(target, "ancestors", [])):
-                    return
+                try:
+                    from textual.scrollbar import ScrollBar, ScrollBarCorner
+                    scrollbar_types = (ScrollBar, ScrollBarCorner)
+                except Exception:
+                    scrollbar_types = ()
+                targets = [target] + list(getattr(target, "ancestors", []))
+                for t in targets:
+                    if isinstance(t, Button) or (scrollbar_types and isinstance(t, scrollbar_types)):
+                        return
+                    t_name = type(t).__name__.lower()
+                    if "scrollbar" in t_name or "scroll" in t_name:
+                        return
             try:
                 from .composer import ComposerInput
                 self.app.query_one("#cct-input", ComposerInput).focus()
