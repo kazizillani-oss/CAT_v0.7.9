@@ -7,6 +7,7 @@
   <img alt="CAT — Coding Agent Terminal" src="badge-mini.svg" width="820">
 </picture>
 <hr>
+<img width="2778" height="1284" alt="Image" src="https://github.com/user-attachments/assets/9d6a3ecb-ea31-48ad-a77a-141fe3f6b9fa" />
 <br>
 
 ```
