@@ -19,7 +19,6 @@
 
 CODING AGENT TERMINAL · v0.8.0b1 [beta]
 ```
-<img width="480" height="270" alt="Image" src="https://github.com/user-attachments/assets/386f319d-dae9-465b-ae14-91b73e497d91" />
 
 [![CI](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml/badge.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/badge/version-0.8.0b1-blue.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9)
@@ -36,6 +35,8 @@ CODING AGENT TERMINAL · v0.8.0b1 [beta]
 ## ⚡ Quick Install
 
 CAT is distributed across multiple channels. Choose the method that best fits your workflow:
+
+<img width="480" height="270" alt="Image" src="https://github.com/user-attachments/assets/386f319d-dae9-465b-ae14-91b73e497d91" />
 
 ### Option 1: Install from PyPI (Recommended for most users)
 
