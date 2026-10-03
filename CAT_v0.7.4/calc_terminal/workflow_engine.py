@@ -512,12 +512,20 @@ class WorkflowEngine:
                     if depth == 0 and start != -1:
                         chunk = cleaned[start : i + 1]
                         try:
-                            data = json.loads(chunk)
-                            if isinstance(data, dict) and ("action" in data or "tool" in data):
+                            data = json.loads(chunk, strict=False)
+                            if isinstance(data, dict) and ("action" in data or "tool" in data or "name" in data):
                                 return data
                         except Exception:
                             pass
                         start = -1
+        if start != -1:
+            try:
+                from .tool_call_normalizer import _repair_json_str
+                data = _repair_json_str(cleaned[start:])
+                if isinstance(data, dict) and ("action" in data or "tool" in data or "name" in data):
+                    return data
+            except Exception:
+                pass
         return None
 
     def execute_weak_model_action(
@@ -529,12 +537,20 @@ class WorkflowEngine:
         """Validates and executes an action on behalf of a weaker model, emitting real
         execution events and returning structured observation.
         """
-        raw_action = intention.get("action") or intention.get("tool") or ""
+        raw_action = intention.get("action") or ""
+        raw_tool = intention.get("tool") or intention.get("name") or ""
+        if str(raw_action).lower() in ("tool", "call", "execute", "function", "action"):
+            candidate = raw_tool or raw_action
+        elif raw_action:
+            candidate = raw_action
+        else:
+            candidate = raw_tool
+
         try:
             from .tool_call_normalizer import resolve_tool_name
-            action = resolve_tool_name(raw_action)
+            action = resolve_tool_name(candidate)
         except Exception:
-            action = raw_action
+            action = candidate
 
         target = intention.get("target") or intention.get("args") or {}
         if isinstance(target, dict):

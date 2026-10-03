@@ -136,7 +136,7 @@ def read_clipboard_text():
         kernel32.GlobalUnlock.argtypes = [ctypes.c_void_p]
         kernel32.GlobalUnlock.restype = wintypes.BOOL
         text = None
-        for _ in range(3):  # brief retries; the clipboard is often held
+        for _ in range(5):  # brief retries; the clipboard is often held
             if user32.OpenClipboard(None):
                 break
             time.sleep(0.015)
@@ -152,12 +152,8 @@ def read_clipboard_text():
             if not ptr:
                 return None
             try:
-                size = kernel32.GlobalSize(handle)
-                if size <= 2:
-                    return None
-                nchars = size // 2
-                arr = (ctypes.c_wchar * (nchars + 1)).from_address(ptr)
-                text = "".join(arr[:nchars]).rstrip("\x00")
+                # wstring_at accurately reads null-terminated wchar string
+                text = ctypes.wstring_at(ptr)
             finally:
                 kernel32.GlobalUnlock(handle)
         finally:
@@ -196,8 +192,14 @@ def clipboard_payload_override(delivered):
             return clip, "clipboard (terminal dropped the payload)"
         return delivered, "terminal"
     clip = read_clipboard_text()
-    if clip and len(clip) > len(delivered) and clip.startswith(delivered):
-        return clip, "clipboard (terminal payload truncated)"
+    if clip:
+        # Normalize CRLF to LF for comparison so newline differences between
+        # Windows clipboard (\r\n) and terminal bracketed-paste (\n) don't
+        # falsely fail the prefix check.
+        clip_norm = clip.replace("\r\n", "\n").replace("\r", "\n")
+        deliv_norm = delivered.replace("\r\n", "\n").replace("\r", "\n")
+        if len(clip_norm) > len(deliv_norm) and clip_norm.startswith(deliv_norm):
+            return clip, "clipboard (terminal payload truncated)"
     return delivered, "terminal"
 
 

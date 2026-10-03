@@ -31,8 +31,8 @@ TEXTUAL_AVAILABLE = TEXTUAL_AVAILABLE and _WIDGETS_OK
 
 # Paste thresholds from the redesign brief: under these a paste inserts
 # normally into the editor; at/above either one, collapse into a chip.
-PASTE_COLLAPSE_THRESHOLD = 10
-PASTE_WORD_THRESHOLD = 100
+PASTE_COLLAPSE_THRESHOLD = 2
+PASTE_WORD_THRESHOLD = 5
 
 # Favorite folders for the attach browser (v0.7.8.1): a tiny, honest
 # store — just a JSON list of folder paths the user starred in the
@@ -355,19 +355,58 @@ if TEXTUAL_AVAILABLE:
             if chip_id in self._attachments:
                 self._refresh_chip(chip_id)
 
-        def add_paste(self, text, line_count, word_count=0):
+        def add_paste(self, text, line_count=0, word_count=0):
             chip_id = f"paste-{self._next_paste_id}"
             self._next_paste_id += 1
             self._pastes[chip_id] = text
-            if line_count > 1:
-                label = f"[Pasted ~{line_count} lines]"
-            else:
-                label = f"[Pasted {len(text):,} characters]"
+            if word_count <= 0:
+                word_count = len(text.split())
+            if line_count <= 0:
+                line_count = text.count("\n") + 1
+            w_str = f"{word_count} word" if word_count == 1 else f"{word_count} words"
+            label = f"📋 Pasted text ({w_str})"
             self._sync_visibility()
-            self.mount(Chip(chip_id, label, on_click=self._expand_paste,
-                             on_delete=self._remove_paste))
-            self.post_message(PasteCollapsed(chip_id, line_count))
+            chip = Chip(chip_id, label, on_click=self._expand_paste,
+                        on_delete=self._remove_paste)
+            try:
+                chip.tooltip = f"Pasted text: {w_str}, {len(text):,} chars (Click to expand, ✕ to remove)"
+            except Exception:
+                pass
+            if getattr(self, "is_attached", False):
+                try:
+                    self.mount(chip)
+                except Exception:
+                    pass
+            else:
+                try:
+                    self._nodes._nodes.append(chip)
+                except Exception:
+                    pass
+            try:
+                self.post_message(PasteCollapsed(chip_id, line_count, word_count=word_count))
+            except Exception:
+                pass
             return chip_id
+
+        def pop_paste_texts(self) -> list[str]:
+            """Returns all pending pasted text blocks and clears their chips."""
+            out = list(self._pastes.values())
+            ids = set(self._pastes)
+            self._pastes = {}
+            for child in list(self.children):
+                if isinstance(child, Chip) and child.chip_id in ids:
+                    try:
+                        child.remove()
+                    except Exception:
+                        try:
+                            self._nodes._nodes.remove(child)
+                        except Exception:
+                            pass
+            self._sync_visibility()
+            return out
+
+        def has_pastes(self) -> bool:
+            return bool(self._pastes)
 
         def pop_attachment_objects(self):
             """v0.7.8.1: returns every attached Attachment object (in
@@ -381,7 +420,13 @@ if TEXTUAL_AVAILABLE:
             self._attachments = {}
             for child in list(self.children):
                 if isinstance(child, Chip) and child.chip_id in ids:
-                    child.remove()
+                    try:
+                        child.remove()
+                    except Exception:
+                        try:
+                            self._nodes._nodes.remove(child)
+                        except Exception:
+                            pass
             self._sync_visibility()
             return out
 
@@ -396,7 +441,13 @@ if TEXTUAL_AVAILABLE:
             self._attachments.pop(chip_id, None)
             for child in list(self.children):
                 if isinstance(child, Chip) and child.chip_id == chip_id:
-                    child.remove()
+                    try:
+                        child.remove()
+                    except Exception:
+                        try:
+                            self._nodes._nodes.remove(child)
+                        except Exception:
+                            pass
             self._sync_visibility()
             self.post_message(AttachmentRemoved(chip_id))
 
@@ -406,7 +457,13 @@ if TEXTUAL_AVAILABLE:
                 return
             for child in list(self.children):
                 if isinstance(child, Chip) and child.chip_id == chip_id:
-                    child.remove()
+                    try:
+                        child.remove()
+                    except Exception:
+                        try:
+                            self._nodes._nodes.remove(child)
+                        except Exception:
+                            pass
             self._sync_visibility()
             self.post_message(PasteExpanded(chip_id, text))
 
@@ -416,7 +473,13 @@ if TEXTUAL_AVAILABLE:
             self._pastes.pop(chip_id, None)
             for child in list(self.children):
                 if isinstance(child, Chip) and child.chip_id == chip_id:
-                    child.remove()
+                    try:
+                        child.remove()
+                    except Exception:
+                        try:
+                            self._nodes._nodes.remove(child)
+                        except Exception:
+                            pass
             self._sync_visibility()
             self.post_message(AttachmentRemoved(chip_id))
 

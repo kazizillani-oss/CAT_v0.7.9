@@ -58,6 +58,7 @@ if TEXTUAL_AVAILABLE:
             self._on_click = on_click
 
         def on_click(self, event):
+            event.stop()
             if self._on_click:
                 self._on_click()
 

@@ -1323,6 +1323,7 @@ TOOL_ACTIVITY_META: Dict[str, ToolMeta] = {
     # web
     "web_search": ToolMeta(CAT_SEARCH, "web", "Searching web", PHASE_DISCOVERY, TYPE_TOOL),
     "deep_research": ToolMeta(CAT_SEARCH, "web", "Researching", PHASE_DISCOVERY, TYPE_TOOL),
+    "fetch_web_page": ToolMeta(CAT_SEARCH, "web", "Fetching web page", PHASE_DISCOVERY, TYPE_TOOL),
 }
 
 def meta_for_tool(tool_name: str) -> ToolMeta:

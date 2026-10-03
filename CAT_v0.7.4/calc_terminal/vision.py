@@ -421,13 +421,26 @@ def find_vision_config():
         return None
 
 
+def get_local_image_context(path: str, user_text: str = "") -> str:
+    """Extract exhaustive local image specs, structure, color palette, theme,
+    and OCR text for any model."""
+    try:
+        from .attachments import _extract_image
+        body, _trunc, _err = _extract_image(path)
+        if body:
+            return body
+    except Exception:
+        pass
+    name = os.path.basename(path)
+    return f"Image file: {name}"
+
+
 def analyze(path: str, user_text: str = "", history=None,
             config: Optional[dict] = None):
     """Full VISION PATH: normalize → classify (+local OCR when available)
     → vision-capable model → structured answer string. Uses the given
     config when it can see, otherwise reroutes to a capable backup;
-    raises ImageError for bad files and returns an honest message when no
-    vision-capable model is configured at all."""
+    falls back gracefully to structural analysis with the active model."""
     mime, b64, meta = encode_for_model(path, user_text)
     kind = classify_image(path, user_text)
     prompt = analysis_prompt(kind, user_text)
@@ -454,8 +467,23 @@ def analyze(path: str, user_text: str = "", history=None,
     if cfg is None:
         cfg = find_vision_config()
     if cfg is None:
+        # Graceful fallback: run query against active model with comprehensive visual specs
+        try:
+            from . import aicore
+            active_cfg = aicore.load_config()
+            if active_cfg.get("provider"):
+                local_ctx = get_local_image_context(path, user_text)
+                augmented_prompt = (
+                    f"{prompt}\n\n"
+                    f"{local_ctx}\n\n"
+                    "Analyze the visual layout, dimensions, color palette, and contents from this visual specification."
+                )
+                answer = aicore.query_ai(augmented_prompt, config=active_cfg, size_class="large")
+                return answer, meta
+        except Exception:
+            pass
         return ("No vision-capable AI model is currently configured, so I "
-                "cannot visually analyze this image. Configure one (e.g. a "
+                "cannot visually analyze this image natively. Configure one (e.g. a "
                 "gpt-4o / claude / gemini-class vision model via /model) and "
                 "attach it again.", meta)
 

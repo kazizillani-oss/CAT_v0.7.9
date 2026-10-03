@@ -23,9 +23,14 @@ VALID_CATEGORIES = {
 }
 
 API_KEY_PATTERNS = [
-    re.compile(r'(?i)(api[_-]?key|apikey)\s*[:=]\s*["\']?([A-Za-z0-9_\-]{16,})["\']?'),
+    re.compile(r'(?i)(api[_-]?key|apikey|client[_-]?secret|private[_-]?key)\s*[:=]\s*["\']?([A-Za-z0-9_\-]{16,})["\']?'),
     re.compile(r'(?i)(secret|token|password|passwd|pwd)\s*[:=]\s*["\']?([^\s"\']{8,})["\']?'),
     re.compile(r'(?i)(bearer)\s+([A-Za-z0-9_\-\.]{20,})'),
+    re.compile(r'(sbp_[a-zA-Z0-9]{20,})'),
+    re.compile(r'(sk_(?:live|test)_[a-zA-Z0-9]{24,})'),
+    re.compile(r'(SG\.[a-zA-Z0-9_\-]{22}\.[a-zA-Z0-9_\-]{43})'),
+    re.compile(r'(AC[a-zA-Z0-9]{32}|SK[a-zA-Z0-9]{32})'),
+    re.compile(r'(fct_[a-zA-Z0-9_\-]{20,})'),
     re.compile(r'["\']([A-Za-z0-9_\-]{32,})["\']'),
 ]
 

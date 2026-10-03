@@ -446,23 +446,30 @@ if TEXTUAL_AVAILABLE:
             elif eid == "bpp-edit":
                 entry = self._current()
                 if entry:
-                    self.app.push_screen(_AddProviderForm(entry), self._on_saved)
+                    self.app.push_screen(_AddProviderForm(entry, edit_index=self._selected), self._on_saved)
             elif eid == "bpp-remove":
                 if self._providers:
-                    del self._providers[self._selected]
+                    removed = self._providers.pop(self._selected)
                     self._selected = min(self._selected, max(0, len(self._providers) - 1))
+                    self._persist()
                     self._rebuild_list()
+                    try:
+                        self.app._system_note(f"Removed backup provider '{removed.get('provider')}' ({removed.get('model')}).")
+                    except Exception:
+                        pass
             elif eid == "bpp-up":
                 if self._selected > 0:
                     self._providers[self._selected], self._providers[self._selected - 1] = \
                         self._providers[self._selected - 1], self._providers[self._selected]
                     self._selected -= 1
+                    self._persist()
                     self._rebuild_list()
             elif eid == "bpp-down":
                 if self._selected < len(self._providers) - 1:
                     self._providers[self._selected], self._providers[self._selected + 1] = \
                         self._providers[self._selected + 1], self._providers[self._selected]
                     self._selected += 1
+                    self._persist()
                     self._rebuild_list()
             elif eid == "bpp-test":
                 self._test_selected()
@@ -470,6 +477,7 @@ if TEXTUAL_AVAILABLE:
                 entry = self._current()
                 if entry:
                     entry["enabled"] = not bool(entry.get("enabled", True))
+                    self._persist()
                     self._rebuild_list()
             elif eid == "bpp-save":
                 self._persist()
@@ -575,6 +583,7 @@ if TEXTUAL_AVAILABLE:
             
             self._providers.append(ollama_entry)
             self._selected = len(self._providers) - 1
+            self._persist()
             self._rebuild_list()
             
             # Show success message
@@ -628,11 +637,22 @@ if TEXTUAL_AVAILABLE:
 
             threading.Thread(target=_run, daemon=True).start()
 
-        def _on_saved(self, entry):
+        def _on_saved(self, res):
+            if not res:
+                return
+            if isinstance(res, tuple) and len(res) == 2:
+                entry, edit_idx = res
+            else:
+                entry, edit_idx = res, None
             if not entry:
                 return
-            self._providers.append(entry)
-            self._selected = len(self._providers) - 1
+            if edit_idx is not None and 0 <= edit_idx < len(self._providers):
+                self._providers[edit_idx] = entry
+                self._selected = edit_idx
+            else:
+                self._providers.append(entry)
+                self._selected = len(self._providers) - 1
+            self._persist()
             self._rebuild_list()
 
 
@@ -662,9 +682,10 @@ if TEXTUAL_AVAILABLE:
 
         BINDINGS = [Binding("escape", "cancel", "Cancel")]
 
-        def __init__(self, entry=None):
+        def __init__(self, entry=None, edit_index=None):
             super().__init__()
             self._entry = entry or {}
+            self._edit_index = edit_index
             self._enabled = bool(entry.get("enabled", True)) if entry else True
 
         def compose(self):
@@ -769,7 +790,7 @@ if TEXTUAL_AVAILABLE:
                 self.query_one("#apf-status", Static).update(
                     f"[{theme_css.current_hex('error')}]\u2717 Provider and model are required[/]")
                 return
-            self.dismiss(entry)
+            self.dismiss((entry, self._edit_index))
 
         def _test(self):
             entry = self._collect()

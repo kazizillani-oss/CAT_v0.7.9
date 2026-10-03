@@ -48,6 +48,7 @@ try:
     from rich.console import Group
     from rich.text import Text
     from rich.table import Table
+    from rich.panel import Panel
     from rich import box
 except Exception:
     TEXTUAL_AVAILABLE = False
@@ -69,7 +70,31 @@ _FORMULA_RE = re.compile(
 _SYMBOL_RE = re.compile(
     r"\b(?:pH|pOH|pKa|pKb|Ka|Kb|Ksp|Keq|ΔH|ΔS|ΔG|ΔU|Molarity|Molality)\b"
 )
+_NON_CHEM_WORDS = {
+    "URL", "URI", "PM", "AM", "API", "HTML", "CSS", "JSON", "VITE", "NPM", "NODE",
+    "HTTP", "HTTPS", "OK", "ID", "CPU", "RAM", "GPU", "IP", "DB", "UI", "OS", "EOF",
+    "CLI", "CAT", "AI", "APP", "DEV", "SRC", "DOC", "PORT", "LAN", "WAN", "DNS",
+    "DOM", "XML", "SQL", "CSV", "TS", "JS", "PY", "MD", "TXT", "TODO", "FIXME",
+    "NOTE", "INFO", "WARN", "ERROR", "FATAL", "DEBUG", "PATH", "HOST", "POST",
+    "GET", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS", "TRUE", "FALSE", "NULL",
+    "NONE", "PID", "TTY", "SSH", "SSL", "TLS", "TCP", "UDP", "V8", "ES6", "UTF8",
+}
 _ALREADY_CODE_RE = re.compile(r"`[^`]*`")
+
+
+def _is_real_chem_formula(tok: str) -> bool:
+    """True only if `tok` is a genuine chemical formula, not an ordinary
+    English acronym or programming abbreviation like URL, PM, API, HTML, JSON."""
+    if not tok or tok in _NON_CHEM_WORDS:
+        return False
+    # Pure uppercase letters with no digits/subscripts/superscripts/charges are acronyms
+    if tok.isalpha() and tok.isupper():
+        return False
+    # Must have digits, Unicode subscripts/superscripts, ionic charge, or mixed-case element pattern
+    has_digit = any(c.isdigit() or '\u2080' <= c <= '\u2089' or '\u2070' <= c <= '\u2079' or c in '\u00b9\u00b2\u00b3' for c in tok)
+    has_charge = any(c in '+-^' for c in tok)
+    has_mixed_element = bool(re.search(r'[A-Z][a-z]', tok))
+    return bool(has_digit or has_charge or has_mixed_element)
 
 
 def _highlight_chemistry(text):
@@ -93,7 +118,13 @@ def _highlight_chemistry(text):
         return "".join(out)
 
     def _wrap_matches(chunk):
-        chunk = _FORMULA_RE.sub(lambda m: f"`{_chem_formula(m.group(0))}`", chunk)
+        def _repl(m):
+            tok = m.group(0)
+            if _is_real_chem_formula(tok):
+                return f"`{_chem_formula(tok)}`"
+            return tok
+
+        chunk = _FORMULA_RE.sub(_repl, chunk)
         chunk = _SYMBOL_RE.sub(lambda m: f"`{m.group(0)}`", chunk)
         return chunk
 
@@ -176,6 +207,200 @@ def _code_theme_for_current_theme():
     return "friendly" if theme.is_light() else "material"
 
 
+try:
+    from rich.markdown import BlockQuote as _RichBlockQuote
+    from rich.segment import Segment as _RichSegment
+
+    class CATBlockQuote(_RichBlockQuote):
+        style_name = "dim italic"
+
+        def __rich_console__(self, console, options):
+            render_options = options.update(width=max(10, options.max_width - 4))
+            lines = console.render_lines(self.elements, render_options, style=self.style)
+            new_line = _RichSegment("\n")
+            padding = _RichSegment("│ ", console.get_style("dim #64748b"))
+            for line in lines:
+                yield padding
+                yield from line
+                yield new_line
+
+    Markdown.elements["blockquote_open"] = CATBlockQuote
+except Exception:
+    pass
+
+
+def _parse_activity_and_body(raw_text):
+    if not raw_text:
+        return [], ""
+    raw_lines = raw_text.splitlines()
+    act_items = []
+    body_lines = []
+
+    _ACT_ICONS = (
+        "🔧", "⚡", "🧠", "👁", "ℹ", "⚠", "🔬", "💻", "🔍", "🧪",
+        "🪲", "🛡", "🏗", "🎨", "📝", "🎯", "⏳", "✔", "✖", "✅"
+    )
+
+    for line in raw_lines:
+        s = line.strip()
+        if not s:
+            if body_lines:
+                body_lines.append(line)
+            continue
+        clean_s = re.sub(r'^[>\s]+', '', s)
+        has_tool = any(x in clean_s for x in _ACT_ICONS)
+        has_mark = any(x in clean_s for x in ("✔ completed", "✖ failed", "⏳ running", "✅ complete"))
+
+        if has_tool or (s.startswith(">") and has_mark):
+            parts = re.split(r'(?<=[.)])\s+(?=[>\s]*[🔧⚡🧠👁ℹ⚠])', clean_s)
+            for p in parts:
+                p_clean = re.sub(r'^[>\s]+', '', p.strip())
+                if p_clean:
+                    act_items.append(p_clean)
+        else:
+            body_lines.append(line)
+
+    return act_items, "\n".join(body_lines).strip()
+
+
+def _format_activity_item(item, is_light=False, accent="#38bdf8"):
+    from rich.markup import escape
+    item = item.strip()
+    if not item:
+        return ""
+
+    status_markup = ""
+    if "✔ completed" in item or "✅ complete" in item:
+        status_markup = "[bold #10b981]✔ completed[/]" if not is_light else "[bold #059669]✔ completed[/]"
+        item = re.sub(r'\s*([—–-]\s*)?(✔ completed|✅ complete)\s*', '', item)
+    elif "✖ failed" in item:
+        status_markup = "[bold #ef4444]✖ failed[/]" if not is_light else "[bold #dc2626]✖ failed[/]"
+        item = re.sub(r'\s*([—–-]\s*)?✖ failed\s*', '', item)
+    elif "⏳ running" in item:
+        status_markup = "[bold #f59e0b]⏳ running...[/]" if not is_light else "[bold #d97706]⏳ running...[/]"
+        item = re.sub(r'\s*([—–-]\s*)?⏳ running(\.\.\.)?\s*', '', item)
+    elif any(item.startswith(x) for x in ("🔧", "⚡")) and not any(k in item for k in ("✔", "✖", "✅")):
+        status_markup = "[bold #f59e0b]⏳ in progress...[/]" if not is_light else "[bold #d97706]⏳ in progress...[/]"
+
+    parts = item.split(None, 1)
+    if not parts:
+        return ""
+    first = parts[0]
+    rest = parts[1] if len(parts) > 1 else ""
+
+    if ord(first[0]) > 255:
+        icon = first
+    else:
+        icon = "⚡"
+        rest = item
+
+    rest_clean = rest.replace("**", "").replace("`", "").strip()
+
+    if icon in ("🔧", "⚡"):
+        t_parts = rest_clean.split(None, 1)
+        tool_name = t_parts[0] if t_parts else ""
+        target = t_parts[1] if len(t_parts) > 1 else ""
+        target_styled = f"[#94a3b8]{escape(target)}[/]" if not is_light else f"[#475569]{escape(target)}[/]"
+        status_part = f"   {status_markup}" if status_markup else ""
+        return f"{icon}  [bold {accent}]{escape(tool_name)}[/]  {target_styled}{status_part}".strip()
+
+    if icon == "⚠":
+        icon_styled = "[#f59e0b]⚠[/]"
+        text_styled = f"[#fde68a]{escape(rest_clean)}[/]" if not is_light else f"[#b45309]{escape(rest_clean)}[/]"
+    elif icon in ("👁", "ℹ"):
+        icon_styled = f"[#38bdf8]{icon}[/]"
+        text_styled = f"[#94a3b8]{escape(rest_clean)}[/]" if not is_light else f"[#475569]{escape(rest_clean)}[/]"
+    else:
+        icon_styled = f"[{accent}]{icon}[/]"
+        text_styled = f"[#cbd5e1]{escape(rest_clean)}[/]" if not is_light else f"[#334155]{escape(rest_clean)}[/]"
+
+    status_part = f"   {status_markup}" if status_markup else ""
+    return f"{icon_styled}  {text_styled}{status_part}".strip()
+
+
+def _build_activity_widget(act_items, is_light=False, accent="#38bdf8"):
+    from rich.markup import escape
+    from rich.table import Table
+    from rich.panel import Panel
+    from rich import box
+
+    if not act_items:
+        return None
+
+    table = Table.grid(padding=(0, 2))
+    table.add_column(justify="left", no_wrap=True)
+    table.add_column(justify="left")
+    table.add_column(justify="right", no_wrap=True)
+
+    for item in act_items:
+        item = item.strip()
+        if not item:
+            continue
+
+        status_markup = ""
+        if "✔ completed" in item or "✅ complete" in item:
+            status_markup = "[bold #10b981]✔ completed[/]" if not is_light else "[bold #059669]✔ completed[/]"
+            item = re.sub(r'\s*([—–-]\s*)?(✔ completed|✅ complete)\s*', '', item)
+        elif "✖ failed" in item:
+            status_markup = "[bold #ef4444]✖ failed[/]" if not is_light else "[bold #dc2626]✖ failed[/]"
+            item = re.sub(r'\s*([—–-]\s*)?✖ failed\s*', '', item)
+        elif "⏳ running" in item:
+            status_markup = "[bold #f59e0b]⏳ running...[/]" if not is_light else "[bold #d97706]⏳ running...[/]"
+            item = re.sub(r'\s*([—–-]\s*)?⏳ running(\.\.\.)?\s*', '', item)
+        elif any(item.startswith(x) for x in ("🔧", "⚡")) and not any(k in item for k in ("✔", "✖", "✅")):
+            status_markup = "[bold #f59e0b]⏳ in progress...[/]" if not is_light else "[bold #d97706]⏳ in progress...[/]"
+
+        parts = item.split(None, 1)
+        first = parts[0] if parts else ""
+        rest = parts[1] if len(parts) > 1 else ""
+
+        if first and ord(first[0]) > 255:
+            icon = first
+        else:
+            icon = "⚡"
+            rest = item
+
+        rest_clean = rest.replace("**", "").replace("`", "").strip()
+
+        if icon in ("🔧", "⚡"):
+            t_parts = rest_clean.split(None, 1)
+            tool_name = t_parts[0] if t_parts else ""
+            target = t_parts[1] if len(t_parts) > 1 else ""
+            target_styled = f"[#94a3b8]{escape(target)}[/]" if not is_light else f"[#475569]{escape(target)}[/]"
+            table.add_row(
+                Text.from_markup(f"{icon}  [bold {accent}]{escape(tool_name)}[/]"),
+                Text.from_markup(target_styled),
+                Text.from_markup(status_markup),
+            )
+        else:
+            if icon == "⚠":
+                icon_styled = "[#f59e0b]⚠[/]"
+                text_styled = f"[#fde68a]{escape(rest_clean)}[/]" if not is_light else f"[#b45309]{escape(rest_clean)}[/]"
+            elif icon in ("👁", "ℹ"):
+                icon_styled = f"[#38bdf8]{icon}[/]"
+                text_styled = f"[#94a3b8]{escape(rest_clean)}[/]" if not is_light else f"[#475569]{escape(rest_clean)}[/]"
+            else:
+                icon_styled = f"[{accent}]{icon}[/]"
+                text_styled = f"[#cbd5e1]{escape(rest_clean)}[/]" if not is_light else f"[#334155]{escape(rest_clean)}[/]"
+
+            table.add_row(
+                Text.from_markup(f"{icon_styled}"),
+                Text.from_markup(text_styled),
+                Text.from_markup(status_markup),
+            )
+
+    border_color = accent if not is_light else "#64748b"
+    return Panel(
+        table,
+        title=f"[bold {border_color}]⚡ Activity & Tools[/]",
+        title_align="left",
+        border_style=border_color,
+        box=box.SQUARE,
+        expand=False,
+        padding=(0, 1),
+    )
+
+
 if TEXTUAL_AVAILABLE:
 
     class WelcomeBanner(Static):
@@ -196,6 +421,31 @@ if TEXTUAL_AVAILABLE:
             logo = "\n".join(f"[{accent} b]{line}[/]" for line in self._logo_lines)
             self.update(f"{logo}\n\n[{faint}]\u25cf Tip  {self._tip_text}[/]")
 
+
+    def short_model_name(name: str) -> str:
+        """Produce clean, compact model name for chip telemetry.
+        E.g. 'nvidia/nemotron-3-ultra-550b-a55b' -> 'nemotron-3-ultra'
+             'nvidia/nemotron-3.5-lightning-30b-a3b' -> 'nemotron-3.5-lightning'
+             'nvidia/llama-3.1-nemotron-70b-instruct' -> 'nemotron-70b'
+             'meta/llama-3.1-70b-instruct' -> 'llama-3.1-70b'
+        """
+        if not name:
+            return ""
+        m = str(name).strip()
+        if "/" in m:
+            m = m.split("/", 1)[1]
+        m_low = m.lower()
+        if "nemotron-3-ultra" in m_low or "nemotron-3-ultra-550b" in m_low:
+            return "nemotron-3-ultra"
+        if "nemotron-3.5-lightning" in m_low:
+            return "nemotron-3.5-lightning"
+        if "nemotron-70b" in m_low:
+            return "nemotron-70b"
+        m = re.sub(r'-(?:\d{4}-\d{2}-\d{2}|\d{8})$', '', m)
+        m = re.sub(r'-(?:latest|preview)$', '', m)
+        m = re.sub(r'-a[0-9a-f]+$', '', m)
+        return m
+
     class ConversationItem(Static):
         """One turn's bubble. `role` is 'user' | 'assistant' | 'system'.
         Assistant text renders as real Markdown (code fences, lists,
@@ -209,7 +459,7 @@ if TEXTUAL_AVAILABLE:
 
         def __init__(self, turn_id, role, text="", id=None, streaming=False,
                      timestamp=None, show_timestamp=True, meta_lines=None,
-                     mode_snapshot=None, attachments=None):
+                     mode_snapshot=None, attachments=None, contributions=None):
             self.turn_id = turn_id
             self.role = role
             self._text = text
@@ -220,6 +470,7 @@ if TEXTUAL_AVAILABLE:
             # (spec #25's "Message Completion" block) — rendered under
             # the bubble once a turn finishes, empty while streaming.
             self._meta_lines = meta_lines or []
+            self._contributions = contributions or []
             # v0.7.6 Patch 1, Fix 6: attached file paths, rendered as
             # small bordered cards inside the bubble (see
             # _attachment_cards). Plain paths — same list the session's
@@ -324,10 +575,11 @@ if TEXTUAL_AVAILABLE:
                                   f"[{faint}]reading\u2026[/]")
             return cards
 
-        def _format_telemetry(self):
-            if not self._meta_lines:
+        def _format_telemetry(self, meta_lines=None):
+            m_lines = meta_lines if meta_lines is not None else self._meta_lines
+            if not m_lines and not getattr(self, "_contributions", None):
                 return None
-            raw_text = " ".join(str(l) for l in self._meta_lines)
+            raw_text = " ".join(str(l) for l in m_lines)
             try:
                 plain_text = Text.from_markup(raw_text).plain
             except Exception:
@@ -359,20 +611,91 @@ if TEXTUAL_AVAILABLE:
             # Check for warnings/errors like LaTeX issues
             warnings = [l for l in self._meta_lines if "LaTeX:" in str(l) or "⚠" in str(l) or "error" in str(l).lower()]
 
+            # Determine model contributions
+            raw_c_attr = getattr(self, "_contributions", None)
+            contribs = []
+            if isinstance(raw_c_attr, dict):
+                if raw_c_attr.get("main_model") or raw_c_attr.get("pct_main") is not None:
+                    contribs.append({
+                        "model": raw_c_attr.get("main_model", model or "main"),
+                        "is_backup": False,
+                        "percent": float(raw_c_attr.get("pct_main", 0.0)),
+                        "tokens": raw_c_attr.get("main_tokens", 0),
+                    })
+                pct_b = float(raw_c_attr.get("pct_backup", 0.0))
+                if pct_b > 0 or (raw_c_attr.get("is_backup") and raw_c_attr.get("backup_model")):
+                    contribs.append({
+                        "model": raw_c_attr.get("backup_model", "backup"),
+                        "is_backup": True,
+                        "percent": pct_b,
+                        "tokens": raw_c_attr.get("backup_tokens", 0),
+                        "success": bool(raw_c_attr.get("is_backup")),
+                    })
+            elif isinstance(raw_c_attr, (list, tuple)):
+                contribs = [c for c in raw_c_attr if isinstance(c, dict)]
+
+            if not contribs:
+                # Fallback to parsing Contribution line from meta text
+                c_match = re.search(r'Contribution:\s*([^·\]\n]+)', plain_text, re.IGNORECASE)
+                if c_match:
+                    raw_c = c_match.group(1).strip()
+                    # e.g., "Backup 100%: nemotron-3.5-lightning" or "Main 0% ... Backup 100%"
+                    if "backup 100%" in raw_c.lower():
+                        contribs = [
+                            {"model": model or "main", "is_backup": False, "percent": 0.0},
+                            {"model": model or "backup", "is_backup": True, "percent": 100.0, "success": True},
+                        ]
+
             parts = [Text("✓ Complete", style="green bold")]
-            if model:
+
+            # Model & Contribution Pill
+            if contribs:
+                main_items = [c for c in contribs if not c.get("is_backup")]
+                backup_items = [c for c in contribs if c.get("is_backup")]
+                main_pct = sum(c.get("percent", 0.0) for c in main_items)
+                backup_pct = sum(c.get("percent", 0.0) for c in backup_items)
+                main_m = short_model_name(main_items[0].get("model") if main_items else "")
+                backup_m = short_model_name(backup_items[0].get("model") if backup_items else "")
+
                 parts.append(Text(" · ", style="dim"))
-                parts.append(Text(f"🏷 {model}", style="dim"))
+                if backup_pct > 0:
+                    # Failover took place!
+                    if main_pct == 0:
+                        parts.append(Text("🛡️ Backup 100%", style="bold #e0af68"))
+                        if backup_m:
+                            parts.append(Text(f" {backup_m}", style="bold #7aa2f7"))
+                        if main_m:
+                            parts.append(Text(f" (Main 0% {main_m})", style="dim"))
+                        else:
+                            parts.append(Text(" (Main 0%)", style="dim"))
+                    else:
+                        parts.append(Text(f"⚖️ {main_m} ({main_pct:.0f}%)", style="bold #7aa2f7"))
+                        parts.append(Text(" · ", style="dim"))
+                        parts.append(Text(f"🛡️ {backup_m} (Backup {backup_pct:.0f}%)", style="bold #e0af68"))
+                else:
+                    # Main model answered completely (normal)
+                    chosen_m = main_m or short_model_name(model)
+                    parts.append(Text(f"🏷 {chosen_m}", style="bold #7aa2f7"))
+                    parts.append(Text(" (Main 100%)", style="dim"))
+            elif model:
+                parts.append(Text(" · ", style="dim"))
+                parts.append(Text(f"🏷 {short_model_name(model)}", style="bold #7aa2f7"))
+
+            # Duration & TTFB
             if duration:
                 parts.append(Text(" · ", style="dim"))
                 time_str = f"⏱ {duration}"
                 if ttfb:
                     time_str += f" (TTFB {ttfb})"
                 parts.append(Text(time_str, style="dim"))
+
+            # Tokens
             if tokens:
                 parts.append(Text(" · ", style="dim"))
                 tok_str = tokens if "token" in tokens.lower() else f"{tokens} tokens"
                 parts.append(Text(f"⚡ {tok_str}", style="dim"))
+
+            # Calls / Commands
             if calls:
                 parts.append(Text(" · ", style="dim"))
                 call_label = f"{calls} call" if calls == "1" else f"{calls} calls"
@@ -505,6 +828,9 @@ if TEXTUAL_AVAILABLE:
                     thought_text = rest.strip()
                     answer_text = pre_think.strip()
 
+            # Separate activity/tool execution lines from the clean answer body
+            act_items, clean_answer = _parse_activity_and_body(answer_text)
+
             mode_lbl = snap.get("label", "Assistant")
             mode_ic = snap.get("icon", "🤖")
             badge_style = f"bold on {accent} #ffffff" if not is_light else f"bold on {accent} #0f172a"
@@ -523,33 +849,47 @@ if TEXTUAL_AVAILABLE:
                 from rich.markup import escape
                 th_word_count = len(thought_text.split())
                 th_title = f"💭 Thought Process ({th_word_count} words)" if not self._streaming else "💭 Thinking…"
-                th_title_esc = escape(th_title)
                 th_border = accent if not is_light else (t.hex("accent") if t else accent)
                 th_text_style = "dim italic" if not is_light else "italic #475569"
-                thought_lines = [
-                    f"[{th_border} bold]┌─ {th_title_esc} " + "─" * max(4, 42 - len(th_title)) + "[/]"
-                ]
-                for tl in thought_text.splitlines():
-                    thought_lines.append(f"[{th_border}]│[/] [{th_text_style}]{escape(tl)}[/]")
+                th_lines = [tl for tl in thought_text.splitlines()]
                 if self._streaming and "</think>" not in raw_text:
-                    thought_lines.append(f"[{th_border}]│[/] [{th_text_style}]… ▌[/]")
-                thought_lines.append(f"[{th_border} bold]└" + "─" * 46 + "[/]")
-                try:
-                    thought_widget = Text.from_markup("\n".join(thought_lines))
-                except Exception:
-                    thought_widget = Text("\n".join(thought_lines))
+                    th_lines.append("… ▌")
+                thought_content = Text("\n".join(th_lines), style=th_text_style)
+                thought_widget = Panel(
+                    thought_content,
+                    title=f"[bold {th_border}]{escape(th_title)}[/]",
+                    title_align="left",
+                    border_style=th_border,
+                    box=box.SQUARE,
+                    expand=False,
+                    padding=(0, 1),
+                )
 
-            body = _highlight_chemistry(_render_math(answer_text)) or ""
-            if self._streaming and (not thought_text or "</think>" in raw_text):
+            activity_widget = None
+            if act_items:
+                act_border = accent if not is_light else (t.hex("accent") if t else accent)
+                activity_widget = _build_activity_widget(act_items, is_light=is_light, accent=act_border)
+
+            body = _highlight_chemistry(_render_math(clean_answer)) or ""
+            if self._streaming and (not thought_text or "</think>" in raw_text) and clean_answer:
                 body += " \u258c"  # trailing cursor glyph while tokens arrive
-            md = Markdown(body or ("\u2026" if not thought_widget else ""), code_theme=_code_theme_for_current_theme())
+
+            md = None
+            if body.strip():
+                md = Markdown(body, code_theme=_code_theme_for_current_theme())
+            elif not thought_widget and not activity_widget:
+                md = Markdown("\u2026", code_theme=_code_theme_for_current_theme())
 
             parts = [header_row, divider]
             if thought_widget:
                 parts.append(thought_widget)
-                if body.strip():
+                if activity_widget or md:
                     parts.append(Text(""))
-            if body.strip() or not thought_widget:
+            if activity_widget:
+                parts.append(activity_widget)
+                if md:
+                    parts.append(Text(""))
+            if md:
                 parts.append(md)
 
             cards = self._attachment_cards()
@@ -833,7 +1173,7 @@ if TEXTUAL_AVAILABLE:
             self._text += fragment
             now = time.monotonic()
             last = getattr(self, "_last_chunk_update", 0.0)
-            if now - last >= 0.04:  # ~25 FPS max update rate while streaming
+            if now - last >= 0.065:  # ~15 FPS max update rate while streaming for smooth UI thread responsiveness
                 self._last_chunk_update = now
                 self.update(self._build_content())
             else:
@@ -843,7 +1183,7 @@ if TEXTUAL_AVAILABLE:
                         self._pending_chunk_timer = False
                         self._last_chunk_update = time.monotonic()
                         self.update(self._build_content())
-                    self.set_timer(0.04, _delayed_update)
+                    self.set_timer(0.065, _delayed_update)
 
         def set_text(self, text, attachments=None):
             """Rewrite (minor-bug-fix spec): updates THIS bubble's own
@@ -879,11 +1219,13 @@ if TEXTUAL_AVAILABLE:
                 self._mode_snapshot = mode_snapshot
             self.update(self._build_content())
 
-        def finalize(self, full_text=None, meta_lines=None):
+        def finalize(self, full_text=None, meta_lines=None, contributions=None):
             if full_text is not None:
                 self._text = full_text
             if meta_lines is not None:
                 self._meta_lines = meta_lines
+            if contributions is not None:
+                self._contributions = contributions
             self._streaming = False
             self._timestamp = time.time()
             if self.role == "assistant":
@@ -1324,7 +1666,7 @@ if TEXTUAL_AVAILABLE:
                 except Exception:
                     pass
 
-        def finish(self, turn_id, full_text=None, meta_lines=None):
+        def finish(self, turn_id, full_text=None, meta_lines=None, contributions=None):
             self.hide_agent_activity()
             # mark live block completed (keeps history but allows collapse)
             try:
@@ -1339,7 +1681,7 @@ if TEXTUAL_AVAILABLE:
                 row.display = True
             except Exception:
                 pass
-            item.finalize(full_text, meta_lines=meta_lines)
+            item.finalize(full_text, meta_lines=meta_lines, contributions=contributions)
             self.scroll_end(animate=False)
 
         # ------------------------------------------- agent activity (UI) --

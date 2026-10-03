@@ -3865,6 +3865,41 @@
     },
     {
       "provider": "nvidia",
+      "from": "nemotron 3 ultra",
+      "to": "nvidia/nemotron-3-ultra-550b-a55b"
+    },
+    {
+      "provider": "nvidia",
+      "from": "nematron 3 ultra",
+      "to": "nvidia/nemotron-3-ultra-550b-a55b"
+    },
+    {
+      "provider": "nvidia",
+      "from": "nematron-3-ultra",
+      "to": "nvidia/nemotron-3-ultra-550b-a55b"
+    },
+    {
+      "provider": "nvidia",
+      "from": "nvidia nematron 3 ultra",
+      "to": "nvidia/nemotron-3-ultra-550b-a55b"
+    },
+    {
+      "provider": "nvidia",
+      "from": "nvidia nemotron 3 ultra",
+      "to": "nvidia/nemotron-3-ultra-550b-a55b"
+    },
+    {
+      "provider": "nvidia",
+      "from": "3-ultra",
+      "to": "nvidia/nemotron-3-ultra-550b-a55b"
+    },
+    {
+      "provider": "nvidia",
+      "from": "3 ultra",
+      "to": "nvidia/nemotron-3-ultra-550b-a55b"
+    },
+    {
+      "provider": "nvidia",
       "from": "nemotron-3-ultra-550b",
       "to": "nvidia/nemotron-3-ultra-550b-a55b"
     },

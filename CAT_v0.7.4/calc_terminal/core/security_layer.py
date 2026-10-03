@@ -23,14 +23,38 @@ class PermissionTier(str, enum.Enum):
 
 # Regex patterns for common secret credentials
 SECRET_PATTERNS = [
+    # AI & Cloud API keys
     (re.compile(r"(sk-[a-zA-Z0-9]{20,})"), "[REDACTED_API_KEY]"),
     (re.compile(r"(ghp_[a-zA-Z0-9]{36,})"), "[REDACTED_GITHUB_TOKEN]"),
     (re.compile(r"(gho_[a-zA-Z0-9]{36,})"), "[REDACTED_GITHUB_TOKEN]"),
     (re.compile(r"(hf_[a-zA-Z0-9]{34,})"), "[REDACTED_HF_TOKEN]"),
     (re.compile(r"(AKIA[0-9A-Z]{16})"), "[REDACTED_AWS_KEY]"),
     (re.compile(r"(AIza[0-9A-Za-z-_]{35})"), "[REDACTED_GOOGLE_KEY]"),
+    # Supabase anon & service-role tokens
+    (re.compile(r"(sbp_[a-zA-Z0-9]{20,})"), "[REDACTED_SUPABASE_KEY]"),
+    # Stripe secret and restricted keys (live and test)
+    (re.compile(r"(sk_(?:live|test)_[a-zA-Z0-9]{24,})"), "[REDACTED_STRIPE_SECRET_KEY]"),
+    (re.compile(r"(rk_(?:live|test)_[a-zA-Z0-9]{24,})"), "[REDACTED_STRIPE_RESTRICTED_KEY]"),
+    (re.compile(r"(pk_(?:live|test)_[a-zA-Z0-9]{24,})"), "[REDACTED_STRIPE_PUBLISHABLE_KEY]"),
+    # Database connection strings with embedded passwords (Postgres, MongoDB, MySQL, Redis)
+    (re.compile(r"((?:postgres|postgresql|mongodb(?:\+srv)?|mysql|redis)://[^:\s]+:)([^@\s]+)(@)"), r"\1[REDACTED_PASSWORD]\3"),
+    # SendGrid API keys
+    (re.compile(r"(SG\.[a-zA-Z0-9_\-]{22}\.[a-zA-Z0-9_\-]{43})"), "[REDACTED_SENDGRID_KEY]"),
+    # Twilio Account SID & Auth Tokens
+    (re.compile(r"(AC[a-zA-Z0-9]{32})"), "[REDACTED_TWILIO_SID]"),
+    (re.compile(r"(SK[a-zA-Z0-9]{32})"), "[REDACTED_TWILIO_SECRET]"),
+    # JSON Web Tokens (JWT)
+    (re.compile(r"(eyJ[a-zA-Z0-9_\-]{10,}\.eyJ[a-zA-Z0-9_\-]{10,}\.[a-zA-Z0-9_\-]{10,})"), "[REDACTED_JWT_TOKEN]"),
+    # Fomoji connector tokens
+    (re.compile(r"(fct_[a-zA-Z0-9_\-]{20,})"), "[REDACTED_CONNECTOR_TOKEN]"),
+    # Bearer tokens
     (re.compile(r"Bearer\s+([a-zA-Z0-9_\-\.]{20,})"), "Bearer [REDACTED_BEARER_TOKEN]"),
-    (re.compile(r"(?i)(password|secret|token|api_key)\s*[:=]\s*['\"]([^'\"]{4,})['\"]"), r"\1='[REDACTED]'"),
+    # User emails (PII redaction)
+    (re.compile(r"\b[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+\b"), "[REDACTED_EMAIL]"),
+    # Phone numbers (PII redaction)
+    (re.compile(r"(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"), "[REDACTED_PHONE]"),
+    # Generic key-value assignment patterns
+    (re.compile(r"(?i)(password|secret|token|api_key|client_secret|private_key)\s*[:=]\s*['\"]([^'\"]{4,})['\"]"), r"\1='[REDACTED]'"),
 ]
 
 # Patterns representing high-risk or destructive actions requiring approval

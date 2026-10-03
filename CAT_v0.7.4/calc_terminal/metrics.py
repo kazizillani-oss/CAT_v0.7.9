@@ -70,7 +70,7 @@ class RequestMetrics:
     __slots__ = ("request_id", "_t0", "_stage_pairs", "_open_stages",
                  "model_calls", "tool_calls", "streamed_chunks",
                  "first_token_ms", "total_ms", "route_path", "task_types",
-                 "model_used", "finished", "_lock")
+                 "model_used", "model_contributions", "finished", "_lock")
 
     def __init__(self, request_id: Optional[str] = None):
         self.request_id = request_id or f"req-{int(time.time() * 1000)}-{id(self) % 100000}"
@@ -85,6 +85,7 @@ class RequestMetrics:
         self.route_path = ""
         self.task_types: List[str] = []
         self.model_used = ""
+        self.model_contributions: List[Dict[str, object]] = []
         self.finished = False
         self._lock = threading.Lock()
 
@@ -230,6 +231,7 @@ class RequestMetrics:
             "model_calls": self.model_calls,
             "tool_calls": self.tool_calls,
             "streamed_chunks": self.streamed_chunks,
+            "model_contributions": list(self.model_contributions),
         }
 
     def summary_lines(self) -> List[str]:
@@ -251,6 +253,14 @@ class RequestMetrics:
             calls = f"[{d['path']}] " + calls
         lines = ["[dim]\u23f1 Real timings: " + ("  \u00b7  ".join(bits) if bits else "n/a") + "[/dim]",
                  "[dim]\U0001f4ca " + calls + "[/dim]"]
+        if self.model_contributions and len(self.model_contributions) > 1:
+            c_bits = []
+            for c in self.model_contributions:
+                role = "Backup" if c.get("is_backup") else "Main"
+                m = c.get("model", "")
+                pct = c.get("percent", 0.0)
+                c_bits.append(f"{role} {pct:.0f}% ({m})")
+            lines.append("[dim]Contribution: " + " · ".join(c_bits) + "[/dim]")
         return lines
 
 

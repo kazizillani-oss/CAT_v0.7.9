@@ -4,7 +4,14 @@ const path = require('path');
 const express = require('express');
 const session = require('express-session');
 
-const { PORT, SESSION_SECRET, RP_ID, ORIGIN } = require('./config');
+const { PORT, SESSION_SECRET, RP_ID, ORIGIN, IS_PRODUCTION } = require('./config');
+const {
+  correlationIdMiddleware,
+  securityHeadersMiddleware,
+  corsMiddleware,
+  errorHandler,
+} = require('./security');
+
 const webauthnRouter = require('./routes/webauthn');
 const { router: authRouter } = require('./routes/auth');
 const oauthRouter = require('./routes/oauth');
@@ -15,16 +22,19 @@ const fattyRouter = require('./routes/fatty');
 
 const app = express();
 
-app.use(express.json());
-// Apple's OAuth callback arrives as a cross-site form POST
-// (response_mode=form_post) rather than a query-string GET like every
-// other provider — this is what lets routes/oauth.js read req.body for it.
-app.use(express.urlencoded({ extended: false }));
+// Disable Express fingerprinting header
+app.disable('x-powered-by');
 
-// NOTE: express-session defaults to MemoryStore, which is fine for local
-// dev (this whole thing resets on restart, same as before) but is NOT
-// safe for a real multi-instance deployment — swap in connect-sqlite3,
-// connect-redis, or similar before this goes further than your laptop.
+// Security & Correlation ID Middlewares (applied to every response)
+app.use(correlationIdMiddleware);
+app.use(securityHeadersMiddleware);
+app.use(corsMiddleware);
+
+// Request parsing with body size limits to prevent DoS attacks
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: false, limit: '1mb' }));
+
+// Session handling with strict cookie flags
 app.use(
   session({
     name: 'fomoji.sid',
@@ -34,7 +44,7 @@ app.use(
     cookie: {
       httpOnly: true,
       sameSite: 'lax',
-      secure: ORIGIN.startsWith('https://'),
+      secure: IS_PRODUCTION || ORIGIN.startsWith('https://'),
       maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days
     },
   })
@@ -48,45 +58,61 @@ app.use('/api/connector', connectorRouter);
 app.use('/api/groups', groupsRouter);
 app.use('/api/fatty', fattyRouter);
 
-// Launch real OS browser (Edge/Chrome on Windows) for WebAuthn passkey ceremony
+// Launch real OS browser (Edge/Chrome on Windows) for local desktop CAT passkey ceremony.
+// Strictly restricted to local development loopback and anchored to ORIGIN.
 app.all('/api/open-system-browser', (req, res) => {
-  const target = (req.body && req.body.url) || req.query.url || `${ORIGIN}/passkey.html`;
+  if (IS_PRODUCTION) {
+    return res.status(404).json({ error: 'not_found' });
+  }
+
+  const clientIp = req.ip || req.socket?.remoteAddress || '';
+  const isLoopback = clientIp === '127.0.0.1' || clientIp === '::1' || clientIp === '::ffff:127.0.0.1';
+  if (!isLoopback) {
+    return res.status(403).json({ error: 'forbidden', correlationId: req.correlationId });
+  }
+
+  const rawTarget = (req.body && req.body.url) || req.query.url || `${ORIGIN}/passkey.html`;
+  let parsedUrl;
   try {
-    const { exec } = require('child_process');
-    const safeTarget = String(target).replace(/["`$;]/g, '');
+    parsedUrl = new URL(String(rawTarget), ORIGIN);
+  } catch {
+    return res.status(400).json({ error: 'invalid_target_origin', correlationId: req.correlationId });
+  }
+
+  const expectedOrigin = new URL(ORIGIN).origin;
+  if (parsedUrl.origin !== expectedOrigin) {
+    return res.status(400).json({ error: 'invalid_target_origin', correlationId: req.correlationId });
+  }
+
+  const safeTarget = parsedUrl.href;
+  try {
+    const { spawn } = require('child_process');
     if (process.platform === 'win32') {
-      exec(`start "" "${safeTarget}"`);
+      spawn('cmd.exe', ['/c', 'start', '""', safeTarget], { windowsHide: true, windowsVerbatimArguments: true });
     } else if (process.platform === 'darwin') {
-      exec(`open "${safeTarget}"`);
+      spawn('open', [safeTarget]);
     } else {
-      exec(`xdg-open "${safeTarget}"`);
+      spawn('xdg-open', [safeTarget]);
     }
     return res.json({ ok: true, opened: safeTarget });
   } catch (err) {
-    return res.status(500).json({ error: 'failed_to_open', message: err.message });
+    console.error(`[ERROR correlationId=${req.correlationId}] failed to open browser:`, err);
+    return res.status(500).json({ error: 'failed_to_open', correlationId: req.correlationId });
   }
 });
 
-// The existing Fomoji static front-end (the zip you already have) — drop
-// its contents into /public and every page + the passkey JS below load
-// from the same origin as the API, which WebAuthn requires anyway.
-app.use(express.static(path.join(__dirname, '..', 'public')));
+// Serve Archify interactive architecture & workflow diagrams
+const archifyDir = path.resolve(__dirname, '../../../.archify');
+app.use('/archify', express.static(archifyDir, { dotfiles: 'allow' }));
 
-// Safety net for /api/* only: Express 5 auto-forwards thrown/rejected
-// route errors here, but with no handler at all it falls through to
-// Express's default HTML error page. fomoji-auth.js's request() does
-// `res.json().catch(() => ({}))`, so an HTML response silently becomes
-// `{}` client-side and every such failure shows the same generic
-// "Something went wrong" — even when the real cause (and a specific,
-// useful error code) is available. This turns any future uncaught /api
-// error into real JSON instead of a swallowed one.
-app.use('/api', (err, req, res, next) => {
-  console.error('[fomoji:api] unhandled error on %s %s —', req.method, req.originalUrl, err);
-  if (res.headersSent) return next(err);
-  res.status(500).json({ error: 'server_error' });
-});
+// The Fomoji static front-end with dotfiles blocked
+app.use(express.static(path.join(__dirname, '..', 'public'), { dotfiles: 'ignore', index: ['index.html'] }));
+
+// Production-grade centralized error handler (sanitizes all 500 errors and includes correlationId)
+app.use(errorHandler);
 
 app.listen(PORT, () => {
-  console.log(`Fomoji server running at ${ORIGIN}`);
+  console.log(`Fomoji server running at ${ORIGIN} [mode: ${IS_PRODUCTION ? 'production' : 'development'}]`);
   console.log(`WebAuthn RP ID: ${RP_ID}`);
 });
+

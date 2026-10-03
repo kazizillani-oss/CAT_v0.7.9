@@ -323,16 +323,38 @@ async def lifespan(app: FastAPI):
 
 # --- FastAPI App ---
 
+_is_prod = (
+    os.environ.get("CAT_ENV") == "production"
+    or os.environ.get("NODE_ENV") == "production"
+    or os.environ.get("FATTY_DISABLE_DOCS", "").lower() in ("1", "true")
+)
+
 app = FastAPI(
     title="FATTY CAT",
     description="Mobile PWA for CAT - Coding Agent Terminal",
     version="0.7.9.0",
     lifespan=lifespan,
+    docs_url=None if _is_prod else "/docs",
+    redoc_url=None if _is_prod else "/redoc",
+    openapi_url=None if _is_prod else "/openapi.json",
 )
+
+_fomoji_origin = os.environ.get("FOMOJI_ORIGIN", "http://localhost:3000")
+_allowed_origins = [
+    "http://localhost:8765",
+    "http://127.0.0.1:8765",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    _fomoji_origin,
+]
+_extra_cors = os.environ.get("CAT_ALLOWED_ORIGINS", "")
+if _extra_cors:
+    _allowed_origins.extend([o.strip() for o in _extra_cors.split(",") if o.strip()])
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allowed_origins,
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -345,6 +367,13 @@ app.add_middleware(
 static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+# Mount .archify interactive architecture & workflow diagrams
+_archify_dir = Path(__file__).resolve().parents[3] / ".archify"
+if not _archify_dir.exists():
+    _archify_dir = Path(__file__).resolve().parents[2] / ".archify"
+if _archify_dir.exists():
+    app.mount("/archify", StaticFiles(directory=str(_archify_dir)), name="archify")
 
 # Mount workspace files for preview. Writable preview workspaces MUST live in
 # the user's app-data dir — never inside site-packages (read-only when
@@ -1418,8 +1447,29 @@ async def run_agent_endpoint(request: AgentRequest):
         return err_res
 
 
+_WEB_AGENT_CANCEL_FLAG = False
+
+
+@app.post("/api/cancel")
+@app.post("/api/agent/cancel")
+@app.post("/api/chat/stop")
+async def cancel_active_execution():
+    """Cancel any running agent, chat, or tool process immediately."""
+    global _WEB_AGENT_CANCEL_FLAG
+    _WEB_AGENT_CANCEL_FLAG = True
+    try:
+        from calc_terminal import agent, aicore
+        aicore.cancel_active_requests()
+        agent.kill_active_tool_processes()
+    except Exception:
+        pass
+    return {"ok": True, "cancelled": True}
+
+
 def _run_agent_sync(message: str, mode: str, max_steps: int) -> dict:
     """Run agent synchronously (called from thread)."""
+    global _WEB_AGENT_CANCEL_FLAG
+    _WEB_AGENT_CANCEL_FLAG = False
     try:
         from calc_terminal.agent import run_agent as _run_agent
         agent_mode = "agent" if mode in ("agent", "build", "plan") else "ai"
@@ -1428,6 +1478,7 @@ def _run_agent_sync(message: str, mode: str, max_steps: int) -> dict:
             max_steps=max_steps,
             verbose=False,
             mode=agent_mode,
+            should_cancel=lambda: _WEB_AGENT_CANCEL_FLAG,
         )
         # Format steps for web display
         step_list = []

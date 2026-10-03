@@ -61,7 +61,6 @@ _BLOCKED_PATTERNS = [
     ".pyd",
     ".venv",
     "node_modules",
-    ".env",
     ".sqlite",
     ".sqlite-shm",
     ".sqlite-wal",
@@ -69,6 +68,26 @@ _BLOCKED_PATTERNS = [
     ".vscode-test",
     ".tmp",
 ]
+
+
+def is_blocked_file(filepath: str) -> bool:
+    """Returns True if the file contains secrets, caches, or should never be committed into git."""
+    norm = filepath.lower().replace("\\", "/")
+    # Always allow example and template configurations
+    if norm.endswith((".env.example", ".env.sample", ".env.template")):
+        return False
+    base = os.path.basename(norm)
+    # Block live .env files
+    if base == ".env" or base.startswith(".env.") or "/.env" in norm:
+        return True
+    # Block secret keys, private certificates, SSH keys, and credentials
+    if base.startswith("id_") or base.endswith((".pem", ".key", ".cert", ".crt", ".pfx", ".p12", ".p8", "id_rsa", "id_ed25519", "id_ecdsa")):
+        return True
+    if base in (".pypirc", "credentials.json", "token.json") or "client_secret" in base or "service-account" in base:
+        return True
+    if "/.fomoji/" in norm or norm.startswith(".fomoji/") or ".cct_auth" in base:
+        return True
+    return any(pat in norm for pat in _BLOCKED_PATTERNS)
 
 
 def _run_git_cmd(args: List[str], cwd: str, timeout: float = 30.0) -> Tuple[bool, str, str, int]:
@@ -211,10 +230,7 @@ def stage_intended_files(repo_path: Optional[str] = None) -> Tuple[bool, List[st
     staged_list = [line.strip() for line in staged_out.splitlines() if line.strip()]
 
     # Double check that no blocked files made it into stage
-    blocked_staged = [
-        f for f in staged_list
-        if any(pat in f for pat in _BLOCKED_PATTERNS if pat not in (".env.example", ".env.sample"))
-    ]
+    blocked_staged = [f for f in staged_list if is_blocked_file(f)]
     if blocked_staged:
         _run_git_cmd(["reset", "HEAD"] + blocked_staged, cwd)
         staged_list = [f for f in staged_list if f not in blocked_staged]

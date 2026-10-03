@@ -1216,7 +1216,7 @@ def load_backup_providers() -> list[dict]:
         if os.path.exists(BACKUP_PROVIDERS_FILE):
             with open(BACKUP_PROVIDERS_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            if isinstance(data, list) and len(data) > 0:
+            if isinstance(data, list):
                 out = []
                 for i, entry in enumerate(data):
                     if not isinstance(entry, dict):

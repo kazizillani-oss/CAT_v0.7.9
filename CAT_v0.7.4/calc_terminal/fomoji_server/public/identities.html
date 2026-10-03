@@ -263,6 +263,13 @@
     return (name || '?').trim().charAt(0).toUpperCase() || '?';
   }
 
+  function escapeHtml(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
   // ======================= GROUP AUTHENTICATION CARD =======================
   function renderGroupCard(group) {
     const el = document.createElement('div');
@@ -273,14 +280,14 @@
     el.style.cursor = 'pointer';
     el.innerHTML = `
       <div class="id-card-top">
-        <div class="id-card-avatar card-3d-layer">${initials(group.name)}</div>
+        <div class="id-card-avatar card-3d-layer">${escapeHtml(initials(group.name))}</div>
         <div style="flex:1; min-width:0;">
           <div class="id-card-eyebrow">Fomoji Group</div>
-          <div class="id-card-name">${group.name}</div>
-          <div class="id-card-meta">${group.memberCount} member${group.memberCount === 1 ? '' : 's'} &middot; you're ${group.myRole || 'a member'}</div>
+          <div class="id-card-name">${escapeHtml(group.name)}</div>
+          <div class="id-card-meta">${Number(group.memberCount) || 0} member${group.memberCount === 1 ? '' : 's'} &middot; you're ${escapeHtml(group.myRole || 'a member')}</div>
         </div>
       </div>
-      <div class="id-card-apps" id="apps-${group.id}"></div>
+      <div class="id-card-apps" id="apps-${encodeURIComponent(group.id)}"></div>
     `;
     el.addEventListener('click', () => openGroupDetail(group.id));
     return el;
@@ -324,12 +331,12 @@
       const row = document.createElement('div');
       row.className = 'member-row';
       row.innerHTML = `
-        <div class="id-card-avatar" style="width:32px;height:32px;font-size:13px;">${initials(m.name)}</div>
+        <div class="id-card-avatar" style="width:32px;height:32px;font-size:13px;">${escapeHtml(initials(m.name))}</div>
         <div class="row-main">
-          <div class="row-label">${m.name || m.fomojiId}</div>
-          <div class="row-sub">${m.fomojiId}</div>
+          <div class="row-label">${escapeHtml(m.name || m.fomojiId)}</div>
+          <div class="row-sub">${escapeHtml(m.fomojiId)}</div>
         </div>
-        <span class="role-chip ${m.role === 'owner' ? 'is-owner' : m.role === 'admin' ? 'is-admin' : ''}">${m.role}</span>
+        <span class="role-chip ${m.role === 'owner' ? 'is-owner' : m.role === 'admin' ? 'is-admin' : ''}">${escapeHtml(m.role)}</span>
       `;
       membersHost.appendChild(row);
     });
@@ -400,11 +407,11 @@
     card.setAttribute('data-surface', 'frosted');
     card.innerHTML = `
       <div class="id-card-top">
-        <div class="id-card-avatar card-3d-layer">${initials(session.name)}</div>
+        <div class="id-card-avatar card-3d-layer">${escapeHtml(initials(session.name))}</div>
         <div style="flex:1; min-width:0;">
           <div class="id-card-eyebrow">Fomoji Student</div>
-          <div class="id-card-name">${session.name || session.fomojiId}</div>
-          <div class="id-card-meta">${isStudent ? (session.institution ? session.institution : 'No institution set') : 'Not a student identity'}</div>
+          <div class="id-card-name">${escapeHtml(session.name || session.fomojiId)}</div>
+          <div class="id-card-meta">${isStudent ? (session.institution ? escapeHtml(session.institution) : 'No institution set') : 'Not a student identity'}</div>
         </div>
       </div>
       ${isStudent ? '' : `
@@ -453,8 +460,8 @@
     if (isTemp) {
       card.innerHTML = `
         <div class="id-card-eyebrow">Temporary account</div>
-        <div class="id-card-name">${session.name || session.fomojiId}</div>
-        <div class="expiry-note">Expires: ${session.expiresAt ? new Date(session.expiresAt).toLocaleString() : '—'}</div>
+        <div class="id-card-name">${escapeHtml(session.name || session.fomojiId)}</div>
+        <div class="expiry-note">Expires: ${session.expiresAt ? escapeHtml(new Date(session.expiresAt).toLocaleString()) : '—'}</div>
         <div class="id-card-actions">
           <button type="button" class="btn btn-primary btn-inline" id="upgradeTempBtn">Upgrade account</button>
         </div>

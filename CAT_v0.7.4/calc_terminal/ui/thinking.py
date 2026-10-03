@@ -189,12 +189,13 @@ def commands_used(*texts):
 
 # ------------------------------------------------------- completion block
 def completion_summary_lines(*, provider=None, model=None, duration=None,
-                              tokens=None, commands=None, extras=None):
+                              tokens=None, commands=None, extras=None,
+                              contributions=None):
     """Rich-markup lines for the 'Message Completion' block the spec
     describes (✓ Response Complete / Provider / Model / Time / Tokens /
-    Commands Used / feature flags). Returns a list of markup strings —
-    rendering them is the caller's job (conversation.py turns each into
-    a Text.from_markup line under the finished bubble).
+    Commands Used / feature flags / Contribution percentages). Returns a list
+    of markup strings — rendering them is the caller's job (conversation.py turns
+    each into a Text.from_markup line under the finished bubble).
 
     v0.7.9.0: the ✓ color resolves from the CURRENT theme (was a
     hardcoded dark-palette green that washed out in light mode)."""
@@ -208,8 +209,51 @@ def completion_summary_lines(*, provider=None, model=None, duration=None,
     meta = []
     if provider:
         meta.append(f"Provider: {provider}")
-    if model:
+
+    if isinstance(contributions, dict):
+        c_list = []
+        if contributions.get("main_model") or contributions.get("pct_main") is not None:
+            c_list.append({
+                "model": contributions.get("main_model", model or "main"),
+                "is_backup": False,
+                "percent": float(contributions.get("pct_main", 0.0)),
+                "tokens": contributions.get("main_tokens", 0),
+            })
+        if contributions.get("backup_model") or contributions.get("pct_backup") is not None or contributions.get("is_backup"):
+            c_list.append({
+                "model": contributions.get("backup_model", "backup"),
+                "is_backup": True,
+                "percent": float(contributions.get("pct_backup", 0.0)),
+                "tokens": contributions.get("backup_tokens", 0),
+                "success": True,
+            })
+        contributions = c_list
+    elif isinstance(contributions, (list, tuple)):
+        contributions = [c for c in contributions if isinstance(c, dict)]
+    else:
+        contributions = []
+
+    if contributions and len(contributions) > 1:
+        c_parts = []
+        for c in contributions:
+            role = "Backup" if c.get("is_backup") else "Main"
+            m = c.get("model", "")
+            pct = c.get("percent", 0.0)
+            c_parts.append(f"{role} {pct:.0f}%: {m}")
+        meta.append(f"Contribution: {' · '.join(c_parts)}")
+        active = next((c.get("model") for c in reversed(contributions) if c.get("chars", 0) > 0 or c.get("success")), model)
+        if active:
+            meta.append(f"Model: {active}")
+    elif contributions and len(contributions) == 1:
+        c = contributions[0]
+        role = "Backup" if c.get("is_backup") else "Main"
+        m = c.get("model", "") or model
+        pct = c.get("percent", 100.0)
+        meta.append(f"Model: {m}")
+        meta.append(f"Contribution: {role} {pct:.0f}%")
+    elif model:
         meta.append(f"Model: {model}")
+
     if duration is not None:
         meta.append(f"Time: {format_timer(duration)}")
     if tokens:

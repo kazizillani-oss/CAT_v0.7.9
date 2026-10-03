@@ -233,7 +233,7 @@ function getSafeRedirect(fallback = 'home.html') {
   const params = new URLSearchParams(window.location.search);
   const target = params.get('redirect_uri');
   if (!target) return fallback;
-  if (/^https:\/\//.test(target) || /^\.?\//.test(target)) return target;
+  if (/^https?:\/\//.test(target) || /^(\.?\/|[a-zA-Z0-9_\-]+\.html)/.test(target)) return target;
   return fallback;
 }
 

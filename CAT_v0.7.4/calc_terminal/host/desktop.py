@@ -462,11 +462,11 @@ if _QT_AVAILABLE:
             self.progress_bar.setTextVisible(False)
             self.progress_bar.setRange(0, 100)
             self.progress_bar.setValue(0)
+            self._accent_color = c.get("accent", "#89b4fa")
             self.progress_bar.setStyleSheet(
-                f"QProgressBar {{ background: transparent; border: none; }}"
-                f"QProgressBar::chunk {{ background: {c['accent']}; border-radius: 1px; }}"
+                "QProgressBar { background: transparent; border: none; }"
+                "QProgressBar::chunk { background: transparent; }"
             )
-            self.progress_bar.hide()
             chrome_layout.addWidget(self.progress_bar)
 
             layout.addWidget(chrome)
@@ -725,6 +725,7 @@ if _QT_AVAILABLE:
                     view.titleChanged.connect(lambda t, v=view: self._on_title(v, t))
                     view.urlChanged.connect(lambda q, v=view: self._on_url(v, q))
                     view.loadStarted.connect(lambda v=view: self._on_load_started(v))
+                    view.loadProgress.connect(lambda p, v=view: self._on_load_progress(v, p))
                     view.loadFinished.connect(lambda ok, v=view: self._on_load_finished(v, ok))
                     try:
                         view.page().newWindowRequested.connect(self._on_new_window)
@@ -769,6 +770,8 @@ if _QT_AVAILABLE:
             if url.lower() in ("fatty", "fattycat", "fatty-cat", "fatty cat", "cat web"):
                 url = "http://localhost:8765/"
             elif url.lower() in ("fomoji", "login", "auth"):
+                url = "http://localhost:3000/home.html"
+            elif url.rstrip("/").lower() in ("http://localhost:3000", "http://127.0.0.1:3000", "localhost:3000", "127.0.0.1:3000"):
                 url = "http://localhost:3000/home.html"
 
             # Auto-ensure Fatty CAT server is running when navigating to port 8765
@@ -822,9 +825,7 @@ if _QT_AVAILABLE:
                     self.state.tabs[cur].url = url
                     self.state.tabs[cur].title = "Loading…"
                 self.tab_bar.setTabText(cur, "⟳  Loading…")
-                if self.progress_bar:
-                    self.progress_bar.setValue(0)
-                    self.progress_bar.show()
+                self._show_progress(0)
             else:
                 # newtab -> newtab (should not happen, but handle)
                 pass
@@ -845,6 +846,7 @@ if _QT_AVAILABLE:
                 view.titleChanged.connect(lambda t, v=view: self._on_title(v, t))
                 view.urlChanged.connect(lambda q, v=view: self._on_url(v, q))
                 view.loadStarted.connect(lambda v=view: self._on_load_started(v))
+                view.loadProgress.connect(lambda p, v=view: self._on_load_progress(v, p))
                 view.loadFinished.connect(lambda ok, v=view: self._on_load_finished(v, ok))
                 try:
                     view.page().newWindowRequested.connect(self._on_new_window)
@@ -867,9 +869,7 @@ if _QT_AVAILABLE:
                     except Exception:
                         pass
             self.tab_bar.setTabText(idx, "⟳  Loading…")
-            if self.progress_bar:
-                self.progress_bar.setValue(0)
-                self.progress_bar.show()
+            self._show_progress(0)
             try:
                 view.load(QUrl(url))
             except Exception:
@@ -890,13 +890,39 @@ if _QT_AVAILABLE:
                 self.state.tabs[idx].url = "about:home"
                 self.state.tabs[idx].title = "New Tab"
                 self.state.tabs[idx].favicon = "○"
-            if self.progress_bar:
-                self.progress_bar.hide()
+            self._hide_progress()
             self._sync_chrome()
 
         # ----------------------------------------------------------------
         # Signals from WebEngineView
         # ----------------------------------------------------------------
+        def _show_progress(self, val: int = 0):
+            if self.progress_bar:
+                self.progress_bar.setValue(val)
+                self.progress_bar.setStyleSheet(
+                    f"QProgressBar {{ background: transparent; border: none; }}"
+                    f"QProgressBar::chunk {{ background: {getattr(self, '_accent_color', '#89b4fa')}; border-radius: 1px; }}"
+                )
+
+        def _hide_progress(self):
+            if self.progress_bar:
+                self.progress_bar.setValue(0)
+                self.progress_bar.setStyleSheet(
+                    "QProgressBar { background: transparent; border: none; }"
+                    "QProgressBar::chunk { background: transparent; }"
+                )
+
+        def _on_load_progress(self, view, progress: int):
+            try:
+                idx = self._view_index(view)
+                if idx == self.tab_bar.currentIndex():
+                    if progress < 100:
+                        self._show_progress(progress)
+                    else:
+                        self._hide_progress()
+            except Exception:
+                pass
+
         def _on_title(self, view, title: str):
             try:
                 idx = self._view_index(view)
@@ -943,9 +969,7 @@ if _QT_AVAILABLE:
                 if idx == self.tab_bar.currentIndex():
                     self.reload_btn.setText("×")
                     self.reload_btn.setToolTip("Stop")
-                    if self.progress_bar:
-                        self.progress_bar.setValue(0)
-                        self.progress_bar.show()
+                    self._show_progress(10)
                 self.tab_bar.setTabText(idx, f"⟳  Loading…")
             except Exception:
                 pass
@@ -958,9 +982,7 @@ if _QT_AVAILABLE:
                 if idx == self.tab_bar.currentIndex():
                     self.reload_btn.setText("⟳")
                     self.reload_btn.setToolTip("Reload (Ctrl+R)")
-                    if self.progress_bar:
-                        self.progress_bar.hide()
-                        self.progress_bar.setValue(0)
+                    self._hide_progress()
                 title = ""
                 try:
                     title = view.title() or ""
@@ -1128,7 +1150,7 @@ if _QT_AVAILABLE:
                 except Exception:
                     pass
             if self.progress_bar and self.tab_bar.count() == 0:
-                self.progress_bar.hide()
+                self._hide_progress()
             if self.tab_bar.count() == 0:
                 self.new_tab("about:home")
             else:
@@ -1168,13 +1190,10 @@ if _QT_AVAILABLE:
                 try:
                     if hasattr(view, "isLoading") and view.isLoading():  # type: ignore
                         view.stop()  # type: ignore
-                        if self.progress_bar:
-                            self.progress_bar.hide()
+                        self._hide_progress()
                     else:
                         view.reload()  # type: ignore
-                        if self.progress_bar:
-                            self.progress_bar.setValue(0)
-                            self.progress_bar.show()
+                        self._show_progress(0)
                 except Exception:
                     try:
                         view.reload()  # type: ignore
@@ -1557,7 +1576,10 @@ if _QT_AVAILABLE:
                 if sys.platform == "win32":
                     try:
                         import ctypes
-                        hwnd = int(self.winId()) if hasattr(self, "winId") else 0
+                        hwnd = getattr(self, "_cached_hwnd", None)
+                        if not hwnd:
+                            hwnd = int(self.winId()) if hasattr(self, "winId") else 0
+                            self._cached_hwnd = hwnd
                         if hwnd > 0:
                             user32 = ctypes.windll.user32
                             # Only restore if minimized to avoid DWM flicker
@@ -1582,7 +1604,10 @@ if _QT_AVAILABLE:
                     self._last_hb_ts = now
                     hb_path = _P.home() / ".cat_browser_heartbeat"
                     try:
-                        hwnd = int(self.winId()) if hasattr(self, "winId") else 0
+                        hwnd = getattr(self, "_cached_hwnd", None)
+                        if not hwnd:
+                            hwnd = int(self.winId()) if hasattr(self, "winId") else 0
+                            self._cached_hwnd = hwnd
                         hb_data = json.dumps({"pid": os.getpid(), "ts": now, "hwnd": hwnd})
                         hb_path.write_text(hb_data, encoding="utf-8")
                     except Exception:

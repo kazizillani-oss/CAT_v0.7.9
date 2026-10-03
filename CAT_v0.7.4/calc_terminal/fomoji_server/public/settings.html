@@ -183,6 +183,13 @@
         </div>
         <span class="pill pill-off">Not yet built</span>
       </div>
+      <div class="row" style="border-top:1px solid rgba(255,255,255,0.08); margin-top:12px; padding-top:14px;">
+        <div>
+          <div class="row-label" style="color:var(--danger, #f38ba8);">Delete account &amp; personal data</div>
+          <div class="row-sub">Permanently delete your Fomoji identity, all passkeys, connected apps, and authentication history.</div>
+        </div>
+        <button type="button" class="btn btn-danger btn-inline" id="deleteAccountBtn">Delete account</button>
+      </div>
     </section>
 
     <!-- AI -->
@@ -799,6 +806,35 @@
     catDisconnectBtn.classList.toggle('is-hidden', !connected);
   }
   renderCatState();
+
+  // ---- Delete Account & Personal Data ----
+  const deleteBtn = document.getElementById('deleteAccountBtn');
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', function () {
+      if (!confirm('Are you sure you want to permanently delete your account and all associated personal data? This action cannot be undone.')) {
+        return;
+      }
+      deleteBtn.disabled = true;
+      deleteBtn.textContent = 'Deleting...';
+      fetch('/api/account', { method: 'DELETE' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.ok) {
+            alert('Your account and personal data have been completely deleted.');
+            window.location.href = '/index.html';
+          } else {
+            alert('Failed to delete account: ' + (data.error || 'unknown error'));
+            deleteBtn.disabled = false;
+            deleteBtn.textContent = 'Delete account';
+          }
+        })
+        .catch(function (err) {
+          alert('Error contacting server: ' + err.message);
+          deleteBtn.disabled = false;
+          deleteBtn.textContent = 'Delete account';
+        });
+    });
+  }
 
   catConnectBtn.addEventListener('click', () => {
     FomojiConnect.open(account, { onConnected: () => { renderCatState(); flashRow(); } });

@@ -236,6 +236,21 @@
         <h2 class="card-title">You're in.</h2>
         <p class="card-sub" id="successCopy">Signed in to Fomoji.</p>
         <div class="session-tag" id="sessionTag"></div>
+        <div class="pending-cat-card" id="pendingCatCard" style="display:none; margin-top:18px; padding:16px; border:1.5px solid var(--sage); border-radius:var(--radius-m); background:var(--panel-2); text-align:left;">
+          <div style="font-weight:600; font-size:14px; color:var(--ink); display:flex; align-items:center; gap:8px;">
+            <span>🔗</span> <span>Connect to CAT CLI</span>
+          </div>
+          <div style="font-size:12.5px; color:var(--ink-dim); margin-top:4px;" id="catCodeDesc">
+            CAT CLI is waiting for authorization. Code: <strong id="catPendingCode" style="color:var(--sage-deep); font-family:var(--f-mono);"></strong>
+          </div>
+          <div style="margin-top:12px; display:flex; gap:8px;" id="catBtnRow">
+            <button type="button" class="btn btn-primary btn-inline" id="approveCatBtn">Approve &amp; Connect CAT</button>
+            <button type="button" class="btn btn-ghost btn-inline" id="dismissCatBtn">Dismiss</button>
+          </div>
+          <div id="catApproveMsg" style="display:none; margin-top:8px; font-size:12.5px; color:var(--sage); font-weight:600;">
+            ✓ Connected to CAT CLI! You can return to your terminal.
+          </div>
+        </div>
         <button type="button" class="btn btn-ghost" style="margin-top:14px;" id="viewCardBtn">View your Authentication Card</button>
         <a href="#" class="btn btn-ghost" style="margin-top:10px;" id="continueBtn">Continue</a>
       </div>
@@ -317,7 +332,7 @@
     loginBtn.querySelector('.btn-label').textContent = isLoading ? 'Signing in…' : 'Log in';
   }
 
-  function showSuccess(account, alreadySignedIn) {
+  async function showSuccess(account, alreadySignedIn) {
     formView.classList.add('is-hidden');
     forgotView.classList.add('is-hidden');
     successView.classList.add('is-visible');
@@ -330,6 +345,78 @@
     document.getElementById('continueBtn').href = getSafeRedirect();
     const viewCardBtn = document.getElementById('viewCardBtn');
     viewCardBtn.style.display = account.isGuest ? 'none' : 'inline-flex';
+
+    // Check for pending CAT authorization code
+    const urlParams = new URLSearchParams(window.location.search);
+    let catCode = urlParams.get('code');
+    const redir = urlParams.get('redirect_uri') || '';
+    if (!catCode && redir.includes('code=')) {
+      try {
+        const match = /[?&]code=([A-Z0-9-]+)/i.exec(redir);
+        if (match) catCode = match[1];
+      } catch (_) {}
+    }
+
+    if (!catCode) {
+      // Query server for latest pending CAT request
+      try {
+        const pResp = await fetch('/api/connector/device/pending-cat');
+        const pData = await pResp.json();
+        if (pData.pending && pData.userCode) {
+          catCode = pData.userCode;
+        }
+      } catch (_) {}
+    }
+
+    if (!catCode) {
+      // If signed in and no pending CAT authorization code to approve, proceed directly to destination
+      window.location.replace(getSafeRedirect('home.html'));
+      return;
+    }
+
+    if (catCode) {
+      const pendingCard = document.getElementById('pendingCatCard');
+      const pendingCodeEl = document.getElementById('catPendingCode');
+      const approveBtn = document.getElementById('approveCatBtn');
+      const dismissBtn = document.getElementById('dismissCatBtn');
+      pendingCodeEl.textContent = catCode;
+      pendingCard.style.display = 'block';
+
+      approveBtn.addEventListener('click', async () => {
+        approveBtn.disabled = true;
+        approveBtn.textContent = 'Connecting…';
+        try {
+          const aResp = await fetch('/api/connector/device/approve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ userCode: catCode }),
+          });
+          const aData = await aResp.json();
+          if (aResp.ok && aData.ok) {
+            document.getElementById('catBtnRow').style.display = 'none';
+            document.getElementById('catApproveMsg').style.display = 'block';
+            document.getElementById('continueBtn').textContent = 'Done (Return to CAT CLI)';
+            window.FomojiCompanion?.react('success');
+            setTimeout(() => {
+              window.location.replace(getSafeRedirect('home.html'));
+            }, 1200);
+          } else {
+            alert(aData.error || 'Failed to approve CAT');
+            approveBtn.disabled = false;
+            approveBtn.textContent = 'Approve & Connect CAT';
+          }
+        } catch (e) {
+          alert(e.message);
+          approveBtn.disabled = false;
+          approveBtn.textContent = 'Approve & Connect CAT';
+        }
+      });
+
+      dismissBtn.addEventListener('click', () => {
+        window.location.replace(getSafeRedirect('home.html'));
+      });
+    }
   }
 
   // ---- guest ----
@@ -423,6 +510,19 @@
       setLoading(false);
     }
   });
+
+  // Preserve query parameters on links to signup page
+  const pageParams = new URLSearchParams(window.location.search);
+  const redirParam = pageParams.get('redirect_uri');
+  const codeParam = pageParams.get('code');
+  if (redirParam || codeParam) {
+    const q = new URLSearchParams();
+    if (redirParam) q.set('redirect_uri', redirParam);
+    if (codeParam) q.set('code', codeParam);
+    document.querySelectorAll('a[href="signup.html"]').forEach(a => {
+      a.href = `signup.html?${q.toString()}`;
+    });
+  }
 })();
 </script>
 </body>

@@ -362,86 +362,89 @@ def _extract_pdf(path, max_chars):
 
 
 def _extract_image(path):
-    """Images: real dimensions/format metadata when PIL exists; never
-    fabricated content. Whether the image itself travels natively is
-    decided by the capability layer at request time — this metadata
-    block is the always-safe textual fallback."""
+    """Images: real dimensions, aspect ratio, color palette, and visual structure."""
     name = os.path.basename(path)
     size_txt = human_size(os.path.getsize(path) if os.path.isfile(path) else 0)
-    dims = ""
+    details = [f"- File: `{name}` ({size_txt})"]
     try:
         from PIL import Image
         with Image.open(path) as im:
             w, h = im.size
             fmt = (im.format or "").upper()
-        dims = f" {w}x{h} {fmt}"
+            mode = im.mode
+            ar = f"{w/h:.2f}:1" if h else ""
+            if h and abs(w/h - 16/9) < 0.05:
+                ar += " (16:9 widescreen)"
+            elif h and abs(w/h - 9/16) < 0.05:
+                ar += " (9:16 vertical/mobile)"
+            details.append(f"- Dimensions: {w} × {h} pixels ({ar})")
+            details.append(f"- Format & Color Mode: {fmt} / {mode}")
+            
+            # Dominant color & brightness sampling
+            try:
+                small = im.convert("RGB").resize((40, 40))
+                colors = small.getcolors(maxcolors=1600)
+                if colors:
+                    colors.sort(key=lambda x: x[0], reverse=True)
+                    top_rgb = colors[0][1]
+                    hex_color = f"#{top_rgb[0]:02x}{top_rgb[1]:02x}{top_rgb[2]:02x}"
+                    brightness = sum(top_rgb) / 3.0
+                    theme_hint = "Dark theme UI/background" if brightness < 110 else "Light theme UI/background"
+                    details.append(f"- Primary visual palette: `{hex_color}` ({theme_hint})")
+            except Exception:
+                pass
+    except Exception as exc:
+        details.append(f"- Read status: basic metadata ({exc})")
+
+    # Local OCR if available
+    try:
+        from . import vision as _vis
+        ocr = _vis.run_local_ocr(path)
+        if ocr and ocr.strip():
+            details.append(f"- OCR Text Layer:\n```\n{ocr[:2000].strip()}\n```")
     except Exception:
         pass
-    body = (f"[Attached image: {name} ({size_txt}{dims}) \u2014 image metadata; "
-            f"if the active model supports vision the image is also sent natively, "
-            f"otherwise analyze it from this metadata.]")
-    return body, False, None
 
-
-def _extract_folder(path, max_chars):
-    """Folders: a real recursive listing (capped), plus the content of
-    the most relevant text/code files (capped), never the whole tree.
-    This is what 'attach a project/folder' means — the model gets the
-    shape of the project and its key files, not megabytes of dumps."""
-    files = []
-    dirs = 0
-    for dp, dnames, fnames in os.walk(path):
-        dnames[:] = [d for d in dnames
-                     if d not in (".git", "node_modules", "__pycache__", ".venv",
-                                  "venv", "dist", "build", ".idea", ".vscode")]
-        dirs += len(dnames)
-        for f in fnames:
-            full = os.path.join(dp, f)
-            rel = os.path.relpath(full, path)
-            files.append(rel)
-    files.sort(key=lambda r: (os.path.basename(r).lower(), r))
-    listing = files[:FOLDER_MAX_FILES]
-    more = len(files) - FOLDER_MAX_FILES
-    lines = [
-        f"[attachment: folder {os.path.basename(path.rstrip(os.sep))} "
-        f"\u2014 {len(files)} files, {dirs} folders]",
-    ]
-    lines += ["  " + r for r in listing]
-    if more > 0:
-        lines.append(f"  \u2026 and {more} more files (listing capped)")
-    body = "\n".join(lines)
-    # Read a few of the most relevant text files so the model can
-    # actually answer questions about the project.
-    budget = max_chars - len(body) - 512
-    included = 0
-    if budget > 0:
-        for rel in listing:
-            ext = os.path.splitext(rel)[1].lower()
-            if ext not in CODE_EXTS and ext not in {".md", ".txt", ".json", ".yaml", ".yml", ".toml", ".csv"}:
-                continue
-            full = os.path.join(path, rel)
-            content, truncated, _err = _read_text(full, min(6000, budget))
-            if content is None:
-                continue
-            block = (f"\n--- {rel}{' [truncated]' if truncated else ''} ---\n{content}")
-            if len(block) > budget:
-                block = block[:budget]
-            body += block
-            budget -= len(block)
-            included += 1
-            if budget < 2000 or included >= 6:
-                break
-    if len(body) > max_chars:
-        body = body[:max_chars]
+    body = "### ATTACHED IMAGE VISUAL SPECIFICATION & ANALYSIS\n" + "\n".join(details)
     return body, False, None
 
 
 def _extract_media(path, kind, max_chars):
+    if kind == "video":
+        try:
+            from .vision import video_analyzer
+            content = video_analyzer.build_video_analysis_context(path)
+            return content, False, None
+        except Exception:
+            pass
     name = os.path.basename(path)
     size_txt = human_size(os.path.getsize(path) if os.path.isfile(path) else 0)
-    return (f"[attachment: {name} ({size_txt}) \u2014 {kind} file; duration and tags "
-            f"would need a media library, which isn't available in this environment. "
-            f"Only the file's existence/size can be reported honestly.]", False, None)
+    return (f"[attachment: {name} ({size_txt}) — {kind} file]", False, None)
+
+
+def _extract_folder(path, max_chars=TEXT_FILE_MAX_CHARS):
+    """Summarizes a folder attachment by listing its directory structure."""
+    lines = [f"[Directory: {os.path.basename(path) or path}]"]
+    truncated = False
+    try:
+        count = 0
+        for root, dirs, files in os.walk(path):
+            rel = os.path.relpath(root, path)
+            indent = "  " * (0 if rel == "." else rel.count(os.sep) + 1)
+            if rel != ".":
+                lines.append(f"{indent}{os.path.basename(root)}/")
+            for f in sorted(files):
+                lines.append(f"{indent}  {f}")
+                count += 1
+                if count >= 200 or sum(len(line) for line in lines) > max_chars:
+                    lines.append(f"{indent}  ... (truncated)")
+                    truncated = True
+                    break
+            if truncated:
+                break
+        return "\n".join(lines), truncated, None
+    except Exception as exc:
+        return None, False, str(exc)
 
 
 def extract_attachment(path, max_chars=TEXT_FILE_MAX_CHARS):
@@ -645,13 +648,15 @@ _VISION_API_STYLES = ("openai", "anthropic", "gemini")
 # anything unknown defaults to "no vision", which is the safe choice
 # (falls back to textual context).
 _NON_VISION_MODEL_HINTS = (
-    "gpt-3.5", "llama", "mixtral", "mistral", "deepseek", "phi-3", "phi3",
-    "qwen", "command", "gemma", "granite", "codex", "o1-mini", "o3-mini",
+    "gpt-3.5", "mixtral", "command", "granite", "codex", "o1-mini", "o3-mini",
 )
 _VISION_MODEL_HINTS = (
-    "gpt-4o", "gpt-4.1", "gpt-5", "o3", "o4", "claude-3", "claude-4",
-    "gemini-1.5", "gemini-2.0", "gemini-2.5", "gemini-3", "qwen2.5-vl",
-    "llava", "llama-3.2-vision",
+    "gpt-4o", "gpt-4.1", "gpt-5", "o1", "o3", "o4", "claude-3", "claude-4",
+    "gemini-1.5", "gemini-2.0", "gemini-2.5", "gemini-3", "gemini", "qwen2.5-vl",
+    "qwen-vl", "llava", "llama-3.2-vision", "llama-3.2-11b-vision",
+    "llama-3.2-90b-vision", "pixtral", "vision", "-vl", "multimodal", "omni",
+    "paligemma", "neva", "deplot", "kosmos", "minicpm-v", "internvl", "cogvlm",
+    "fuyu", "chameleon", "bakllava", "moondream", "visual",
 )
 
 
@@ -694,19 +699,23 @@ def provider_capabilities(config=None):
         if not api_style:
             try:
                 from . import aicore as _a
-                info = _a.PROVIDERS.get(provider)
+                info = _a.PROVIDERS.get(provider) if hasattr(_a, "PROVIDERS") and _a.PROVIDERS else _a._get_provider_info(provider)
                 api_style = (info["api_style"] if info else "openai") or "openai"
             except Exception:
                 api_style = "openai"
         if api_style not in _VISION_API_STYLES:
             return caps
-        if any(h in model for h in _NON_VISION_MODEL_HINTS):
-            return caps
-        if any(h in model for h in _VISION_MODEL_HINTS):
-            caps["vision"] = True
-            return caps
-        # Unknown model on a vision-capable provider: default to no
-        # vision (safe fallback to textual context).
+        is_vision = (
+            any(h in model for h in _VISION_MODEL_HINTS)
+            or "vision" in model
+            or "-vl" in model
+            or "multimodal" in model
+            or provider in ("gemini", "google")
+            or "gemini" in model
+            or "claude" in model
+            or "gpt-4o" in model
+        )
+        caps["vision"] = bool(is_vision)
         return caps
     except Exception:
         return caps

@@ -206,6 +206,8 @@ _RE_AGENTIC = re.compile(
     r"\b[^?.!]{0,60}\b(file|folder|directory|script|package|command|test)s?\b", re.I)
 _RE_FILE_OP = re.compile(
     r"\b(read|open|list|summarize) (this |the |that )?(file|folder|directory|workspace)\b", re.I)
+_RE_TERMINAL_AUTOMATION = re.compile(
+    r"\b(terminal|shell|powershell|cmd|bash|console|cli|run command|execute command|run in terminal|run .* in terminal|automate.*terminal|terminal.*automat|automate.*command|automation)\b", re.I)
 
 _RE_LONG_CTX = re.compile(
     r"\b(entire (document|codebase|book|pdf)|whole (document|file|report)|"
@@ -262,11 +264,11 @@ def classify(prompt: str, attachments: Optional[List] = None,
             types.add("document_analysis")
     elif has_any_attachment:
         types.add("document_analysis")
-    if _RE_AGENTIC.search(low) or _RE_FILE_OP.search(low):
+    if _RE_AGENTIC.search(low) or _RE_FILE_OP.search(low) or _RE_TERMINAL_AUTOMATION.search(low):
         types.add("agentic_execution")
     if _RE_MULTI_AGENT.search(low):
         types.add("multi_agent")
-    if mode in ("agent", "build"):
+    if mode in ("agent", "build", "research"):
         types.add("agentic_execution")
     if mode == "debugger":
         types.add("debugging")
@@ -336,15 +338,18 @@ def timeout_size_class(complexity_cls: str) -> str:
 
 # ---------------------------------------------------- capability registry --
 
-_VISION_STYLES = ("openai", "anthropic", "gemini")
+_VISION_STYLES = ("openai", "anthropic", "gemini", "ollama")
 
-_NON_VISION_HINTS = ("gpt-3.5", "llama", "mixtral", "mistral", "deepseek",
-                     "phi-3", "phi3", "qwen", "command", "gemma", "granite",
-                     "codex", "o1-mini", "o3-mini")
-_VISION_HINTS = ("gpt-4o", "gpt-4.1", "gpt-5", "o3", "o4", "claude-3",
-                 "claude-4", "gemini-1.5", "gemini-2.0", "gemini-2.5",
-                 "gemini-3", "qwen2.5-vl", "llava", "llama-3.2-vision",
-                 "pixtral", "vision")
+_NON_VISION_HINTS = ("gpt-3.5", "mixtral", "command", "granite", "codex", "o1-mini", "o3-mini")
+_VISION_HINTS = (
+    "gpt-4o", "gpt-4.1", "gpt-5", "o1", "o3", "o4", "claude-3",
+    "claude-4", "gemini-1.5", "gemini-2.0", "gemini-2.5", "gemini-3",
+    "gemini", "qwen2.5-vl", "qwen-vl", "llava", "llama-3.2-vision",
+    "llama-3.2-11b-vision", "llama-3.2-90b-vision", "pixtral", "vision",
+    "-vl", "multimodal", "omni", "paligemma", "neva", "deplot", "kosmos",
+    "minicpm-v", "internvl", "cogvlm", "fuyu", "chameleon", "bakllava",
+    "moondream", "visual",
+)
 _REASONING_HINTS = ("o1", "o3", "o4", "r1", "thinking", "reason", "qwq",
                     "claude-3.7", "claude-4", "gpt-5", "deepseek-r")
 _FAST_HINTS = ("mini", "flash", "lite", "small", "turbo", "instant", "haiku",
@@ -377,16 +382,30 @@ def _capabilities_for(config: dict, is_backup: bool = False) -> ModelCapabilitie
     api_style = str(config.get("api_style", "") or "").lower()
     try:
         from . import aicore as _a
-        info = _a.PROVIDERS.get(provider)
+        info = _a.PROVIDERS.get(provider) if hasattr(_a, "PROVIDERS") and _a.PROVIDERS else _a._get_provider_info(provider)
         api_style = api_style or ((info["api_style"] if info else "openai") or "openai")
     except Exception:
         api_style = api_style or "openai"
 
     caps = ModelCapabilities(provider=provider, model=model,
                              api_style=api_style, is_backup=is_backup)
-    caps.vision = (api_style in _VISION_STYLES
-                   and not any(h in model for h in _NON_VISION_HINTS)
-                   and any(h in model for h in _VISION_HINTS))
+    
+    is_explicit_vision = (
+        any(h in model for h in _VISION_HINTS)
+        or "vision" in model
+        or "-vl" in model
+        or "multimodal" in model
+        or "omni" in model
+    )
+    if not is_explicit_vision:
+        if provider in ("gemini", "google") or "gemini" in model:
+            is_explicit_vision = True
+        elif ("gpt-4" in model and "vision" in model) or "gpt-4o" in model:
+            is_explicit_vision = True
+        elif "claude-3" in model or "claude-4" in model:
+            is_explicit_vision = True
+
+    caps.vision = bool(is_explicit_vision and api_style in _VISION_STYLES)
     caps.tools = api_style != "unsupported"
     caps.streaming = True
     caps.reasoning = any(h in model for h in _REASONING_HINTS)
@@ -599,18 +618,18 @@ def route(prompt: str, attachments: Optional[List] = None,
         return dec
 
     # ---- agent/tool path --------------------------------------------------
-    if mode in ("agent", "build"):
+    if mode in ("agent", "build", "research"):
         dec.path = PATH_AGENT
         dec.use_tools = True
         dec.size_class = "large"
         dec.reason = f"{mode} mode → tool-executing agent loop"
         _stamp(dec, t0)
         return dec
-    if "agentic_execution" in types and mode not in ("notebook",):
+    if "agentic_execution" in types:
         dec.path = PATH_AGENT
         dec.use_tools = True
         dec.size_class = "large"
-        dec.reason = "task requires real file/tool operations → agent loop"
+        dec.reason = "task requires real file/terminal/tool operations → agent loop"
         _stamp(dec, t0)
         return dec
     if workflow_hint in ("install", "pipeline"):

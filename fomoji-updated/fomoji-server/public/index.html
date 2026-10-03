@@ -317,7 +317,33 @@
     loginBtn.querySelector('.btn-label').textContent = isLoading ? 'Signing in…' : 'Log in';
   }
 
-  function showSuccess(account, alreadySignedIn) {
+  async function showSuccess(account, alreadySignedIn) {
+    // Check for pending CAT authorization code
+    const urlParams = new URLSearchParams(window.location.search);
+    let catCode = urlParams.get('code');
+    const redir = urlParams.get('redirect_uri') || '';
+    if (!catCode && redir.includes('code=')) {
+      try {
+        const match = /[?&]code=([A-Z0-9-]+)/i.exec(redir);
+        if (match) catCode = match[1];
+      } catch (_) {}
+    }
+
+    if (!catCode) {
+      try {
+        const pResp = await fetch('/api/connector/device/pending-cat');
+        const pData = await pResp.json();
+        if (pData.pending && pData.userCode) {
+          catCode = pData.userCode;
+        }
+      } catch (_) {}
+    }
+
+    if (!catCode) {
+      window.location.replace(getSafeRedirect('home.html'));
+      return;
+    }
+
     formView.classList.add('is-hidden');
     forgotView.classList.add('is-hidden');
     successView.classList.add('is-visible');
@@ -329,7 +355,7 @@
       : `FOMOJI ID ${account.fomojiId}`;
     document.getElementById('continueBtn').href = getSafeRedirect();
     const viewCardBtn = document.getElementById('viewCardBtn');
-    viewCardBtn.style.display = account.isGuest ? 'none' : 'inline-flex';
+    if (viewCardBtn) viewCardBtn.style.display = account.isGuest ? 'none' : 'inline-flex';
   }
 
   // ---- guest ----

@@ -114,10 +114,9 @@ python -m twine upload --repository testpypi dist/*   # username: __token__, pas
 ```
 
 ```powershell
-# Option B: %USERPROFILE%\.pypirc (chmod-protected, never commit)
-# [testpypi]
-# username = __token__
-# password = pypi-TEST-TOKEN-HERE
+# Option B: Environment variable (recommended, no token on disk)
+$env:TWINE_USERNAME = "__token__"
+$env:TWINE_PASSWORD = "$env:TWINE_API_TOKEN"
 python -m twine upload --repository testpypi dist/*
 ```
 

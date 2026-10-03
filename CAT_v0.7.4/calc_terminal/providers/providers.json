@@ -2614,7 +2614,7 @@
       "supports_vision": false,
       "supports_embeddings": false,
       "supports_audio": false,
-      "supports_reasoning": false,
+      "supports_reasoning": true,
       "openai_compatible": true,
       "free_models_available": true,
       "paid_models_available": true,

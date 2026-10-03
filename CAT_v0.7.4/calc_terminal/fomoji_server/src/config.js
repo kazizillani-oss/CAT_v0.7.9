@@ -8,26 +8,54 @@ require('dotenv').config();
 // the exact https:// URL users load the site from — get either wrong and
 // every ceremony will correctly fail (that's WebAuthn doing its job, not
 // a bug).
-const PORT = process.env.PORT || 3000;
-const RP_ID = process.env.RP_ID || 'localhost';
-const RP_NAME = process.env.RP_NAME || 'Fomoji';
-const ORIGIN = process.env.ORIGIN || `http://localhost:${PORT}`;
-const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-only-secret-change-me';
-// Signs Fomoji Authentication Cards (src/routes/authCard.js) so a card's
-// data can be verified as genuinely issued by this server. Separate from
-// SESSION_SECRET so rotating one doesn't silently invalidate the other,
-// but falls back to it in dev so this doesn't need its own env var to
-// just try the feature out.
-const CARD_SECRET = process.env.CARD_SECRET || SESSION_SECRET;
-// Gates POST /api/connector/applications/register — a server-to-server
-// secret so only trusted deployers (never a browser, never connector.js)
-// can register a new connector application. Unset by default: with no
-// secret configured, registration is refused outright rather than
-// silently open.
-const CONNECTOR_REGISTRATION_SECRET = process.env.CONNECTOR_REGISTRATION_SECRET || '';
+const crypto = require('crypto');
 
-if (SESSION_SECRET === 'dev-only-secret-change-me' && process.env.NODE_ENV === 'production') {
-  throw new Error('Set a real SESSION_SECRET env var before running in production.');
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const PORT = parseInt(process.env.PORT, 10) || 3000;
+const RP_ID = process.env.RP_ID || (IS_PRODUCTION ? '' : 'localhost');
+const RP_NAME = process.env.RP_NAME || 'Fomoji';
+const ORIGIN = process.env.ORIGIN || (IS_PRODUCTION ? '' : `http://localhost:${PORT}`);
+
+// Production validation: Refuse to start if critical environment variables are missing
+if (IS_PRODUCTION) {
+  const missingVars = [];
+  if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32) {
+    missingVars.push('SESSION_SECRET (must be >= 32 characters)');
+  }
+  if (!process.env.RP_ID || process.env.RP_ID === 'localhost') {
+    missingVars.push('RP_ID (cannot be localhost in production; must be your domain e.g. fomoji.app)');
+  }
+  if (!process.env.ORIGIN || !process.env.ORIGIN.startsWith('https://') || process.env.ORIGIN.includes('localhost')) {
+    missingVars.push('ORIGIN (must be a secure https:// URL e.g. https://fomoji.app)');
+  }
+  if (missingVars.length > 0) {
+    console.error('FATAL: Missing or invalid critical production environment variables:');
+    missingVars.forEach((v) => console.error(`  - ${v}`));
+    throw new Error(`Production startup aborted: missing required configuration: ${missingVars.join(', ')}`);
+  }
 }
 
-module.exports = { PORT, RP_ID, RP_NAME, ORIGIN, SESSION_SECRET, CARD_SECRET, CONNECTOR_REGISTRATION_SECRET };
+// In development, if unset, generate an ephemeral, cryptographically secure random key.
+let sessionSecret = process.env.SESSION_SECRET;
+if (!sessionSecret) {
+  sessionSecret = crypto.randomBytes(32).toString('hex');
+}
+const SESSION_SECRET = sessionSecret;
+
+// Signs Fomoji Authentication Cards (src/routes/authCard.js)
+const CARD_SECRET = process.env.CARD_SECRET || SESSION_SECRET;
+
+// Gates POST /api/connector/applications/register — a server-to-server secret
+const CONNECTOR_REGISTRATION_SECRET = process.env.CONNECTOR_REGISTRATION_SECRET || '';
+
+module.exports = {
+  IS_PRODUCTION,
+  PORT,
+  RP_ID,
+  RP_NAME,
+  ORIGIN,
+  SESSION_SECRET,
+  CARD_SECRET,
+  CONNECTOR_REGISTRATION_SECRET,
+};
+

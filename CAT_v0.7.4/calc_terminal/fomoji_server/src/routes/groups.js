@@ -19,6 +19,7 @@ const express = require('express');
 const db = require('../db');
 const { randomFomojiId, randomInternalId } = require('../id');
 const { requireAuth } = require('./auth');
+const { signupRateLimiter } = require('../security');
 const { IDENTITY_TYPES } = require('../connectorPermissions');
 
 const router = express.Router();
@@ -118,16 +119,19 @@ function requireAdmin(req, res, next) {
 // permissions/connections start empty; it's a distinct identity that
 // connects to applications on its own, same flow as a person.
 // ---------------------------------------------------------------------
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, signupRateLimiter, (req, res) => {
   const { name, avatar, description } = req.body || {};
-  if (!name || typeof name !== 'string' || !name.trim()) {
-    return res.status(400).json({ error: 'name_required' });
+  const nameStr = typeof name === 'string' ? name.trim() : '';
+  if (!nameStr || nameStr.length < 2 || nameStr.length > 100) {
+    return res.status(400).json({ error: 'name_required', message: 'Group name must be between 2 and 100 characters.' });
   }
+  const descStr = description ? String(description).slice(0, 500) : null;
+  const avatarStr = avatar ? String(avatar).slice(0, 50) : null;
   const id = randomInternalId();
   const fomojiId = randomFomojiId();
   db.prepare(
     `INSERT INTO users (id, fomoji_id, name, identity_type, avatar, description) VALUES (?, ?, ?, 'GROUP', ?, ?)`
-  ).run(id, fomojiId, name.trim(), avatar || null, description || null);
+  ).run(id, fomojiId, nameStr, avatarStr, descStr);
   db.prepare(`INSERT INTO group_members (group_id, member_id, role) VALUES (?, ?, 'owner')`).run(id, req.session.userId);
   res.status(201).json({ group: publicGroup(getGroup(id), req.session.userId) });
 });
@@ -195,6 +199,18 @@ router.post('/:id/members', requireAuth, requireMember, requireAdmin, (req, res)
   if (!fomojiId) return res.status(400).json({ error: 'fomoji_id_required' });
   const person = db.prepare(`SELECT * FROM users WHERE fomoji_id = ?`).get(String(fomojiId).trim());
   if (!person || person.identity_type === 'GROUP') return res.status(404).json({ error: 'identity_not_found' });
+  
+  // Anti-demotion check: cannot overwrite or modify an existing owner/admin if caller lacks sufficient rank
+  const existing = db.prepare(`SELECT role FROM group_members WHERE group_id = ? AND member_id = ?`).get(req.group.id, person.id);
+  if (existing) {
+    if (existing.role === 'owner' && req.myGroupRole !== 'owner') {
+      return res.status(403).json({ error: 'owner_required', message: 'Only an owner can modify an existing owner.' });
+    }
+    if (existing.role === 'admin' && req.myGroupRole !== 'owner' && req.session.userId !== person.id) {
+      return res.status(403).json({ error: 'owner_required', message: 'Only an owner can modify another admin.' });
+    }
+  }
+
   const wantRole = ROLES.includes(role) ? role : 'member';
   // Only an owner can hand out the owner role.
   const grantRole = wantRole === 'owner' && req.myGroupRole !== 'owner' ? 'admin' : wantRole;
@@ -217,6 +233,9 @@ router.patch('/:id/members/:memberId', requireAuth, requireMember, requireAdmin,
   if ((targetRow.role === 'owner' || role === 'owner') && req.myGroupRole !== 'owner') {
     return res.status(403).json({ error: 'owner_required' });
   }
+  if (targetRow.role === 'admin' && req.myGroupRole !== 'owner' && req.params.memberId !== req.session.userId) {
+    return res.status(403).json({ error: 'owner_required', message: 'Only an owner can modify an admin role.' });
+  }
   db.prepare(`UPDATE group_members SET role = ? WHERE group_id = ? AND member_id = ?`).run(role, req.group.id, req.params.memberId);
   res.json({ ok: true });
 });
@@ -233,6 +252,14 @@ router.delete('/:id/members/:memberId', requireAuth, requireMember, (req, res) =
   }
   const targetRow = db.prepare(`SELECT * FROM group_members WHERE group_id = ? AND member_id = ?`).get(req.group.id, req.params.memberId);
   if (!targetRow) return res.status(404).json({ error: 'not_a_member' });
+  if (!isSelf) {
+    if (targetRow.role === 'owner' && req.myGroupRole !== 'owner') {
+      return res.status(403).json({ error: 'owner_required', message: 'Only an owner can remove an owner.' });
+    }
+    if (ROLE_RANK[req.myGroupRole] <= ROLE_RANK[targetRow.role] && req.myGroupRole !== 'owner') {
+      return res.status(403).json({ error: 'admin_required', message: 'You cannot remove a member of equal or higher rank.' });
+    }
+  }
   if (targetRow.role === 'owner') {
     const ownerCount = db.prepare(`SELECT COUNT(*) AS c FROM group_members WHERE group_id = ? AND role = 'owner'`).get(req.group.id).c;
     if (ownerCount <= 1) return res.status(400).json({ error: 'last_owner' });

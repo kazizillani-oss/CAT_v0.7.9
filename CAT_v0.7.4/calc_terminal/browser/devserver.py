@@ -38,20 +38,69 @@ _URL_RE = re.compile(
     r"https?://(?:[a-z0-9.\-]*?)?(?:localhost|127\.0\.0\.1|0\.0\.0\.0"
     r"|\[::1\]):(\d+)[^\s\"'<>]*", re.IGNORECASE)
 
-DEFAULT_TIMEOUT = 45.0
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]")
+
+DEFAULT_TIMEOUT = 15.0
+
+
+def is_fomoji_server(port: int, host: str = "127.0.0.1") -> bool:
+    """Check if the service at host:port is CAT's Fomoji auth server."""
+    try:
+        f_url = os.environ.get("FOMOJI_URL", "http://localhost:3000").rstrip("/")
+        import urllib.parse
+        parsed = urllib.parse.urlparse(f_url)
+        f_port = parsed.port or (443 if parsed.scheme == "https" else 3000)
+        f_host = parsed.hostname or "127.0.0.1"
+        if port == f_port and host in (f_host, "127.0.0.1", "localhost"):
+            import http.client
+            conn = http.client.HTTPConnection(host, port, timeout=0.25)
+            conn.request("GET", "/api/connector/applications")
+            res = conn.getresponse()
+            raw = res.read(512).decode("utf-8", errors="ignore")
+            conn.close()
+            if res.status == 200 and ("applications" in raw or "fomoji" in raw.lower()):
+                return True
+            conn = http.client.HTTPConnection(host, port, timeout=0.25)
+            conn.request("GET", "/")
+            res = conn.getresponse()
+            raw = res.read(1024).decode("utf-8", errors="ignore")
+            conn.close()
+            if "fomoji" in raw.lower():
+                return True
+    except Exception:
+        pass
+    return False
+
+
+def probe_local_server(port: int, host: str = "127.0.0.1", path: str = "/") -> bool:
+    """Check if a local HTTP server is already responding on host:port,
+    ensuring CAT's Fomoji auth server is NEVER mistaken for a project dev server."""
+    if is_fomoji_server(port, host):
+        return False
+    try:
+        import http.client
+        conn = http.client.HTTPConnection(host, port, timeout=0.25)
+        conn.request("GET", path)
+        res = conn.getresponse()
+        conn.close()
+        return res.status < 500
+    except Exception:
+        return False
 
 
 def extract_local_url(line: str) -> Optional[str]:
     """One stdout/stderr line -> the first local URL in it (or None).
     Normalized: bind addresses become 127.0.0.1, bare-host URLs get a
-    trailing '/', trailing punctuation is trimmed.
+    trailing '/', trailing punctuation and ANSI escape codes are trimmed.
     Pure function; unit-tested without any subprocess."""
     if not line:
         return None
-    m = _URL_RE.search(line)
+    clean = _ANSI_RE.sub("", line)
+    m = _URL_RE.search(clean)
     if not m:
         return None
-    url = m.group(0).rstrip(".,;)")
+    url = m.group(0).rstrip(".,;)'\"\x1b")
+    url = _ANSI_RE.sub("", url).rstrip(".,;)'\"")
     # 0.0.0.0/[::1] are bind addresses, not browsable — normalize.
     url = url.replace("://0.0.0.0:", "://127.0.0.1:")
     url = url.replace("://[::1]:", "://127.0.0.1:")
@@ -90,22 +139,45 @@ class DevServerProcess:
         """Spawn the dev server and wait until it prints a local URL."""
         if self.running:
             return True
+
+        # Fast probe: Check if a dev server is ALREADY running on common ports
+        # (e.g. Vite 5173, Next/CRA 3001/3000, 8080) to reuse instantly
+        for common_p in (5173, 3001, 8080, 5000, 4173, 3000):
+            if probe_local_server(common_p):
+                self.url = f"http://127.0.0.1:{common_p}/"
+                self._note(f"● Reusing active local dev server — {self.url}")
+                return True
+
         argv = list(self.command)
-        exe = shutil.which(argv[0]) or shutil.which(argv[0] + ".cmd")
+        exe = shutil.which(argv[0]) or shutil.which(argv[0] + ".cmd") or shutil.which(argv[0] + ".bat")
         if exe is None:
             self._note(f"✗ '{argv[0]}' not found — install Node.js to "
                        f"run this project's dev server.")
             return False
         argv[0] = exe
-        kwargs = {}
+        kwargs = {
+            "cwd": self.root,
+            "stdin": subprocess.DEVNULL,
+            "stdout": subprocess.PIPE,
+            "stderr": subprocess.STDOUT,
+            "text": True,
+            "encoding": "utf-8",
+            "errors": "replace",
+            "bufsize": 1,
+            "env": {
+                **os.environ,
+                "CI": "true",
+                "npm_config_yes": "true",
+                "NO_COLOR": "1",
+                "FORCE_COLOR": "0",
+            },
+        }
         if sys.platform == "win32":
             kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+            if argv[0].lower().endswith((".cmd", ".bat")):
+                kwargs["shell"] = True
         try:
-            self.proc = subprocess.Popen(
-                argv, cwd=self.root,
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, encoding="utf-8", errors="replace",
-                bufsize=1, **kwargs)
+            self.proc = subprocess.Popen(argv, **kwargs)
         except Exception as e:
             self._note(f"✗ Failed to start dev server: {e}")
             return False
@@ -124,7 +196,15 @@ class DevServerProcess:
                 if self.url:
                     self._note(f"● Dev server ready — {self.url}")
                     return True
-            time.sleep(0.15)
+            # Fast probe during startup in case devserver buffered output
+            for common_p in (5173, 3001, 8080, 5000, 4173, 3000):
+                if probe_local_server(common_p):
+                    with self._lock:
+                        if not self.url:
+                            self.url = f"http://127.0.0.1:{common_p}/"
+                            self._note(f"● Dev server ready on port {common_p} — {self.url}")
+                            return True
+            time.sleep(0.05)
         self._note("✗ Dev server did not report a URL in time.")
         return False
 
@@ -141,6 +221,13 @@ class DevServerProcess:
                     del self._tail[:-200:]
                 found = extract_local_url(line)
                 if found and not self.url:
+                    try:
+                        import urllib.parse
+                        p = urllib.parse.urlparse(found)
+                        if p.port and is_fomoji_server(p.port, p.hostname or "127.0.0.1"):
+                            continue
+                    except Exception:
+                        pass
                     self.url = found
         except Exception:
             pass

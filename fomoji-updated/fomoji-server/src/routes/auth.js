@@ -1,9 +1,11 @@
 'use strict';
 
+const crypto = require('crypto');
 const express = require('express');
 const db = require('../db');
 const { randomFomojiId, randomInternalId } = require('../id');
 const { hashSecret, verifySecret, sha256Hex, randomRecoveryCode } = require('../password');
+const { loginRateLimiter, signupRateLimiter, passwordResetRateLimiter } = require('../security');
 
 const router = express.Router();
 
@@ -96,6 +98,49 @@ function publicCredential(row) {
 
 // Who am I, if anyone
 router.get('/session', (req, res) => {
+  // 1. If not yet in session, check Bearer token, query token, or local CAT connector on loopback
+  if (!req.session.userId && !req.session.loggedOut) {
+    let token = null;
+    const authHeader = req.get('authorization') || '';
+    const match = /^Bearer\s+(fct_[A-Za-z0-9_-]+)$/.exec(authHeader.trim());
+    if (match) {
+      token = match[1];
+    } else if (req.query.token && typeof req.query.token === 'string' && req.query.token.startsWith('fct_')) {
+      token = req.query.token;
+    } else {
+      // Check loopback local connector (~/.fomoji/connectors/cat.json)
+      const clientIp = req.ip || req.socket?.remoteAddress || '';
+      const host = (req.get('host') || '').toLowerCase();
+      const isLoopback = clientIp === '127.0.0.1' || clientIp === '::1' || clientIp === '::ffff:127.0.0.1' || host.startsWith('localhost') || host.startsWith('127.0.0.1');
+      if (isLoopback) {
+        try {
+          const os = require('os');
+          const path = require('path');
+          const fs = require('fs');
+          const connectorDir = process.env.FOMOJI_CONNECTOR_DIR || path.join(os.homedir(), '.fomoji', 'connectors');
+          const catPath = path.join(connectorDir, 'cat.json');
+          if (fs.existsSync(catPath)) {
+            const catData = JSON.parse(fs.readFileSync(catPath, 'utf8'));
+            if (catData && catData.token && typeof catData.token === 'string') {
+              token = catData.token;
+            }
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (token) {
+      const tokenHash = sha256Hex(token);
+      const row = db.prepare(`SELECT * FROM connections WHERE connector_token_hash = ? AND status = 'connected'`).get(tokenHash);
+      if (row && (!row.expires_at || new Date(row.expires_at).getTime() >= Date.now())) {
+        req.session.userId = row.user_id;
+        try {
+          db.prepare(`UPDATE connections SET last_used_at = datetime('now') WHERE id = ?`).run(row.id);
+        } catch (_) {}
+      }
+    }
+  }
+
   if (!req.session.userId) return res.json({ user: null });
   const user = db.prepare(`SELECT * FROM users WHERE id = ?`).get(req.session.userId);
   if (!user || isExpired(user)) {
@@ -106,6 +151,7 @@ router.get('/session', (req, res) => {
 });
 
 router.post('/logout', (req, res) => {
+  req.session.loggedOut = true;
   req.session.destroy((err) => {
     // Destroying the session removes it server-side, but express-session
     // does NOT send a Set-Cookie to expire the cookie itself unless we
@@ -115,6 +161,16 @@ router.post('/logout', (req, res) => {
     // makes "signed out" true client-side too, immediately, rather than
     // relying on every caller to also drop local state correctly.
     res.clearCookie('fomoji.sid');
+    try {
+      const os = require('os');
+      const path = require('path');
+      const fs = require('fs');
+      const connectorDir = process.env.FOMOJI_CONNECTOR_DIR || path.join(os.homedir(), '.fomoji', 'connectors');
+      const catPath = path.join(connectorDir, 'cat.json');
+      if (fs.existsSync(catPath)) {
+        fs.unlinkSync(catPath);
+      }
+    } catch (_) {}
     if (err) return res.status(500).json({ error: 'server_error' });
     res.json({ ok: true });
   });
@@ -129,10 +185,10 @@ router.post('/logout', (req, res) => {
 // be removed as your last one.
 // ---------------------------------------------------------------------
 
-router.post('/password/register', (req, res) => {
+router.post('/password/register', signupRateLimiter, (req, res) => {
   const { name, username, email, password } = req.body || {};
-  if (!username || typeof username !== 'string' || username.length < 3) {
-    return res.status(400).json({ error: 'invalid_username' });
+  if (!username || typeof username !== 'string' || !/^[a-zA-Z0-9._-]{3,50}$/.test(username)) {
+    return res.status(400).json({ error: 'invalid_username', message: 'Username must be 3-50 alphanumeric characters, dots, underscores, or hyphens.' });
   }
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ error: 'invalid_email' });
@@ -180,7 +236,7 @@ router.post('/password/register', (req, res) => {
 const TEMP_MAX_HOURS = 24 * 7; // one week ceiling, whatever the caller requests
 const TEMP_DEFAULT_HOURS = 24;
 
-router.post('/temporary/create', (req, res) => {
+router.post('/temporary/create', signupRateLimiter, (req, res) => {
   const { name, hours } = req.body || {};
   const ttlHours = Math.min(Math.max(Number(hours) || TEMP_DEFAULT_HOURS, 1), TEMP_MAX_HOURS);
   const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000).toISOString();
@@ -205,14 +261,14 @@ router.post('/temporary/create', (req, res) => {
 // Upgrade the CURRENT session's temporary identity to a permanent
 // password account. Keeps the same fomoji_id, connections and activity
 // log — only identity_type/expires_at and the credential change.
-router.post('/temporary/upgrade', requireAuth, (req, res) => {
+router.post('/temporary/upgrade', requireAuth, signupRateLimiter, (req, res) => {
   const current = db.prepare(`SELECT * FROM users WHERE id = ?`).get(req.session.userId);
   if (!current || current.identity_type !== 'TEMPORARY') {
     return res.status(400).json({ error: 'not_a_temporary_identity' });
   }
   const { username, email, password } = req.body || {};
-  if (!username || typeof username !== 'string' || username.length < 3) {
-    return res.status(400).json({ error: 'invalid_username' });
+  if (!username || typeof username !== 'string' || !/^[a-zA-Z0-9._-]{3,50}$/.test(username)) {
+    return res.status(400).json({ error: 'invalid_username', message: 'Username must be 3-50 alphanumeric characters, dots, underscores, or hyphens.' });
   }
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ error: 'invalid_email' });
@@ -235,7 +291,7 @@ router.post('/temporary/upgrade', requireAuth, (req, res) => {
   res.json({ user: publicUser(user), recoveryCode });
 });
 
-router.post('/password/login', (req, res) => {
+router.post('/password/login', loginRateLimiter, (req, res) => {
   const { identifier, password } = req.body || {};
   if (!identifier || !password) return res.status(400).json({ error: 'invalid_credentials' });
 
@@ -262,7 +318,7 @@ router.post('/password/login', (req, res) => {
   res.json({ user: publicUser(user), sessionExpiresAt: req.session.cookie.expires });
 });
 
-router.post('/password/reset', (req, res) => {
+router.post('/password/reset', passwordResetRateLimiter, (req, res) => {
   const { identifier, recoveryCode, newPassword } = req.body || {};
   if (!identifier || !recoveryCode || !newPassword) {
     return res.status(400).json({ error: 'invalid_recovery' });
@@ -278,7 +334,17 @@ router.post('/password/reset', (req, res) => {
   ).get(id, id);
 
   const codeHash = sha256Hex(recoveryCode.trim().toUpperCase());
-  if (!user || !user.recovery_code_hash || codeHash !== user.recovery_code_hash) {
+  const storedHash = user && user.recovery_code_hash ? user.recovery_code_hash : '';
+  let match = false;
+  try {
+    const a = Buffer.from(codeHash, 'hex');
+    const b = Buffer.from(storedHash || '00'.repeat(32), 'hex');
+    match = a.length === b.length && crypto.timingSafeEqual(a, b);
+  } catch (_) {
+    match = false;
+  }
+
+  if (!user || !user.recovery_code_hash || !match) {
     recordFailure(identifier);
     return res.status(401).json({ error: 'invalid_recovery' });
   }
@@ -372,7 +438,7 @@ router.delete('/credentials/:id', requireAuth, (req, res) => {
     });
   }
 
-  db.prepare(`DELETE FROM credentials WHERE credential_id = ?`).run(req.params.id);
+  db.prepare(`DELETE FROM credentials WHERE credential_id = ? AND user_id = ?`).run(req.params.id, req.session.userId);
   logEvent(req.session.userId, 'passkey_removed', target.nickname);
   res.json({ ok: true });
 });
@@ -385,5 +451,79 @@ router.get('/activity', requireAuth, (req, res) => {
   ).all(req.session.userId);
   res.json({ events: rows });
 });
+
+// ---- Account Deletion Flow (Data Privacy & Right to Erasure) ----
+
+function resolveAuth(req) {
+  if (req.session && req.session.userId) {
+    return req.session.userId;
+  }
+  const authHeader = req.get('authorization') || '';
+  const match = /^Bearer\s+(fct_[A-Za-z0-9_-]+)$/.exec(authHeader.trim());
+  if (match) {
+    const tokenHash = sha256Hex(match[1]);
+    const row = db
+      .prepare(`SELECT user_id, expires_at FROM connections WHERE connector_token_hash = ? AND status = 'connected'`)
+      .get(tokenHash);
+    if (row) {
+      if (row.expires_at && new Date(row.expires_at).getTime() < Date.now()) {
+        return null;
+      }
+      return row.user_id;
+    }
+  }
+  return null;
+}
+
+function handleAccountDeletion(req, res) {
+  const userId = resolveAuth(req);
+  if (!userId) return res.status(401).json({ error: 'not_authenticated' });
+
+  const user = db.prepare(`SELECT * FROM users WHERE id = ?`).get(userId);
+  if (!user) return res.status(404).json({ error: 'user_not_found' });
+
+  // Delete all user personal data atomically across all tables
+  const tx = db.transaction(() => {
+    db.prepare(`DELETE FROM credentials WHERE user_id = ?`).run(userId);
+    db.prepare(`DELETE FROM challenges WHERE user_id = ?`).run(userId);
+    db.prepare(`DELETE FROM auth_events WHERE user_id = ?`).run(userId);
+    db.prepare(`DELETE FROM oauth_accounts WHERE user_id = ?`).run(userId);
+    db.prepare(`DELETE FROM auth_cards WHERE user_id = ?`).run(userId);
+    db.prepare(`DELETE FROM connections WHERE user_id = ?`).run(userId);
+    db.prepare(`DELETE FROM device_codes WHERE user_id = ?`).run(userId);
+    db.prepare(`DELETE FROM group_members WHERE member_id = ? OR group_id = ?`).run(userId, userId);
+    db.prepare(`DELETE FROM oauth_states WHERE user_id = ?`).run(userId);
+    db.prepare(`DELETE FROM users WHERE id = ?`).run(userId);
+  });
+  tx();
+
+  // If local CAT connector file belongs to this user, unlink it
+  try {
+    const os = require('os');
+    const path = require('path');
+    const fs = require('fs');
+    const connectorDir = process.env.FOMOJI_CONNECTOR_DIR || path.join(os.homedir(), '.fomoji', 'connectors');
+    const catPath = path.join(connectorDir, 'cat.json');
+    if (fs.existsSync(catPath)) {
+      const data = JSON.parse(fs.readFileSync(catPath, 'utf8'));
+      if (data && data.identity && data.identity.fomojiId === user.fomoji_id) {
+        fs.unlinkSync(catPath);
+      }
+    }
+  } catch (_) {}
+
+  // Destroy session and clear session cookie
+  if (req.session) {
+    req.session.destroy(() => {
+      res.clearCookie('fomoji.sid');
+      res.json({ ok: true, message: 'Account and personal data permanently deleted.' });
+    });
+  } else {
+    res.json({ ok: true, message: 'Account and personal data permanently deleted.' });
+  }
+}
+
+router.delete('/account', handleAccountDeletion);
+router.post('/account/delete', handleAccountDeletion);
 
 module.exports = { router, requireAuth };

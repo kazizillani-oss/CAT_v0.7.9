@@ -234,6 +234,9 @@ if (!userColumns2.includes('identity_type')) {
 if (!userColumns2.includes('expires_at')) {
   db.exec(`ALTER TABLE users ADD COLUMN expires_at TEXT`);
 }
+if (!userColumns2.includes('is_admin')) {
+  db.exec(`ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0`);
+}
 // institution: STUDENT-type identities only, always optional (spec section
 // 9 — "do NOT require an institutional email unless the institution
 // actually requires verification", and nothing here ever does).

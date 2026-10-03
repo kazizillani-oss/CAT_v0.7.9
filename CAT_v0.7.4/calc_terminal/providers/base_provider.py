@@ -73,7 +73,16 @@ class BaseProvider(ABC):
         return self.config.get("api_key", "")
 
     def get_model(self) -> str:
-        return self.config.get("model") or self.default_model()
+        raw = self.config.get("model") or self.default_model()
+        try:
+            from ..aicore import _normalize_provider_model
+            return _normalize_provider_model(
+                self.config.get("provider", "") or getattr(self, "ID", ""),
+                raw,
+                self.get_base_url()
+            )
+        except Exception:
+            return raw
 
     @classmethod
     def default_model(cls) -> str:

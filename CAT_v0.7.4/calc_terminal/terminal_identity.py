@@ -381,6 +381,8 @@ def configure_windows_terminal_profile() -> Tuple[bool, str]:
       - icon: path to cat.ico
       - tabTitle: "CAT CLI"
       - suppressApplicationTitle: false
+      - largePasteWarning: false
+      - multiLinePasteWarning: false
     """
     settings_file = find_windows_terminal_settings()
     if not settings_file:
@@ -395,7 +397,16 @@ def configure_windows_terminal_profile() -> Tuple[bool, str]:
         with open(settings_file, "r", encoding="utf-8-sig") as f:
             data = json.load(f)
 
+        # Globally disable large paste (>5 KiB) warning and multiline paste warning
+        # so large sentences, long texts, and code snippets paste immediately without interruption.
+        data["largePasteWarning"] = False
+        data["multiLinePasteWarning"] = False
+
         profiles = data.setdefault("profiles", {})
+        defaults = profiles.setdefault("defaults", {})
+        defaults["largePasteWarning"] = False
+        defaults["multiLinePasteWarning"] = False
+
         plist = profiles.setdefault("list", [])
 
         # Find existing profile
@@ -413,6 +424,8 @@ def configure_windows_terminal_profile() -> Tuple[bool, str]:
                 "icon": ico_path,
                 "tabTitle": BRAND_NAME,
                 "suppressApplicationTitle": False,
+                "largePasteWarning": False,
+                "multiLinePasteWarning": False,
             }
             plist.append(target_profile)
             action_desc = "Created new 'CAT CLI' profile"
@@ -420,6 +433,8 @@ def configure_windows_terminal_profile() -> Tuple[bool, str]:
             target_profile["name"] = BRAND_NAME
             target_profile["icon"] = ico_path
             target_profile["tabTitle"] = BRAND_NAME
+            target_profile["largePasteWarning"] = False
+            target_profile["multiLinePasteWarning"] = False
             action_desc = "Updated existing 'CAT CLI' profile"
 
         # Atomic write back

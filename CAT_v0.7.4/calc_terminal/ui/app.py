@@ -3237,6 +3237,12 @@ if TEXTUAL_AVAILABLE:
             provider = turn_data.get("provider")
             model = turn_data.get("model")
             ws = self._current_workspace
+            parent_turn_id = turn_data.get("parent_turn_id")
+            if role == "assistant" and not parent_turn_id:
+                for prev in reversed(getattr(self.session, "turns", [])):
+                    if prev.role == "user":
+                        parent_turn_id = prev.turn_id
+                        break
             if role == "user":
                 t = self.session.add_user_turn(
                     content, mode=mode, workspace=ws,
@@ -3244,10 +3250,16 @@ if TEXTUAL_AVAILABLE:
             elif role == "assistant":
                 t = self.session.start_assistant_turn(
                     mode=mode, provider=provider, model=model, workspace=ws,
+                    parent_turn_id=parent_turn_id,
                 )
                 t.finish(content)
             else:
                 t = self.session.add_system_turn(content, mode=mode)
+            stored_turn_id = turn_data.get("turn_id")
+            if stored_turn_id:
+                t.turn_id = stored_turn_id
+            if parent_turn_id:
+                t.parent_turn_id = parent_turn_id
             if snap and isinstance(snap, dict) and snap.get("accent_hex"):
                 t.mode_snapshot = dict(snap)
                 if snap.get("mode"):
@@ -4208,6 +4220,12 @@ if TEXTUAL_AVAILABLE:
             text instead of racing the widget tree from off-screen."""
             try:
                 self._pending_failover_notes.append(str(message))
+                from .. import activity as _act
+                _act.emit_provider_activity(
+                    title=f"Failover: {str(message)[:60]}",
+                    status=_act.STATUS_COMPLETED,
+                    details=str(message),
+                )
             except Exception:
                 pass
 
@@ -5058,9 +5076,19 @@ if TEXTUAL_AVAILABLE:
             if not target_url or target_url in ("about:home", "about:blank"):
                 # If preview is running or an HTML file is open, open preview URL instead of about:home
                 ctrl = getattr(self, "_preview_ctrl", None)
-                if ctrl and getattr(ctrl, "entry_url", None):
+                fomoji_url = "http://localhost:3000"
+                try:
+                    from ..fomoji_auth import get_fomoji_url
+                    fomoji_url = get_fomoji_url()
+                except Exception:
+                    pass
+                fomoji_port = "3000"
+                if ":" in fomoji_url.split("//")[-1]:
+                    fomoji_port = fomoji_url.split("//")[-1].split(":")[-1].split("/")[0]
+
+                if ctrl and getattr(ctrl, "entry_url", None) and f":{fomoji_port}/" not in ctrl.entry_url:
                     target_url = ctrl.entry_url
-                elif ctrl and getattr(ctrl, "base_url", None):
+                elif ctrl and getattr(ctrl, "base_url", None) and f":{fomoji_port}/" not in ctrl.base_url:
                     target_url = ctrl.base_url
                 else:
                     path = self._preview_target_path()
@@ -5070,12 +5098,18 @@ if TEXTUAL_AVAILABLE:
                         return
                     target_url = "about:home"
 
-            # Fomoji gate — allow about:home without auth, but protect other URLs
+            # Fomoji gate — allow about:home and local workspace file/server previews without auth
             try:
                 from ..fomoji_auth import is_skip_enabled, status as _fa_status
                 if not is_skip_enabled() and _fa_status() != "connected" and target_url not in ("about:home", "about:blank"):
                     is_fomoji = "localhost:3000" in target_url or "fomoji" in target_url.lower()
-                    if not is_fomoji:
+                    is_local_preview = (
+                        "127.0.0.1" in target_url
+                        or "localhost" in target_url
+                        or target_url.startswith("file://")
+                        or (ctrl and (target_url == getattr(ctrl, "entry_url", None) or target_url == getattr(ctrl, "base_url", None)))
+                    )
+                    if not is_fomoji and not is_local_preview:
                         from ..fomoji_auth import get_fomoji_url
                         self._system_note(f"CAT Browser is locked — run `cat --auth login` (Fomoji: {get_fomoji_url()})")
                         return
@@ -5983,6 +6017,7 @@ if TEXTUAL_AVAILABLE:
                         mode_snapshot=turn.mode_snapshot,
                         provider=provider,
                         model=model,
+                        turn_id=turn.turn_id,
                     )
             except Exception:
                 pass
@@ -6276,11 +6311,8 @@ if TEXTUAL_AVAILABLE:
             """v0.7.8.1 interrupt fix: Esc / Ctrl+C / the Stop button in
             the composer's streaming bar all land here. Cancels the
             in-flight worker, closes the provider's HTTP sockets,
-            resets the UI state immediately, and marks the turn interrupted."""
-            shell = getattr(self, "_workspace_shell", None)
-            if shell is not None and shell.fullscreen:
-                self.action_toggle_right_pane_fullscreen()
-                return
+            kills running tool subprocesses, resets the UI state immediately,
+            and marks the turn interrupted."""
             worker = getattr(self, "_current_worker", None)
             cancelled_any = False
             if worker is not None and not worker.is_finished:
@@ -6290,6 +6322,15 @@ if TEXTUAL_AVAILABLE:
                 aicore.cancel_active_requests()
             except Exception:
                 pass
+            try:
+                cct_agent.kill_active_tool_processes()
+            except Exception:
+                pass
+
+            shell = getattr(self, "_workspace_shell", None)
+            if shell is not None and shell.fullscreen and not (self._is_streaming or cancelled_any):
+                self.action_toggle_right_pane_fullscreen()
+                return
             # ── v0.7.9 Live Activity cancellation: mark running activities as cancelled (spec 11)
             tid = getattr(self, "_streaming_turn_id", None)
             try:
@@ -6606,11 +6647,12 @@ if TEXTUAL_AVAILABLE:
                 except Exception:
                     pass
             duration = time.time() - start
+            contributions = aicore.get_last_contributions(turn_id)
             try:
                 self.call_from_thread(
                     self.post_message,
                     MessageFinished(turn_id, final_text, duration,
-                                    aicore.get_session_usage()))
+                                    aicore.get_session_usage(), contributions=contributions))
             except Exception:
                 # App teardown mid-pipeline: clear state directly so no
                 # stale spinner can survive (v0.7.9.5 lifecycle rule).
@@ -6745,7 +6787,8 @@ if TEXTUAL_AVAILABLE:
             except Exception:
                 pass
             meta_lines = self._completion_summary(event)
-            self.conversation.finish(event.turn_id, event.full_text, meta_lines=meta_lines)
+            contributions = getattr(event, "contributions", None) or aicore.get_last_contributions(event.turn_id)
+            self.conversation.finish(event.turn_id, event.full_text, meta_lines=meta_lines, contributions=contributions)
             turn = self.session.get(event.turn_id)
             if turn:
                 turn.finish(event.full_text, event.duration, event.usage)
@@ -6761,6 +6804,8 @@ if TEXTUAL_AVAILABLE:
                         mode_snapshot=(asst_turn.mode_snapshot if asst_turn else ai_modes.snapshot()),
                         provider=provider,
                         model=model,
+                        turn_id=event.turn_id,
+                        parent_turn_id=(asst_turn.parent_turn_id if asst_turn else None),
                     )
                     # Auto-generate descriptive chat title if using a default title
                     cur_title = getattr(self, "_current_chat_title", "") or ""
@@ -6838,9 +6883,10 @@ if TEXTUAL_AVAILABLE:
             tokens = usage.get("total_tokens") or usage.get("completion_tokens")
             prompt = self._turn_prompts.pop(event.turn_id, "")
             commands = thinking.commands_used(prompt, event.full_text)
+            contributions = getattr(event, "contributions", None) or aicore.get_last_contributions(event.turn_id)
             lines = thinking.completion_summary_lines(
                 provider=provider, model=model, duration=event.duration,
-                tokens=tokens, commands=commands,
+                tokens=tokens, commands=commands, contributions=contributions,
             )
             # Real per-request measurements for THIS turn, when recorded.
             mreq = None
@@ -6907,18 +6953,14 @@ if TEXTUAL_AVAILABLE:
                     pass
 
             def drain_failover_notes():
-                """Provider-switch notes queued by the failover hook become
-                real streamed lines in THIS turn, in order."""
+                """Provider-switch notes queued by the failover hook are drained
+                so live activities and telemetry handle them without polluting
+                the assistant's chat bubble text."""
                 while True:
                     try:
-                        note = self._pending_failover_notes.pop(0)
+                        self._pending_failover_notes.pop(0)
                     except (IndexError, AttributeError):
                         return
-                    text = f"> {note}\n"
-                    pieces.append(text)
-                    self._activity["chunks"] += 1
-                    _mreq.count_chunk()
-                    post(MessageChunk(turn_id, text))
 
             def activity(state):
                 post(AgentActivity(turn_id, state))
@@ -6942,39 +6984,46 @@ if TEXTUAL_AVAILABLE:
                 except Exception:
                     pass
 
-                has_image = "vision" in decision.task_types
+                has_image = "vision" in decision.task_types or any(
+                    getattr(a, "kind", "") == "image" or
+                    str(getattr(a, "extension", "")).lower() in
+                    (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tif", ".tiff")
+                    for a in (attachments or [])
+                )
+                has_video = "video_analysis" in decision.task_types or any(
+                    getattr(a, "kind", "") == "video" or
+                    str(getattr(a, "extension", "")).lower() in
+                    (".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v", ".flv", ".wmv", ".ts")
+                    for a in (attachments or [])
+                )
+                has_media = has_image or has_video
 
-                # Vision rerouting BEFORE any request goes out: if this
-                # model can't see but a configured one CAN, use that one.
+                # Vision / Multimodal routing BEFORE any request goes out
                 request_config = None
-                if has_image:
+                if has_media:
                     activity("vision")
                     try:
                         from .. import attachments as _att
                         caps = _att.provider_capabilities(aicore.load_config())
                     except Exception:
                         caps = {}
-                    if not caps.get("vision"):
-                        if decision.vision_config is not None:
-                            request_config = decision.vision_config
-                            status_line(
-                                f"> \U0001f441 Active model lacks vision — "
-                                f"routing image to **{decision.vision_config.get('provider', '?')}"
-                                f"/{decision.vision_config.get('model', '?')}**\n")
-                        else:
-                            status_line(
-                                "> \u26a0 No vision-capable model is configured — "
-                                "the image can only be described from its metadata.\n"
-                                "> Run `/model` to add one (gpt-4o / claude / gemini-class).\n")
+                    if not caps.get("vision") and decision.vision_config is not None:
+                        request_config = decision.vision_config
+                        status_line(
+                            f"> \U0001f441 Routing visual context to **{decision.vision_config.get('provider', '?')}"
+                            f"/{decision.vision_config.get('model', '?')}**\n\n")
 
                     # Strategy-aware analysis instructions so extraction
-                    # requests get comprehensive answers (requirement #16).
-                    kind = cat_vision.classify_image(
-                        attachments[0].path, user_text) \
-                        if attachments else "photo"
-                    if has_image and (mode not in ("agent", "build")):
-                        prompt = prompt.rstrip() + "\n\n" + cat_vision.analysis_prompt(
-                            kind, user_text)
+                    # requests get comprehensive answers in all modes
+                    if attachments and has_image:
+                        first_att = attachments[0]
+                        first_path = first_att.path if hasattr(first_att, "path") else (first_att.get("path") if isinstance(first_att, dict) else str(first_att))
+                        try:
+                            kind = cat_vision.classify_image(first_path, user_text)
+                            prompt = prompt.rstrip() + "\n\n" + cat_vision.analysis_prompt(
+                                kind, user_text)
+                        except Exception:
+                            pass
 
                 # ---------------- FAST PATH (requirement #9) ------------
                 summarize_needed = False
@@ -7024,21 +7073,25 @@ if TEXTUAL_AVAILABLE:
                         cancelled = True
                     elif aicore.is_error_response(final_text):
                         final_text = _mark_ai_failure(final_text)
-                        status_line(final_text)
+                        sep = "\n\n" if pieces else ""
+                        status_line(sep + final_text.lstrip())
                     else:
-                        status_line(final_text)
+                        sep = "\n\n" if pieces else ""
+                        status_line(sep + final_text.lstrip())
                 # ---------------- AGENT / TOOL PATH ----------------------
-                elif decision.path == "agent" or mode in ("agent", "build"):
-                    # Agent mode routes through CCT's actual tool-executing
-                    # loop; Build too (files must be editable). Live tool
-                    # progress streams into the chat as it happens.
+                elif decision.path == "agent" or mode in ("agent", "build", "research") or decision.use_tools:
+                    # Agent, Build, and Research modes route through CCT's actual tool-executing
+                    # loop; Live tool progress streams into the chat and Live Activities as it happens.
                     activity("thinking")
                     if attachments:
                         # The tool loop must see attached files/images.
                         cct_agent.set_attachments(attachments)
-                    agent_persona = "agent" if mode == "agent" else "ai"
+                    agent_persona = mode if mode in ("build", "agent", "research", "debugger", "plan") else "agent"
+
+                    _last_step_open = False
 
                     def _on_agent_step(name, args):
+                        nonlocal _last_step_open
                         args = args or {}
                         target = (args.get("path") or args.get("command")
                                   or args.get("query") or args.get("packages")
@@ -7047,15 +7100,19 @@ if TEXTUAL_AVAILABLE:
                         self._activity["last_step"] = f"{name}{target and ' ' + target}"
                         if args.get("path"):
                             self._activity["files"] += 1
-                        status_line(f"> \U0001f527 {name}{suffix}\n")
+                        prefix = "\n" if (_last_step_open or pieces) else ""
+                        status_line(f"{prefix}> 🔧 **{name}**{suffix}")
+                        _last_step_open = True
                         activity("tool_execution")
 
                     def _on_agent_tool_result(name, args, obs):
+                        nonlocal _last_step_open
                         ok = not (obs or "").lower().startswith(
                             ("permission denied", "refused", "denied")) \
                             and "failed with a real error" not in (obs or "")
-                        mark = "\u2705 completed" if ok else "\u274c failed"
-                        status_line(f"> {mark}\n")
+                        mark = "✔ completed" if ok else "✖ failed"
+                        status_line(f" — {mark}\n\n")
+                        _last_step_open = False
                         activity("thinking")
                         if ok:
                             self._notify_tool_fs_change(name, args)
@@ -7068,7 +7125,8 @@ if TEXTUAL_AVAILABLE:
                         on_tool_result=_on_agent_tool_result,
                         should_cancel=lambda: worker.is_cancelled,
                         fast=decision.fast,
-                        memory_query=user_text, turn_id=turn_id)
+                        memory_query=user_text, turn_id=turn_id,
+                        history=history)
                     if self._workspace_shell is not None:
                         changed = self._changed_paths_from_steps(_steps)
                         if changed:
@@ -7080,14 +7138,16 @@ if TEXTUAL_AVAILABLE:
                         cancelled = True
                     elif aicore.is_error_response(final_text):
                         final_text = _mark_ai_failure(final_text)
-                        status_line(final_text)
+                        sep = "\n\n" if pieces else ""
+                        status_line(sep + final_text.lstrip())
                     else:
                         changes = cct_agent.summarize_file_changes(_steps, markdown=True) or ""
                         if mode == "build":
                             final_text = self._hide_build_code(final_text)
                         if changes:
                             final_text = final_text.rstrip() + "\n\n" + changes
-                        status_line(final_text)
+                        sep = "\n\n" if pieces else ""
+                        status_line(sep + final_text.lstrip())
                 # ---------------- STREAMING PATHS ------------------------
                 else:
                     from ..ai_context import get_context_manager, AIRequest
@@ -7130,6 +7190,18 @@ if TEXTUAL_AVAILABLE:
                             )
                         except Exception:
                             pass
+                        if not decision.fast:
+                            try:
+                                from .. import chat_store
+                                _ws_r = _ws.root_dir() if '_ws' in locals() else None
+                                _cross_ctx = chat_store.build_cross_chat_memory_context(
+                                    workspace_root=_ws_r,
+                                    query=user_text,
+                                )
+                                if _cross_ctx:
+                                    system_prompt += "\n\n" + _cross_ctx
+                            except Exception:
+                                pass
                     try:
                         from .. import permissions as _perm
                         _curr_perm_mode = getattr(_perm.manager, "mode", "ask")
@@ -7169,6 +7241,18 @@ if TEXTUAL_AVAILABLE:
                     # a generous one — never one hardcoded value).
                     size_class = getattr(decision, "size_class", None) or (
                         "simple" if decision.fast else "normal")
+                    _last_flush_t = time.monotonic()
+                    _chunk_buf = []
+
+                    def _flush_buf():
+                        nonlocal _last_flush_t
+                        if not _chunk_buf:
+                            return
+                        combined = "".join(_chunk_buf)
+                        _chunk_buf.clear()
+                        _last_flush_t = time.monotonic()
+                        post(MessageChunk(turn_id, combined))
+
                     for piece in aicore.stream_ai(prompt, system_prompt=system_prompt,
                                                   history=history, config=cfg,
                                                   attachments=attachments,
@@ -7184,7 +7268,11 @@ if TEXTUAL_AVAILABLE:
                             pieces.append(piece)
                             self._activity["chunks"] += 1
                             _mreq.count_chunk()
-                            post(MessageChunk(turn_id, piece))
+                            _chunk_buf.append(piece)
+                            now = time.monotonic()
+                            if "\n" in piece or (now - _last_flush_t >= 0.035):
+                                _flush_buf()
+                    _flush_buf()
                     drain_failover_notes()
             except Exception as e:
                 try:
@@ -7235,10 +7323,11 @@ if TEXTUAL_AVAILABLE:
                 except Exception:
                     pass
                 usage = aicore.get_session_usage()
+                contributions = aicore.get_last_contributions(turn_id)
                 try:
                     self.call_from_thread(
                         self.post_message,
-                        MessageFinished(turn_id, full_text, duration, usage))
+                        MessageFinished(turn_id, full_text, duration, usage, contributions=contributions))
                 except Exception:
                     # App teardown in progress — reset the flags directly
                     # so a restart/new prompt can't deadlock on stale state.
@@ -7736,8 +7825,9 @@ if TEXTUAL_AVAILABLE:
                 self._new_chat_session()
             elif action == "summarize":
                 self._summarize_chat()
-            elif action.startswith("retry:"):
-                self._retry_in_mode(event.turn_id, action.split(":", 1)[1])
+            elif action == "retry" or action.startswith("retry:"):
+                mode = action.split(":", 1)[1] if ":" in action else (getattr(self, "_current_ai_mode", "notebook") or "notebook")
+                self._retry_in_mode(event.turn_id, mode)
             elif action == "rewrite":
                 self._rewrite_prompt(event.turn_id)
             elif action == "revert":
@@ -7801,22 +7891,57 @@ if TEXTUAL_AVAILABLE:
             active AI mode the same way /build|/plan|/notebook|/agent
             already do, and regenerates *in place*: REPLACES this
             existing assistant turn's content rather than appending a
-            second reply (minor-bug-fix spec — the original v0.7.2 pass
-            appended, which produced duplicate responses; see
-            _regenerate_turn). No manual copy-paste required, matching
-            the spec's own example workflow. A 'Generate Alternative'
-            that intentionally keeps both is the spec's own named
-            *optional* enhancement — not implemented here; this fix is
-            scoped to the required "replace" behavior only."""
+            second reply."""
             if mode not in ai_modes.MODE_META:
-                return
+                mode = getattr(self, "_current_ai_mode", "notebook") or "notebook"
             turn = self.session.get(turn_id)
-            if turn is None or turn.role != "assistant":
+            if turn is None:
+                turn = next((t for t in getattr(self.session, "turns", []) if t.turn_id == turn_id), None)
+            if turn is None:
                 return
+
+            # If user clicked retry on a user turn directly:
+            if turn.role == "user":
+                parent = turn
+                reply = next((t for t in self.session.turns if t.role == "assistant" and t.parent_turn_id == turn.turn_id), None)
+                if reply is None:
+                    idx = self.session.index_of(turn.turn_id)
+                    if idx is not None and idx + 1 < len(self.session.turns):
+                        for next_t in self.session.turns[idx + 1:]:
+                            if next_t.role == "assistant":
+                                reply = next_t
+                                reply.parent_turn_id = turn.turn_id
+                                break
+                replace_id = reply.turn_id if reply else None
+                self._switch_mode_command(mode)
+                self._maybe_gate_then_run(parent.text, parent.attachments,
+                                           parent_turn_id=parent.turn_id, replace_turn_id=replace_id)
+                return
+
+            if turn.role != "assistant":
+                return
+
             parent = self.session.get(turn.parent_turn_id) if turn.parent_turn_id else None
+            if parent is None or not parent.text:
+                turns = getattr(self.session, "turns", [])
+                turn_idx = self.session.index_of(turn_id)
+                if turn_idx is not None:
+                    for prev_t in reversed(turns[:turn_idx]):
+                        if prev_t.role == "user" and prev_t.text:
+                            parent = prev_t
+                            turn.parent_turn_id = parent.turn_id
+                            break
+                if parent is None or not parent.text:
+                    for prev_t in reversed(turns):
+                        if prev_t.role == "user" and prev_t.text:
+                            parent = prev_t
+                            turn.parent_turn_id = parent.turn_id
+                            break
+
             if parent is None or not parent.text:
                 self._system_note("Can't find the original prompt for this response.")
                 return
+
             self._switch_mode_command(mode)
             self._maybe_gate_then_run(parent.text, parent.attachments,
                                        parent_turn_id=parent.turn_id, replace_turn_id=turn_id)
@@ -7879,8 +8004,34 @@ if TEXTUAL_AVAILABLE:
             if event.attachments:
                 turn.attachments = event.attachments
             self.conversation.set_text(event.turn_id, event.text, attachments=event.attachments or None)
+
+            # Sync edited prompt to chat_store
+            if getattr(self, "_current_chat_id", None):
+                try:
+                    from .. import chat_store
+                    chat = chat_store.get_chat(self._current_chat_id)
+                    if chat:
+                        idx = self.session.index_of(event.turn_id)
+                        turns = chat.get("turns", [])
+                        if idx is not None and 0 <= idx < len(turns):
+                            turns[idx]["content"] = event.text
+                            turns[idx]["edited"] = True
+                            chat_store.save_chat(chat)
+                except Exception:
+                    pass
+
             reply = next((t for t in self.session.turns
                           if t.role == "assistant" and t.parent_turn_id == event.turn_id), None)
+            if reply is None:
+                # Fallback: look for succeeding assistant turn in session.turns
+                idx = self.session.index_of(event.turn_id)
+                if idx is not None and idx + 1 < len(self.session.turns):
+                    for next_turn in self.session.turns[idx + 1:]:
+                        if next_turn.role == "assistant":
+                            reply = next_turn
+                            reply.parent_turn_id = event.turn_id
+                            break
+
             if reply is None:
                 # No paired reply to regenerate (e.g. the original
                 # request errored out before a reply turn existed) —
@@ -7897,10 +8048,28 @@ if TEXTUAL_AVAILABLE:
             Enter later is handled by on_message_rewritten, which
             replaces this turn's text and its paired reply in place."""
             turn = self.session.get(turn_id)
-            if turn is None or turn.role != "user":
+            if turn is None:
+                turn = next((t for t in getattr(self.session, "turns", []) if t.turn_id == turn_id), None)
+            if turn is None:
+                return
+            # If user selected an assistant turn to edit, resolve to its prompting user turn
+            if turn.role == "assistant":
+                if turn.parent_turn_id:
+                    parent = self.session.get(turn.parent_turn_id)
+                    if parent and parent.role == "user":
+                        turn = parent
+                if turn.role != "user":
+                    idx = self.session.index_of(turn.turn_id)
+                    turns = getattr(self.session, "turns", [])
+                    if idx is not None:
+                        for prev_t in reversed(turns[:idx]):
+                            if prev_t.role == "user" and prev_t.text:
+                                turn = prev_t
+                                break
+            if turn.role != "user":
                 return
             try:
-                self.composer.start_edit(turn_id, turn.text)
+                self.composer.start_edit(turn.turn_id, turn.text)
             except Exception:
                 pass
 

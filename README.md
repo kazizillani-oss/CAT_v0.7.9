@@ -174,6 +174,30 @@ python scripts/build_runtime.py --dry-run
 
 ---
 
+## 🔒 Security, Secret Management & Pre-Deployment Checklist
+
+Before deploying CAT or its associated Fomoji identity services to production, ensure all secret hygiene practices are strictly enforced:
+
+### 1. Zero Secrets in Source Code
+* **Environment Variables Only**: All API keys, tokens, session secrets, and database connection strings must be configured via environment variables. Copy `.env.example` to `.env` (which is ignored by Git).
+* **Supabase Keys**:
+  * The `SUPABASE_ANON_KEY` is designed for client-side use **ONLY IF Row Level Security (RLS) is enabled** on every table. Without RLS, the anon key exposes the entire database.
+  * The `SUPABASE_SERVICE_ROLE_KEY` must **NEVER** appear in client-side code under any circumstance.
+* **Stripe Keys**:
+  * Only `STRIPE_PUBLISHABLE_KEY` may be used client-side.
+  * `STRIPE_SECRET_KEY` and restricted keys (`rk_*`) must remain strictly server-side.
+* **Database URIs**:
+  * PostgreSQL (`DATABASE_URL`), MongoDB (`MONGODB_URI`), MySQL, and Redis connection URIs containing credentials must never be committed.
+* **Frontend Exposure**:
+  * React/Next.js exposes any variable prefixed with `NEXT_PUBLIC_` or `REACT_APP_` to the browser bundle. Ensure no private keys or secrets use these prefixes.
+
+> [!WARNING]
+> ### ⚠️ Git History Secret Warning — Rotate Previous Secrets Immediately
+> If any API key, OAuth secret, or session secret (such as previous development session secrets) was ever hardcoded or committed in earlier git history checkpoints or commits, **that secret is still recorded in git history**.
+> You must **rotate and invalidate any previously exposed credentials immediately** in your respective provider dashboards (Google, GitHub, Apple, OpenAI, Stripe, AWS, SendGrid, Twilio) before deploying to production.
+
+---
+
 ## 📄 License
 ```
   ██████╗ █████╗ ████████╗

@@ -388,16 +388,68 @@ if TEXTUAL_AVAILABLE:
 
             await super()._on_key(event)
 
+        def action_paste(self) -> None:
+            """Paste directly from OS clipboard or app clipboard (supports Ctrl+V)."""
+            if self.read_only:
+                return
+            clip = None
+            try:
+                from .. import terminal_host
+                clip = terminal_host.read_clipboard_text()
+            except Exception:
+                clip = None
+            if not clip:
+                clip = getattr(self.app, "clipboard", "") or ""
+            if not clip:
+                return
+            # Check for attachments/drag-and-drop paths
+            if self._composer is not None:
+                from .attachments import paths_from_paste
+                paths = paths_from_paste(clip)
+                if paths:
+                    try:
+                        self._composer.app.attach_files_from_ui(
+                            paths, source="drag_and_drop")
+                    except Exception:
+                        for p in paths:
+                            self._composer.add_attachment(p, source="drag_and_drop")
+                    return
+            if "\r" in clip:
+                clip = clip.replace("\r\n", "\n").replace("\r", "\n")
+            w_count = len(clip.split())
+            l_count = clip.count("\n") + 1
+            if self._composer is not None and (w_count >= PASTE_WORD_THRESHOLD or l_count >= PASTE_COLLAPSE_THRESHOLD or len(clip) >= 40):
+                self._composer.collapse_paste(clip, line_count=l_count, word_count=w_count)
+                try:
+                    w_str = f"{w_count} word" if w_count == 1 else f"{w_count} words"
+                    self.app.notify(f"Pasted text detected: {w_str}", title="📋 Clipboard", timeout=2.5)
+                except Exception:
+                    pass
+            else:
+                try:
+                    self.insert(clip)
+                except Exception:
+                    self.text = (self.text or "") + clip
+                try:
+                    w_str = f"{w_count} word" if w_count == 1 else f"{w_count} words"
+                    self.app.notify(f"Pasted text: {w_str}", title="📋 Clipboard", timeout=1.5)
+                except Exception:
+                    pass
+            self.focus()
+
         async def _on_paste(self, event):
             text = getattr(event, "text", "") or ""
-            # v0.7.6 Patch 1, Fix 5: pasting (or drag-dropping, which
-            # Windows terminals deliver as a path paste) one or more
-            # file paths turns them into attachment chips instead of
-            # dumping literal paths into the message. Everything else
-            # keeps the existing small/large paste behaviour below.
-            # v0.8.1: routed through the app's single attach entry point
-            # so validation, recents and TXT-import behave identically
-            # for drag-and-drop and Browse origins.
+            # If text is empty or dropped, attempt to read directly from OS clipboard
+            if not text:
+                try:
+                    from .. import terminal_host
+                    text = terminal_host.read_clipboard_text() or ""
+                except Exception:
+                    pass
+            if not text:
+                return
+
+            # Check for drag-and-drop / path paste
             if self._composer is not None:
                 from .attachments import paths_from_paste
                 paths = paths_from_paste(text)
@@ -415,15 +467,9 @@ if TEXTUAL_AVAILABLE:
                             self._composer.add_attachment(
                                 p, source="drag_and_drop")
                     return
-            # v0.7.8.45 PowerShell paste fix: Windows console hosts
-            # (conhost / Windows Terminal — whatever shell runs in
-            # them) can truncate or drop very large bracketed-paste
-            # payloads before Textual ever receives them. When the
-            # delivered text is a strict prefix of the OS clipboard's
-            # content, the clipboard is the authoritative copy — restore
-            # it BEFORE the size checks below, so the >5 KiB warning
-            # still fires and "Paste anyway" delivers the COMPLETE text.
-            # Other terminals and intact deliveries are never touched.
+
+            # Terminal payload recovery: check if OS clipboard has the full payload
+            # (e.g. if the terminal truncated large text/sentences in transit)
             try:
                 from .. import terminal_host
                 delivered = len(text)
@@ -432,26 +478,39 @@ if TEXTUAL_AVAILABLE:
                     self.log.debug(
                         "paste: %s (%d chars delivered, %d chars recovered)",
                         source, delivered, len(text))
-                    # the recovered payload is authoritative for every
-                    # path below (large warning, small direct insert,
-                    # collapse chip): keep the event in sync so
-                    # TextArea._on_paste's own insert uses it too.
                     event.text = text
             except Exception:
                 pass
+
             # Normalize Windows CRLF to LF so TextArea handles lines cleanly
             if "\r" in text:
                 text = text.replace("\r\n", "\n").replace("\r", "\n")
 
-            # Always insert pasted text directly into the composer input — allowing big
-            # sentences, large word counts, code snippets, and multiline text
-            # to paste cleanly without getting blocked by a 5 KiB dialog or forced collapse chip.
             event.stop()
             try:
                 event.prevent_default()
             except Exception:
                 pass
-            self.insert(text)
+
+            w_count = len(text.split())
+            l_count = text.count("\n") + 1
+            if self._composer is not None and (w_count >= PASTE_WORD_THRESHOLD or l_count >= PASTE_COLLAPSE_THRESHOLD or len(text) >= 40):
+                self._composer.collapse_paste(text, line_count=l_count, word_count=w_count)
+                try:
+                    w_str = f"{w_count} word" if w_count == 1 else f"{w_count} words"
+                    self.app.notify(f"Pasted text detected: {w_str}", title="📋 Clipboard", timeout=2.5)
+                except Exception:
+                    pass
+            else:
+                try:
+                    self.insert(text)
+                except Exception:
+                    self.text = (self.text or "") + text
+                try:
+                    w_str = f"{w_count} word" if w_count == 1 else f"{w_count} words"
+                    self.app.notify(f"Pasted text: {w_str}", title="📋 Clipboard", timeout=1.5)
+                except Exception:
+                    pass
             self.focus()
             return
 
@@ -894,29 +953,17 @@ if TEXTUAL_AVAILABLE:
             self.query_one(AttachmentBar).add_paste(text, line_count, word_count)
 
         def confirm_large_paste(self, text):
-            """v0.7.8.45 clipboard-input fix: show the "Paste anyway /
-            Cancel" warning for a paste larger than 5 KiB. On
-            confirmation the FULL clipboard text is delivered into the
-            composer input in one atomic insert (no key simulation, no
-            truncation); on cancel nothing is pasted. Exactly one
-            insert either way — no duplication."""
+            """Directly delivers the full clipboard text into the composer input."""
+            if not text:
+                return
+            if "\r" in text:
+                text = text.replace("\r\n", "\n").replace("\r", "\n")
+            editor = self.query_one("#cct-input", ComposerInput)
             try:
-                from .. import terminal_host
-                host = terminal_host.detect_host()
+                editor.insert(text)
             except Exception:
-                host = "unknown"
-            self.log.debug(
-                "large paste: host=%s, %d chars, warning shown",
-                host, len(text))
-            self._pending_large_paste = text
-            try:
-                self.app.push_screen(
-                    _ConfirmPaste(len(text)), self._on_large_paste_answered)
-            except Exception as e:
-                self._pending_large_paste = None
-                self.log.error(
-                    "large paste: warning failed to open (%s) — aborting "
-                    "the paste instead of inserting blindly", type(e).__name__)
+                editor.text = (editor.text or "") + text
+            editor.focus()
 
         def _on_large_paste_answered(self, confirmed):
             text = getattr(self, "_pending_large_paste", None)
@@ -955,6 +1002,7 @@ if TEXTUAL_AVAILABLE:
                 editor.insert(event.text)
             except Exception:
                 editor.text = editor.text + event.text
+            editor.focus()
 
         # --------------------------------------------------------- submit --
         def on_button_pressed(self, event: Button.Pressed):
@@ -991,8 +1039,14 @@ if TEXTUAL_AVAILABLE:
             target = getattr(event, "widget", None)
             if target is not None:
                 from textual.widgets import Button
-                if isinstance(target, Button) or any(isinstance(p, Button) for p in getattr(target, "ancestors", [])):
-                    return
+                try:
+                    from .footer import _Badge
+                    from .attachments import AttachmentBar, AttachmentPill
+                    if isinstance(target, (Button, _Badge, AttachmentPill)) or any(isinstance(p, (Button, _Badge, AttachmentPill, AttachmentBar)) for p in getattr(target, "ancestors", [])):
+                        return
+                except Exception:
+                    if isinstance(target, Button) or any(isinstance(p, Button) for p in getattr(target, "ancestors", [])):
+                        return
                 try:
                     from .permission_panel import PermissionsSettingsPanel, Toggle3D
                     from .command_palette import CommandPalette
@@ -1009,8 +1063,14 @@ if TEXTUAL_AVAILABLE:
             target = getattr(event, "widget", None)
             if target is not None:
                 from textual.widgets import Button
-                if isinstance(target, Button) or any(isinstance(p, Button) for p in getattr(target, "ancestors", [])):
-                    return
+                try:
+                    from .footer import _Badge
+                    from .attachments import AttachmentBar, AttachmentPill
+                    if isinstance(target, (Button, _Badge, AttachmentPill)) or any(isinstance(p, (Button, _Badge, AttachmentPill, AttachmentBar)) for p in getattr(target, "ancestors", [])):
+                        return
+                except Exception:
+                    if isinstance(target, Button) or any(isinstance(p, Button) for p in getattr(target, "ancestors", [])):
+                        return
                 try:
                     from .permission_panel import PermissionsSettingsPanel, Toggle3D
                     from .command_palette import CommandPalette
@@ -1040,11 +1100,20 @@ if TEXTUAL_AVAILABLE:
         def submit(self):
             editor = self.query_one("#cct-input", ComposerInput)
             text = editor.text.strip()
+            att_bar = self.query_one(AttachmentBar)
+            pasted_texts = att_bar.pop_paste_texts() if hasattr(att_bar, "pop_paste_texts") else []
+            if pasted_texts:
+                pasted_block = "\n\n".join(pasted_texts)
+                if text:
+                    text = f"{text}\n\n{pasted_block}"
+                else:
+                    text = pasted_block
+
             if not text:
                 return
             # v0.7.8.1: real Attachment objects (not bare paths) travel
             # with the message — see AttachmentBar.pop_attachment_objects.
-            attachments = self.query_one(AttachmentBar).pop_attachment_objects()
+            attachments = att_bar.pop_attachment_objects()
             editing_turn_id = self._editing_turn_id
             self._editing_turn_id = None
             self.query_one("#cct-edit-banner", Static).remove_class("active")

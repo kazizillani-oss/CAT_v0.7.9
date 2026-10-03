@@ -170,12 +170,25 @@ _MODEL_ALIASES: dict[tuple[str, str], str] = {
 
     # NVIDIA NIM
     ("nvidia", "nemotron-3-ultra"): "nvidia/nemotron-3-ultra-550b-a55b",
-    ("nvidia", "nemotron-3-ultra-550b"): "nvidia/nemotron-3-ultra-550b-a55b",
+    ("nvidia", "nemotron 3 ultra"): "nvidia/nemotron-3-ultra-550b-a55b",
+    ("nvidia", "nematron 3 ultra"): "nvidia/nemotron-3-ultra-550b-a55b",
+    ("nvidia", "nematron-3-ultra"): "nvidia/nemotron-3-ultra-550b-a55b",
+    ("nvidia", "nvidia nematron 3 ultra"): "nvidia/nemotron-3-ultra-550b-a55b",
+    ("nvidia", "nvidia nemotron 3 ultra"): "nvidia/nemotron-3-ultra-550b-a55b",
     ("nvidia", "nvidia/nemotron-3-ultra"): "nvidia/nemotron-3-ultra-550b-a55b",
+    ("nvidia", "nvidia/nematron-3-ultra"): "nvidia/nemotron-3-ultra-550b-a55b",
+    ("nvidia", "nvidia/nemotron 3 ultra"): "nvidia/nemotron-3-ultra-550b-a55b",
+    ("nvidia", "nvidia/nematron 3 ultra"): "nvidia/nemotron-3-ultra-550b-a55b",
+    ("nvidia", "nemotron-3-ultra-550b"): "nvidia/nemotron-3-ultra-550b-a55b",
     ("nvidia", "nvidia/nemotron-3-ultra-550b"): "nvidia/nemotron-3-ultra-550b-a55b",
+    ("nvidia", "3-ultra"): "nvidia/nemotron-3-ultra-550b-a55b",
+    ("nvidia", "3 ultra"): "nvidia/nemotron-3-ultra-550b-a55b",
     ("nvidia", "nemotron-3.5-lightning"): "nvidia/nemotron-3.5-lightning-30b-a3b",
+    ("nvidia", "nemotron 3.5 lightning"): "nvidia/nemotron-3.5-lightning-30b-a3b",
+    ("nvidia", "nematron 3.5 lightning"): "nvidia/nemotron-3.5-lightning-30b-a3b",
     ("nvidia", "nemotron-3.5-lightning-30b"): "nvidia/nemotron-3.5-lightning-30b-a3b",
     ("nvidia", "3.5-lightning"): "nvidia/nemotron-3.5-lightning-30b-a3b",
+    ("nvidia", "3.5 lightning"): "nvidia/nemotron-3.5-lightning-30b-a3b",
     ("nvidia", "3.5-lightning-ai"): "nvidia/nemotron-3.5-lightning-30b-a3b",
     ("nvidia", "nvidia/nemotron-3.5-lightning"): "nvidia/nemotron-3.5-lightning-30b-a3b",
     ("nvidia", "nvidia/nemotron-3.5-lightning-30b"): "nvidia/nemotron-3.5-lightning-30b-a3b",
@@ -314,11 +327,9 @@ class ModelLifecycleManager:
                 valid=False, model=model, message=msg,
                 replacement=replacement, retry_after_refresh=False)
 
-        # 2. Check alias map (data-driven: model_metadata.json)
-        alias_key = (provider_id, model)
-        alias_map = _load_aliases()
-        if alias_key in alias_map:
-            replacement = alias_map[alias_key]
+        # 2. Check alias map & normalization (data-driven: model_metadata.json + specialized normalizers)
+        replacement = self.resolve_alias(provider_id, model)
+        if replacement != model:
             _log(f"validate_model [{provider_id}] ALIAS: {model} -> {replacement}")
             return ValidationResult(
                 valid=True, model=replacement,
@@ -348,8 +359,24 @@ class ModelLifecycleManager:
 
     def resolve_alias(self, provider_id: str, model: str) -> str:
         """Resolve model alias to its current name. Returns current model."""
+        if not model:
+            return model
         alias_key = (provider_id, model)
-        return _load_aliases().get(alias_key, model)
+        alias_map = _load_aliases()
+        if alias_key in alias_map:
+            return alias_map[alias_key]
+        alias_key_lower = (str(provider_id or "").lower(), str(model).lower())
+        for (p, m), target in alias_map.items():
+            if str(p).lower() == alias_key_lower[0] and str(m).lower() == alias_key_lower[1]:
+                return target
+        try:
+            from ..aicore import _normalize_provider_model
+            norm = _normalize_provider_model(provider_id, model)
+            if norm and norm != model:
+                return norm
+        except Exception:
+            pass
+        return alias_map.get(alias_key, model)
 
     # ── Deprecation Handling ───────────────────────────────────────────
 

@@ -116,6 +116,8 @@ def _build_provider_dict(force_reload=False):
     _BUILTIN_PROVIDER_DICT = d
     return d
 
+PROVIDERS = _build_provider_dict()
+
 
 def _get_provider_info(provider_id):
     """Get provider info, with cache refresh if base_url is missing."""
@@ -787,15 +789,21 @@ def _resolve_provider(config):
 _ERROR_SIGNATURES = (
     "The 'requests' library is required for AI features.",
     "AI not configured.",
+    "AI not configured —",
+    "AI not configured \u2014",
     "Could not reach the AI server.",
-    "The AI request timed out.",
+    "Could not reach ",
+    "The AI request timed out",
+    "Request to ",
     "Error connecting to AI:",
+    "Error connecting to ",
     "No model response received.",
-    "Invalid API key.",
+    "Invalid API key",
     "Rate limited.",
     "Quota exceeded.",
     "Model '",
     "Error: ",
+    "Error from ",
     "*(Generation timed out)*",
     "(Generation timed out)",
     "Generation timed out",
@@ -805,6 +813,9 @@ _ERROR_SIGNATURES = (
     "Could not reach Ollama",
     "The Ollama request timed out",
     "Ollama streaming failure:",
+    "Ollama took too long",
+    "HTTP 4",
+    "HTTP 5",
 )
 # not a fixed prefix (provider name is interpolated) — matched separately
 _ERROR_SUFFIX = "is not supported yet. Run /ai to reconfigure."
@@ -816,10 +827,20 @@ def is_error_response(text):
     if not text or not isinstance(text, str):
         return False
     t = text.strip()
+    if not t:
+        return False
+    # If the text has thoughts or markdown structure, it's model output, not an error signature!
+    if t.startswith("<think>") or "</think>" in t or t.startswith("```") or "\n```" in t:
+        return False
     if t.startswith(_ERROR_SIGNATURES) or t.endswith(_ERROR_SUFFIX):
         return True
-    low = t.lower()
-    return any(h in low for h in _FALLOVER_HINTS)
+    if len(t) <= 300:
+        low = t.lower()
+        if low.startswith(("http 4", "http 5", "429", "401", "403", "500", "502", "503", "error", "failed", "could not reach", "connection error", "rate limit", "quota exceeded")):
+            return True
+        if any(h in low for h in ("insufficient_quota", "rate_limit", "rate limit", "too many requests", "could not reach ollama", "ensure ollama is running")):
+            return True
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -866,18 +887,93 @@ _FALLOVER_HINTS = ("quota", "rate limit", "rate_limit", "insufficient_quota",
 # moments as chat notes instead of silence.
 _FAILOVER_HOOK = None
 
+# Model contribution telemetry tracking
+_CONTRIBUTIONS_LOCK = threading.Lock()
+_LAST_CONTRIBUTIONS = []
+_TURN_CONTRIBUTIONS = {}  # turn_id -> list of contribution dicts
+
+
+def record_turn_contributions(contributions, turn_id=None):
+    """Store real model contributions (main model vs backup provider percentages and counts)."""
+    global _LAST_CONTRIBUTIONS
+    if isinstance(contributions, dict):
+        norm = dict(contributions)
+    elif isinstance(contributions, (list, tuple)):
+        norm = list(contributions)
+    else:
+        norm = []
+    with _CONTRIBUTIONS_LOCK:
+        _LAST_CONTRIBUTIONS = norm
+        if turn_id:
+            _TURN_CONTRIBUTIONS[str(turn_id)] = norm
+            if len(_TURN_CONTRIBUTIONS) > 100:
+                oldest_k = next(iter(_TURN_CONTRIBUTIONS))
+                _TURN_CONTRIBUTIONS.pop(oldest_k, None)
+    try:
+        from . import metrics as _m
+        m = _m.current()
+        if m is not None:
+            m.model_contributions = norm
+    except Exception:
+        pass
+
+
+def get_last_contributions(turn_id=None):
+    """Retrieve model contributions for turn_id or the most recent completion."""
+    with _CONTRIBUTIONS_LOCK:
+        if turn_id and str(turn_id) in _TURN_CONTRIBUTIONS:
+            val = _TURN_CONTRIBUTIONS[str(turn_id)]
+            return list(val) if isinstance(val, list) else dict(val) if isinstance(val, dict) else val
+        val = _LAST_CONTRIBUTIONS
+        return list(val) if isinstance(val, list) else dict(val) if isinstance(val, dict) else val
+
+
+def _finalize_contributions(target_stats, turn_id=None):
+    """Compute exact contribution percentages per attempted provider/model."""
+    if not target_stats:
+        return []
+    total_chars = sum(s.get("chars", 0) for s in target_stats)
+    attempted = [s for s in target_stats if s.get("attempted")]
+    contributions = []
+    for s in attempted:
+        chars = s.get("chars", 0)
+        pct = round((chars / total_chars * 100.0), 1) if total_chars > 0 else 0.0
+        contributions.append({
+            "provider": s.get("provider", "?"),
+            "model": s.get("model", "?"),
+            "is_backup": s.get("is_backup", False),
+            "chars": chars,
+            "tokens": estimate_tokens(" " * chars) if chars > 0 else 0,
+            "percent": pct,
+            "success": s.get("success", False),
+        })
+    if total_chars == 0 and any(s.get("success") for s in attempted):
+        for c in contributions:
+            if c.get("success"):
+                c["percent"] = 100.0
+    record_turn_contributions(contributions, turn_id=turn_id)
+    return contributions
+
 
 def _should_failover(text):
     """True when a returned text looks like a provider-level failure worth
-    switching providers for — CCT's own error strings, or the typical
-    HTTP-level rate-limit / quota wording providers embed in bodies."""
+    switching providers for — CCT's own error strings, or HTTP-level
+    rate-limit / quota wording. Does NOT failover on model thinking/answers."""
     if not text or not isinstance(text, str):
         return True
-    if not text.strip():
+    t = text.strip()
+    if not t:
         return True
-    if is_error_response(text):
+    if t.startswith("<think>") or "</think>" in t or t.startswith("```") or "\n```" in t:
+        return False
+    if is_error_response(t):
         return True
-    low = text.lower()
+    try:
+        from .resilience.failover_engine import get_failover_engine
+        return get_failover_engine().should_failover(t)
+    except Exception:
+        pass
+    low = t.lower()
     return any(h in low for h in _FALLOVER_HINTS)
 
 
@@ -889,15 +985,17 @@ def _retryable_failure(text):
     if not text:
         return False
     t = text.strip()
-    if t.startswith(("Could not reach the AI server.", "The AI request timed out.")):
+    if t.startswith("<think>") or "</think>" in t or t.startswith("```") or "\n```" in t:
+        return False
+    if not is_error_response(t):
+        return False
+    if t.startswith(("Could not reach the AI server.", "The AI request timed out.", "Could not reach ", "Request to ")):
         return True
     low = t.lower()
-    # Transient network/timeout issues are worth retrying
     transient_hints = ("timed out", "timeout", "connection reset", "connection refused",
                        "connection error", "connection aborted", "broken pipe",
                        "eof occurred", "incomplete read", "remote end closed",
                        "server disconnected", "503", "502", "500")
-    # Non-retryable: quota, auth, config issues
     non_retryable_hints = ("quota", "rate limit", "rate_limit", "401", "403",
                            "api key", "unauthorized", "not found", "404",
                            "not supported", "end of life", "deprecated")
@@ -1171,7 +1269,7 @@ def _failover_targets(primary_cfg=None, requirements=None):
             requirements=req,
             privacy_policy=pol,
         )
-        if candidates:
+        if candidates and any(c.is_backup for c in candidates):
             return [(dict(c.config), c.entry, c.is_backup) for c in candidates]
     except Exception:
         pass
@@ -1187,7 +1285,8 @@ def _failover_targets(primary_cfg=None, requirements=None):
             b_model = str(bcfg.get("model", "")).lower()
             if b_prov == prim_prov and b_url == prim_url and b_model == prim_model:
                 continue
-            needs_key = bcfg.get("needs_key", True)
+            _pinfo = _get_provider_info(b_prov)
+            needs_key = _pinfo.get("needs_key", True) if _pinfo else bcfg.get("needs_key", False)
             if b_prov == "ollama":
                 needs_key = False
             if needs_key and not (bcfg.get("api_key") or "").strip():
@@ -1359,7 +1458,7 @@ def _query_ai_once(prompt, system_prompt=DEFAULT_SYSTEM_PROMPT,
 
 def query_ai(prompt, system_prompt=DEFAULT_SYSTEM_PROMPT,
              history=None, config=None, on_failover=None, attachments=None,
-             size_class="normal", requirements=None):
+             size_class="normal", requirements=None, turn_id=None):
     """`history` is an optional list of (role, text) pairs — or {"role","text"}
     dicts — for every prior turn that should stay in context, oldest first.
     Every branch below sends it to the provider in whatever shape that
@@ -1399,9 +1498,23 @@ def query_ai(prompt, system_prompt=DEFAULT_SYSTEM_PROMPT,
     result = ""
     fallback_used = False
 
+    target_stats = []
+    for cfg_i, entry_i, is_b_i in targets:
+        target_stats.append({
+            "provider": cfg_i.get("provider", "?"),
+            "model": cfg_i.get("model", "?"),
+            "is_backup": bool(is_b_i),
+            "chars": 0,
+            "attempted": False,
+            "success": False,
+        })
+
     for t_idx, (cfg, entry, is_backup) in enumerate(targets):
         provider = cfg.get("provider", "?")
         model = cfg.get("model", "")
+        stat = target_stats[t_idx] if t_idx < len(target_stats) else None
+        if stat is not None:
+            stat["attempted"] = True
         try:
             from .resilience.health_monitor import get_health_monitor
             get_health_monitor().record_turn_start(provider, model)
@@ -1420,6 +1533,9 @@ def query_ai(prompt, system_prompt=DEFAULT_SYSTEM_PROMPT,
                                     attachments=attachments,
                                     size_class=size_class)
             if not _should_failover(result):
+                if stat is not None:
+                    stat["chars"] = len(result)
+                    stat["success"] = True
                 if is_backup:
                     _mark_backup_success(entry)
                     notify("\u2713 Connected successfully.")
@@ -1434,6 +1550,7 @@ def query_ai(prompt, system_prompt=DEFAULT_SYSTEM_PROMPT,
                                   provider=provider, model=cfg.get("model"),
                                   size_class=size_class, chars=len(result),
                                   fallback=fallback_used)
+                _finalize_contributions(target_stats, turn_id=turn_id)
                 return result
             # Failure. Transient? → brief backoff, retry same provider.
             if attempt + 1 < max_attempts and _retryable_failure(result):
@@ -1473,6 +1590,7 @@ def query_ai(prompt, system_prompt=DEFAULT_SYSTEM_PROMPT,
     # shows a real error card instead of waiting forever.
     log_request_event(_short_id(), "all_providers_failed",
                       detail=result[:200], size_class=size_class)
+    _finalize_contributions(target_stats, turn_id=turn_id)
     return result
 
 
@@ -1509,7 +1627,7 @@ def _peek_first(generator):
 
 def stream_ai(prompt, system_prompt=DEFAULT_SYSTEM_PROMPT,
               history=None, config=None, on_failover=None, attachments=None,
-              size_class="normal", requirements=None):
+              size_class="normal", requirements=None, turn_id=None):
     """Generator version of query_ai — yields text fragments as they
     arrive instead of returning one finished string, so the primary UI
     (calc_terminal/ui/) can grow a ConversationItem token-by-token
@@ -1547,16 +1665,39 @@ def stream_ai(prompt, system_prompt=DEFAULT_SYSTEM_PROMPT,
     fallback_used = False
     last_error_piece = None
 
+    target_stats = []
+    for cfg_i, entry_i, is_b_i in targets:
+        target_stats.append({
+            "provider": cfg_i.get("provider", "?"),
+            "model": cfg_i.get("model", "?"),
+            "is_backup": bool(is_b_i),
+            "chars": 0,
+            "attempted": False,
+            "success": False,
+        })
+
     for t_idx, (cfg, entry, is_backup) in enumerate(targets):
         provider = cfg.get("provider", "?")
+        stat = target_stats[t_idx] if t_idx < len(target_stats) else None
+        if stat is not None:
+            stat["attempted"] = True
         for attempt in range(max_attempts):
             _metrics_note_model_start(cfg)
             got_content = False
             error_piece = None
+            stream_kw = {}
+            if turn_id:
+                try:
+                    import inspect
+                    if "request_id" in inspect.signature(_stream_ai_once).parameters:
+                        stream_kw["request_id"] = turn_id
+                except Exception:
+                    pass
             for piece in _stream_ai_once(prompt, system_prompt=system_prompt,
                                          history=history, config=cfg,
                                          attachments=attachments,
-                                         size_class=size_class):
+                                         size_class=size_class,
+                                         **stream_kw):
                 if not got_content:
                     if is_error_response(piece):
                         error_piece = piece
@@ -1568,12 +1709,15 @@ def stream_ai(prompt, system_prompt=DEFAULT_SYSTEM_PROMPT,
                     if t and (t.startswith(_ERROR_SIGNATURES) or t.endswith(_ERROR_SUFFIX)):
                         error_piece = piece
                         break
-                # Real content: stream it out immediately (requirement:
-                # first token replaces '...' right away).
+                # Real content: stream it out immediately
                 got_content = True
+                if stat is not None:
+                    stat["chars"] += len(piece)
                 yield piece
             if error_piece is None:
                 if got_content:
+                    if stat is not None:
+                        stat["success"] = True
                     if is_backup:
                         _mark_backup_success(entry)
                         notify("\u2713 Connected successfully.")
@@ -1581,6 +1725,7 @@ def stream_ai(prompt, system_prompt=DEFAULT_SYSTEM_PROMPT,
                     log_request_event(_short_id(), "finish",
                                       provider=provider, model=cfg.get("model"),
                                       size_class=size_class, fallback=fallback_used)
+                    _finalize_contributions(target_stats, turn_id=turn_id)
                     return
                 # Generator ended with zero tokens and no signature —
                 # treat as a provider-level empty response.
@@ -1594,6 +1739,7 @@ def stream_ai(prompt, system_prompt=DEFAULT_SYSTEM_PROMPT,
                                   size_class=size_class)
                 yield ("\n\n\u26a0 Connection lost mid-response \u2014 partial "
                        "answer kept. Send again to continue.")
+                _finalize_contributions(target_stats, turn_id=turn_id)
                 return
             last_error_piece = error_piece
             if attempt + 1 < max_attempts and _retryable_failure(error_piece):
@@ -1620,6 +1766,7 @@ def stream_ai(prompt, system_prompt=DEFAULT_SYSTEM_PROMPT,
 
     # Nothing received anywhere — surface the final failure message so
     # the UI renders an error card instead of an eternal spinner.
+    _finalize_contributions(target_stats, turn_id=turn_id)
     yield last_error_piece or "No model response received."
 
 
@@ -1701,19 +1848,56 @@ def _normalize_provider_model(provider: str, model: str, base_url: str = "") -> 
         return model
     prov_lower = (provider or "").lower()
     url_lower = str(base_url or "").lower()
-    is_nvidia = prov_lower == "nvidia" or "integrate.api.nvidia.com" in url_lower
+    m_str = str(model).strip()
+    m_low = m_str.lower()
+    m_clean = m_low.replace("nematron", "nemotron").replace("_", "-").replace(" ", "-")
+    while "--" in m_clean:
+        m_clean = m_clean.replace("--", "-")
+
+    is_nvidia = (
+        prov_lower in ("nvidia", "nim")
+        or "nvidia" in prov_lower
+        or "integrate.api.nvidia.com" in url_lower
+        or "nvidia/" in m_low
+        or m_low.startswith("nvidia-")
+        or m_low.startswith("nvidia ")
+        or "nemotron" in m_clean
+    )
 
     if is_nvidia:
-        m_str = str(model).strip()
-        m_low = m_str.lower()
-        if "nemotron-3-ultra" in m_low or "nemotron-3_ultra" in m_low or ("nemotron" in m_low and "ultra" in m_low) or "3-ultra" in m_low or "3_ultra" in m_low:
+        # Check Nemotron 3 Ultra variations (e.g. nematron 3 ultra, nvidia nematron 3 ultra, 3-ultra, 550b)
+        if (
+            "nemotron-3-ultra" in m_clean
+            or ("nemotron" in m_clean and "ultra" in m_clean)
+            or ("3-ultra" in m_clean)
+            or ("3" in m_clean and "ultra" in m_clean)
+            or "550b" in m_clean
+        ):
             return "nvidia/nemotron-3-ultra-550b-a55b"
-        if "3.5-lightning" in m_low or "3.5_lightning" in m_low or ("nemotron" in m_low and "lightning" in m_low) or ("3.5" in m_low and "lightning" in m_low):
+        # Check Nemotron 3.5 Lightning variations
+        if (
+            "3.5-lightning" in m_clean
+            or ("nemotron" in m_clean and "lightning" in m_clean)
+            or ("3.5" in m_clean and "lightning" in m_clean)
+        ):
             return "nvidia/nemotron-3.5-lightning-30b-a3b"
-        if "nemotron-70b" in m_low or ("nemotron" in m_low and "70b" in m_low):
+        # Check Nemotron 3 Super variations
+        if (
+            "3-super" in m_clean
+            or ("nemotron" in m_clean and "super" in m_clean)
+            or "120b" in m_clean
+        ):
+            return "nvidia/nemotron-3-super-120b-a12b"
+        # Check Nemotron 3 Nano variations
+        if "3-nano" in m_clean or ("nemotron" in m_clean and "nano" in m_clean):
+            return "nvidia/nemotron-3-nano-30b-a3b"
+        # Check Nemotron 70B variations
+        if "nemotron-70b" in m_clean or ("nemotron" in m_clean and "70b" in m_clean):
             return "nvidia/llama-3.1-nemotron-70b-instruct"
-        if m_low.startswith("nemotron-") and not m_str.startswith("nvidia/"):
-            return f"nvidia/{m_str}"
+        if m_clean.startswith("nemotron-") and not m_str.startswith("nvidia/"):
+            return f"nvidia/{m_clean}"
+        if m_str.startswith("nvidia/"):
+            return m_str
         return m_str
 
     try:
@@ -1848,8 +2032,80 @@ def _stream_ai_once(prompt, system_prompt=DEFAULT_SYSTEM_PROMPT,
             resp = _track(requests.post(url, headers=headers, json=payload,
                                          timeout=t_connect_idle, stream=True))
             _raise_for_status(resp)
+
+            def _create_think_tracker(m_name, p_name):
+                t_act = None
+                t_buf = []
+                last_up = [0.0]
+
+                def on_chunk(txt: str):
+                    nonlocal t_act
+                    if not txt:
+                        return
+                    t_buf.append(txt)
+                    try:
+                        from . import activity as act_mod
+                        if t_act is None:
+                            curr_turn = act_mod.get_current_turn() or request_id or ""
+                            t_act = act_mod.manager.create(
+                                type=act_mod.TYPE_STATUS,
+                                action="thinking",
+                                title="Thinking…",
+                                status=act_mod.STATUS_RUNNING,
+                                phase=act_mod.PHASE_ANALYSIS,
+                                category=act_mod.CAT_MODEL,
+                                turn_id=curr_turn,
+                                model=m_name,
+                                provider=p_name,
+                                details=txt,
+                                stdout=txt,
+                            )
+                            last_up[0] = time.time()
+                        else:
+                            now = time.time()
+                            if now - last_up[0] >= 0.1 or len(txt) > 25:
+                                last_up[0] = now
+                                f_thought = "".join(t_buf).strip()
+                                lines = [l.strip() for l in f_thought.splitlines() if l.strip()]
+                                snip = lines[-1] if lines else ""
+                                if len(snip) > 60:
+                                    snip = "…" + snip[-57:]
+                                title = f"Thinking… ({snip})" if snip else "Thinking…"
+                                act_mod.manager.update(
+                                    t_act.id,
+                                    title=title,
+                                    details=f_thought,
+                                    stdout=f_thought,
+                                )
+                    except Exception:
+                        pass
+
+                def on_end():
+                    nonlocal t_act
+                    if t_act is not None:
+                        try:
+                            from . import activity as act_mod
+                            f_thought = "".join(t_buf).strip()
+                            w_count = len(f_thought.split())
+                            act_mod.manager.update(
+                                t_act.id,
+                                status=act_mod.STATUS_COMPLETED,
+                                title="Reasoning & Thinking",
+                                result=f"Thought for {w_count} words",
+                                details=f_thought,
+                                stdout=f_thought,
+                            )
+                        except Exception:
+                            pass
+                        t_act = None
+
+                return on_chunk, on_end
+
             full = []
             usage = None
+            in_reasoning = False
+            on_think_chunk, on_think_end = _create_think_tracker(model, provider)
+
             for line in _lines_with_deadline(resp.iter_lines(decode_unicode=True)):
                 if not line or not line.startswith("data:"):
                     continue
@@ -1863,13 +2119,40 @@ def _stream_ai_once(prompt, system_prompt=DEFAULT_SYSTEM_PROMPT,
                 choices = obj.get("choices") or []
                 if choices:
                     delta = choices[0].get("delta") or {}
+                    # Reasoning / thinking tokens (NVIDIA NIM, DeepSeek-R1, Groq, OpenRouter, QwQ)
+                    reason_chunk = (delta.get("reasoning_content")
+                                    or delta.get("reasoning")
+                                    or delta.get("thought")
+                                    or delta.get("thinking"))
+                    if reason_chunk:
+                        if not in_reasoning:
+                            in_reasoning = True
+                            full.append("<think>\n")
+                            yield "<think>\n"
+                        full.append(reason_chunk)
+                        on_think_chunk(reason_chunk)
+                        _FirstToken.hit()
+                        yield reason_chunk
+
                     piece = delta.get("content")
                     if piece:
+                        if in_reasoning:
+                            in_reasoning = False
+                            on_think_end()
+                            full.append("\n</think>\n\n")
+                            yield "\n</think>\n\n"
                         full.append(piece)
                         _FirstToken.hit()
                         yield piece
                 if isinstance(obj.get("usage"), dict):
                     usage = obj["usage"]
+
+            if in_reasoning:
+                in_reasoning = False
+                on_think_end()
+                full.append("\n</think>\n\n")
+                yield "\n</think>\n\n"
+
             completion_text = "".join(full)
             if usage:
                 record_usage(usage.get("prompt_tokens", estimate_tokens(usage_prompt_text)),
@@ -1901,6 +2184,9 @@ def _stream_ai_once(prompt, system_prompt=DEFAULT_SYSTEM_PROMPT,
             _raise_for_status(resp)
             full = []
             in_tokens = out_tokens = None
+            in_reasoning = False
+            on_think_chunk, on_think_end = _create_think_tracker(model, provider)
+
             for line in _lines_with_deadline(resp.iter_lines(decode_unicode=True)):
                 if not line or not line.startswith("data:"):
                     continue
@@ -1909,18 +2195,56 @@ def _stream_ai_once(prompt, system_prompt=DEFAULT_SYSTEM_PROMPT,
                 except ValueError:
                     continue
                 etype = obj.get("type")
-                if etype == "content_block_delta":
-                    piece = (obj.get("delta") or {}).get("text")
-                    if piece:
-                        full.append(piece)
-                        _FirstToken.hit()
-                        yield piece
+                if etype == "content_block_start":
+                    cblock = obj.get("content_block") or {}
+                    if cblock.get("type") == "thinking":
+                        in_reasoning = True
+                        full.append("<think>\n")
+                        yield "<think>\n"
+                elif etype == "content_block_delta":
+                    delta = obj.get("delta") or {}
+                    dtype = delta.get("type")
+                    if dtype == "thinking_delta":
+                        t_piece = delta.get("thinking")
+                        if t_piece:
+                            if not in_reasoning:
+                                in_reasoning = True
+                                full.append("<think>\n")
+                                yield "<think>\n"
+                            full.append(t_piece)
+                            on_think_chunk(t_piece)
+                            _FirstToken.hit()
+                            yield t_piece
+                    else:
+                        piece = delta.get("text")
+                        if piece:
+                            if in_reasoning:
+                                in_reasoning = False
+                                on_think_end()
+                                full.append("\n</think>\n\n")
+                                yield "\n</think>\n\n"
+                            full.append(piece)
+                            _FirstToken.hit()
+                            yield piece
+                elif etype == "content_block_stop":
+                    if in_reasoning:
+                        in_reasoning = False
+                        on_think_end()
+                        full.append("\n</think>\n\n")
+                        yield "\n</think>\n\n"
                 elif etype == "message_start":
                     u = (obj.get("message") or {}).get("usage") or {}
                     in_tokens = u.get("input_tokens", in_tokens)
                 elif etype == "message_delta":
                     u = obj.get("usage") or {}
                     out_tokens = u.get("output_tokens", out_tokens)
+
+            if in_reasoning:
+                in_reasoning = False
+                on_think_end()
+                full.append("\n</think>\n\n")
+                yield "\n</think>\n\n"
+
             completion_text = "".join(full)
             record_usage(in_tokens if in_tokens is not None else estimate_tokens(usage_prompt_text),
                          out_tokens if out_tokens is not None else estimate_tokens(completion_text))
@@ -1939,10 +2263,13 @@ def _stream_ai_once(prompt, system_prompt=DEFAULT_SYSTEM_PROMPT,
                 },
             }
             resp = _track(requests.post(url, json=payload, timeout=t_connect_idle,
-                                        stream=True))
+                                         stream=True))
             _raise_for_status(resp)
             full = []
             usage_meta = None
+            in_reasoning = False
+            on_think_chunk, on_think_end = _create_think_tracker(model, provider)
+
             for line in _lines_with_deadline(resp.iter_lines(decode_unicode=True)):
                 if not line or not line.startswith("data:"):
                     continue
@@ -1954,13 +2281,36 @@ def _stream_ai_once(prompt, system_prompt=DEFAULT_SYSTEM_PROMPT,
                 if candidates:
                     parts = (candidates[0].get("content") or {}).get("parts") or []
                     for part in parts:
+                        is_thought = part.get("thought", False)
                         piece = part.get("text")
                         if piece:
-                            full.append(piece)
-                            _FirstToken.hit()
-                            yield piece
+                            if is_thought:
+                                if not in_reasoning:
+                                    in_reasoning = True
+                                    full.append("<think>\n")
+                                    yield "<think>\n"
+                                full.append(piece)
+                                on_think_chunk(piece)
+                                _FirstToken.hit()
+                                yield piece
+                            else:
+                                if in_reasoning:
+                                    in_reasoning = False
+                                    on_think_end()
+                                    full.append("\n</think>\n\n")
+                                    yield "\n</think>\n\n"
+                                full.append(piece)
+                                _FirstToken.hit()
+                                yield piece
                 if isinstance(obj.get("usageMetadata"), dict):
                     usage_meta = obj["usageMetadata"]
+
+            if in_reasoning:
+                in_reasoning = False
+                on_think_end()
+                full.append("\n</think>\n\n")
+                yield "\n</think>\n\n"
+
             completion_text = "".join(full)
             if usage_meta:
                 record_usage(usage_meta.get("promptTokenCount", estimate_tokens(usage_prompt_text)),
@@ -2180,37 +2530,202 @@ _TAG_RE = re.compile(r"<.*?>", re.S)
 
 def web_search(query, max_results=5):
     """Best-effort web search, no API key required. Returns a list of
-    {\"title\", \"url\", \"snippet\"} dicts, or [] if unreachable/blocked —
+    {"title", "url", "snippet"} dicts, or [] if unreachable/blocked —
     callers should treat an empty list as 'couldn't search right now', not
-    an error."""
+    an error. Emits real-time live activity events for search transparency."""
     query = (query or "").strip()
     if not query or not _HAS_REQUESTS:
         return []
+
+    try:
+        from . import activity as _act
+        current_turn = _act.get_current_turn() or ""
+        _act.manager.create(
+            type=_act.TYPE_TOOL, action="web",
+            title=f"Searching web for \"{query[:40]}\"",
+            status=_act.STATUS_RUNNING,
+            turn_id=current_turn,
+            details=f"Query: {query}",
+            category=_act.CAT_SEARCH, phase=_act.PHASE_DISCOVERY,
+            query=query
+        )
+    except Exception:
+        pass
+
+    results = []
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+    }
+
+    # Primary: DuckDuckGo HTML
     try:
         resp = requests.post(
             "https://html.duckduckgo.com/html/",
-            data={"q": query}, timeout=12,
-            headers={"User-Agent": "Mozilla/5.0 (compatible; CAT/0.7.9.0)"},
+            data={"q": query}, timeout=10,
+            headers=headers,
         )
-        if resp.status_code >= 400:
-            return []
-        html = resp.text
-        results = []
-        pattern = re.compile(
-            r'result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>.*?'
-            r'result__snippet[^>]*>(.*?)</a>', re.S)
-        for m in pattern.finditer(html):
-            href, title_html, snippet_html = m.groups()
-            title = _html_unescape(_TAG_RE.sub("", title_html)).strip()
-            snippet = _html_unescape(_TAG_RE.sub("", snippet_html)).strip()
-            url = _unwrap_ddg_url(href)
-            if title and url:
-                results.append({"title": title, "url": url, "snippet": snippet})
-            if len(results) >= max_results:
-                break
-        return results
+        if resp.status_code == 200:
+            pattern = re.compile(
+                r'result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>.*?'
+                r'result__snippet[^>]*>(.*?)</a>', re.S)
+            for m in pattern.finditer(resp.text):
+                href, title_html, snippet_html = m.groups()
+                title = _html_unescape(_TAG_RE.sub("", title_html)).strip()
+                snippet = _html_unescape(_TAG_RE.sub("", snippet_html)).strip()
+                url = _unwrap_ddg_url(href)
+                if title and url:
+                    results.append({"title": title, "url": url, "snippet": snippet})
+                if len(results) >= max_results:
+                    break
     except Exception:
-        return []
+        pass
+
+    # Secondary: DuckDuckGo Lite fallback
+    if not results:
+        try:
+            resp = requests.post(
+                "https://lite.duckduckgo.com/lite/",
+                data={"q": query}, timeout=10,
+                headers=headers,
+            )
+            if resp.status_code == 200:
+                pattern = re.compile(r'class="result-link"[^>]*href="([^"]+)"[^>]*>(.*?)</a>.*?'
+                                     r'class="result-snippet"[^>]*>(.*?)</td>', re.S)
+                for m in pattern.finditer(resp.text):
+                    href, title_html, snippet_html = m.groups()
+                    title = _html_unescape(_TAG_RE.sub("", title_html)).strip()
+                    snippet = _html_unescape(_TAG_RE.sub("", snippet_html)).strip()
+                    url = _unwrap_ddg_url(href)
+                    if title and url:
+                        results.append({"title": title, "url": url, "snippet": snippet})
+                    if len(results) >= max_results:
+                        break
+        except Exception:
+            pass
+
+    # Tertiary: Wikipedia OpenSearch fallback
+    if not results:
+        try:
+            w_url = f"https://en.wikipedia.org/w/api.php?action=opensearch&search={requests.utils.quote(query)}&limit={max_results}&namespace=0&format=json"
+            resp = requests.get(w_url, headers=headers, timeout=8)
+            if resp.status_code == 200:
+                w_data = resp.json()
+                if len(w_data) >= 4:
+                    titles, snippets, urls = w_data[1], w_data[2], w_data[3]
+                    for t, s, u in zip(titles, snippets, urls):
+                        results.append({"title": t, "url": u, "snippet": s or t})
+                        if len(results) >= max_results:
+                            break
+        except Exception:
+            pass
+
+    try:
+        from . import activity as _act
+        current_turn = _act.get_current_turn() or ""
+        _act.manager.create(
+            type=_act.TYPE_TOOL, action="web",
+            title=f"Web search: \"{query[:35]}\" ({len(results)} found)",
+            status=_act.STATUS_COMPLETED if results else _act.STATUS_FAILED,
+            turn_id=current_turn,
+            details=f"Query: {query} \u2014 found {len(results)} items",
+            result=f"{len(results)} results",
+            category=_act.CAT_SEARCH, phase=_act.PHASE_DISCOVERY,
+            query=query
+        )
+    except Exception:
+        pass
+
+    return results
+
+
+def fetch_web_page(url, max_chars=8000):
+    """Fetch and extract clean readable text content from a web page URL.
+    Returns clean plain text or an explanatory error message, and emits
+    real-time live activity updates."""
+    url = (url or "").strip()
+    if not url:
+        return "No URL provided."
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+    }
+    try:
+        from . import activity as _act
+        current_turn = _act.get_current_turn() or ""
+        _act.manager.create(
+            type=_act.TYPE_TOOL, action="web",
+            title=f"Fetching web page: {url[:50]}",
+            status=_act.STATUS_RUNNING,
+            turn_id=current_turn,
+            details=f"URL: {url}",
+            category=_act.CAT_SEARCH, phase=_act.PHASE_DISCOVERY
+        )
+    except Exception:
+        pass
+
+    try:
+        resp = requests.get(url, headers=headers, timeout=15)
+        if resp.status_code >= 400:
+            return f"Failed to fetch {url}: HTTP {resp.status_code} {resp.reason}"
+        content_type = resp.headers.get("content-type", "").lower()
+        if "json" in content_type:
+            raw_text = resp.text
+        else:
+            html = resp.text
+            # Remove scripts, styles, metadata
+            html = re.sub(r"(?is)<(script|style|svg|noscript|header|footer|nav).*?>.*?</\1>", " ", html)
+            # Remove html tags
+            text = _TAG_RE.sub(" ", html)
+            # Unescape entities
+            text = _html_unescape(text)
+            # Clean excessive whitespace
+            lines = [line.strip() for line in text.splitlines() if line.strip()]
+            raw_text = "\n".join(lines)
+
+        if not raw_text.strip():
+            return f"Web page {url} returned no readable text."
+
+        if len(raw_text) > max_chars:
+            raw_text = raw_text[:max_chars] + f"\n... [truncated at {max_chars} characters]"
+
+        try:
+            from . import activity as _act
+            current_turn = _act.get_current_turn() or ""
+            _act.manager.create(
+                type=_act.TYPE_TOOL, action="web",
+                title=f"Fetched web page: {url[:50]}",
+                status=_act.STATUS_COMPLETED,
+                turn_id=current_turn,
+                details=f"URL: {url} ({len(raw_text)} chars)",
+                result=f"Extracted {len(raw_text)} chars",
+                category=_act.CAT_SEARCH, phase=_act.PHASE_DISCOVERY
+            )
+        except Exception:
+            pass
+
+        return f"Content of {url}:\n\n{raw_text}"
+    except Exception as e:
+        try:
+            from . import activity as _act
+            current_turn = _act.get_current_turn() or ""
+            _act.manager.create(
+                type=_act.TYPE_TOOL, action="web",
+                title=f"Fetch failed: {url[:50]}",
+                status=_act.STATUS_FAILED,
+                turn_id=current_turn,
+                details=f"Error: {e}",
+                category=_act.CAT_SEARCH, phase=_act.PHASE_DISCOVERY
+            )
+        except Exception:
+            pass
+        return f"Error fetching web page {url}: {e}"
+
 
 
 def deep_research(topic, num_queries=3, results_per_query=4):
@@ -2525,33 +3040,53 @@ def query_ai_with_image(prompt, image_path,
     if not provider:
         return "AI not configured. Run /ai, /agent, or /model to configure your provider first."
 
-    info = PROVIDERS.get(provider)
-    api_style = info["api_style"] if info else "openai"
+    info = _get_provider_info(provider) or (PROVIDERS.get(provider, {}) if PROVIDERS else {})
+    api_style = info.get("api_style", "openai") if info else "openai"
     used_config = config
-    if api_style not in ("openai", "anthropic", "gemini"):
+
+    has_native_vision = False
+    try:
+        from . import attachments as _att
+        has_native_vision = bool(_att.provider_capabilities(config).get("vision"))
+    except Exception:
+        has_native_vision = False
+
+    if not has_native_vision or api_style not in ("openai", "anthropic", "gemini", "ollama"):
         # Primary can't take native images — look for a configured one that can.
         try:
             from . import model_router as _mr
             vcfg, _caps = _mr.find_vision_capable(config)
         except Exception:
             vcfg = None
-        if vcfg is None:
-            return ("No vision-capable model is currently configured, so the "
-                    f"image couldn't be analyzed visually ({provider} has no "
-                    "native vision transport here). Configure one via /model.")
-        used_config = vcfg
-        info = PROVIDERS.get(used_config.get("provider"), {})
-        api_style = info["api_style"] if info else "openai"
+        if vcfg is not None:
+            used_config = vcfg
+            info = _get_provider_info(used_config.get("provider")) or (PROVIDERS.get(used_config.get("provider"), {}) if PROVIDERS else {})
+            api_style = info.get("api_style", "openai") if info else "openai"
+        else:
+            # Universal visual context fallback: extract local image structure,
+            # palette, and OCR so the user's active model answers seamlessly.
+            try:
+                from . import vision as _vision
+                img_ctx = _vision.get_local_image_context(image_path, prompt)
+            except Exception:
+                img_ctx = f"Attached image: {os.path.basename(image_path)}"
+            augmented_prompt = (
+                f"{prompt}\n\n"
+                f"{img_ctx}\n\n"
+                "Please analyze and answer based on this visual specification."
+            )
+            return query_ai(augmented_prompt, system_prompt=system_prompt, config=config)
 
-    if provider == "ollama":
-        base_url = config.get("ollama_url") or (info["base_url"] if info else "http://localhost:11434")
+    active_provider = used_config.get("provider") or provider
+    if active_provider == "ollama":
+        base_url = used_config.get("ollama_url") or config.get("ollama_url") or (info.get("base_url") if info else "http://localhost:11434")
     else:
-        base_url = used_config.get("base_url") or used_config.get("api_url") or (info["base_url"] if info else "")
-    base_url = base_url.rstrip("/")
+        base_url = used_config.get("base_url") or used_config.get("api_url") or (info.get("base_url") if info else "")
+    base_url = (base_url or "").rstrip("/")
     api_key = used_config.get("api_key", "")
-    model = used_config.get("model") or (info["default_model"] if info else "gpt-4o-mini")
-    model = _normalize_provider_model(provider, model, base_url)
-    extra_headers = info["extra_headers"] if info else {}
+    model = used_config.get("model") or (info.get("default_model") if info else "gpt-4o-mini")
+    model = _normalize_provider_model(active_provider, model, base_url)
+    extra_headers = info.get("extra_headers", {}) if info else {}
 
     try:
         if api_style == "openai":

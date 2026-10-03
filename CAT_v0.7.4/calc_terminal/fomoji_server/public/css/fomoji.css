@@ -55,6 +55,8 @@ html{
   scroll-behavior:smooth;
   -webkit-overflow-scrolling:touch;
   overscroll-behavior-y:contain;
+  scrollbar-gutter:stable;
+  overflow-y:auto;
 }
 body{
   margin:0;
@@ -112,7 +114,7 @@ body::before{
   grid-template-columns:1fr;
 }
 
-@media (min-width:960px){
+@media (min-width:860px){
   .shell{ grid-template-columns:minmax(360px,42%) 1fr; }
 }
 
@@ -129,8 +131,10 @@ body::before{
   border-bottom:1px solid var(--line);
   overflow:hidden;
   min-height:220px;
+  backface-visibility:hidden;
+  transform:translateZ(0);
 }
-@media (min-width:960px){
+@media (min-width:860px){
   .hero{
     border-bottom:none;
     border-right:1px solid var(--line);
@@ -170,7 +174,7 @@ body::before{
   line-height:1.6;
   max-width:320px;
 }
-@media (max-width:959px){ .hero-sub{ display:none; } }
+@media (max-width:859px){ .hero-sub{ display:none; } }
 
 /* orbit constellation */
 .orbit{
@@ -180,8 +184,10 @@ body::before{
   aspect-ratio:1/1;
   margin:0 auto;
   display:none;
+  backface-visibility:hidden;
+  transform:translateZ(0);
 }
-@media (min-width:960px){ .orbit{ display:block; } }
+@media (min-width:860px){ .orbit{ display:block; } }
 
 .orbit svg{ width:100%; height:100%; overflow:visible; }
 .orbit-ring{ fill:none; stroke:var(--line); stroke-width:1; }
@@ -196,9 +202,9 @@ body::before{
   fill:var(--ink-dim);
   letter-spacing:0.06em;
 }
-.orbit-node.spin1{ animation:orbit-spin 22s linear infinite; transform-origin:170px 170px; }
-.orbit-node.spin2{ animation:orbit-spin 22s linear infinite reverse; transform-origin:170px 170px; animation-delay:-6s; }
-.orbit-node.spin3{ animation:orbit-spin 30s linear infinite; transform-origin:170px 170px; animation-delay:-14s; }
+.orbit-node.spin1{ animation:orbit-spin 22s linear infinite; transform-origin:170px 170px; will-change:transform; }
+.orbit-node.spin2{ animation:orbit-spin 22s linear infinite reverse; transform-origin:170px 170px; animation-delay:-6s; will-change:transform; }
+.orbit-node.spin3{ animation:orbit-spin 30s linear infinite; transform-origin:170px 170px; animation-delay:-14s; will-change:transform; }
 @keyframes orbit-spin{ to{ transform:rotate(360deg); } }
 .orbit-node .orbit-node-inner{ animation:counter-spin 22s linear infinite; transform-origin:center; }
 .orbit-node.spin2 .orbit-node-inner{ animation-duration:22s; animation-direction:reverse; }
@@ -230,7 +236,7 @@ html.reduce-motion *::after{
   color:var(--ink-faint);
   letter-spacing:0.04em;
 }
-@media (max-width:959px){ .hero-foot{ display:none; } }
+@media (max-width:859px){ .hero-foot{ display:none; } }
 
 /* ==========================================================================
    Auth panel
@@ -241,12 +247,16 @@ html.reduce-motion *::after{
   align-items:center;
   justify-content:center;
   padding:32px 20px calc(48px + var(--safe-b));
+  backface-visibility:hidden;
+  transform:translateZ(0);
 }
-@media (min-width:960px){ .auth{ padding:40px; } }
+@media (min-width:860px){ .auth{ padding:40px; } }
 
 .card{
   width:100%;
   max-width:400px;
+  backface-visibility:hidden;
+  transform:translateZ(0);
   /* the auth card (login/register) never had its own box model — background,
      border, border-radius, and internal padding were all missing here, unlike
      .panel (settings pages) which defines all four for itself at line ~509.
@@ -1100,7 +1110,7 @@ body::after{
 
 /* ---- living status readout + heartbeat bars on the login hero ---- */
 .hero-live{ position:relative; z-index:2; max-width:340px; margin-top:18px; animation:hero-in .5s ease .28s backwards; }
-@media (max-width:959px){ .hero-live{ display:none; } }
+@media (max-width:859px){ .hero-live{ display:none; } }
 @media (prefers-reduced-motion:reduce){ .hero-live{ animation:none; } }
 
 .status-dot{

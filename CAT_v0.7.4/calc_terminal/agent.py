@@ -26,8 +26,11 @@ import os
 import random
 import re
 import subprocess
+import sys
+import threading
 import time
 import uuid
+from typing import Any, Dict, List, Optional, Tuple, Set
 
 from . import theme
 from . import aicore
@@ -380,6 +383,14 @@ def _tool_deep_research(args):
     return f"Research summary for '{topic}':\n{summary}\n\nSources:\n{src_lines}"
 
 
+def _tool_fetch_web_page(args):
+    url = str(args.get("url", "")).strip()
+    if not url:
+        return "No URL provided."
+    max_chars = int(args.get("max_chars", 8000) or 8000)
+    return aicore.fetch_web_page(url, max_chars=max_chars)
+
+
 def _tool_read_attachment(args):
     if not _ATTACHMENTS:
         return "No files/images have been imported this session."
@@ -414,6 +425,10 @@ def _tool_read_attachment(args):
             "Describe this image precisely; transcribe any code, chemistry, "
             "or math it contains.", path)
         return f"Image '{path}' analysis:\n{result}"
+    if kind == "video" or any(path.lower().endswith(ext) for ext in (".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v", ".flv", ".wmv", ".ts")):
+        from .vision import video_analyzer
+        v_ctx = video_analyzer.build_video_analysis_context(path)
+        return f"Video '{path}' structural and visual analysis:\n{v_ctx}"
     # v0.7.6 Patch 1, Fix 7: non-image attachments go through the same
     # per-type context builder the streamed UI uses (real text for
     # text/code/md/CSV, real listings for zip/tar, PDF metadata + text
@@ -1117,50 +1132,520 @@ def _tool_archive_validate(args):
     return f"Cannot validate format {ext}."
 
 
+def _make_noninteractive_command(cmd: str) -> str:
+    """Auto-inject non-interactive flags for known CLI tool scaffolding commands
+    so automated agent runs never hang waiting for user keyboard confirmations."""
+    c = (cmd or "").strip()
+    has_yes = bool(re.search(r"(?:^|\s)(?:-y|--yes)(?:\s|$)", c, re.I))
+    if re.search(r"^npm\s+create\s+", c, re.I):
+        if not has_yes:
+            parts = c.split(None, 2)
+            if len(parts) >= 3:
+                c = f"npm create -y {parts[2]}"
+            else:
+                c = f"{c} -y"
+    elif re.search(r"^npx\s+", c, re.I):
+        if not has_yes:
+            c = re.sub(r"^(npx\s+)", r"\1--yes ", c, flags=re.I)
+    elif re.search(r"^npm\s+init\s+", c, re.I):
+        if not has_yes:
+            c = re.sub(r"^(npm\s+init\s+)", r"\1-y ", c, flags=re.I)
+    elif re.search(r"^yarn\s+create\s+", c, re.I):
+        if not re.search(r"(?:^|\s)(?:--non-interactive|-y|--yes)(?:\s|$)", c, re.I):
+            c = re.sub(r"^(yarn\s+create\s+)", r"\1--non-interactive ", c, flags=re.I)
+    elif re.search(r"^pnpm\s+create\s+", c, re.I):
+        if not has_yes:
+            c = re.sub(r"^(pnpm\s+create\s+)", r"\1-y ", c, flags=re.I)
+    return c
+
+
+def _kill_proc_tree(proc):
+    """Safely terminate a process and all its child/grandchild processes on any OS."""
+    if proc is None:
+        return
+    try:
+        pid = proc.pid
+        if sys.platform == "win32":
+            try:
+                subprocess.run(
+                    ["taskkill", "/F", "/T", "/PID", str(pid)],
+                    capture_output=True, timeout=5
+                )
+            except Exception:
+                pass
+            try:
+                proc.kill()
+            except Exception:
+                pass
+        else:
+            try:
+                import signal
+                os.killpg(os.getpgid(pid), signal.SIGKILL)
+            except Exception:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
+        try:
+            if proc.stdout and not proc.stdout.closed:
+                proc.stdout.close()
+        except Exception:
+            pass
+        try:
+            proc.wait(timeout=1.0)
+        except Exception:
+            pass
+    except Exception:
+        pass
+
+
+_ACTIVE_TOOL_PROCESSES = set()
+_ACTIVE_TOOL_PROCESSES_LOCK = threading.Lock()
+_ACTIVE_DEV_SERVERS = {}
+_ACTIVE_DEV_SERVERS_LOCK = threading.Lock()
+_CURRENT_AGENT_SHOULD_CANCEL = None
+
+
+def register_tool_process(proc):
+    """Register an in-flight tool subprocess for instant interruption."""
+    if proc is not None:
+        with _ACTIVE_TOOL_PROCESSES_LOCK:
+            _ACTIVE_TOOL_PROCESSES.add(proc)
+
+
+def unregister_tool_process(proc):
+    """Unregister a finished or terminated tool subprocess."""
+    if proc is not None:
+        with _ACTIVE_TOOL_PROCESSES_LOCK:
+            _ACTIVE_TOOL_PROCESSES.discard(proc)
+
+
+def kill_active_tool_processes():
+    """Immediately kill all in-flight tool processes across child trees (Stop button / Esc)."""
+    with _ACTIVE_TOOL_PROCESSES_LOCK:
+        procs = list(_ACTIVE_TOOL_PROCESSES)
+        _ACTIVE_TOOL_PROCESSES.clear()
+    with _ACTIVE_DEV_SERVERS_LOCK:
+        dev_procs = list(_ACTIVE_DEV_SERVERS.values())
+        _ACTIVE_DEV_SERVERS.clear()
+    for p in procs + dev_procs:
+        try:
+            _kill_proc_tree(p)
+        except Exception:
+            pass
+
+
+_URL_REGEX = re.compile(
+    r"https?://(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]):(\d+)[^\s\"'<>]*",
+    re.IGNORECASE,
+)
+
+_DEV_SERVER_PATTERNS = [
+    r"\b(npm|yarn|pnpm|bun)\s+(run\s+)?(dev|start|serve)\b",
+    r"\b(vite|next\s+dev)\b",
+    r"\bpython3?\s+-m\s+http\.server\b",
+]
+
+
+def _is_dev_server_command(cmd: str) -> bool:
+    return any(re.search(pat, cmd, re.IGNORECASE) for pat in _DEV_SERVER_PATTERNS)
+
+
+def _extract_local_url(text: str) -> Optional[str]:
+    if not text:
+        return None
+    clean = re.sub(r"\x1b\[[0-9;]*[a-zA-Z]", "", text)
+    m = _URL_REGEX.search(clean)
+    if not m:
+        return None
+    url = m.group(0).rstrip(".,;)'\"\x1b")
+    url = url.replace("://0.0.0.0:", "://localhost:")
+    url = url.replace("://[::1]:", "://localhost:")
+    url = url.replace("://127.0.0.1:", "://localhost:")
+    if re.match(r"^https?://[^/]+$", url):
+        url += "/"
+    return url
+
+
+def _diagnose_command_error(
+    raw_cmd: str,
+    output: str,
+    exit_code: Optional[int],
+    timed_out: bool,
+    interrupted: bool,
+    timeout: float,
+) -> Optional[str]:
+    """Diagnose the root cause of a command failure or timeout so the AI and user understand what went wrong."""
+    if interrupted:
+        return "Execution was interrupted by user (Stop / Esc). Subprocess tree was cleanly terminated."
+    if timed_out:
+        if _is_dev_server_command(raw_cmd):
+            return (
+                f"Command timed out after {timeout:.0f}s. This command starts a continuous development server. "
+                "Dev servers run indefinitely and do not exit. CAT detects local URLs automatically — "
+                "check if dependencies are installed via 'npm install' or inspect package.json."
+            )
+        return (
+            f"Command exceeded timeout ({timeout:.0f}s) without finishing. "
+            "Terminated to prevent agent hang. Output collected prior to timeout is shown below."
+        )
+
+    if exit_code is not None and exit_code != 0:
+        low = output.lower()
+        if (
+            "cannot find module" in low
+            or "err! missing" in low
+            or "command not found" in low
+            or "not recognized as an internal" in low
+        ):
+            return (
+                "Missing project dependencies or build tool. "
+                "Run 'npm install' or use 'install_packages' first before running this command."
+            )
+        if "eaddrinuse" in low or "address already in use" in low:
+            return (
+                "Network port is already occupied by another running process. "
+                "Stop the existing server or specify an alternate port."
+            )
+        if "missing script" in low:
+            return (
+                "Requested script is not defined in package.json. "
+                "Inspect package.json using inspect_project or read_file to check available scripts."
+            )
+        if (
+            "the system cannot find the path specified" in low
+            or "no such file or directory" in low
+            or "directory not found" in low
+        ):
+            return (
+                "Target folder or file path was not found. "
+                "Use inspect_project or list_directory to verify the folder layout before cd/running."
+            )
+        if "syntaxerror" in low or "typescript error" in low:
+            return (
+                "Code syntax or TypeScript compilation error. "
+                "Inspect the failing source files with read_file and fix the syntax."
+            )
+    return None
+
+
 def _tool_run_terminal(args):
     """Execute a terminal command on the user's machine (spec v0.7.4:
     every AI-triggered terminal action must be transparent in the chat).
     Permission-gated via the shell_commands key; runs in the active
     workspace root; output, exit code, and duration are captured and
-    recorded as a 'terminal' change so the summary shows them."""
-    cmd = str(args.get("command", "")).strip()
-    if not cmd:
+    recorded as a 'terminal' change so the summary shows them.
+    Output is streamed in real time to Live Activities so progress is visible live."""
+    import queue
+
+    raw_cmd = str(args.get("command", "")).strip()
+    if not raw_cmd:
         return "No command given."
+    cmd = _make_noninteractive_command(raw_cmd)
     try:
         timeout = min(max(float(args.get("timeout", 60) or 60), 1.0), 300.0)
     except (TypeError, ValueError):
         timeout = 60.0
     cwd = workspace.root_dir() or os.getcwd()
     t0 = time.time()
+
+    # Prepare non-interactive, automated environment
+    run_env = {
+        **os.environ,
+        "PYTHONIOENCODING": "utf-8",
+        "CI": "true",
+        "npm_config_yes": "true",
+        "NONINTERACTIVE": "1",
+        "DEBIAN_FRONTEND": "noninteractive",
+        "TERM": "dumb",
+    }
+
+    is_dev = _is_dev_server_command(raw_cmd)
+
+    # Fast check: If command is a dev server and one is ALREADY responding, reuse immediately!
+    if is_dev:
+        try:
+            from .browser import devserver
+            for p in (5173, 3001, 8080, 5000, 4173, 3000):
+                if devserver.probe_local_server(p):
+                    active_url = f"http://localhost:{p}/"
+                    return (
+                        f"$ {raw_cmd}\n"
+                        f"\u2713 Dev server is already active and running at {active_url}\n"
+                        f"You can view and preview your application at {active_url}"
+                    )
+        except Exception:
+            pass
+
+    from . import activity as _act
+    curr_turn = _act.get_current_turn() or ""
+    act_obj = None
     try:
-        proc = subprocess.run(
-            cmd, shell=True, cwd=cwd, capture_output=True, text=True,
-            timeout=timeout, encoding="utf-8", errors="replace",
-            env={**os.environ, "PYTHONIOENCODING": "utf-8"})
-    except subprocess.TimeoutExpired:
-        return (f"$ {cmd}\nCommand timed out after {timeout:.0f}s "
-                f"(exit 124).")
+        act_obj = _act.manager.create(
+            type=_act.TYPE_COMMAND,
+            action="terminal",
+            title=f"Terminal: {raw_cmd[:45]}",
+            status=_act.STATUS_RUNNING,
+            turn_id=curr_turn,
+            command=raw_cmd,
+            details=f"Running in {os.path.basename(cwd) or cwd}...",
+            stdout="",
+            category=_act.CAT_TERMINAL,
+            phase=_act.PHASE_IMPLEMENTATION,
+        )
+    except Exception:
+        pass
+
+    timed_out = False
+    interrupted = False
+    returncode = None
+    output_chunks = []
+    proc = None
+    dev_server_url = None
+
+    out_queue = queue.Queue()
+
+    def _stream_reader(pipe, q):
+        try:
+            while True:
+                line = pipe.readline()
+                if not line:
+                    break
+                q.put(line)
+        except Exception:
+            pass
+        finally:
+            try:
+                pipe.close()
+            except Exception:
+                pass
+            q.put(None)
+
+    try:
+        proc_kwargs = {
+            "shell": True,
+            "cwd": cwd,
+            "stdin": subprocess.DEVNULL,
+            "stdout": subprocess.PIPE,
+            "stderr": subprocess.STDOUT,
+            "text": True,
+            "encoding": "utf-8",
+            "errors": "replace",
+            "env": run_env,
+        }
+        if sys.platform == "win32":
+            proc_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+
+        proc = subprocess.Popen(cmd, **proc_kwargs)
+        register_tool_process(proc)
+
+        reader_thread = threading.Thread(
+            target=_stream_reader, args=(proc.stdout, out_queue), daemon=True
+        )
+        reader_thread.start()
+
+        last_act_update = time.time()
+
+        while True:
+            now = time.time()
+            # 1. Non-blocking check for user interruption (Stop button / Esc)
+            is_cancelled = bool(_CURRENT_AGENT_SHOULD_CANCEL and _CURRENT_AGENT_SHOULD_CANCEL())
+            if is_cancelled:
+                interrupted = True
+                _kill_proc_tree(proc)
+                break
+
+            # 2. Strict timeout check (checked every 100ms)
+            if now - t0 > timeout:
+                timed_out = True
+                _kill_proc_tree(proc)
+                break
+
+            # 3. Read stream output non-blockingly
+            try:
+                line = out_queue.get(timeout=0.1)
+            except queue.Empty:
+                if proc.poll() is not None and out_queue.empty():
+                    break
+                # If dev server command, probe common ports if it outputted "ready"
+                if is_dev and (now - t0 >= 1.0):
+                    try:
+                        from .browser import devserver
+                        for cp in (5173, 3001, 8080, 5000, 4173):
+                            if devserver.probe_local_server(cp):
+                                dev_server_url = f"http://localhost:{cp}/"
+                                break
+                    except Exception:
+                        pass
+                    if dev_server_url:
+                        break
+                continue
+
+            if line is None:
+                # Pipe closed / process exited
+                break
+
+            output_chunks.append(line)
+            now = time.time()
+
+            # Check if dev server URL is printed
+            if is_dev and not dev_server_url:
+                detected = _extract_local_url(line)
+                if detected:
+                    dev_server_url = detected
+                    break
+
+            if act_obj and (now - last_act_update >= 0.2):
+                last_act_update = now
+                try:
+                    clean_line = line.strip()
+                    _act.manager.update(
+                        act_obj.id,
+                        stdout="".join(output_chunks[-60:]),
+                        details=clean_line[:60] if clean_line else "Running...",
+                        duration_ms=int((now - t0) * 1000),
+                    )
+                except Exception:
+                    pass
+
+        # If dev server URL detected, register in _ACTIVE_DEV_SERVERS so it keeps serving
+        if dev_server_url:
+            with _ACTIVE_DEV_SERVERS_LOCK:
+                _ACTIVE_DEV_SERVERS[dev_server_url] = proc
+            returncode = 0
+        elif not timed_out and not interrupted:
+            try:
+                proc.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                timed_out = True
+                _kill_proc_tree(proc)
+
+        if returncode is None:
+            if interrupted:
+                returncode = 130
+            elif timed_out:
+                returncode = 124
+            else:
+                returncode = proc.returncode if proc.returncode is not None else 0
+
     except OSError as e:
-        return f"$ {cmd}\nCould not run command: {e}"
+        if act_obj:
+            try:
+                _act.manager.update(
+                    act_obj.id,
+                    status=_act.STATUS_FAILED,
+                    details=f"Error: {e}",
+                    result="failed to spawn",
+                )
+            except Exception:
+                pass
+        return f"$ {raw_cmd}\nCould not run command: {e}"
     finally:
+        unregister_tool_process(proc)
         try:
             from . import terminal_identity
             terminal_identity.set_terminal_title()
         except Exception:
             pass
+
     duration = round(time.time() - t0, 2)
-    output = ((proc.stdout or "") + (proc.stderr or "")).strip()
+    output = "".join(output_chunks).strip()
     if len(output) > 100_000:
         output = output[:100_000] + "\n... [truncated for memory safety]"
-    _mark_change(kind="terminal", command=cmd, output=output,
-                 exit_code=proc.returncode, duration=duration)
-    tail = output.splitlines()[:40]
-    lines = [f"$ {cmd}"]
+
+    _mark_change(kind="terminal", command=raw_cmd, output=output,
+                 exit_code=returncode, duration=duration)
+
+    diagnostic = _diagnose_command_error(
+        raw_cmd, output, returncode, timed_out, interrupted, timeout
+    )
+
+    if dev_server_url:
+        if act_obj:
+            try:
+                _act.manager.update(
+                    act_obj.id,
+                    status=_act.STATUS_COMPLETED,
+                    details=f"Live at {dev_server_url}",
+                    stdout=output[-2000:],
+                    result=f"dev server running at {dev_server_url}",
+                    duration_ms=int(duration * 1000),
+                    exit_code=0,
+                )
+            except Exception:
+                pass
+        lines = [f"$ {raw_cmd}"]
+        if output:
+            lines.extend(output.splitlines()[-20:])
+        lines.append(f"\n\u2713 Dev server is live and running at {dev_server_url}")
+        lines.append(
+            f"You can view and preview your application by opening {dev_server_url} in your browser or CAT preview."
+        )
+        return "\n".join(lines)
+
+    if interrupted:
+        if act_obj:
+            try:
+                _act.manager.update(
+                    act_obj.id,
+                    status=_act.STATUS_CANCELLED,
+                    details="Interrupted by user",
+                    result="interrupted",
+                    duration_ms=int(duration * 1000),
+                    stdout=output[-2000:],
+                    exit_code=130,
+                )
+            except Exception:
+                pass
+        lines = [f"$ {raw_cmd}"]
+        if output:
+            lines.extend(output.splitlines()[-20:])
+        lines.append("\u2298 Interrupted by user (execution stopped).")
+        return "\n".join(lines)
+
+    if timed_out:
+        if act_obj:
+            try:
+                _act.manager.update(
+                    act_obj.id,
+                    status=_act.STATUS_FAILED,
+                    details=f"Timed out after {timeout:.0f}s",
+                    result="timed out",
+                    duration_ms=int(duration * 1000),
+                    stdout=output[-2000:],
+                    exit_code=124,
+                )
+            except Exception:
+                pass
+        lines = [f"$ {raw_cmd}"]
+        if output:
+            lines.extend(output.splitlines()[-30:])
+        lines.append(f"\u2715 Command timed out after {timeout:.0f}s (exit 124).")
+        if diagnostic:
+            lines.append(f"\n[DIAGNOSTIC] {diagnostic}")
+        return "\n".join(lines)
+
+    if act_obj:
+        try:
+            _act.manager.update(
+                act_obj.id,
+                status=_act.STATUS_COMPLETED if returncode == 0 else _act.STATUS_FAILED,
+                details=f"Exit {returncode} in {duration}s",
+                stdout=output[-2000:],
+                result=f"exit code {returncode}",
+                duration_ms=int(duration * 1000),
+                exit_code=returncode,
+            )
+        except Exception:
+            pass
+
+    tail = output.splitlines()[-40:]
+    lines = [f"$ {raw_cmd}"]
     lines.extend(tail)
-    if output and len(output.splitlines()) > 40:
-        lines.append(f"... {len(output.splitlines()) - 40} more line(s) omitted")
-    status = "success" if proc.returncode == 0 else f"exit code {proc.returncode}"
-    lines.append(f"\u2713 {status} ({duration}s)")
+    if diagnostic and returncode != 0:
+        lines.append(f"\n[DIAGNOSTIC] {diagnostic}")
+    status = "success" if returncode == 0 else f"exit code {returncode}"
+    lines.append(f"\u2713 {status} ({duration}s)" if returncode == 0 else f"\u2715 {status} ({duration}s)")
     return "\n".join(lines)
 
 
@@ -1515,20 +2000,36 @@ def summarize_file_changes(steps, markdown=False, max_rows=_MAX_CHANGE_ROWS,
             out.append(f"📄 Renamed: {path} \u2192 {c.get('new_path', '?')}")
         elif kind == "terminal":
             out.append(f"› {c.get('command', '')}")
-            output = str(c.get("output") or "").strip().splitlines()
-            for line in output[:max_output_lines]:
-                out.append("    " + line)
-            if len(output) > max_output_lines:
-                out.append(f"    ... {len(output) - max_output_lines} more line(s) omitted")
+            out.append("")
+            raw_out = str(c.get("output") or "").strip()
+            # Clean ANSI escape sequences and carriage returns so terminal control codes don't render as broken glyph boxes
+            clean_out = re.sub(r"\x1b\[[0-9;]*[a-zA-Z]|\x1b\].*?\x07|\x1b\(B", "", raw_out)
+            clean_out = clean_out.replace("\r", "")
+            output = [l.rstrip() for l in clean_out.splitlines() if l.strip()]
+            if output:
+                if markdown:
+                    out.append("```text")
+                    for line in output[:max_output_lines]:
+                        out.append(line)
+                    if len(output) > max_output_lines:
+                        out.append(f"... {len(output) - max_output_lines} more line(s) omitted")
+                    out.append("```")
+                else:
+                    for line in output[:max_output_lines]:
+                        out.append("    " + line)
+                    if len(output) > max_output_lines:
+                        out.append(f"    ... {len(output) - max_output_lines} more line(s) omitted")
+                out.append("")
             code = c.get("exit_code")
             dur = c.get("duration")
-            status = "\u2713" if code == 0 else "\u2717"
+            status = "✓" if code == 0 else "✗"
             out.append(f"{status} exit {code}" + (f" ({dur}s)" if dur is not None else ""))
 
     out.append("")
     out.append(sep)
     out.append("")
-    out.append("Timeline")
+    out.append("**Timeline**")
+    out.append("")
     for _name, _args, _obs, change in (steps or []):
         if not isinstance(change, dict) or not change:
             continue
@@ -1539,10 +2040,10 @@ def summarize_file_changes(steps, markdown=False, max_rows=_MAX_CHANGE_ROWS,
             base = os.path.basename(str(change.get("path", "")))
             a, r, _m = _change_line_stats(change)
             extra = f" (+{a} \u2212{r})" if kind == "modify" and (a or r) else ""
-            out.append(f"\u2713 {action} {base}{extra}")
+            out.append(f"- ✓ {action} `{base}`{extra}")
         elif kind == "terminal":
-            out.append(f"\u2713 Ran {change.get('command', '')}")
-    out.append("\u2713 Finished")
+            out.append(f"- ✓ Ran `{change.get('command', '')}`")
+    out.append("- ✓ Finished")
     return "\n".join(out)
 
 
@@ -1589,8 +2090,11 @@ def _tool_device_action(args):
     result = dc.execute_approved(provider_key, plan, {"target": target,
                                                       "command": args.get("command")})
     if result.get("ok"):
-        return (f"Device action approved and executed ({provider_key}/{action}): "
-                + str(result.get("note") or result.get("exit_code") or "done"))
+        out = result.get("output")
+        note = str(result.get("note") or result.get("exit_code") or "done")
+        if out:
+            return f"Device action approved and executed ({provider_key}/{action}): {note}\n{out}"
+        return f"Device action approved and executed ({provider_key}/{action}): {note}"
     return (f"Device action planned but execution failed: "
             + str(result.get("note", "unknown error")))
 
@@ -1799,6 +2303,12 @@ TOOLS = {
         "desc": "Run several web searches on different angles of a topic and synthesize a cited summary.",
         "args": '{"topic": "green hydrogen production methods", "num_queries": 3}',
     },
+    "fetch_web_page": {
+        "run": _tool_fetch_web_page,
+        "desc": "Fetch and extract clean readable text content from a web page URL.",
+        "args": '{"url": "https://en.wikipedia.org/wiki/Quantum_computing", "max_chars": 8000}',
+        "describe": lambda a: ("Fetch Web Page", str(a.get("url", "")), "Extract web content"),
+    },
     "read_attachment": {
         "run": _tool_read_attachment,
         "desc": "Read/analyze a file or image the user imported with /import this session.",
@@ -1967,14 +2477,12 @@ TOOLS = {
     },
     "device_action": {
         "run": _tool_device_action,
-        "desc": "Request an action on the user's authorized device via the "
-                "Responsible Device Control framework (terminal, simulation; "
-                "desktop/android/ios/browser are extension points).",
-        "args": '{"provider": "simulation", "action": "run", "target": "atom Fe"}',
+        "desc": "Automate full computer (desktop apps, PowerShell, keystrokes, screenshot) or external devices (Android via adb, Browser navigation, in-app simulations).",
+        "args": '{"provider": "desktop", "action": "run_powershell", "target": "Get-Process"}  (providers: desktop, android, browser, terminal, simulation)',
         "perm_key": "device_control",
         "describe": lambda a: (f"Device action: {a.get('provider', '?')}/{a.get('action', '?')}",
-                                str(a.get("target", "")),
-                                "Perform an action on your device (must be explicitly approved)."),
+                                str(a.get("target", "") or a.get("command", "")),
+                                "Automate full computer or connected device (approved)."),
     },
 }
 
@@ -2066,7 +2574,9 @@ Unlike a passive chatbot, you directly OPERATE real tools:
   Deconstruct problems to fundamental truths, state your hypotheses, check syntax, audit edge
   cases, and consider potential failure modes before touching files or running destructive commands.
 - **Inspect First & Ground Yourself**: Never guess file paths or structures. Use `inspect_project`
-  or `list_directory` to understand the workspace before editing.
+  or `list_directory` to understand the workspace before editing. When the user asks how to see, view, or test
+  a project (e.g. portfolio, web application), inspect the project files first, start its dev server
+  via `run_terminal` (which automatically detects the live URL and returns it immediately), and provide the URL.
 - **Autonomous Self-Correction**: When a terminal command, script, or test returns an error or non-zero
   exit code, do not give up or ask the user to fix it — inspect the stderr output, diagnose the root
   cause with first principles, patch the bug, and re-verify until it succeeds.
@@ -2141,6 +2651,61 @@ never merely describe an operation you could just perform.
 {identity.IDENTITY_BLOCK}
 """
 
+RESEARCH_SYSTEM_PROMPT = f"""You are CAT Research AI, the deep-research, web-investigation, and technical synthesis agent inside CAT.
+You have real tools to search the live web (`web_search`), fetch and read website pages and online documentation (`fetch_web_page`), conduct multi-angle synthesis (`deep_research`), automate terminal/cli workflows (`run_terminal`), read files, and write reports.
+
+Always actively use your tools:
+- When asked to search, research, verify, look up recent information, or check websites: use `web_search` and `fetch_web_page` to retrieve fresh, factual data.
+- When URLs are mentioned or returned in search results, use `fetch_web_page` to read the full page content.
+- Synthesize your findings clearly, providing real citations and URLs.
+- If running commands or checking environments is needed, use `run_terminal`.
+
+{_PROTOCOL}
+
+**HOW TO WRITE YOUR "final" TEXT — THOROUGH, FACTUAL, CITED RESEARCH REPORT:**
+- Structure your response with clear sections: EXECUTIVE SUMMARY, DETAILED FINDINGS, VERIFIED SOURCES, and NEXT STEPS.
+- Always include the concrete URLs and references you discovered during your web search and page fetches.
+- Never guess or extrapolate unsupported claims when a live search can verify them.
+
+{identity.IDENTITY_BLOCK}
+"""
+
+BUILD_SYSTEM_PROMPT = f"""You are CAT Build, the premier autonomous software engineering, architecture, and system automation agent inside CAT (Coding Agent Terminal).
+You have full capability and authority to automate the terminal, file systems, codebases, full computer, operating system, and connected devices:
+- **Full Terminal & Shell Automation**: Run shell and PowerShell terminal commands (`run_terminal`), build projects (`run_build`), execute tests (`run_tests`), and install packages (`install_packages`).
+- **Complete File & Directory Automation**: Create, write, edit, rewrite, move, and delete real files and folders (`read_file`, `write_file`, `edit_file`, `create_folder`, `delete_file`, `rename_file`, `list_directory`, `search_workspace`).
+- **Full Computer & Device Automation**: Automate the host computer and connected devices (`device_action`: desktop automation, run PowerShell system scripts, launch applications, capture screenshots, automate Android phones/tablets via adb, and automate web browsers).
+- **Autonomous Project Creation & Scaffolding**: Build production-ready, clean, modern code, scaffold projects (e.g. Vite, React, Next.js, Python, Rust, Go), configure dependencies, and verify everything works.
+- **Inspect First & Ground Yourself**: Use `inspect_project` and `list_directory` before acting to inspect existing project structure. When the user asks how to see, view, or test a project (e.g. portfolio, web app), inspect its manifests (package.json) first, run its dev server via `run_terminal` (which auto-detects the local URL without hanging), and provide the localhost URL to the user.
+- **Self-Correction**: When a command or test returns an error or non-zero exit code, diagnose the root cause, fix the issue, and re-run to verify.
+
+{_PROTOCOL}
+
+**HOW TO WRITE YOUR "final" TEXT — PRODUCTION ENGINEERING SUMMARY:**
+- Summarize what you engineered, built, and automated with exact paths, files created, commands executed, and verified results.
+- If you created or modified files, list them clearly with the reasons for each change.
+- Provide instructions for how the user can run, test, or preview their project.
+
+{identity.IDENTITY_BLOCK}
+"""
+
+PLAN_SYSTEM_PROMPT = f"""You are CAT Plan, the strategic planning, system architecture, and roadmap agent in CAT.
+You deconstruct complex goals into clear, actionable milestones, architectural specifications, and implementation roadmaps.
+You have access to all tools to inspect workspaces, research technologies, automate terminal, files, and plan execution steps.
+
+{_PROTOCOL}
+
+{identity.IDENTITY_BLOCK}
+"""
+
+DEBUGGER_SYSTEM_PROMPT = f"""You are CAT Debugger, the root-cause diagnosis, crash investigation, and surgical fix agent in CAT.
+You analyze error logs, stack traces, reproduce issues, inspect code, and fix bugs directly using tools (`run_terminal`, `edit_file`, `run_tests`, `device_action`).
+
+{_PROTOCOL}
+
+{identity.IDENTITY_BLOCK}
+"""
+
 # Backward-compatible alias — existing code/imports that referenced the old
 # single SYSTEM_PROMPT constant keep working (defaults to the Agent style).
 SYSTEM_PROMPT = AGENT_SYSTEM_PROMPT
@@ -2196,23 +2761,53 @@ def _extract_json(text):
     text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip(), flags=re.MULTILINE)
     m = re.search(r"\{.*\}", text, re.S)
     if not m:
+        start_idx = text.find("{")
+        if start_idx != -1:
+            try:
+                from .tool_call_normalizer import _repair_json_str
+                repaired = _repair_json_str(text[start_idx:])
+                if repaired:
+                    return repaired
+            except Exception:
+                pass
         return None
     candidate = m.group(0)
     try:
-        return json.loads(candidate)
+        return json.loads(candidate, strict=False)
     except Exception:
-        # try trimming to the first balanced-looking object
-        depth = 0
-        for i, ch in enumerate(candidate):
-            if ch == "{":
-                depth += 1
-            elif ch == "}":
-                depth -= 1
-                if depth == 0:
-                    try:
-                        return json.loads(candidate[:i + 1])
-                    except Exception:
-                        return None
+        # String-aware balanced JSON scanning and truncated recovery
+        start = candidate.find("{")
+        if start != -1:
+            depth = 0
+            in_str = False
+            escape = False
+            for i in range(start, len(candidate)):
+                ch = candidate[i]
+                if escape:
+                    escape = False
+                    continue
+                if ch == "\\":
+                    escape = True
+                    continue
+                if ch == '"':
+                    in_str = not in_str
+                    continue
+                if in_str:
+                    continue
+                if ch == "{":
+                    depth += 1
+                elif ch == "}":
+                    depth -= 1
+                    if depth == 0:
+                        try:
+                            return json.loads(candidate[start : i + 1], strict=False)
+                        except Exception:
+                            pass
+            try:
+                from .tool_call_normalizer import _repair_json_str
+                return _repair_json_str(candidate[start:])
+            except Exception:
+                return None
         return None
 
 
@@ -2681,7 +3276,7 @@ def _trace(event, **kw):
 
 def run_agent(user_text, max_steps=MAX_STEPS, verbose=True, on_step=None, mode="agent",
               permission_callback=None, should_cancel=None, on_tool_result=None,
-              fast=False, memory_query=None, turn_id=""):
+              fast=False, memory_query=None, turn_id="", history=None):
     """Run the agent loop for one user request.
 
     `mode` selects the persona/voice: "agent" (CCT Agent — long, thorough,
@@ -2710,6 +3305,9 @@ def run_agent(user_text, max_steps=MAX_STEPS, verbose=True, on_step=None, mode="
         enough question that the user should be pointed to /agent for the
         complete step-by-step notebook version.
     """
+    global _CURRENT_AGENT_SHOULD_CANCEL
+    _CURRENT_AGENT_SHOULD_CANCEL = should_cancel
+
     def _cancelled():
         try:
             return bool(should_cancel and should_cancel())
@@ -2728,7 +3326,19 @@ def run_agent(user_text, max_steps=MAX_STEPS, verbose=True, on_step=None, mode="
         except Exception:
             pass
 
-    system_prompt = AGENT_SYSTEM_PROMPT if mode == "agent" else AI_SYSTEM_PROMPT
+    if mode == "build":
+        system_prompt = BUILD_SYSTEM_PROMPT
+    elif mode == "agent":
+        system_prompt = AGENT_SYSTEM_PROMPT
+    elif mode == "research":
+        system_prompt = RESEARCH_SYSTEM_PROMPT
+    elif mode == "debugger":
+        system_prompt = DEBUGGER_SYSTEM_PROMPT
+    elif mode == "plan":
+        system_prompt = PLAN_SYSTEM_PROMPT
+    else:
+        # Default all modes to high-agency AGENT_SYSTEM_PROMPT for full computer, terminal and file automation
+        system_prompt = AGENT_SYSTEM_PROMPT
     try:
         # v0.7.8 AI Personalization: the active profile's style
         # directive rides along inside the same system prompt the tool
@@ -2804,7 +3414,44 @@ def run_agent(user_text, max_steps=MAX_STEPS, verbose=True, on_step=None, mode="
     except Exception:
         pass
 
-    convo = [{"role": "user", "text": user_text}]
+    # Historical cross-chat memory and first conversation origin
+    if not fast:
+        try:
+            from . import chat_store
+            _cross_ctx = chat_store.build_cross_chat_memory_context(
+                workspace_root=_ws_root if '_ws_root' in locals() else None,
+                query=memory_query or user_text,
+            )
+            if _cross_ctx:
+                system_prompt = system_prompt + "\n\n" + _cross_ctx
+        except Exception:
+            pass
+
+    # Critical Web Application Directive to prevent unpopulated boilerplate
+    _web_directive = (
+        "\n\n## WEB APPLICATION & PREVIEW DIRECTIVE:\n"
+        "- When asked to preview, run, show, or verify a web project or dev server (e.g. Vite, React, Next.js):\n"
+        "- You MUST verify that the main application entrypoint (e.g. `src/App.tsx`, `src/App.jsx`, `src/index.html`) "
+        "contains the user's actual project components and UI, NOT default template boilerplate (e.g. 'Get started', 'Count is 0')!\n"
+        "- If components were created in subdirectories but `App.tsx` has not mounted them, wire them up BEFORE running or previewing the server.\n"
+    )
+    system_prompt = system_prompt + _web_directive
+
+    convo = []
+    if history:
+        for h in history:
+            if isinstance(h, tuple) and len(h) >= 2:
+                r, t = h[0], h[1]
+            elif isinstance(h, dict):
+                r = h.get("role", "user")
+                t = h.get("text") or h.get("content") or ""
+            else:
+                continue
+            if t:
+                convo.append({"role": r, "text": t})
+        if len(convo) > 12:
+            convo = convo[-12:]
+    convo.append({"role": "user", "text": user_text})
     steps = []
     last_call = None
     stall_count = 0
@@ -2935,6 +3582,8 @@ def run_agent(user_text, max_steps=MAX_STEPS, verbose=True, on_step=None, mode="
                     ttitle = f"Running {target[:40]}" if target and target != "(auto-detected)" else ttitle
                 elif name == "web_search":
                     ttitle = f"Searching web for \"{args.get('query','')[:30]}\""
+                elif name == "fetch_web_page":
+                    ttitle = f"Fetching web page {args.get('url','')[:35]}"
 
             target_path_val = str(args.get("path", "") or args.get("new_path", ""))
             _act_obj = _act.manager.create(
@@ -3211,13 +3860,39 @@ def run_agent(user_text, max_steps=MAX_STEPS, verbose=True, on_step=None, mode="
                    names=",".join(tc.name for tc in tool_calls))
             convo.append({"role": "assistant", "text": raw})
             observations = []
-            for tc in tool_calls[:3]:
-                if _cancelled():
-                    break
-                _trace("TOOL_DETECTED", tool=tc.name, fmt=tc.source_format,
-                       args=json.dumps(tc.arguments, default=str)[:160])
-                obs = _execute_tool_call(tc.name, tc.arguments, raw)
-                observations.append(f"[{tc.name}] {obs}")
+
+            # Multitasking: allow executing batch of tool calls concurrently if safe
+            batch = tool_calls[:10]
+            read_only_tools = {
+                "read_file", "list_directory", "search_workspace", "inspect_project",
+                "archive_list", "calc", "calculate", "solve_custom", "plot_formula",
+                "archive_validate", "web_search", "search"
+            }
+            can_parallel = len(batch) > 1 and all(tc.name in read_only_tools for tc in batch)
+
+            if can_parallel:
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor(max_workers=min(8, len(batch)), thread_name_prefix="cat-tool") as pool:
+                    futures = [pool.submit(_execute_tool_call, tc.name, tc.arguments, raw) for tc in batch]
+                    for tc, fut in zip(batch, futures):
+                        if _cancelled():
+                            break
+                        _trace("TOOL_DETECTED", tool=tc.name, fmt=tc.source_format,
+                               args=json.dumps(tc.arguments, default=str)[:160])
+                        try:
+                            obs = fut.result()
+                        except Exception as e:
+                            obs = f"Error: {e}"
+                        observations.append(f"[{tc.name}] {obs}")
+            else:
+                for tc in batch:
+                    if _cancelled():
+                        break
+                    _trace("TOOL_DETECTED", tool=tc.name, fmt=tc.source_format,
+                           args=json.dumps(tc.arguments, default=str)[:160])
+                    obs = _execute_tool_call(tc.name, tc.arguments, raw)
+                    observations.append(f"[{tc.name}] {obs}")
+
             steps_left = max_steps - i - 1
             nudge = ""
             if steps_left <= 3:
@@ -3449,7 +4124,7 @@ def run_multi_agent(user_text, max_steps=MAX_STEPS, on_agent=None, mode="agent")
     no AI provider is configured (query_ai already returns a clear
     message in that case instead of raising).
     """
-    system_prompt = AGENT_SYSTEM_PROMPT if mode == "agent" else AI_SYSTEM_PROMPT
+    system_prompt = BUILD_SYSTEM_PROMPT if mode == "build" else (RESEARCH_SYSTEM_PROMPT if mode == "research" else AGENT_SYSTEM_PROMPT)
     wants_code = bool(_CODE_HINTS.search(user_text))
     active_roles = ["planner", "specialist"] + (["programmer", "debugger"] if wants_code else []) + ["tester"]
 
@@ -3483,20 +4158,39 @@ def run_multi_agent(user_text, max_steps=MAX_STEPS, on_agent=None, mode="agent")
         on_agent("specialist", "Specialist", "done")
 
     debug_note = None
-    if wants_code:
-        if on_agent:
-            on_agent("programmer", "Programmer", "start")
-            on_agent("programmer", "Programmer", "done")
-            on_agent("debugger", "Debugger", "start")
-        final_text, debug_note = _debug_pass(final_text)
-        if on_agent:
-            on_agent("debugger", "Debugger", "done")
+    ok = True
+    note = None
 
-    if on_agent:
-        on_agent("tester", "Tester", "start")
-    ok, note = _verify_answer(user_text, plan, final_text, system_prompt)
-    if on_agent:
-        on_agent("tester", "Tester", "done")
+    if wants_code:
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix="cat-verify") as pool:
+            if on_agent:
+                on_agent("programmer", "Programmer", "start")
+                on_agent("programmer", "Programmer", "done")
+                on_agent("debugger", "Debugger", "start")
+                on_agent("tester", "Tester", "start")
+            fut_debug = pool.submit(_debug_pass, final_text)
+            fut_tester = pool.submit(_verify_answer, user_text, plan, final_text, system_prompt)
+
+            try:
+                final_text, debug_note = fut_debug.result()
+            except Exception as e:
+                debug_note = str(e)
+            if on_agent:
+                on_agent("debugger", "Debugger", "done")
+
+            try:
+                ok, note = fut_tester.result()
+            except Exception as e:
+                ok, note = True, str(e)
+            if on_agent:
+                on_agent("tester", "Tester", "done")
+    else:
+        if on_agent:
+            on_agent("tester", "Tester", "start")
+        ok, note = _verify_answer(user_text, plan, final_text, system_prompt)
+        if on_agent:
+            on_agent("tester", "Tester", "done")
 
     if not ok and note:
         final_text = final_text + f"\n\n⚠ Tester flagged this for review: {note}"

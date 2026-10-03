@@ -10,7 +10,7 @@ from __future__ import annotations
 import copy
 import logging
 import time
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Set
 
 from .agent_model import AgentResult
 

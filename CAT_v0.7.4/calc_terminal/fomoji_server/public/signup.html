@@ -158,6 +158,23 @@
         </div>
 
         <div class="session-tag" id="sessionTag"></div>
+
+        <div class="pending-cat-card" id="pendingCatCard" style="display:none; margin-top:18px; padding:16px; border:1.5px solid var(--sage); border-radius:var(--radius-m); background:var(--panel-2); text-align:left;">
+          <div style="font-weight:600; font-size:14px; color:var(--ink); display:flex; align-items:center; gap:8px;">
+            <span>🔗</span> <span>Connect to CAT CLI</span>
+          </div>
+          <div style="font-size:12.5px; color:var(--ink-dim); margin-top:4px;" id="catCodeDesc">
+            CAT CLI is waiting for authorization. Code: <strong id="catPendingCode" style="color:var(--sage-deep); font-family:var(--f-mono);"></strong>
+          </div>
+          <div style="margin-top:12px; display:flex; gap:8px;" id="catBtnRow">
+            <button type="button" class="btn btn-primary btn-inline" id="approveCatBtn">Approve &amp; Connect CAT</button>
+            <button type="button" class="btn btn-ghost btn-inline" id="dismissCatBtn">Dismiss</button>
+          </div>
+          <div id="catApproveMsg" style="display:none; margin-top:8px; font-size:12.5px; color:var(--sage); font-weight:600;">
+            ✓ Connected to CAT CLI! You can return to your terminal.
+          </div>
+        </div>
+
         <a href="#" class="btn btn-ghost" style="margin-top:20px;" id="continueBtn">Continue</a>
       </div>
 
@@ -257,6 +274,70 @@
       successView.classList.add('is-visible');
       document.getElementById('recoveryCodeValue').textContent = recoveryCode;
       document.getElementById('sessionTag').textContent = `FOMOJI ID ${account.fomojiId}`;
+
+      // Check for pending CAT authorization code
+      const urlParams = new URLSearchParams(window.location.search);
+      let catCode = urlParams.get('code');
+      const redir = urlParams.get('redirect_uri') || '';
+      if (!catCode && redir.includes('code=')) {
+        try {
+          const match = /[?&]code=([A-Z0-9-]+)/i.exec(redir);
+          if (match) catCode = match[1];
+        } catch (_) {}
+      }
+
+      if (!catCode) {
+        // Query server for latest pending CAT request
+        try {
+          const pResp = await fetch('/api/connector/device/pending-cat');
+          const pData = await pResp.json();
+          if (pData.pending && pData.userCode) {
+            catCode = pData.userCode;
+          }
+        } catch (_) {}
+      }
+
+      if (catCode) {
+        const pendingCard = document.getElementById('pendingCatCard');
+        const pendingCodeEl = document.getElementById('catPendingCode');
+        const approveBtn = document.getElementById('approveCatBtn');
+        const dismissBtn = document.getElementById('dismissCatBtn');
+        pendingCodeEl.textContent = catCode;
+        pendingCard.style.display = 'block';
+
+        approveBtn.addEventListener('click', async () => {
+          approveBtn.disabled = true;
+          approveBtn.textContent = 'Connecting…';
+          try {
+            const aResp = await fetch('/api/connector/device/approve', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'same-origin',
+              body: JSON.stringify({ userCode: catCode }),
+            });
+            const aData = await aResp.json();
+            if (aResp.ok && aData.ok) {
+              document.getElementById('catBtnRow').style.display = 'none';
+              document.getElementById('catApproveMsg').style.display = 'block';
+              document.getElementById('continueBtn').textContent = 'Done (Return to CAT CLI)';
+              window.FomojiCompanion?.react('success');
+            } else {
+              alert(aData.error || 'Failed to approve CAT');
+              approveBtn.disabled = false;
+              approveBtn.textContent = 'Approve & Connect CAT';
+            }
+          } catch (e) {
+            alert(e.message);
+            approveBtn.disabled = false;
+            approveBtn.textContent = 'Approve & Connect CAT';
+          }
+        });
+
+        dismissBtn.addEventListener('click', () => {
+          pendingCard.style.display = 'none';
+        });
+      }
+
       document.getElementById('continueBtn').href = getSafeRedirect();
     } catch (err) {
       window.FomojiCompanion?.react('error');
@@ -265,6 +346,19 @@
       setLoading(false);
     }
   });
+
+  // Preserve query parameters on links to login page
+  const pageParams = new URLSearchParams(window.location.search);
+  const redirParam = pageParams.get('redirect_uri');
+  const codeParam = pageParams.get('code');
+  if (redirParam || codeParam) {
+    const q = new URLSearchParams();
+    if (redirParam) q.set('redirect_uri', redirParam);
+    if (codeParam) q.set('code', codeParam);
+    document.querySelectorAll('a[href="index.html"]').forEach(a => {
+      a.href = `index.html?${q.toString()}`;
+    });
+  }
 })();
 </script>
 </body>

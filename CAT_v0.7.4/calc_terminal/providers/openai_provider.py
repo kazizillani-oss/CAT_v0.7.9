@@ -124,7 +124,11 @@ class OpenAIProvider(BaseProvider):
                 "model": self.get_model(),
                 "messages": self._build_messages(system_prompt, history, prompt),
             }
-            if self.provider_id == "nvidia" or "integrate.api.nvidia.com" in str(base).lower():
+            is_nvidia = (getattr(self, "provider_id", "") == "nvidia"
+                         or getattr(self, "ID", "") == "nvidia"
+                         or (isinstance(self.config, dict) and self.config.get("provider") == "nvidia")
+                         or "integrate.api.nvidia.com" in str(base).lower())
+            if is_nvidia:
                 payload.setdefault("max_tokens", 4096)
             temp = self.config.get("temperature")
             if temp is not None:
@@ -136,7 +140,12 @@ class OpenAIProvider(BaseProvider):
                                  headers=self._headers(), json=payload, timeout=30)
             self._raise_for_status(resp)
             data = resp.json()
-            return data["choices"][0]["message"]["content"]
+            msg = data.get("choices", [{}])[0].get("message", {})
+            reasoning = msg.get("reasoning_content") or msg.get("reasoning") or msg.get("thought")
+            content = msg.get("content") or ""
+            if reasoning:
+                return f"<think>\n{reasoning}\n</think>\n\n{content}"
+            return content
         except requests.exceptions.ConnectionError:
             return "Could not reach the AI server."
         except requests.exceptions.Timeout:
@@ -147,7 +156,7 @@ class OpenAIProvider(BaseProvider):
     def stream(self, prompt, system_prompt="", history=None):
         base = self.get_base_url()
         if not base:
-            yield "AI not configured \u2014 no base URL set."
+            yield "AI not configured — no base URL set."
             return
         try:
             payload = {
@@ -155,7 +164,11 @@ class OpenAIProvider(BaseProvider):
                 "messages": self._build_messages(system_prompt, history, prompt),
                 "stream": True,
             }
-            if self.provider_id == "nvidia" or "integrate.api.nvidia.com" in str(base).lower():
+            is_nvidia = (getattr(self, "provider_id", "") == "nvidia"
+                         or getattr(self, "ID", "") == "nvidia"
+                         or (isinstance(self.config, dict) and self.config.get("provider") == "nvidia")
+                         or "integrate.api.nvidia.com" in str(base).lower())
+            if is_nvidia:
                 payload.setdefault("max_tokens", 4096)
             temp = self.config.get("temperature")
             if temp is not None:
@@ -167,6 +180,7 @@ class OpenAIProvider(BaseProvider):
                                  headers=self._headers(), json=payload,
                                  timeout=60, stream=True)
             self._raise_for_status(resp)
+            in_reasoning = False
             for line in resp.iter_lines(decode_unicode=True):
                 if not line or not line.startswith("data:"):
                     continue
@@ -179,9 +193,26 @@ class OpenAIProvider(BaseProvider):
                     continue
                 choices = obj.get("choices") or []
                 if choices:
-                    piece = (choices[0].get("delta") or {}).get("content")
+                    delta = choices[0].get("delta") or {}
+                    reason_chunk = (delta.get("reasoning_content")
+                                    or delta.get("reasoning")
+                                    or delta.get("thought")
+                                    or delta.get("thinking"))
+                    if reason_chunk:
+                        if not in_reasoning:
+                            in_reasoning = True
+                            yield "<think>\n"
+                        yield reason_chunk
+
+                    piece = delta.get("content")
                     if piece:
+                        if in_reasoning:
+                            in_reasoning = False
+                            yield "\n</think>\n\n"
                         yield piece
+            if in_reasoning:
+                in_reasoning = False
+                yield "\n</think>\n\n"
         except requests.exceptions.ConnectionError:
             yield "Could not reach the AI server."
         except requests.exceptions.Timeout:

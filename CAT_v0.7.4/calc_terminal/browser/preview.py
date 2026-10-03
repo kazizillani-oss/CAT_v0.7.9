@@ -171,12 +171,18 @@ class PreviewController:
             return False
 
         with self._lock:
+            snap = None
             if use_external:
                 # A Vite index.html at the project root is NOT a plain
                 # static page — only the real dev server can render it.
                 if not self._start_framework_devserver(detection):
-                    return False
-                url = self.devserver.url
+                    self._emit("activity", text=f"⚠️ {detection.label} dev server failed to start — falling back to static live server…")
+                    if not self._start_static_server():
+                        return False
+                    rel = relative_url_for(entry, web_root) if entry else ""
+                    url = self.base_url.rstrip("/") + "/" + rel.lstrip("/")
+                else:
+                    url = self.devserver.url
             else:
                 if not self._start_static_server():
                     return False
@@ -196,8 +202,10 @@ class PreviewController:
                 # Headless engine failed or Playwright missing — local server is still running
                 # and fully functional for real-time viewing in CAT Browser app
                 self._emit("activity", text=f"● Live server ready for CAT Browser: {url}")
+                snap = None
 
-            self._set_preview_state(PreviewState.RUNNING)
+            if snap is None or snap.ok:
+                self._set_preview_state(PreviewState.RUNNING)
             return True
 
     def navigate_current_workspace(self) -> bool:

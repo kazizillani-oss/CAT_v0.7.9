@@ -129,16 +129,49 @@ router.get('/unlock-status', requireAuth, (req, res) => {
   });
 });
 
+const UNLOCK_LOCKOUT_THRESHOLD = 5;
+const UNLOCK_LOCKOUT_MS = 15 * 60 * 1000;
+const unlockAttempts = new Map(); // userId -> { count, lockedAt }
+
+function checkUnlockLockout(userId) {
+  const rec = unlockAttempts.get(userId);
+  if (!rec) return { locked: false };
+  if (rec.count >= UNLOCK_LOCKOUT_THRESHOLD) {
+    const remaining = rec.lockedAt + UNLOCK_LOCKOUT_MS - Date.now();
+    if (remaining > 0) return { locked: true, remaining };
+    unlockAttempts.delete(userId);
+  }
+  return { locked: false };
+}
+
+function recordUnlockFailure(userId) {
+  const rec = unlockAttempts.get(userId) || { count: 0, lockedAt: 0 };
+  rec.count++;
+  if (rec.count >= UNLOCK_LOCKOUT_THRESHOLD) rec.lockedAt = Date.now();
+  unlockAttempts.set(userId, rec);
+}
+
+function clearUnlockFailures(userId) {
+  unlockAttempts.delete(userId);
+}
+
 // ---------------------------------------------------------------------
 // Unlock — password or PIN (synchronous, single round trip)
 // ---------------------------------------------------------------------
 
 router.post('/unlock/password', requireAuth, (req, res) => {
+  const lockout = checkUnlockLockout(req.session.userId);
+  if (lockout.locked) {
+    return res.status(429).json({ error: 'too_many_attempts', message: 'Too many failed unlock attempts. Please wait 15 minutes.' });
+  }
+
   const { password } = req.body || {};
   const user = db.prepare(`SELECT * FROM users WHERE id = ?`).get(req.session.userId);
   if (!user || !password || !verifySecret(password, user.password_hash)) {
+    recordUnlockFailure(req.session.userId);
     return res.status(401).json({ error: 'invalid_credentials' });
   }
+  clearUnlockFailures(req.session.userId);
   grantUnlock(req);
   logEvent(user.id, 'auth_card_unlocked', 'password');
   res.json({ ok: true, unlockedUntil: req.session.cardUnlockedUntil });
@@ -150,26 +183,49 @@ router.post('/unlock/password', requireAuth, (req, res) => {
 // credentials; it only proves account ownership well enough to open the
 // card, same trust level as the password/PIN paths above.
 router.post('/unlock/recovery', requireAuth, (req, res) => {
+  const lockout = checkUnlockLockout(req.session.userId);
+  if (lockout.locked) {
+    return res.status(429).json({ error: 'too_many_attempts', message: 'Too many failed unlock attempts. Please wait 15 minutes.' });
+  }
+
   const { recoveryCode } = req.body || {};
   const user = db.prepare(`SELECT * FROM users WHERE id = ?`).get(req.session.userId);
   if (!user || !user.recovery_code_hash || !recoveryCode) {
+    recordUnlockFailure(req.session.userId);
     return res.status(401).json({ error: 'invalid_recovery' });
   }
   const codeHash = sha256Hex(String(recoveryCode).trim().toUpperCase());
-  if (codeHash !== user.recovery_code_hash) {
+  let match = false;
+  try {
+    const a = Buffer.from(codeHash, 'hex');
+    const b = Buffer.from(user.recovery_code_hash || '00'.repeat(32), 'hex');
+    match = a.length === b.length && crypto.timingSafeEqual(a, b);
+  } catch (_) {
+    match = false;
+  }
+  if (!match) {
+    recordUnlockFailure(req.session.userId);
     return res.status(401).json({ error: 'invalid_recovery' });
   }
+  clearUnlockFailures(req.session.userId);
   grantUnlock(req);
   logEvent(user.id, 'auth_card_unlocked', 'recovery_code');
   res.json({ ok: true, unlockedUntil: req.session.cardUnlockedUntil });
 });
 
 router.post('/unlock/pin', requireAuth, (req, res) => {
+  const lockout = checkUnlockLockout(req.session.userId);
+  if (lockout.locked) {
+    return res.status(429).json({ error: 'too_many_attempts', message: 'Too many failed unlock attempts. Please wait 15 minutes.' });
+  }
+
   const { pin } = req.body || {};
   const card = db.prepare(`SELECT * FROM auth_cards WHERE user_id = ?`).get(req.session.userId);
   if (!card || !card.pin_hash || !pin || !verifySecret(pin, card.pin_hash)) {
+    recordUnlockFailure(req.session.userId);
     return res.status(401).json({ error: 'invalid_credentials' });
   }
+  clearUnlockFailures(req.session.userId);
   grantUnlock(req);
   logEvent(req.session.userId, 'auth_card_unlocked', 'pin');
   res.json({ ok: true, unlockedUntil: req.session.cardUnlockedUntil });

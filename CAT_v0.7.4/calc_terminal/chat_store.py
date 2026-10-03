@@ -11,16 +11,20 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import shutil
 import time
 import uuid
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+from . import cat_format
+
 log = logging.getLogger("cat.chat_store")
 
 _CHATS_DIR = os.path.join(os.path.expanduser("~"), ".cat", "chats")
-_INDEX_FILE = os.path.join(_CHATS_DIR, "_index.json")
+_INDEX_FILE = os.path.join(_CHATS_DIR, "_index.cat")
+_LEGACY_INDEX_FILE = os.path.join(_CHATS_DIR, "_index.json")
 _SCHEMA_VERSION = 2
 _LEGACY_WORKSPACE = "__legacy_unassigned__"
 
@@ -33,7 +37,16 @@ def _index_path() -> str:
     return _INDEX_FILE
 
 
+def _legacy_index_path() -> str:
+    return _LEGACY_INDEX_FILE
+
+
 def _chat_path(chat_id: str) -> str:
+    safe = chat_id.replace("/", "_").replace("\\", "_").replace("..", "_")
+    return os.path.join(_CHATS_DIR, f"{safe}.cat")
+
+
+def _legacy_chat_path(chat_id: str) -> str:
     safe = chat_id.replace("/", "_").replace("\\", "_").replace("..", "_")
     return os.path.join(_CHATS_DIR, f"{safe}.json")
 
@@ -105,18 +118,31 @@ def _atomic_write_json(path: str, data: Any):
 
 def _load_index() -> List[Dict]:
     _ensure_dir()
-    try:
-        with open(_index_path(), "r", encoding="utf-8") as f:
-            data = json.load(f)
+    cat_p = _index_path()
+    if os.path.exists(cat_p):
+        data = cat_format.load_cat_file(cat_p)
+        if isinstance(data, list):
+            return data
+    legacy_p = _legacy_index_path()
+    if os.path.exists(legacy_p):
+        try:
+            with open(legacy_p, "r", encoding="utf-8") as f:
+                data = json.load(f)
             if isinstance(data, list):
+                _save_index(data)
+                try:
+                    os.remove(legacy_p)
+                except OSError:
+                    pass
                 return data
-    except (FileNotFoundError, json.JSONDecodeError):
-        pass
+        except (FileNotFoundError, json.JSONDecodeError):
+            pass
     return []
 
 
 def _save_index(entries: List[Dict]):
-    _atomic_write_json(_index_path(), entries)
+    _ensure_dir()
+    cat_format.save_cat_file(_index_path(), entries)
 
 
 def _migrate_turn(turn: Dict) -> Dict:
@@ -167,29 +193,37 @@ def _migrate_chat(chat: Dict) -> Dict:
     chat.setdefault("created_mode", chat.get("created_mode") or first_mode or "notebook")
     chat.setdefault("current_mode", chat.get("current_mode") or last_mode or chat["created_mode"])
 
-    if version < _SCHEMA_VERSION:
-        chat["schema_version"] = _SCHEMA_VERSION
-        _save_chat(chat)
-        log.info("migrated chat %s to schema v%s", chat.get("id"), _SCHEMA_VERSION)
-
+    chat["schema_version"] = _SCHEMA_VERSION
     return chat
 
 
 def _load_chat_file(chat_id: str) -> Optional[Dict]:
-    path = _chat_path(chat_id)
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            chat = json.load(f)
+    cat_p = _chat_path(chat_id)
+    if os.path.exists(cat_p):
+        data = cat_format.load_cat_file(cat_p)
+        if isinstance(data, dict):
+            return _migrate_chat(data)
+    legacy_p = _legacy_chat_path(chat_id)
+    if os.path.exists(legacy_p):
+        try:
+            with open(legacy_p, "r", encoding="utf-8") as f:
+                chat = json.load(f)
             if isinstance(chat, dict):
-                return _migrate_chat(chat)
-    except (FileNotFoundError, json.JSONDecodeError, TypeError):
-        pass
+                migrated = _migrate_chat(chat)
+                _save_chat(migrated)
+                try:
+                    os.remove(legacy_p)
+                except OSError:
+                    pass
+                return migrated
+        except (FileNotFoundError, json.JSONDecodeError, TypeError):
+            pass
     return None
 
 
 def _save_chat(chat: Dict):
     chat = _migrate_chat(chat)
-    _atomic_write_json(_chat_path(chat.get("id", "unknown")), chat)
+    cat_format.save_cat_file(_chat_path(chat.get("id", "unknown")), chat)
 
 
 def _index_entry(chat: Dict) -> Dict:
@@ -285,11 +319,11 @@ def rename_chat(chat_id: str, new_name: str) -> bool:
 
 
 def delete_chat(chat_id: str) -> bool:
-    path = _chat_path(chat_id)
-    try:
-        os.remove(path)
-    except FileNotFoundError:
-        pass
+    for p in (_chat_path(chat_id), _legacy_chat_path(chat_id)):
+        try:
+            os.remove(p)
+        except FileNotFoundError:
+            pass
     index = _load_index()
     index = [e for e in index if e.get("id") != chat_id]
     _save_index(index)
@@ -370,16 +404,30 @@ def add_turn(
     mode_snapshot: Optional[Dict] = None,
     provider: Optional[str] = None,
     model: Optional[str] = None,
+    turn_id: Optional[str] = None,
+    parent_turn_id: Optional[str] = None,
 ) -> Optional[Dict]:
-    """Append a turn with full mode/provider metadata."""
+    """Append or update a turn with full mode/provider metadata and turn linkage."""
     chat = get_chat(chat_id)
     if not chat:
         return None
+    turns = chat.setdefault("turns", [])
+    existing_idx = None
+    if turn_id:
+        for i, t in enumerate(turns):
+            if t.get("turn_id") == turn_id:
+                existing_idx = i
+                break
+
     turn: Dict[str, Any] = {
         "role": role,
         "content": content,
         "timestamp": time.time(),
     }
+    if turn_id:
+        turn["turn_id"] = turn_id
+    if parent_turn_id:
+        turn["parent_turn_id"] = parent_turn_id
     if mode:
         turn["mode"] = mode
     if mode_snapshot:
@@ -395,7 +443,12 @@ def add_turn(
         turn["provider"] = provider
     if model:
         turn["model"] = model
-    chat.setdefault("turns", []).append(turn)
+
+    if existing_idx is not None:
+        turns[existing_idx].update(turn)
+    else:
+        turns.append(turn)
+
     chat["turn_count"] = len(chat["turns"])
     chat["updated_at"] = time.time()
     if mode:
@@ -701,3 +754,135 @@ def validate_workspace_metadata(path: Optional[str]) -> bool:
     if "\x00" in norm:
         return False
     return True
+
+
+def get_first_chat(workspace_root: Optional[str] = None) -> Optional[Dict]:
+    """Retrieve the very first conversation recorded in the vault (or workspace) that contains real turns."""
+    summaries = get_chat_summaries(workspace_root=workspace_root, include_archived=True, include_legacy=True)
+    if not summaries and workspace_root:
+        summaries = get_chat_summaries(include_archived=True, include_legacy=True)
+    if not summaries:
+        return None
+    chronological = sorted(summaries, key=lambda s: s.get("created_at", 0) or 0)
+    for entry in chronological:
+        cid = entry.get("id")
+        if not cid:
+            continue
+        chat = get_chat(cid)
+        if chat and chat.get("turns"):
+            return chat
+    return get_chat(chronological[0].get("id")) if chronological else None
+
+
+def get_previous_chats_context(
+    workspace_root: Optional[str] = None,
+    exclude_chat_id: Optional[str] = None,
+    limit: int = 5,
+    query: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """Retrieve summaries and salient context of previous user conversations."""
+    summaries = get_chat_summaries(workspace_root=workspace_root, include_archived=False, include_legacy=True)
+    if exclude_chat_id:
+        summaries = [s for s in summaries if s.get("id") != exclude_chat_id]
+    
+    if query:
+        q_tokens = {w for w in re.findall(r"[a-z0-9]{3,}", query.lower())}
+        if q_tokens:
+            def _score(s):
+                name_words = {w for w in re.findall(r"[a-z0-9]{3,}", (s.get("name") or "").lower())}
+                return len(q_tokens & name_words)
+            scored = sorted(summaries, key=_score, reverse=True)
+            if scored and _score(scored[0]) > 0:
+                summaries = scored
+    
+    results = []
+    for s in summaries[:limit]:
+        cid = s.get("id")
+        chat = get_chat(cid)
+        if not chat:
+            continue
+        turns = chat.get("turns", [])
+        if not turns:
+            continue
+        first_user = next((t.get("content", "") for t in turns if t.get("role") == "user" and t.get("content")), "")
+        last_turn = turns[-1].get("content", "") if turns else ""
+        results.append({
+            "id": cid,
+            "name": chat.get("name", "Untitled"),
+            "workspace_root": chat.get("workspace_root", ""),
+            "created_at": chat.get("created_at", 0),
+            "updated_at": chat.get("updated_at", 0),
+            "turn_count": len(turns),
+            "first_user_prompt": first_user[:300],
+            "last_turn": last_turn[:300],
+            "summary": chat.get("summary", ""),
+        })
+    return results
+
+
+def build_cross_chat_memory_context(
+    workspace_root: Optional[str] = None,
+    current_chat_id: Optional[str] = None,
+    query: Optional[str] = None,
+) -> str:
+    """Build a comprehensive, accurate cross-conversation memory prompt block.
+    
+    Ensures CAT accurately remembers the user's very first chat, their original
+    intent, previous sessions, and all key context stored securely in .cat format.
+    """
+    blocks = []
+    first_chat = get_first_chat(workspace_root=workspace_root)
+    if first_chat:
+        cid = first_chat.get("id")
+        name = first_chat.get("name", "Initial Project Chat")
+        ts = first_chat.get("created_at", 0)
+        dt_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M") if ts else "Origin"
+        turns = first_chat.get("turns", [])
+        user_turns = [t.get("content", "") for t in turns if t.get("role") == "user" and t.get("content")]
+        asst_turns = [t.get("content", "") for t in turns if t.get("role") == "assistant" and t.get("content")]
+        
+        first_prompt = user_turns[0] if user_turns else ""
+        first_response = asst_turns[0] if asst_turns else ""
+        
+        first_prompt_clean = " ".join(first_prompt.split())[:300]
+        first_response_clean = " ".join(first_response.split())[:250]
+        
+        blocks.append("### VERY FIRST CONVERSATION (Foundational Project Intent & Origin):")
+        blocks.append(f"- **Chat ID / Name**: `{cid}` — \"{name}\" (Started: {dt_str})")
+        if first_prompt_clean:
+            blocks.append(f"- **Original User Request**: \"{first_prompt_clean}\"")
+        if first_response_clean:
+            blocks.append(f"- **Initial Established Solution**: \"{first_response_clean}\"")
+        blocks.append("- **Rule**: Always honor the goals, architecture, and directions established in this very first conversation.")
+        blocks.append("")
+    
+    prev_chats = get_previous_chats_context(
+        workspace_root=workspace_root,
+        exclude_chat_id=current_chat_id,
+        limit=4,
+        query=query,
+    )
+    if prev_chats:
+        blocks.append("### PREVIOUS CONVERSATIONS & ESTABLISHED WORKSPACE HISTORY:")
+        for pc in prev_chats:
+            p_name = pc.get("name", "Chat")
+            p_prompt = " ".join(pc.get("first_user_prompt", "").split())[:200]
+            p_last = " ".join(pc.get("last_turn", "").split())[:180]
+            summary = pc.get("summary") or p_prompt
+            blocks.append(f"- **{p_name}** ({pc.get('turn_count')} turns): {summary}")
+            if p_last and p_last != summary:
+                blocks.append(f"  *Latest outcome*: {p_last}")
+        blocks.append("")
+    
+    if not blocks:
+        return ""
+    
+    header = (
+        "## CAT LONG-TERM MEMORY & CROSS-CHAT CONTEXT (.cat Secure Storage)\n"
+        "You have full awareness of the user's historical conversations and original instructions:\n"
+    )
+    footer = (
+        "Use this memory to answer accurately, recognize prior discussions, "
+        "and maintain seamless continuity across all sessions."
+    )
+    return header + "\n".join(blocks) + "\n" + footer

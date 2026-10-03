@@ -91,7 +91,7 @@ def get_optimal_chromium_flags() -> str:
         "--disable-features=CalculateNativeWinOcclusion",
         "--no-sandbox",
         "--disable-checker-imaging",
-        "--enable-features=SmoothScrolling,OverlayScrollbar",
+        "--enable-features=SmoothScrolling",
         "--disable-background-timer-throttling",
         "--disable-renderer-backgrounding",
         "--blink-settings=scrollAnimatorEnabled=true",

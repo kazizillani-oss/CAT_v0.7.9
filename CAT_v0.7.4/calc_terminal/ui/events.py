@@ -70,11 +70,12 @@ class MessageChunk(Message):
 class MessageFinished(Message):
     """App -> conversation. `turn_id` is complete; `full_text` is final."""
 
-    def __init__(self, turn_id, full_text, duration=0.0, usage=None):
+    def __init__(self, turn_id, full_text, duration=0.0, usage=None, contributions=None):
         self.turn_id = turn_id
         self.full_text = full_text
         self.duration = duration
         self.usage = usage or {}
+        self.contributions = contributions or []
         super().__init__()
 
 
@@ -189,9 +190,10 @@ class AttachmentRemoved(Message):
 
 
 class PasteCollapsed(Message):
-    def __init__(self, chip_id, line_count):
+    def __init__(self, chip_id, line_count, word_count=0):
         self.chip_id = chip_id
         self.line_count = line_count
+        self.word_count = word_count
         super().__init__()
 
 

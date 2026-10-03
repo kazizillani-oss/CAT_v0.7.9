@@ -66,7 +66,7 @@ class ToolRegistry:
                 cat = "general"
                 if "file" in name or "directory" in name or "archive" in name or "workspace" in name:
                     cat = "files"
-                elif "terminal" in name or "package" in name:
+                elif "terminal" in name or "package" in name or "device" in name:
                     cat = "terminal"
                 elif "search" in name or "research" in name or "attachment" in name:
                     cat = "research"

@@ -93,7 +93,94 @@ if TEXTUAL_AVAILABLE:
             act_mod.STATUS_WAITING_PERMISSION: "permission required",
             act_mod.STATUS_WARNING: "warning",
         }
-        return labels.get(status, status)
+    def _render_enclosed_box(
+        title: str,
+        body_text: str,
+        *,
+        accent: str,
+        faint: str,
+        max_w: int = 86,
+        italic: bool = True,
+    ) -> List[str]:
+        try:
+            from rich.cells import cell_len
+        except Exception:
+            def cell_len(s: str) -> int:
+                return len(s)
+
+        title_str = title.strip()
+        t_cells = cell_len(title_str)
+
+        wrap_limit = max(30, max_w - 6)
+        wrapped_lines: List[str] = []
+        for para in body_text.splitlines():
+            p = para.strip()
+            if not p:
+                wrapped_lines.append("")
+            else:
+                w = textwrap.wrap(p, width=wrap_limit, break_long_words=True, replace_whitespace=False)
+                wrapped_lines.extend(w)
+
+        measured_lens = [cell_len(l) for l in wrapped_lines]
+        content_max = max(measured_lens + [t_cells + 4]) if measured_lens else (t_cells + 4)
+        box_w = min(max_w, max(content_max + 6, t_cells + 8))
+        dashes_count = max(2, box_w - 5 - t_cells)
+        box_w = 5 + t_cells + dashes_count
+        inner_w = box_w - 6
+
+        top = f"  [{accent} bold]╭─ {title_str} " + ("─" * dashes_count) + "╮[/]"
+        bottom = f"  [{accent} bold]╰" + ("─" * (box_w - 2)) + "╯[/]"
+
+        style_open = f"[{faint} italic]" if italic else f"[{faint}]"
+        style_close = "[/]"
+        res = [top]
+        for l, m_len in zip(wrapped_lines, measured_lens):
+            pad = " " * max(0, inner_w - m_len)
+            content = f"{style_open}{l}{style_close}" if l else ""
+            res.append(f"  [{accent}]│[/]  {content}{pad}  [{accent}]│[/]")
+        res.append(bottom)
+        return res
+
+    def _render_enclosed_panel_markup(
+        title: str,
+        content_markup_lines: List[str],
+        *,
+        accent: str,
+        max_w: int = 86,
+    ) -> List[str]:
+        try:
+            from rich.text import Text
+            from rich.cells import cell_len
+            title_plain = Text.from_markup(title).plain if "[" in title else title
+            t_cells = cell_len(title_plain)
+        except Exception:
+            title_plain = re.sub(r"\[.*?\]", "", title)
+            t_cells = len(title_plain)
+
+        measured_lens: List[int] = []
+        for l in content_markup_lines:
+            try:
+                from rich.text import Text
+                m_len = Text.from_markup(l).cell_len if "[" in l else len(l)
+            except Exception:
+                m_len = len(re.sub(r"\[.*?\]", "", l))
+            measured_lens.append(m_len)
+
+        content_max = max(measured_lens + [t_cells + 4]) if measured_lens else (t_cells + 4)
+        box_w = min(max_w, max(content_max + 6, t_cells + 8))
+        dashes_count = max(2, box_w - 5 - t_cells)
+        box_w = 5 + t_cells + dashes_count
+        inner_w = box_w - 6
+
+        top = f"  [{accent} bold]╭─ {title} " + ("─" * dashes_count) + "╮[/]"
+        bottom = f"  [{accent} bold]╰" + ("─" * (box_w - 2)) + "╯[/]"
+
+        res = [top]
+        for l, m_len in zip(content_markup_lines, measured_lens):
+            pad = " " * max(0, inner_w - m_len)
+            res.append(f"  [{accent}]│[/]  {l}{pad}  [{accent}]│[/]")
+        res.append(bottom)
+        return res
 
     # ── Phase Header widget ──────────────────────────────────────────────
     class PhaseHeader(Static):
@@ -266,20 +353,19 @@ if TEXTUAL_AVAILABLE:
 
             # 5. Expanded Detail View (100% authentic event metadata)
             lines = [line, ""]
+            term_w = getattr(self, "size", None).width if (hasattr(self, "size") and getattr(self, "size", None) and self.size.width > 30) else 86
+            box_max_w = max(55, min(term_w - 6, 96))
             if is_thinking and (a.details or a.stdout):
                 full_thought = (a.details or a.stdout or "").strip()
                 dur_str = _fmt_duration(a.duration_ms or a.elapsed_ms)
-                lines.append(f"  [{accent} bold]╭─ 💭 Thinking Process ({dur_str}) ──────────────────────────────────[/]")
-                wrap_w = 82
-                for paragraph in full_thought.splitlines():
-                    cleaned_p = paragraph.strip()
-                    if not cleaned_p:
-                        lines.append(f"  [{accent}]│[/]")
-                    else:
-                        wrapped = textwrap.wrap(cleaned_p, width=wrap_w, break_long_words=True, replace_whitespace=False)
-                        for w_line in wrapped:
-                            lines.append(f"  [{accent}]│[/]  [{faint} italic]{w_line}[/]")
-                lines.append(f"  [{accent} bold]╰───────────────────────────────────────────────────────────────────[/]")
+                lines.extend(_render_enclosed_box(
+                    f"💭 Thinking Process ({dur_str})",
+                    full_thought,
+                    accent=accent,
+                    faint=faint,
+                    max_w=box_max_w,
+                    italic=True,
+                ))
                 lines.append("")
             if a.event_id or a.id:
                 lines.append(f"  [{faint}]Event ID:[/] [{accent}]{a.event_id or a.id}[/]")
@@ -324,24 +410,29 @@ if TEXTUAL_AVAILABLE:
             applied_settings = meta.get("applied_settings")
             
             if source_node or target_node or payload or p2p_trace or applied_settings:
-                lines.append(f"  [{accent} bold]╭─ ⇄ Point-to-Point Data & Workflow Routing ─────────────────────────[/]")
+                p2p_items: List[str] = []
                 if source_node or target_node:
-                    lines.append(f"  [{accent}]│[/]  [{faint}]Flow Route:[/] [{accent}]{source_node or 'origin'}[/] ➔ [{accent}]{target_node or 'destination'}[/]")
+                    p2p_items.append(f"[{faint}]Flow Route:[/] [{accent}]{source_node or 'origin'}[/] ➔ [{accent}]{target_node or 'destination'}[/]")
                 if applied_settings:
                     for sk, sv in applied_settings.items():
-                        lines.append(f"  [{accent}]│[/]  [{faint}]CLI Setting:[/] [green]{sk}[/] = [{text_color}]{sv}[/]")
+                        p2p_items.append(f"[{faint}]CLI Setting:[/] [green]{sk}[/] = [{text_color}]{sv}[/]")
                 if payload and isinstance(payload, dict):
                     for pk, pv in list(payload.items())[:6]:
                         pv_str = str(pv)[:80] + ("..." if len(str(pv)) > 80 else "")
-                        lines.append(f"  [{accent}]│[/]  [{faint}]Payload [{pk}]:[/] [{text_color}]{pv_str}[/]")
+                        p2p_items.append(f"[{faint}]Payload [{pk}]:[/] [{text_color}]{pv_str}[/]")
                 if p2p_trace and isinstance(p2p_trace, list):
                     for hop in p2p_trace[:4]:
                         if isinstance(hop, dict):
                             h_from = hop.get('from', '')
                             h_to = hop.get('to', '')
                             h_st = hop.get('status', '')
-                            lines.append(f"  [{accent}]│[/]  [{faint}]Hop Trace:[/] {h_from} → {h_to} ([green]{h_st}[/])")
-                lines.append(f"  [{accent} bold]╰───────────────────────────────────────────────────────────────────[/]")
+                            p2p_items.append(f"[{faint}]Hop Trace:[/] {h_from} → {h_to} ([green]{h_st}[/])")
+                lines.extend(_render_enclosed_panel_markup(
+                    "⇄ Point-to-Point Data & Workflow Routing",
+                    p2p_items,
+                    accent=accent,
+                    max_w=box_max_w,
+                ))
 
             # Stderr or stdout tails
             if a.stderr:

@@ -56,16 +56,34 @@ router.get('/oauth/providers', (req, res) => {
 // signed-in identities or local loopback (CLI / dev access).
 // Secrets are never echoed back once saved, only whether one is set.
 // ---------------------------------------------------------------------
-function isLocalOrAuthed(req) {
-  if (req.session && req.session.userId) return true;
-  const ip = req.ip || req.connection?.remoteAddress || '';
-  const isLoopback = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || req.hostname === 'localhost';
-  return isLoopback;
+function isAdmin(userId) {
+  if (!userId) return false;
+  const user = db.prepare(`SELECT * FROM users WHERE id = ?`).get(userId);
+  if (!user) return false;
+  if (user.is_admin === 1) return true;
+  if (process.env.ADMIN_FOMOJI_ID && user.fomoji_id === process.env.ADMIN_FOMOJI_ID) return true;
+  if (process.env.ADMIN_EMAIL && user.email && user.email.toLowerCase() === process.env.ADMIN_EMAIL.toLowerCase()) return true;
+  return false;
 }
 
-function requireAuthOrLocal(req, res, next) {
-  if (!isLocalOrAuthed(req)) return res.status(401).json({ error: 'not_authenticated' });
-  next();
+function requireAdminOrLocal(req, res, next) {
+  const ip = req.ip || req.connection?.remoteAddress || '';
+  const isLoopback = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || req.hostname === 'localhost';
+
+  // In non-production, loopback requests without a session are allowed for local developer setup
+  if (process.env.NODE_ENV !== 'production' && isLoopback && (!req.session || !req.session.userId)) {
+    return next();
+  }
+
+  // If a session is present, the user MUST be an administrator
+  if (req.session && req.session.userId) {
+    if (isAdmin(req.session.userId)) {
+      return next();
+    }
+    return res.status(403).json({ error: 'admin_required', message: 'Administrator privileges are required to access this endpoint.' });
+  }
+
+  return res.status(401).json({ error: 'not_authenticated' });
 }
 
 function handleGetOAuthConfig(req, res) {
@@ -117,14 +135,14 @@ function handleDeleteOAuthConfig(req, res) {
   res.json({ ok: true, provider: providerKey, configured: false });
 }
 
-router.get('/admin/oauth-config', requireAuthOrLocal, handleGetOAuthConfig);
-router.get('/oauth/config', requireAuthOrLocal, handleGetOAuthConfig);
+router.get('/admin/oauth-config', requireAdminOrLocal, handleGetOAuthConfig);
+router.get('/oauth/config', requireAdminOrLocal, handleGetOAuthConfig);
 
-router.post('/admin/oauth-config/:provider', requireAuthOrLocal, handleSetOAuthConfig);
-router.post('/oauth/config/:provider', requireAuthOrLocal, handleSetOAuthConfig);
+router.post('/admin/oauth-config/:provider', requireAdminOrLocal, handleSetOAuthConfig);
+router.post('/oauth/config/:provider', requireAdminOrLocal, handleSetOAuthConfig);
 
-router.delete('/admin/oauth-config/:provider', requireAuthOrLocal, handleDeleteOAuthConfig);
-router.delete('/oauth/config/:provider', requireAuthOrLocal, handleDeleteOAuthConfig);
+router.delete('/admin/oauth-config/:provider', requireAdminOrLocal, handleDeleteOAuthConfig);
+router.delete('/oauth/config/:provider', requireAdminOrLocal, handleDeleteOAuthConfig);
 
 // ---------------------------------------------------------------------
 // GET /api/oauth/:provider/start — begin the ceremony. Works identically

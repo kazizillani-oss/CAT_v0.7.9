@@ -12,12 +12,16 @@ const {
 const db = require('../db');
 const { randomFomojiId, randomInternalId } = require('../id');
 const { RP_ID, RP_NAME, ORIGIN, PORT } = require('../config');
+const { loginRateLimiter, signupRateLimiter } = require('../security');
 
 const router = express.Router();
 
 const CHALLENGE_TTL_MS = 5 * 60 * 1000; // 5 minutes to complete a ceremony
 
 function getAllowedOrigins(req) {
+  if (process.env.NODE_ENV === 'production') {
+    return [ORIGIN];
+  }
   const list = new Set([
     ORIGIN,
     `http://localhost:${PORT || 3000}`,
@@ -27,10 +31,6 @@ function getAllowedOrigins(req) {
     'http://localhost:8765',
     'http://127.0.0.1:8765',
   ]);
-  const reqOrigin = req.get('origin');
-  if (reqOrigin) {
-    list.add(reqOrigin);
-  }
   return Array.from(list);
 }
 
@@ -65,7 +65,7 @@ function toWebAuthnCredential(row) {
 // passkey added to an already-signed-in identity (Account Linking Center).
 // ---------------------------------------------------------------------
 
-router.post('/register/start', async (req, res) => {
+router.post('/register/start', signupRateLimiter, async (req, res) => {
   deleteExpiredChallenges();
 
   const existingUserId = req.session.userId || null;
@@ -88,8 +88,8 @@ router.post('/register/start', async (req, res) => {
     // Brand new identity. Nothing is written to `users` yet — see the
     // comment on `challenges.payload` in db.js for why.
     const { name, username, email } = req.body || {};
-    if (!username || typeof username !== 'string' || username.length < 3) {
-      return res.status(400).json({ error: 'invalid_username' });
+    if (!username || typeof username !== 'string' || !/^[a-zA-Z0-9._-]{3,50}$/.test(username)) {
+      return res.status(400).json({ error: 'invalid_username', message: 'Username must be 3-50 alphanumeric characters, dots, underscores, or hyphens.' });
     }
     const usernameTaken = db.prepare(`SELECT 1 FROM users WHERE username = ?`).get(username);
     if (usernameTaken) return res.status(409).json({ error: 'username_taken' });
@@ -138,7 +138,7 @@ router.post('/register/start', async (req, res) => {
   res.json({ options, challengeId });
 });
 
-router.post('/register/finish', async (req, res) => {
+router.post('/register/finish', signupRateLimiter, async (req, res) => {
   deleteExpiredChallenges();
 
   const challengeId = (req.body && req.body.challengeId) || req.session.pendingChallengeId;
@@ -165,7 +165,7 @@ router.post('/register/finish', async (req, res) => {
     });
   } catch (err) {
     console.error('[fomoji:webauthn] register/finish: verifyRegistrationResponse threw — expectedOrigin=%s expectedRPID=%s message=%s', ORIGIN, RP_ID, err.message);
-    return res.status(400).json({ error: 'verification_failed', message: err.message });
+    return res.status(400).json({ error: 'verification_failed', correlationId: req.correlationId });
   }
 
   if (!verification.verified || !verification.registrationInfo) {
@@ -216,7 +216,7 @@ router.post('/register/finish', async (req, res) => {
 // for this site; the server never has to ask "who are you" first.
 // ---------------------------------------------------------------------
 
-router.post('/login/start', async (req, res) => {
+router.post('/login/start', loginRateLimiter, async (req, res) => {
   deleteExpiredChallenges();
 
   const options = await generateAuthenticationOptions({
@@ -237,7 +237,7 @@ router.post('/login/start', async (req, res) => {
   res.json({ options, challengeId });
 });
 
-router.post('/login/finish', async (req, res) => {
+router.post('/login/finish', loginRateLimiter, async (req, res) => {
   deleteExpiredChallenges();
 
   const challengeId = (req.body && req.body.challengeId) || req.session.pendingChallengeId;

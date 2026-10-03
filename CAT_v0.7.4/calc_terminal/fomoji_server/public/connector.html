@@ -221,6 +221,13 @@ function fallbackCopy(text, label) {
     return span;
   }
 
+  function escapeHtml(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
   // ---- connected applications ----
   async function renderConnections() {
     const list = document.getElementById('connList');
@@ -239,14 +246,14 @@ function fallbackCopy(text, label) {
       const row = document.createElement('div');
       row.className = 'row conn-row';
       row.innerHTML = `
-        <div class="conn-app-icon">${(c.applicationName || c.applicationId).charAt(0)}</div>
+        <div class="conn-app-icon">${escapeHtml((c.applicationName || c.applicationId).charAt(0))}</div>
         <div class="row-main">
-          <div class="row-label">${c.applicationName}</div>
-          <div class="row-sub">Connected ${new Date(c.createdAt).toLocaleDateString()}</div>
+          <div class="row-label">${escapeHtml(c.applicationName)}</div>
+          <div class="row-sub">Connected ${escapeHtml(new Date(c.createdAt).toLocaleDateString())}</div>
           <div class="conn-perms"></div>
         </div>
         <span class="pill ${c.status === 'connected' ? 'pill-on' : 'pill-off'}">${c.status === 'connected' ? 'Connected' : 'Revoked'}</span>
-        <button type="button" class="btn btn-danger btn-inline" data-disconnect="${c.applicationId}">Disconnect</button>
+        <button type="button" class="btn btn-danger btn-inline" data-disconnect="${escapeHtml(c.applicationId)}">Disconnect</button>
       `;
       const permsEl = row.querySelector('.conn-perms');
       c.permissions.forEach((p) => permsEl.appendChild(permChip(p)));
@@ -280,12 +287,12 @@ function fallbackCopy(text, label) {
       const row = document.createElement('div');
       row.className = 'row conn-row';
       row.innerHTML = `
-        <div class="conn-app-icon">${app.name.charAt(0)}</div>
+        <div class="conn-app-icon">${escapeHtml(app.name.charAt(0))}</div>
         <div class="row-main">
-          <div class="row-label">${app.name}</div>
-          <div class="row-sub">${app.description || ''}</div>
+          <div class="row-label">${escapeHtml(app.name)}</div>
+          <div class="row-sub">${escapeHtml(app.description || '')}</div>
         </div>
-        <button type="button" class="btn btn-primary btn-inline" data-connect="${app.applicationId}" data-perms='${JSON.stringify(app.permissionsAvailable)}'>Connect</button>
+        <button type="button" class="btn btn-primary btn-inline" data-connect="${escapeHtml(app.applicationId)}" data-perms='${escapeHtml(JSON.stringify(app.permissionsAvailable))}'>Connect</button>
       `;
       list.appendChild(row);
     }

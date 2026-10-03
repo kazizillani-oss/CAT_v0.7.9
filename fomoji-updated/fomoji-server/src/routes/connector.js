@@ -23,6 +23,8 @@ const db = require('../db');
 const { sha256Hex } = require('../password');
 const { PERMISSIONS, sanitizePermissions } = require('../connectorPermissions');
 const { CONNECTOR_REGISTRATION_SECRET } = require('../config');
+const { requireAuth } = require('./auth');
+const { signupRateLimiter } = require('../security');
 
 const router = express.Router();
 
@@ -38,11 +40,6 @@ function randomUserCode() {
   let out = '';
   for (let i = 0; i < 8; i++) out += USER_CODE_ALPHABET[bytes[i] % USER_CODE_ALPHABET.length];
   return `${out.slice(0, 4)}-${out.slice(4)}`;
-}
-
-function requireAuth(req, res, next) {
-  if (!req.session.userId) return res.status(401).json({ error: 'not_authenticated' });
-  next();
 }
 
 function getUser(userId) {
@@ -93,7 +90,12 @@ function resolveConnectorAuth(req) {
     const row = db
       .prepare(`SELECT * FROM connections WHERE connector_token_hash = ? AND status = 'connected'`)
       .get(tokenHash);
-    if (row) return { userId: row.user_id, connectionId: row.id, connectionRow: row };
+    if (row) {
+      if (row.expires_at && new Date(row.expires_at).getTime() < Date.now()) {
+        return null;
+      }
+      return { userId: row.user_id, connectionId: row.id, connectionRow: row };
+    }
     return null;
   }
   if (req.session.userId) return { userId: req.session.userId };
@@ -133,6 +135,31 @@ router.post('/applications/register', (req, res) => {
        permissions_available = excluded.permissions_available, environment = excluded.environment`
   ).run(applicationId, name, description || null, icon || null, JSON.stringify(perms), environment || 'production');
   res.json({ application: publicApp(getApp(applicationId)) });
+});
+
+// ---------------------------------------------------------------------
+// GET /api/connector/session?token=...&redirect_uri=... — exchange a valid
+// connector token for a browser session cookie and redirect smoothly.
+// ---------------------------------------------------------------------
+router.get('/session', (req, res) => {
+  const token = req.query.token;
+  const redirectUri = req.query.redirect_uri || '/home.html';
+  if (token && typeof token === 'string' && token.startsWith('fct_')) {
+    const tokenHash = sha256Hex(token);
+    const row = db.prepare(`SELECT * FROM connections WHERE connector_token_hash = ? AND status = 'connected'`).get(tokenHash);
+    if (row && (!row.expires_at || new Date(row.expires_at).getTime() >= Date.now())) {
+      req.session.userId = row.user_id;
+      req.session.loggedOut = false;
+      try {
+        db.prepare(`UPDATE connections SET last_used_at = datetime('now') WHERE id = ?`).run(row.id);
+      } catch (_) {}
+    }
+  }
+  let target = '/home.html';
+  if (typeof redirectUri === 'string' && (redirectUri.startsWith('/') || redirectUri.endsWith('.html'))) {
+    target = redirectUri.startsWith('/') ? redirectUri : `/${redirectUri}`;
+  }
+  res.redirect(target);
 });
 
 // ---------------------------------------------------------------------
@@ -206,7 +233,7 @@ router.post('/connect', requireAuth, (req, res) => {
 // Grants immediate local access without credentials, strictly bounded to
 // 2 hours (7200s), after which it auto-expires and CAT auto-signs out.
 // ---------------------------------------------------------------------
-router.post('/guest', (req, res) => {
+router.post('/guest', signupRateLimiter, (req, res) => {
   const { applicationId = 'cat' } = req.body || {};
   let app = getApp(applicationId);
   if (!app) {
@@ -276,7 +303,7 @@ router.post('/disconnect', requireAuth, (req, res) => {
 // ---------------------------------------------------------------------
 
 // POST /api/connector/device/start — client (Python) begins pairing.
-router.post('/device/start', (req, res) => {
+router.post('/device/start', signupRateLimiter, (req, res) => {
   const { applicationId, permissions, connectionType, environment } = req.body || {};
   const app = getApp(applicationId);
   if (!app) return res.status(404).json({ error: 'unknown_application' });

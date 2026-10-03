@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "8a334939-86bc-4c9c-8bcd-889d67b010d5",
+  "status": "current",
+  "command": "deliver",
+  "type": "workflow",
+  "input": "C:\\Users\\ADMIN\\OneDrive\\PlayGround_Official\\Dev_Project_PlayGorund{Dp{P} }_Official_v0.5\\CAT_v0.7.9\\.archify\\cat-system-workflow.workflow.json",
+  "output": "C:\\Users\\ADMIN\\OneDrive\\PlayGround_Official\\Dev_Project_PlayGorund{Dp{P} }_Official_v0.5\\CAT_v0.7.9\\.archify\\cat-system-workflow.html",
+  "specification": {
+    "sha256": "20d80c46c701d4c630019e98e520fd4cfb0692c7162698134aebdccd5a8d2db3",
+    "bytes": 9830
+  },
+  "artifact": {
+    "sha256": "1ac7a12a5b95f91491c694ddc0c2f1975e6637d11137b4d5dcdbb38b8aa8eecf",
+    "bytes": 786512
+  }
+}

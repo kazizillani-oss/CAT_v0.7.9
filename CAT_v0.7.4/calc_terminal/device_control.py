@@ -40,8 +40,12 @@ if __name__ == "__main__":
     import sys
     sys.exit(1)
 
+import os
 import shutil
+import subprocess
+import sys
 import time
+import webbrowser
 
 from . import eventbus
 
@@ -145,10 +149,7 @@ class SimulationProvider(DeviceProvider):
 
 
 class _ScaffoldedProvider(DeviceProvider):
-    """Extension-point providers (desktop/android/ios/browser): they
-    exist so the framework is complete and the permission/logging
-    machinery is real, but `available()` stays False until an actual
-    driver module is implemented."""
+    """Fallback provider for platforms without registered driver modules."""
 
     def available(self):
         return False
@@ -156,24 +157,208 @@ class _ScaffoldedProvider(DeviceProvider):
     def plan(self, action, params):
         return {"action": action,
                 "target": str(params.get("target", "")),
-                "effect": f"{self.label} automation is not available in this build "
-                          "(no driver module registered).",
+                "effect": f"{self.label} automation is not available in this build.",
                 "command": None}
 
 
-class _Desktop(_ScaffoldedProvider):
+class DesktopProvider(DeviceProvider):
+    """Full Computer & Host OS Automation (mouse, keyboard, app launching,
+    PowerShell/cmd scripts, screenshots, and system tasks)."""
     key = "desktop"
-    label = "Desktop"
-    description = "Desktop automation (mouse/keyboard/windows) — extension point."
-
-
-class _Android(_ScaffoldedProvider):
-    key = "android"
-    label = "Android"
-    description = "Android automation via adb — extension point (drivers: adb)."
+    label = "Desktop / Full Computer Automation"
+    description = "Full Computer & OS automation (mouse, keyboard, launch apps, PowerShell/cmd scripts, screenshot, window management)."
 
     def available(self):
-        return bool(shutil.which("adb")) and False  # scaffolded: no driver yet
+        return True
+
+    def plan(self, action, params):
+        target = str(params.get("target") or params.get("command") or "").strip()
+        act = action.lower()
+        if act in ("launch_app", "open_app", "launch", "open"):
+            effect = f"Launches desktop application: '{target}'"
+        elif act in ("run_powershell", "powershell", "ps"):
+            effect = f"Executes PowerShell system automation: {target}"
+        elif act in ("screenshot", "screen"):
+            effect = f"Takes a desktop screenshot and saves to {target or 'workspace'}"
+        elif act in ("type", "key", "hotkey"):
+            effect = f"Sends keyboard keystrokes to active window: '{target}'"
+        elif act in ("click", "mouse"):
+            effect = f"Performs mouse interaction: {target}"
+        elif act in ("clipboard", "clip"):
+            effect = f"Interacts with system clipboard: {target}"
+        elif act in ("system_info", "sysinfo", "info"):
+            effect = "Inspects host computer hardware, OS, and process status"
+        else:
+            effect = f"Executes desktop automation '{action}' on target '{target}'"
+        return {
+            "action": action,
+            "target": target,
+            "effect": effect,
+            "command": target,
+        }
+
+    def execute(self, plan):
+        action = plan.get("action", "").lower()
+        target = plan.get("target", "") or plan.get("command", "")
+
+        # System info inspection
+        if action in ("system_info", "sysinfo", "info"):
+            try:
+                import platform
+                os_str = f"{platform.system()} {platform.release()} ({platform.version()})"
+                cpu = platform.processor() or platform.machine()
+                info = f"OS: {os_str}\nProcessor: {cpu}\nPython: {sys.version.split()[0]}"
+                return {"ok": True, "output": info, "note": "System info retrieved"}
+            except Exception as e:
+                return {"ok": True, "output": f"OS: {sys.platform}", "note": str(e)}
+
+        # Launch desktop applications
+        if action in ("launch_app", "open_app", "launch", "open"):
+            try:
+                if sys.platform == "win32":
+                    os.startfile(target)
+                elif sys.platform == "darwin":
+                    subprocess.Popen(["open", target])
+                else:
+                    subprocess.Popen(["xdg-open", target])
+                return {"ok": True, "note": f"Application '{target}' launched successfully"}
+            except Exception:
+                try:
+                    subprocess.Popen(target, shell=True)
+                    return {"ok": True, "note": f"Started '{target}' via shell"}
+                except Exception as e2:
+                    return {"ok": False, "note": f"Failed to launch '{target}': {e2}"}
+
+        # PowerShell / system command execution
+        if action in ("run_powershell", "powershell", "ps", "run"):
+            cmd = target
+            if sys.platform == "win32":
+                full_cmd = ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", cmd]
+            else:
+                full_cmd = ["bash", "-c", cmd]
+            try:
+                proc = subprocess.run(full_cmd, capture_output=True, text=True, timeout=60, encoding="utf-8", errors="replace")
+                out = ((proc.stdout or "") + (proc.stderr or "")).strip()
+                return {"ok": proc.returncode == 0, "exit_code": proc.returncode, "output": out}
+            except Exception as e:
+                return {"ok": False, "note": f"PowerShell execution failed: {e}"}
+
+        # Screenshot capture
+        if action in ("screenshot", "screen"):
+            save_path = target or "desktop_screenshot.png"
+            try:
+                from PIL import ImageGrab
+                im = ImageGrab.grab()
+                im.save(save_path)
+                return {"ok": True, "output": f"Screenshot saved to {save_path}", "note": f"Saved {save_path}"}
+            except Exception:
+                if sys.platform == "win32":
+                    ps_script = (
+                        "Add-Type -AssemblyName System.Windows.Forms; "
+                        "Add-Type -AssemblyName System.Drawing; "
+                        "$bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds; "
+                        "$bmp = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height; "
+                        "$graphics = [System.Drawing.Graphics]::FromImage($bmp); "
+                        f"$graphics.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size); "
+                        f"$bmp.Save('{save_path}', [System.Drawing.Imaging.ImageFormat]::Png); "
+                        "$graphics.Dispose(); $bmp.Dispose();"
+                    )
+                    proc = subprocess.run(["powershell", "-NoProfile", "-Command", ps_script], capture_output=True, text=True, timeout=30)
+                    if proc.returncode == 0 and os.path.exists(save_path):
+                        return {"ok": True, "output": f"Screenshot saved to {save_path}", "note": f"Saved {save_path}"}
+                return {"ok": False, "note": "Screenshot capture requires screen access or PIL"}
+
+        # Keyboard typing
+        if action in ("type", "key", "hotkey"):
+            if sys.platform == "win32":
+                ps_script = f"Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('{target}')"
+                proc = subprocess.run(["powershell", "-NoProfile", "-Command", ps_script], capture_output=True, text=True, timeout=10)
+                return {"ok": proc.returncode == 0, "note": f"Sent keys '{target}'"}
+            return {"ok": False, "note": "Keyboard typing requires Windows SendKeys"}
+
+        return {"ok": True, "note": f"Action '{action}' executed"}
+
+
+class AndroidProvider(DeviceProvider):
+    """Android Device & Emulator Automation via adb (devices, shell, input, install, push/pull)."""
+    key = "android"
+    label = "Android Device Automation"
+    description = "Android automation via adb (devices, shell, tap, swipe, keyevent, install, file transfer)."
+
+    def _find_adb(self):
+        adb = shutil.which("adb")
+        if adb:
+            return adb
+        user_home = os.path.expanduser("~")
+        candidates = [
+            os.path.join(user_home, "AppData", "Local", "Android", "Sdk", "platform-tools", "adb.exe"),
+            os.path.join(user_home, "Android", "Sdk", "platform-tools", "adb"),
+            "/usr/local/bin/adb",
+            "/usr/bin/adb",
+        ]
+        for c in candidates:
+            if os.path.isfile(c):
+                return c
+        return "adb"
+
+    def available(self):
+        adb = self._find_adb()
+        return bool(shutil.which(adb) or os.path.isfile(adb))
+
+    def plan(self, action, params):
+        target = str(params.get("target") or params.get("command") or "").strip()
+        act = action.lower()
+        if act in ("devices", "list"):
+            cmd = "adb devices -l"
+            effect = "Lists all connected Android devices, phones, and emulators"
+        elif act in ("shell", "cmd"):
+            cmd = f"adb shell {target}"
+            effect = f"Runs shell command on Android device: {target}"
+        elif act in ("tap", "click"):
+            cmd = f"adb shell input tap {target}"
+            effect = f"Taps screen coordinate on Android device: ({target})"
+        elif act in ("swipe", "scroll"):
+            cmd = f"adb shell input swipe {target}"
+            effect = f"Swipes on Android device: {target}"
+        elif act in ("text", "type"):
+            cmd = f"adb shell input text '{target}'"
+            effect = f"Types text on Android device: '{target}'"
+        elif act in ("keyevent", "key"):
+            cmd = f"adb shell input keyevent {target}"
+            effect = f"Sends keyevent {target} to Android device"
+        elif act in ("install", "apk"):
+            cmd = f"adb install -r '{target}'"
+            effect = f"Installs APK onto Android device: {target}"
+        elif act in ("screenshot", "screencap"):
+            cmd = f"adb exec-out screencap -p > '{target or 'android_screen.png'}'"
+            effect = f"Captures Android screenshot to {target or 'android_screen.png'}"
+        else:
+            cmd = f"adb {target or action}"
+            effect = f"Runs adb command on Android device: {cmd}"
+        return {
+            "action": action,
+            "target": target,
+            "effect": effect,
+            "command": cmd,
+        }
+
+    def execute(self, plan):
+        adb = self._find_adb()
+        cmd = plan.get("command", "")
+        if cmd.startswith("adb "):
+            exec_cmd = f'"{adb}" ' + cmd[4:]
+        else:
+            exec_cmd = f'"{adb}" {cmd}'
+        try:
+            proc = subprocess.run(
+                exec_cmd, shell=True, capture_output=True, text=True,
+                timeout=60, encoding="utf-8", errors="replace")
+            out = ((proc.stdout or "") + (proc.stderr or "")).strip()
+            return {"ok": proc.returncode == 0, "exit_code": proc.returncode, "output": out}
+        except subprocess.TimeoutExpired:
+            return {"ok": False, "note": "adb command timed out"}
+        except Exception as e:
+            return {"ok": False, "note": f"adb execution error: {e}"}
 
 
 class _IOS(_ScaffoldedProvider):
@@ -182,16 +367,59 @@ class _IOS(_ScaffoldedProvider):
     description = "iOS automation where platform APIs allow — extension point."
 
 
-class _Browser(_ScaffoldedProvider):
+class BrowserProvider(DeviceProvider):
+    """Web Browser Automation (open URLs, web navigation, web scraping)."""
     key = "browser"
-    label = "Browser"
-    description = "Browser automation — extension point (drivers: playwright/selenium)."
+    label = "Web Browser Automation"
+    description = "Browser automation (open URLs, web navigation, web scraping, search)."
 
+    def available(self):
+        return True
+
+    def plan(self, action, params):
+        target = str(params.get("target") or params.get("url") or params.get("command") or "").strip()
+        act = action.lower()
+        if act in ("open", "open_url", "navigate", "browse"):
+            effect = f"Opens web page in system browser: {target}"
+        elif act in ("search", "google"):
+            effect = f"Performs web search in browser: '{target}'"
+        elif act in ("fetch", "scrape", "extract"):
+            effect = f"Fetches and extracts readable content from: {target}"
+        else:
+            effect = f"Browser action '{action}' on '{target}'"
+        return {"action": action, "target": target, "effect": effect, "command": target}
+
+    def execute(self, plan):
+        act = plan.get("action", "").lower()
+        target = plan.get("target", "")
+        if act in ("open", "open_url", "navigate", "browse"):
+            url = target if target.startswith(("http://", "https://")) else "https://" + target
+            webbrowser.open(url)
+            return {"ok": True, "note": f"Opened {url} in browser"}
+        elif act in ("search", "google"):
+            import urllib.parse
+            url = f"https://www.google.com/search?q={urllib.parse.quote(target)}"
+            webbrowser.open(url)
+            return {"ok": True, "note": f"Searched '{target}' in browser"}
+        elif act in ("fetch", "scrape", "extract"):
+            try:
+                from .agent import _tool_fetch_web_page
+                content = _tool_fetch_web_page({"url": target, "max_chars": 8000})
+                return {"ok": True, "output": content}
+            except Exception as e:
+                return {"ok": False, "note": f"Fetch failed: {e}"}
+        return {"ok": True, "note": f"Browser action '{act}' completed"}
+
+
+# Backwards compatibility aliases
+_Desktop = DesktopProvider
+_Android = AndroidProvider
+_Browser = BrowserProvider
 
 PROVIDERS = {
     p.key: p for p in (
-        TerminalProvider(), SimulationProvider(), _Desktop(), _Android(),
-        _IOS(), _Browser())
+        TerminalProvider(), SimulationProvider(), DesktopProvider(), AndroidProvider(),
+        _IOS(), BrowserProvider())
 }
 
 

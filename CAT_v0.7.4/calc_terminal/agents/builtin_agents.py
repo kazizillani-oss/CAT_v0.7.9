@@ -8,7 +8,7 @@ as well as modern assistant-inspired bot profiles.
 
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 from .agent_model import AgentSpec
 
 

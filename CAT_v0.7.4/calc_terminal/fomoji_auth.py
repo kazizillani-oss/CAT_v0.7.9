@@ -109,6 +109,12 @@ def _clear_local() -> None:
         pass
 
 
+def invalidate_cache() -> None:
+    """Clear in-memory auth status cache so changes are immediately recognized."""
+    _STATUS_CACHE["status"] = None
+    _STATUS_CACHE["ts"] = 0.0
+
+
 # ---------------------------------------------------------------------------
 # HTTP helpers — stdlib only, no extra deps.
 # ---------------------------------------------------------------------------
@@ -506,7 +512,22 @@ def get_identity() -> Optional[Dict[str, Any]]:
     return ident
 
 
-def get_identity_display() -> str:
+def mask_email(email: str) -> str:
+    """Mask email for display/logs to protect user privacy (e.g. us***r@domain.com)."""
+    if not email or "@" not in email:
+        return email or ""
+    try:
+        user_part, domain_part = email.split("@", 1)
+        if len(user_part) <= 2:
+            masked_u = user_part[0] + "***"
+        else:
+            masked_u = user_part[:2] + "***" + user_part[-1]
+        return f"{masked_u}@{domain_part}"
+    except Exception:
+        return "[REDACTED_EMAIL]"
+
+
+def get_identity_display(mask_pii: bool = True) -> str:
     ident = get_identity()
     if not ident:
         return "Unknown (not connected)"
@@ -514,6 +535,8 @@ def get_identity_display() -> str:
     fid = ident.get("fomojiId", "?")
     itype = ident.get("identityType", "PERSON")
     em = ident.get("email", "")
+    if em and mask_pii:
+        em = mask_email(em)
     em_part = f" <{em}>" if em else ""
     return f"{name}{em_part} ({fid}) [{itype}]"
 
@@ -550,6 +573,9 @@ def _launch_cat_browser_for_verification(verification_url: str, user_code: str) 
     if not sys.stdin.isatty() or not sys.stdout.isatty():
         return
     try:
+        fomoji_base = get_fomoji_url()
+        sign_in_url = f"{fomoji_base}/index.html?redirect_uri=/connector.html&code={user_code}"
+        sign_up_url = f"{fomoji_base}/signup.html?redirect_uri=/connector.html&code={user_code}"
         print()
         try:
             from . import theme
@@ -559,7 +585,8 @@ def _launch_cat_browser_for_verification(verification_url: str, user_code: str) 
             print(theme.dim("  └─────────────────────────────────────────────────────────┘"))
             print()
             print(theme.cyan(f"  CAT Browser is opening the verification page"))
-            print(theme.dim(f"    (URL hidden for security)"))
+            print(theme.dim(f"    Sign In: {sign_in_url}"))
+            print(theme.dim(f"    Sign Up: {sign_up_url}"))
             print()
             print(theme.cyan(f"  Your code:"))
             print(theme.text(f"    {user_code}", bold=True))
@@ -569,6 +596,8 @@ def _launch_cat_browser_for_verification(verification_url: str, user_code: str) 
         except Exception:
             print(f"\n  FOMOJI VERIFICATION (CAT Browser)")
             print(f"  Code: {user_code}")
+            print(f"  Sign In: {sign_in_url}")
+            print(f"  Sign Up: {sign_up_url}")
             print(f"  Approve in CAT's browser, then return here.")
     except Exception:
         pass
@@ -594,7 +623,9 @@ def device_login(
     start = _device_start(perms)
     device_code = start["deviceCode"]
     user_code = start["userCode"]
-    verification_url = f"{get_fomoji_url()}{start.get('verificationUrl', '/connector.html')}"
+    base_v_url = start.get("verificationUrl", "/connector.html")
+    sep = "&" if "?" in base_v_url else "?"
+    verification_url = f"{get_fomoji_url()}{base_v_url}{sep}code={user_code}"
     poll_interval = int(start.get("pollIntervalSeconds", 3))
 
     if on_prompt:
@@ -614,6 +645,11 @@ def device_login(
 
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
+        # Check if local credentials file was written directly by Fomoji server / web UI
+        local = _load_local()
+        if local and local.get("token") and local.get("identity"):
+            invalidate_cache()
+            return local["identity"]
         result = _device_poll(device_code)
         st = result.get("status")
         if st == "approved":
@@ -627,6 +663,7 @@ def device_login(
                 "applicationId": result.get("applicationId", APPLICATION_ID),
             }
             _save_local({"token": result["connectorToken"], "identity": identity})
+            invalidate_cache()
             return identity
         if st == "denied":
             raise FomojiAuthError("Connection request was denied in Fomoji.")
@@ -642,34 +679,42 @@ def _print_device_prompt(user_code: str, verification_url: str) -> None:
     """Show the connector code in terminal with easy copy + Windows notification."""
     import subprocess
 
+    fomoji_base = get_fomoji_url()
+    sign_in_url = f"{fomoji_base}/index.html?redirect_uri=/connector.html&code={user_code}"
+    sign_up_url = f"{fomoji_base}/signup.html?redirect_uri=/connector.html&code={user_code}"
+
     # --- Step 1: Print code in terminal FIRST (always visible) ---
     try:
         from . import theme
         theme.enable_windows_ansi()
         print()
         print(theme.panel([
-            theme.text("CAT CONNECTOR CODE", bold=True),
+            theme.text("CAT CONNECTOR CODE & AUTHENTICATION", bold=True),
             "",
             theme.text(f"     {user_code}     ", bold=True),
             "",
-            theme.dim("  1. Log in or create an account on Fomoji"),
-            theme.dim("  2. Paste this code on the Connect page"),
-            theme.dim("  3. Click Approve"),
+            theme.cyan(f"  Sign In: {sign_in_url}"),
+            theme.cyan(f"  Sign Up: {sign_up_url}"),
+            "",
+            theme.dim("  1. Sign in or Sign up on Fomoji via the links above"),
+            theme.dim("  2. CAT connection will be detected and approved automatically"),
             "",
             theme.faint("  Waiting for approval... (Ctrl+C to cancel)"),
-        ], title="fomoji auth", color=theme.CYAN, width=60))
+        ], title="fomoji auth", color=theme.CYAN, width=70))
         print()
     except Exception:
         print()
-        print("=" * 50)
-        print("  CAT CONNECTOR CODE")
+        print("=" * 60)
+        print("  CAT CONNECTOR CODE & AUTHENTICATION")
         print()
         print(f"  >>> {user_code} <<<")
         print()
-        print("  1. Log in or create an account on Fomoji")
-        print("  2. Paste this code on the Connect page")
-        print("  3. Click Approve")
-        print("=" * 50)
+        print(f"  Sign In: {sign_in_url}")
+        print(f"  Sign Up: {sign_up_url}")
+        print()
+        print("  1. Sign in or Sign up on Fomoji via the links above")
+        print("  2. CAT connection will be detected and approved automatically")
+        print("=" * 60)
         print()
 
     # --- Step 2: Copy to clipboard (background, non-blocking) ---
@@ -833,6 +878,33 @@ def logout(clear_local_only: bool = False) -> None:
         stop_fomoji_server()
     except Exception:
         pass
+
+
+def delete_account(clear_local_only: bool = False) -> Dict[str, Any]:
+    """
+    Request permanent deletion of user account and associated personal data.
+    Invokes DELETE /api/account, unlinks local token file, clears status cache,
+    and terminates local server process.
+    """
+    local = _load_local()
+    res = {}
+    if local and local.get("token") and not clear_local_only:
+        try:
+            res = _request(
+                "DELETE",
+                "/api/account",
+                auth_token=local["token"],
+                timeout=12,
+            )
+        except FomojiAuthError as e:
+            res = {"ok": False, "error": str(e)}
+    _clear_local()
+    invalidate_cache()
+    try:
+        stop_fomoji_server()
+    except Exception:
+        pass
+    return res or {"ok": True, "message": "Account and personal data permanently deleted."}
 
 
 # ---------------------------------------------------------------------------
@@ -1209,6 +1281,55 @@ def _auth_cli(argv=None) -> int:
             print(f"\n  ✗ Could not load OAuth configuration: {e}\n")
             return 1
 
+    if action in ("signup", "register", "--signup"):
+        if is_authenticated():
+            ident = get_identity()
+            name = ident.get("name", "?") if ident else "?"
+            print(f"  Already connected as {name}. Use `cat --auth logout` to switch identity.\n")
+            return 0
+        if not check_server_reachable():
+            ensure_fomoji_server(auto_start=True, timeout=12)
+        try:
+            start = _device_start(perms or DEFAULT_PERMISSIONS)
+            device_code = start["deviceCode"]
+            user_code = start["userCode"]
+            sign_up_url = f"{get_fomoji_url()}/signup.html?redirect_uri=/connector.html&code={user_code}"
+            print(f"\n  Opening Fomoji Sign Up in browser...")
+            print(f"  Sign Up URL: {sign_up_url}")
+            print(f"  Your Code: {user_code}\n")
+            import webbrowser
+            webbrowser.open(sign_up_url)
+            _print_device_prompt(user_code, sign_up_url)
+            deadline = time.monotonic() + 300
+            while time.monotonic() < deadline:
+                local = _load_local()
+                if local and local.get("token") and local.get("identity"):
+                    invalidate_cache()
+                    print(f"\n  ✓ Successfully signed up and connected as {local['identity'].get('name', 'user')}!\n")
+                    return 0
+                result = _device_poll(device_code)
+                if result.get("status") == "approved":
+                    identity = {
+                        "fomojiId": result.get("fomojiId"),
+                        "name": result.get("name"),
+                        "identityType": result.get("identityType", "PERSON"),
+                        "permissions": result.get("permissions", perms or DEFAULT_PERMISSIONS),
+                        "applicationId": result.get("applicationId", APPLICATION_ID),
+                    }
+                    _save_local({"token": result["connectorToken"], "identity": identity})
+                    invalidate_cache()
+                    print(f"\n  ✓ Successfully signed up and connected as {identity.get('name', 'user')}!\n")
+                    return 0
+                elif result.get("status") in ("denied", "expired"):
+                    print(f"\n  ✗ Connection request {result.get('status')}.\n")
+                    return 1
+                time.sleep(int(start.get("pollIntervalSeconds", 3)))
+            print("\n  ✗ Timed out waiting for approval.\n")
+            return 1
+        except Exception as e:
+            print(f"\n  ✗ Sign up flow failed: {e}\n")
+            return 1
+
     if action in ("login", "connect", "auth"):
         if is_authenticated():
             ident = get_identity()
@@ -1221,6 +1342,8 @@ def _auth_cli(argv=None) -> int:
             return _auth_cli(["guest"])
         if "--passkey" in rest:
             return _auth_cli(["passkey"])
+        if "--signup" in rest:
+            return _auth_cli(["signup"])
 
         # Interactive selection if running in an interactive terminal
         if sys.stdin.isatty() and sys.stdout.isatty() and not perms:
@@ -1234,8 +1357,9 @@ def _auth_cli(argv=None) -> int:
                 print(theme.cyan("  [2] OAuth") + theme.dim(" (Google, GitHub, Microsoft, Facebook, Apple)"))
                 print(theme.cyan("  [3] Device Approval") + theme.dim(" (Standard code approval in browser)"))
                 print(theme.cyan("  [4] Guest Access") + theme.orange(" (2 Hours Temporary — auto-signout)"))
+                print(theme.cyan("  [5] Sign Up") + theme.dim(" (Create new Fomoji account & connect CAT)"))
                 print(theme.dim("  " + "─" * 52))
-                choice = input("  Select [1-4, default=3]: ").strip()
+                choice = input("  Select [1-5, default=3]: ").strip()
                 if choice == "1":
                     return _auth_cli(["passkey"])
                 elif choice == "2":
@@ -1247,6 +1371,8 @@ def _auth_cli(argv=None) -> int:
                     choice = "3"
                 elif choice == "4":
                     return _auth_cli(["guest"])
+                elif choice == "5":
+                    return _auth_cli(["signup"])
             except (KeyboardInterrupt, EOFError):
                 print("\n  Cancelled.\n")
                 return 1
@@ -1283,8 +1409,39 @@ def _auth_cli(argv=None) -> int:
         print(json.dumps(ident, indent=2))
         return 0
 
+    if action in ("delete-account", "delete_account"):
+        local = _load_local()
+        if not local:
+            print("  Not connected — no local account found.\n")
+            return 0
+        ident = local.get("identity", {})
+        name = ident.get("name", "User")
+        fid = ident.get("fomojiId", "?")
+        print()
+        print(f"  WARNING: Permanent Account Deletion")
+        print(f"  This will permanently delete account {name} ({fid}), including all")
+        print(f"  passkeys, credentials, and application connections.")
+        print()
+        auto_yes = "--yes" in rest or "-y" in rest
+        if not auto_yes:
+            try:
+                confirm = input("  Are you sure you want to delete your account? (yes/no): ").strip().lower()
+                if confirm not in ("yes", "y"):
+                    print("  Cancelled.\n")
+                    return 1
+            except (KeyboardInterrupt, EOFError):
+                print("\n  Cancelled.\n")
+                return 1
+        res = delete_account()
+        if res.get("ok", True):
+            print(f"\n  ✓ Successfully deleted account and all associated personal data.\n")
+            return 0
+        else:
+            print(f"\n  ✗ Deletion completed with warning: {res.get('error', 'unknown')}\n")
+            return 0
+
     print(f"  Unknown auth action: {action}")
-    print("  Usage: cat --auth <status|login|guest|passkey|config|logout|whoami>")
+    print("  Usage: cat --auth <status|login|signup|guest|passkey|config|logout|whoami|delete-account>")
     return 2
 
 

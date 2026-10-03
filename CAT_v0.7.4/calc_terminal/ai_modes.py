@@ -639,7 +639,6 @@ _active_agent_id = None
 
 def active_agent_id():
     """Returns ID of currently active custom or built-in agent, if any."""
-    global _active_agent_id
     return _active_agent_id
 
 
@@ -666,7 +665,6 @@ def set_active_agent(agent_id):
 
 def get_active_agent():
     """Returns AgentSpec for currently active agent, or None."""
-    global _active_agent_id
     if not _active_agent_id:
         return None
     try:

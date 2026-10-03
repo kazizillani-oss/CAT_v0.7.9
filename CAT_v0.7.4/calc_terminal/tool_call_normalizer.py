@@ -138,78 +138,125 @@ def _find_balanced_json(text: str, start: int = 0) -> Optional[str]:
     return None
 
 
+def _repair_json_str(s: str) -> Optional[Dict[str, Any]]:
+    """Repairs unclosed quotes, brackets, and braces in truncated JSON strings."""
+    if not s or "{" not in s:
+        return None
+    start = s.find("{")
+    sub = s[start:]
+    in_string = False
+    escape = False
+    stack = []
+    repaired = []
+    for c in sub:
+        if escape:
+            escape = False
+            repaired.append(c)
+            continue
+        if c == "\\":
+            escape = True
+            repaired.append(c)
+            continue
+        if c == '"':
+            in_string = not in_string
+            repaired.append(c)
+            continue
+        if not in_string:
+            if c in ("{", "["):
+                stack.append("}" if c == "{" else "]")
+            elif c in ("}", "]"):
+                if stack and stack[-1] == c:
+                    stack.pop()
+        repaired.append(c)
+
+    if escape:
+        repaired.pop()
+    if in_string:
+        repaired.append('"')
+    for closer in reversed(stack):
+        repaired.append(closer)
+
+    cand = "".join(repaired)
+    try:
+        data = json.loads(cand, strict=False)
+        return data if isinstance(data, dict) else None
+    except Exception:
+        trimmed = re.sub(r",\s*([\}\]])", r"\1", cand)
+        try:
+            data = json.loads(trimmed, strict=False)
+            return data if isinstance(data, dict) else None
+        except Exception:
+            return None
+
+
 def _parse_json_protocol(text: str, known_tools: set) -> List[ToolCall]:
     calls = []
-    patterns = [
-        r'\{"action"\s*:\s*"tool"\s*,\s*"tool"\s*:\s*"([^"]+)"\s*,\s*"args"\s*:\s*(\{[^}]*\})\s*\}',
-        r'\{"action"\s*:\s*"tool"\s*,\s*"tool"\s*:\s*"([^"]+)"\s*,\s*"parameters"\s*:\s*(\{[^}]*\})\s*\}',
-        r'\{"tool"\s*:\s*"([^"]+)"\s*,\s*"args"\s*:\s*(\{[^}]*\})\s*\}',
-        r'\{"tool"\s*:\s*"([^"]+)"\s*,\s*"parameters"\s*:\s*(\{[^}]*\})\s*\}',
-        r'\{"name"\s*:\s*"([^"]+)"\s*,\s*"arguments"\s*:\s*(\{[^}]*\})\s*\}',
-    ]
-    for pattern in patterns:
-        for match in re.finditer(pattern, text):
-            tool_name = match.group(1)
-            args_str = match.group(2)
-            if tool_name in known_tools:
-                try:
-                    args = json.loads(args_str)
-                except json.JSONDecodeError:
-                    args = {}
-                calls.append(ToolCall(
-                    name=tool_name,
-                    arguments=args,
-                    source_format="json_protocol",
-                    confidence=0.95,
-                ))
+    seen = set()
     idx = 0
+    known_set = set(known_tools) if known_tools else set()
+    known_resolved = {resolve_tool_name(t): t for t in known_set}
+
     while idx < len(text):
         brace_pos = text.find("{", idx)
         if brace_pos == -1:
             break
         obj_str = _find_balanced_json(text, brace_pos)
-        if not obj_str:
-            idx = brace_pos + 1
-            continue
-        try:
-            obj = json.loads(obj_str)
-        except json.JSONDecodeError:
-            idx = brace_pos + 1
-            continue
+        obj = None
+        advance_len = 1
+        if obj_str:
+            advance_len = len(obj_str)
+            try:
+                obj = json.loads(obj_str, strict=False)
+            except Exception:
+                obj = _repair_json_str(obj_str)
+        else:
+            obj = _repair_json_str(text[brace_pos:])
+            advance_len = len(text) - brace_pos
+
         if isinstance(obj, dict):
             raw_action = obj.get("action", "")
             raw_tool = obj.get("tool", obj.get("name", ""))
-            resolved_action = resolve_tool_name(raw_action)
-            resolved_tool = resolve_tool_name(raw_tool)
-            args = obj.get("args", obj.get("parameters", obj.get("arguments", {})))
-            if not isinstance(args, dict):
-                args = {}
-            extra_params = {k: v for k, v in obj.items() if k not in ("action", "tool", "name", "args", "parameters", "arguments")}
-            merged_args = {**extra_params, **args}
 
-            if raw_action == "tool" and (resolved_tool in known_tools or not known_tools or resolved_tool in TOOL_ALIASES.values()):
-                calls.append(ToolCall(
-                    name=resolved_tool,
-                    arguments=merged_args,
-                    source_format="json_protocol_action",
-                    confidence=0.9,
-                ))
-            elif resolved_action and (resolved_action in known_tools or resolved_action in TOOL_ALIASES.values() or not known_tools):
-                calls.append(ToolCall(
-                    name=resolved_action,
-                    arguments=merged_args,
-                    source_format="json_protocol_action",
-                    confidence=0.85,
-                ))
-            elif resolved_tool and (resolved_tool in known_tools or resolved_tool in TOOL_ALIASES.values() or not known_tools):
-                calls.append(ToolCall(
-                    name=resolved_tool,
-                    arguments=merged_args,
-                    source_format="json_protocol",
-                    confidence=0.8,
-                ))
-        idx = brace_pos + len(obj_str)
+            candidate_tool = ""
+            if str(raw_action).lower() in ("tool", "call", "execute", "function", "action"):
+                candidate_tool = raw_tool or raw_action
+            elif raw_action:
+                candidate_tool = raw_action
+            else:
+                candidate_tool = raw_tool
+
+            if candidate_tool:
+                resolved = resolve_tool_name(candidate_tool)
+                matched_name = None
+                if candidate_tool in known_set:
+                    matched_name = candidate_tool
+                elif resolved in known_set:
+                    matched_name = resolved
+                elif resolved in known_resolved:
+                    matched_name = known_resolved[resolved]
+                elif not known_set or resolved in TOOL_ALIASES.values():
+                    matched_name = resolved
+
+                if matched_name and (not known_set or matched_name in known_set or resolve_tool_name(matched_name) in known_resolved):
+                    args = obj.get("args", obj.get("parameters", obj.get("arguments", {})))
+                    if not isinstance(args, dict):
+                        args = {}
+                    extra_params = {k: v for k, v in obj.items() if k not in ("action", "tool", "name", "args", "parameters", "arguments")}
+                    merged_args = {**extra_params, **args}
+
+                    dedup_key = (matched_name, json.dumps(merged_args, sort_keys=True, default=str))
+                    if dedup_key not in seen:
+                        seen.add(dedup_key)
+                        calls.append(ToolCall(
+                            name=matched_name,
+                            arguments=merged_args,
+                            source_format="json_protocol",
+                            confidence=0.95
+                        ))
+
+        idx = brace_pos + max(1, advance_len)
     return calls
+
 
 
 def _extract_xml_params(block):

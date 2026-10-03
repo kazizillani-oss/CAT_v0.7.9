@@ -44,6 +44,13 @@ const FomojiAuthCard = (() => {
     }
   }
 
+  function escapeHtml(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
   async function postJSON(url, body) {
     const res = await fetch(url, {
       method: 'POST',
@@ -234,7 +241,7 @@ const FomojiAuthCard = (() => {
         try {
           status = await FomojiAuthCard.unlockStatus();
         } catch (err) {
-          body.innerHTML = `<div class="alert alert-error is-visible">${err instanceof FomojiCardError ? err.message : 'Could not load your card.'}</div>`;
+          body.innerHTML = `<div class="alert alert-error is-visible">${escapeHtml(err instanceof FomojiCardError ? err.message : 'Could not load your card.')}</div>`;
           return;
         }
 
@@ -383,12 +390,12 @@ const FomojiAuthCard = (() => {
           modal._disposePattern = await renderPattern(host, card.patternSeed);
 
           document.getElementById('cardFields').innerHTML = `
-            <div>${card.fomojiId}</div>
-            <div>${card.name || ''}</div>
-            <div>@${card.username}</div>
-            <div>${card.email || ''}</div>
+            <div>${escapeHtml(card.fomojiId)}</div>
+            <div>${escapeHtml(card.name || '')}</div>
+            <div>@${escapeHtml(card.username)}</div>
+            <div>${escapeHtml(card.email || '')}</div>
             <div style="color:var(--ink-faint);">Recovery code: ${card.hasRecoveryCode ? 'set' : 'not set'}</div>
-            <div style="color:var(--ink-faint);">Issued ${new Date(card.issuedAt).toLocaleString()}</div>`;
+            <div style="color:var(--ink-faint);">Issued ${escapeHtml(new Date(card.issuedAt).toLocaleString())}</div>`;
 
           const { verified } = await FomojiAuthCard.verify(card);
           const badge = document.getElementById('cardVerifyBadge');
@@ -398,7 +405,7 @@ const FomojiAuthCard = (() => {
 
           document.getElementById('cardDownloadBtn').addEventListener('click', () => FomojiAuthCard.downloadCard(card));
         } catch (err) {
-          body.innerHTML = `<div class="alert alert-error is-visible">${err instanceof FomojiCardError ? err.message : 'Could not load your card.'}</div>`;
+          body.innerHTML = `<div class="alert alert-error is-visible">${escapeHtml(err instanceof FomojiCardError ? err.message : 'Could not load your card.')}</div>`;
         }
       }
 

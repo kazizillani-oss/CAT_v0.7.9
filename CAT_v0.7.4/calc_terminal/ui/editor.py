@@ -1973,12 +1973,24 @@ if TEXTUAL_AVAILABLE:
             try:
                 ctrl = getattr(self.app, "_preview_ctrl", None)
                 url = None
+                fomoji_url = "http://localhost:3000"
+                try:
+                    from ..fomoji_auth import get_fomoji_url
+                    fomoji_url = get_fomoji_url()
+                except Exception:
+                    pass
+                fomoji_port = "3000"
+                if ":" in fomoji_url.split("//")[-1]:
+                    fomoji_port = fomoji_url.split("//")[-1].split(":")[-1].split("/")[0]
+
                 if ctrl and getattr(ctrl, "base_url", None):
                     # Use preview URL if available, else construct from path
                     try:
-                        url = ctrl.url or ctrl.base_url
+                        cand = ctrl.url or ctrl.base_url
                     except Exception:
-                        url = ctrl.base_url
+                        cand = ctrl.base_url
+                    if cand and f":{fomoji_port}/" not in cand:
+                        url = cand
                 if not url:
                     # Fallback: try to get from workspace
                     try:
@@ -1988,9 +2000,8 @@ if TEXTUAL_AVAILABLE:
                         if root and path:
                             rel = relative_url_for(os.path.abspath(path), root)
                             if rel:
-                                # Need base_url, try to get from ctrl or guess
                                 base = getattr(ctrl, "base_url", None) if ctrl else None
-                                if base:
+                                if base and f":{fomoji_port}/" not in base:
                                     url = base.rstrip("/") + "/" + rel.lstrip("/")
                     except Exception:
                         pass

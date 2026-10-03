@@ -4,12 +4,16 @@ const path = require('path');
 const http = require('http');
 const { spawn } = require('child_process');
 const express = require('express');
+const { requireAuth } = require('./auth');
+const { signupRateLimiter } = require('../security');
 
 const router = express.Router();
 
 const FATTY_URL = process.env.FATTY_CAT_URL || 'http://localhost:8765';
 const FATTY_PORT = 8765;
 const FATTY_HOST = '127.0.0.1';
+
+let isStarting = false;
 
 /**
  * Check if Fatty CAT server is responding on /health
@@ -73,7 +77,7 @@ function findCatDir() {
  * GET /api/fatty/status
  * Returns { running: boolean, url: string, ... }
  */
-router.get('/status', async (req, res) => {
+router.get('/status', requireAuth, async (req, res) => {
   try {
     const health = await checkFattyHealth(1200);
     res.json({
@@ -82,7 +86,8 @@ router.get('/status', async (req, res) => {
       info: health.data || null,
     });
   } catch (err) {
-    res.status(500).json({ running: false, error: err.message });
+    console.error('[fomoji:fatty] status check error:', err);
+    res.status(500).json({ running: false, error: 'service_unavailable' });
   }
 });
 
@@ -90,7 +95,7 @@ router.get('/status', async (req, res) => {
  * POST /api/fatty/start
  * Starts the Fatty CAT server in the background if not already running
  */
-router.post('/start', async (req, res) => {
+router.post('/start', requireAuth, signupRateLimiter, async (req, res) => {
   try {
     const initialCheck = await checkFattyHealth(1000);
     if (initialCheck.running) {
@@ -102,53 +107,68 @@ router.post('/start', async (req, res) => {
       });
     }
 
+    if (isStarting) {
+      return res.json({
+        success: true,
+        running: false,
+        starting: true,
+        message: 'Server start already in progress.',
+      });
+    }
+
     const catDir = findCatDir();
     if (!catDir) {
       return res.status(500).json({
         success: false,
         running: false,
-        error: 'CAT directory not found on system',
+        error: 'server_configuration_error',
       });
     }
 
-    const pythonCmd = process.env.PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
+    isStarting = true;
+    try {
+      const pythonCmd = process.env.PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
 
-    // Spawn server process detached
-    const child = spawn(pythonCmd, ['-m', 'calc_terminal.web.server'], {
-      cwd: catDir,
-      detached: true,
-      stdio: 'ignore',
-      windowsHide: true,
-    });
+      // Spawn server process detached
+      const child = spawn(pythonCmd, ['-m', 'calc_terminal.web.server'], {
+        cwd: catDir,
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true,
+      });
 
-    child.unref();
+      child.unref();
 
-    // Poll until /health is ready (up to 12s)
-    const deadline = Date.now() + 12000;
-    while (Date.now() < deadline) {
-      await new Promise((r) => setTimeout(r, 400));
-      const health = await checkFattyHealth(800);
-      if (health.running) {
-        return res.json({
-          success: true,
-          running: true,
-          alreadyRunning: false,
-          url: FATTY_URL,
-          info: health.data || null,
-        });
+      // Poll until /health is ready (up to 12s)
+      const deadline = Date.now() + 12000;
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 400));
+        const health = await checkFattyHealth(800);
+        if (health.running) {
+          return res.json({
+            success: true,
+            running: true,
+            alreadyRunning: false,
+            url: FATTY_URL,
+            info: health.data || null,
+          });
+        }
       }
-    }
 
-    res.status(504).json({
-      success: false,
-      running: false,
-      error: 'Fatty CAT server start timed out',
-    });
+      res.status(504).json({
+        success: false,
+        running: false,
+        error: 'start_timeout',
+      });
+    } finally {
+      isStarting = false;
+    }
   } catch (err) {
+    console.error('[fomoji:fatty] start server error:', err);
     res.status(500).json({
       success: false,
       running: false,
-      error: err.message,
+      error: 'failed_to_start',
     });
   }
 });

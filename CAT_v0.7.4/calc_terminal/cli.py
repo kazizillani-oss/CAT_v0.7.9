@@ -1419,7 +1419,8 @@ def bootstrap():
     from .fomoji_auth import (
         ensure_fomoji_server, status, get_identity,
         check_server_reachable, get_fomoji_url,
-        _device_start, _device_poll, _save_local, _print_device_prompt,
+        _device_start, _device_poll, _save_local, _load_local, _print_device_prompt,
+        invalidate_cache,
         DEFAULT_PERMISSIONS,
     )
 
@@ -1481,7 +1482,9 @@ def bootstrap():
         start = _device_start(perms)
         device_code = start["deviceCode"]
         user_code = start["userCode"]
-        verification_url = f"{get_fomoji_url()}{start.get('verificationUrl', '/connector.html')}"
+        base_v_url = start.get("verificationUrl", "/connector.html")
+        sep = "&" if "?" in base_v_url else "?"
+        verification_url = f"{get_fomoji_url()}{base_v_url}{sep}code={user_code}"
         poll_interval = int(start.get("pollIntervalSeconds", 3))
     except Exception as e:
         print(f"\n  Could not initialize Fomoji device flow: {e}")
@@ -1500,6 +1503,13 @@ def bootstrap():
         deadline = _time.monotonic() + 300
         while _time.monotonic() < deadline:
             try:
+                local = _load_local()
+                if local and local.get("token") and local.get("identity"):
+                    auth_result["identity"] = local["identity"]
+                    auth_result["done"] = True
+                    _close_requested.set()
+                    invalidate_cache()
+                    return
                 result = _device_poll(device_code)
                 st = result.get("status")
                 if st == "approved":
@@ -1514,6 +1524,7 @@ def bootstrap():
                     auth_result["identity"] = identity
                     auth_result["done"] = True
                     _close_requested.set()
+                    invalidate_cache()
                     return
                 elif st in ("denied", "expired"):
                     auth_result["error"] = f"Connection request {st}."
@@ -1534,8 +1545,12 @@ def bootstrap():
             answer = "n"
         if answer != "y":
             open_browser = False
-            print("\n  Skipping browser. You can open it manually later.")
-            print(f"  Verification URL: {verification_url}")
+            fomoji_base = get_fomoji_url()
+            sign_in_url = f"{fomoji_base}/index.html?redirect_uri=/connector.html&code={user_code}"
+            sign_up_url = f"{fomoji_base}/signup.html?redirect_uri=/connector.html&code={user_code}"
+            print("\n  Skipping browser. You can open it manually in any browser:")
+            print(f"  Sign In: {sign_in_url}")
+            print(f"  Sign Up: {sign_up_url}")
             print(f"  Your code: {user_code}\n")
 
     if not open_browser:

@@ -207,23 +207,26 @@ class ChatSession:
             non_system = non_system[:idx]
         unfolded = non_system[self._folded_count:]
 
-        # Mode isolation filtering
+        # Mode isolation filtering with user intent & prompt preservation
         if mode:
             target_mode = str(mode).lower()
             compatible = {target_mode}
-            if target_mode in ("chat", "notebook"):
-                compatible.update({"chat", "notebook"})
-            elif target_mode in ("code", "build"):
-                compatible.update({"code", "build"})
+            if target_mode in ("chat", "notebook", "agent"):
+                compatible.update({"chat", "notebook", "agent"})
+            elif target_mode in ("code", "build", "agent"):
+                compatible.update({"code", "build", "agent"})
 
-            # Filter turns to compatible modes only
+            # Filter turns to compatible modes, but ALWAYS retain user instructions
             isolated = []
             for t in unfolded:
                 t_mode = str(getattr(t, "mode", "chat") or "chat").lower()
-                if t_mode in compatible:
+                if t.role == "user":
+                    # User instructions and prompts are foundational context and must never be lost
                     isolated.append(t)
-                elif len(t.text or "") < 200 and t_mode in ("chat", "notebook"):
-                    # Allow short conversational pleasantries across modes
+                elif t_mode in compatible:
+                    isolated.append(t)
+                elif len(t.text or "") < 1500 and t_mode in ("chat", "notebook", "agent", "build"):
+                    # Retain conversational context and assistant answers
                     isolated.append(t)
             unfolded = isolated
 

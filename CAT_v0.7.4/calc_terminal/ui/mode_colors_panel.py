@@ -103,7 +103,7 @@ if TEXTUAL_AVAILABLE:
                         yield Button(" 💾 Save ", id=f"mcc-save-{self.mode_key}", variant="primary", classes="cct-btn-sm mcc-3d-btn")
                         yield Button(" ↺ Default ", id=f"mcc-reset-{self.mode_key}", classes="cct-btn-sm mcc-3d-btn")
                         if self.mode_key not in ("notebook", "research", "plan", "build", "debugger", "agent"):
-                            yield Button("  🗑 Delete  ", id=f"mcc-delete-{self.mode_key}", classes="cct-btn-sm mcc-3d-btn mcc-delete-btn")
+                            yield Button("   🗑  Delete   ", id=f"mcc-delete-{self.mode_key}", classes="cct-btn-sm mcc-3d-btn mcc-delete-btn")
 
             with Vertical(classes="mcc-actions"):
                 yield Button("⚡ Activate", id=f"mcc-activate-{self.mode_key}", variant="default", classes="cct-btn-sm mcc-3d-btn")

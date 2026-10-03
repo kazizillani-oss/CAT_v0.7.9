@@ -1,0 +1,439 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "CAT System Architecture & End-to-End Workflow",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "output": ".archify/cat-system-workflow.html"
+  },
+  "lanes": [
+    {
+      "id": "lane-client",
+      "label": "User & Desktop Interfaces"
+    },
+    {
+      "id": "lane-webdev",
+      "label": "Web Developing (FATTY CAT Web)"
+    },
+    {
+      "id": "lane-nodejs",
+      "label": "Node.js Identity & Passkeys"
+    },
+    {
+      "id": "lane-catengine",
+      "label": "CAT Autonomous Engine"
+    },
+    {
+      "id": "lane-sandbox",
+      "label": "Tool Sandbox & Code Engine"
+    },
+    {
+      "id": "lane-datastores",
+      "label": "Data Lineage & Storage Layer"
+    }
+  ],
+  "phases": [
+    {
+      "id": "phase-boot",
+      "label": "1. Boot & CLI",
+      "fromCol": 0,
+      "toCol": 0
+    },
+    {
+      "id": "phase-auth",
+      "label": "2. Identity & Token",
+      "fromCol": 1,
+      "toCol": 1,
+      "variant": "security"
+    },
+    {
+      "id": "phase-orch",
+      "label": "3. Engine & Planning",
+      "fromCol": 2,
+      "toCol": 2,
+      "variant": "emphasis"
+    },
+    {
+      "id": "phase-exec",
+      "label": "4. Sandbox & Tools",
+      "fromCol": 3,
+      "toCol": 3
+    },
+    {
+      "id": "phase-stream",
+      "label": "5. Real-Time Stream",
+      "fromCol": 4,
+      "toCol": 4,
+      "variant": "emphasis"
+    },
+    {
+      "id": "phase-persist",
+      "label": "6. Preview & Ledger",
+      "fromCol": 5,
+      "toCol": 5
+    }
+  ],
+  "mainPath": [
+    "user-cli",
+    "nodejs-server",
+    "auth-connector",
+    "workflow-engine",
+    "ai-router",
+    "tool-executor",
+    "workspace-code",
+    "git-lineage"
+  ],
+  "nodes": [
+    {
+      "id": "user-cli",
+      "lane": "lane-client",
+      "col": 0,
+      "type": "frontend",
+      "label": "CAT CLI",
+      "sublabel": "calc_terminal",
+      "width": 90
+    },
+    {
+      "id": "cat-browser",
+      "lane": "lane-client",
+      "col": 1,
+      "type": "frontend",
+      "label": "CAT Browser",
+      "sublabel": "desktop host",
+      "width": 90
+    },
+    {
+      "id": "fatty-web",
+      "lane": "lane-client",
+      "col": 4,
+      "type": "frontend",
+      "label": "FATTY Web",
+      "sublabel": "index.html",
+      "width": 90
+    },
+    {
+      "id": "web-server",
+      "lane": "lane-webdev",
+      "col": 1,
+      "type": "backend",
+      "label": "Web Server",
+      "sublabel": "FastAPI :8765",
+      "width": 90
+    },
+    {
+      "id": "cat-runtime",
+      "lane": "lane-webdev",
+      "col": 3,
+      "type": "backend",
+      "label": "Web Runtime",
+      "sublabel": "cat_runtime",
+      "width": 90
+    },
+    {
+      "id": "websocket-bus",
+      "lane": "lane-webdev",
+      "col": 4,
+      "type": "messagebus",
+      "label": "WebSocket",
+      "sublabel": "/ws/chat bus",
+      "width": 90
+    },
+    {
+      "id": "live-preview",
+      "lane": "lane-webdev",
+      "col": 5,
+      "type": "frontend",
+      "label": "Live Preview",
+      "sublabel": "vision viewer",
+      "width": 90
+    },
+    {
+      "id": "nodejs-server",
+      "lane": "lane-nodejs",
+      "col": 0,
+      "type": "backend",
+      "label": "Fomoji Server",
+      "sublabel": "Node.js :3000",
+      "width": 90
+    },
+    {
+      "id": "auth-connector",
+      "lane": "lane-nodejs",
+      "col": 1,
+      "type": "security",
+      "label": "Auth API",
+      "sublabel": "session routes",
+      "width": 90
+    },
+    {
+      "id": "webauthn-passkeys",
+      "lane": "lane-nodejs",
+      "col": 2,
+      "type": "security",
+      "label": "Passkeys",
+      "sublabel": "WebAuthn auth",
+      "width": 90
+    },
+    {
+      "id": "connector-token",
+      "lane": "lane-datastores",
+      "col": 1,
+      "type": "database",
+      "label": "Token File",
+      "sublabel": "0600 token",
+      "width": 90
+    },
+    {
+      "id": "workflow-engine",
+      "lane": "lane-catengine",
+      "col": 2,
+      "type": "backend",
+      "label": "CAT Engine",
+      "sublabel": "workflow plan",
+      "width": 90
+    },
+    {
+      "id": "ai-router",
+      "lane": "lane-catengine",
+      "col": 3,
+      "type": "backend",
+      "label": "AICore",
+      "sublabel": "LLM providers",
+      "width": 90
+    },
+    {
+      "id": "live-activities",
+      "lane": "lane-catengine",
+      "col": 4,
+      "type": "messagebus",
+      "label": "Activities",
+      "sublabel": "live broadcaster",
+      "width": 90
+    },
+    {
+      "id": "tool-executor",
+      "lane": "lane-sandbox",
+      "col": 3,
+      "type": "backend",
+      "label": "Tool Sandbox",
+      "sublabel": "agent tools",
+      "width": 90
+    },
+    {
+      "id": "workspace-code",
+      "lane": "lane-sandbox",
+      "col": 4,
+      "type": "database",
+      "label": "Workspace",
+      "sublabel": "code watchdog",
+      "width": 90
+    },
+    {
+      "id": "fomoji-sqlite",
+      "lane": "lane-nodejs",
+      "col": 3,
+      "type": "database",
+      "label": "Fomoji DB",
+      "sublabel": "SQLite records",
+      "width": 90
+    },
+    {
+      "id": "chat-memory",
+      "lane": "lane-datastores",
+      "col": 4,
+      "type": "database",
+      "label": "Chat Memory",
+      "sublabel": "turn store",
+      "width": 90
+    },
+    {
+      "id": "git-lineage",
+      "lane": "lane-datastores",
+      "col": 5,
+      "type": "database",
+      "label": "Git Ledger",
+      "sublabel": "checkpoints",
+      "width": 90
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "user-cli",
+      "to": "nodejs-server",
+      "label": "cat --auth / boot",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "id": "e2",
+      "from": "user-cli",
+      "to": "cat-browser",
+      "label": "cat --host-browser",
+      "role": "branch"
+    },
+    {
+      "id": "e3",
+      "from": "cat-browser",
+      "to": "web-server",
+      "label": "open :8765",
+      "role": "branch"
+    },
+    {
+      "id": "e4",
+      "from": "nodejs-server",
+      "to": "auth-connector",
+      "label": "dispatch /api/session",
+      "role": "main"
+    },
+    {
+      "id": "e5",
+      "from": "auth-connector",
+      "to": "webauthn-passkeys",
+      "label": "verify passkey",
+      "variant": "security",
+      "role": "branch"
+    },
+    {
+      "id": "e6",
+      "from": "auth-connector",
+      "to": "connector-token",
+      "label": "write 0600 token",
+      "variant": "security",
+      "role": "branch"
+    },
+    {
+      "id": "e7",
+      "from": "webauthn-passkeys",
+      "to": "fomoji-sqlite",
+      "label": "store credentials",
+      "variant": "dashed",
+      "role": "async"
+    },
+    {
+      "id": "e8",
+      "from": "auth-connector",
+      "to": "workflow-engine",
+      "label": "authenticated context",
+      "variant": "emphasis",
+      "role": "main",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "e9",
+      "from": "web-server",
+      "to": "cat-runtime",
+      "label": "stream chat session",
+      "role": "branch"
+    },
+    {
+      "id": "e10",
+      "from": "workflow-engine",
+      "to": "ai-router",
+      "label": "decompose plan",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "id": "e11",
+      "from": "ai-router",
+      "to": "tool-executor",
+      "label": "dispatch tool call",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "id": "e12",
+      "from": "tool-executor",
+      "to": "live-activities",
+      "label": "emit live events",
+      "role": "branch"
+    },
+    {
+      "id": "e13",
+      "from": "tool-executor",
+      "to": "workspace-code",
+      "label": "apply code edits",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "id": "e14",
+      "from": "cat-runtime",
+      "to": "websocket-bus",
+      "label": "push live tokens",
+      "role": "branch"
+    },
+    {
+      "id": "e15",
+      "from": "websocket-bus",
+      "to": "fatty-web",
+      "label": "render stream UI",
+      "variant": "emphasis",
+      "role": "branch"
+    },
+    {
+      "id": "e16",
+      "from": "cat-runtime",
+      "to": "chat-memory",
+      "label": "store turn memory",
+      "role": "branch"
+    },
+    {
+      "id": "e17",
+      "from": "websocket-bus",
+      "to": "live-preview",
+      "label": "hot reload preview",
+      "role": "branch"
+    },
+    {
+      "id": "e18",
+      "from": "workspace-code",
+      "to": "git-lineage",
+      "label": "commit checkpoint",
+      "variant": "emphasis",
+      "role": "main"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Node.js Identity & Passkeys",
+      "items": [
+        "Express server on port 3000 handles WebAuthn passkeys",
+        "Exchanges credentials for 0600 token in ~/.fomoji/connectors/cat.json",
+        "CAT Browser syncs session automatically"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Autonomous Workflow Engine",
+      "items": [
+        "Orchestrates end-to-end task decomposition and multi-agent flows",
+        "LiveActivities broadcasts point-to-point data events across TUI and Web",
+        "Full lineage tracking ensures reproducible task execution"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Web Developing & Live Preview",
+      "items": [
+        "FastAPI web server (:8765) powers browser assistant and web preview",
+        "WebSocket message bus delivers instantaneous token streaming",
+        "Devserver mounts workspace previews with hot-reloading"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Data Lineage & Storage Layer",
+      "items": [
+        "SQLite database stores identity records and connector tokens",
+        "Workspace watchdog watches source code files with zero CPU overhead",
+        "Git lineage ledger records commit checkpoints and session snapshots"
+      ]
+    }
+  ]
+}

@@ -32,7 +32,10 @@ import os
 import re
 import time
 
-MEMORY_FILE = os.path.join(os.path.expanduser("~"), ".cct_memory.json")
+from . import cat_format
+
+MEMORY_FILE = os.path.join(os.path.expanduser("~"), ".cat", "memory", "user_memory.cat")
+LEGACY_MEMORY_FILE = os.path.join(os.path.expanduser("~"), ".cct_memory.json")
 
 # How much to keep in RAM / inject into prompts. Kept modest so the
 # injected context never bloats a request past a provider's token budget.
@@ -55,38 +58,41 @@ def _empty():
 
 
 def load():
-    """Load the memory dict, or a fresh empty one if none/invalid."""
-    if not os.path.exists(MEMORY_FILE):
-        return _empty()
-    try:
-        with open(MEMORY_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        if not isinstance(data, dict):
-            return _empty()
-        # Backfill any missing keys (forward-compatible with older files).
-        base = _empty()
-        base.update(data)
-        for k in ("turns", "facts", "activity"):
-            if not isinstance(base.get(k), list):
-                base[k] = []
-        if not isinstance(base.get("topics"), dict):
-            base["topics"] = {}
-        return base
-    except Exception:
-        return _empty()
+    """Load the memory dict from .cat vault, or a fresh empty one if none/invalid."""
+    # 1. Try proprietary .cat vault
+    if os.path.exists(MEMORY_FILE):
+        data = cat_format.load_cat_file(MEMORY_FILE)
+        if isinstance(data, dict):
+            base = _empty()
+            base.update(data)
+            return base
+
+    # 2. Legacy fallback and migration from .cct_memory.json
+    if os.path.exists(LEGACY_MEMORY_FILE):
+        try:
+            with open(LEGACY_MEMORY_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                base = _empty()
+                base.update(data)
+                # Auto-upgrade to encrypted .cat format
+                save(base)
+                try:
+                    os.remove(LEGACY_MEMORY_FILE)
+                except OSError:
+                    pass
+                return base
+        except Exception:
+            pass
+
+    return _empty()
 
 
 def save(mem):
-    """Atomic write: serialize to a temp file in the same dir, then
-    os.replace() onto the real path. Avoids the half-written-file
-    corruption window a plain open(w)+dump leaves open."""
+    """Save user memory securely into proprietary .cat encrypted vault."""
     try:
         mem["updated"] = time.time()
-        d = os.path.dirname(MEMORY_FILE) or "."
-        tmp = MEMORY_FILE + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(mem, f, ensure_ascii=False, indent=1)
-        os.replace(tmp, MEMORY_FILE)
+        cat_format.save_cat_file(MEMORY_FILE, mem)
     except Exception:
         # Memory is best-effort; never let a write failure break the chat.
         pass
@@ -259,6 +265,16 @@ def context_block(mode="ai", max_turns=8, query=None):
     mem = load()
     qk = _keywords(query) if query else set()
     parts = []
+
+    # Historical cross-chat memory and first conversation origin
+    try:
+        from . import chat_store
+        cross_chat = chat_store.build_cross_chat_memory_context(query=query)
+        if cross_chat:
+            parts.append(cross_chat)
+            parts.append("")
+    except Exception:
+        pass
 
     facts = mem.get("facts", [])
     if qk:

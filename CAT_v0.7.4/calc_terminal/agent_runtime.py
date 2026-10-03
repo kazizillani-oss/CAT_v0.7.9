@@ -246,22 +246,52 @@ class AgentRuntime:
         text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip(), flags=re.MULTILINE)
         m = re.search(r"\{.*\}", text, re.S)
         if not m:
+            start_idx = text.find("{")
+            if start_idx != -1:
+                try:
+                    from .tool_call_normalizer import _repair_json_str
+                    repaired = _repair_json_str(text[start_idx:])
+                    if repaired:
+                        return repaired
+                except Exception:
+                    pass
             return None
         candidate = m.group(0)
         try:
-            return json.loads(candidate)
+            return json.loads(candidate, strict=False)
         except Exception:
-            depth = 0
-            for i, ch in enumerate(candidate):
-                if ch == "{":
-                    depth += 1
-                elif ch == "}":
-                    depth -= 1
-                    if depth == 0:
-                        try:
-                            return json.loads(candidate[: i + 1])
-                        except Exception:
-                            return None
+            start = candidate.find("{")
+            if start != -1:
+                depth = 0
+                in_str = False
+                escape = False
+                for i in range(start, len(candidate)):
+                    ch = candidate[i]
+                    if escape:
+                        escape = False
+                        continue
+                    if ch == "\\":
+                        escape = True
+                        continue
+                    if ch == '"':
+                        in_str = not in_str
+                        continue
+                    if in_str:
+                        continue
+                    if ch == "{":
+                        depth += 1
+                    elif ch == "}":
+                        depth -= 1
+                        if depth == 0:
+                            try:
+                                return json.loads(candidate[start : i + 1], strict=False)
+                            except Exception:
+                                pass
+                try:
+                    from .tool_call_normalizer import _repair_json_str
+                    return _repair_json_str(candidate[start:])
+                except Exception:
+                    return None
             return None
 
     def _extract_protocol_text(self, data):
@@ -422,48 +452,51 @@ class AgentRuntime:
 
             tool_calls = normalize_tool_calls(raw, list(self.tools.keys()))
             if tool_calls:
-                tc = tool_calls[0]
-                name = tc.name
-                args = tc.arguments if isinstance(tc.arguments, dict) else {}
-                spec = self.tools.get(name)
+                batch = tool_calls[:10]
+                observations = []
+                for tc in batch:
+                    name = tc.name
+                    args = tc.arguments if isinstance(tc.arguments, dict) else {}
+                    spec = self.tools.get(name)
 
-                fingerprint = (name, json.dumps(args, sort_keys=True, default=str))
-                stall_count = stall_count + 1 if fingerprint == last_call else 0
-                last_call = fingerprint
+                    fingerprint = (name, json.dumps(args, sort_keys=True, default=str))
+                    stall_count = stall_count + 1 if fingerprint == last_call else 0
+                    last_call = fingerprint
 
-                if not spec:
-                    obs = f"Tool '{name}' does not exist. Valid tools: {', '.join(self.tools)}"
-                elif stall_count >= 1:
-                    obs = ("You already ran this exact tool call and got a result \u2014 repeating it "
-                           "won't help. Use that result and move on to the NEXT step, or if every "
-                           "part of the question is now answered, reply with the final JSON action.")
-                else:
-                    if on_step:
-                        on_step(name, args)
-                    if _cancelled():
-                        return _finish(
-                            "*(interrupted \u2014 here is everything completed so far)*\n"
-                            + ("\n".join(f"- {n}: {o}" for n, _, o, _c in steps)
-                               if steps else "No tools had run yet."))
-                    proceed, denial_obs = self._check_permission(name, args, permission_callback)
-                    if not proceed:
-                        obs = denial_obs
+                    if not spec:
+                        obs = f"Tool '{name}' does not exist. Valid tools: {', '.join(self.tools)}"
+                    elif stall_count >= 1:
+                        obs = ("You already ran this exact tool call and got a result — repeating it "
+                               "won't help. Use that result and move on to the NEXT step, or if every "
+                               "part of the question is now answered, reply with the final JSON action.")
                     else:
-                        try:
-                            obs = spec["run"](args)
-                        except Exception as e:
-                            obs = f"Tool '{name}' raised an error: {e}"
-                    change = {}
-                    steps.append((name, args, obs, change))
+                        if on_step:
+                            on_step(name, args)
+                        if _cancelled():
+                            return _finish(
+                                "*(interrupted — here is everything completed so far)*\n"
+                                + ("\n".join(f"- {n}: {o}" for n, _, o, _c in steps)
+                                   if steps else "No tools had run yet."))
+                        proceed, denial_obs = self._check_permission(name, args, permission_callback)
+                        if not proceed:
+                            obs = denial_obs
+                        else:
+                            try:
+                                obs = spec["run"](args)
+                            except Exception as e:
+                                obs = f"Tool '{name}' raised an error: {e}"
+                        change = {}
+                        steps.append((name, args, obs, change))
+                    observations.append(f"[{name}] {obs}")
 
                 convo.append({"role": "assistant", "text": raw})
                 steps_left = self.max_steps - i - 1
                 nudge = ""
                 if steps_left <= 3:
-                    nudge = (f"\n\n(You have about {steps_left} step(s) left \u2014 start wrapping up: "
+                    nudge = (f"\n\n(You have about {steps_left} step(s) left — start wrapping up: "
                              "finish any remaining sub-calculations now and prepare the final answer.")
                 convo.append({"role": "user", "text": (
-                    f"TOOL RESULT [{name}]: {obs}{nudge}\n\n"
+                    f"TOOL RESULT: {' | '.join(observations)}{nudge}\n\n"
                     "Continue: call another tool if needed, or reply with the final JSON action now."
                 )})
                 continue
