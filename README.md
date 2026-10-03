@@ -1,4 +1,3 @@
-# Coding Agent Terminal (CAT)
 
 <div align="center">
 
@@ -7,7 +6,7 @@
   <source media="(prefers-color-scheme: light)" srcset="badge-mini.svg">
   <img alt="CAT — Coding Agent Terminal" src="badge-mini.svg" width="820">
 </picture>
-
+<hr>
 <br>
 
 ```
