@@ -17,5 +17,5 @@
   <!-- Text -->
   <text x="72" y="22.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11.5" font-weight="600" fill="#d8e0ff" letter-spacing="0.2">Coding Agent Terminal</text>
   <!-- Version -->
-  <text x="228" y="22.5" font-family="'Cascadia Code', 'Fira Code', monospace" font-size="10" font-weight="600" fill="#7aa2f7">v0.8.0</text>
+  <text x="228" y="22.5" font-family="'Cascadia Code', 'Fira Code', monospace" font-size="10" font-weight="600" fill="#7aa2f7">v0.8.0b1</text>
 </svg>
