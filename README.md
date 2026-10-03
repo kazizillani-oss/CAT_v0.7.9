@@ -7,8 +7,9 @@
 </picture>
 <hr>
 <br>
-
+<picture>
 <img alt="CAT — Coding Agent Terminal" src="badge.svg" width="820">
+</picture>
 
 [![CI](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml/badge.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/badge/version-0.8.0b1-blue.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9)
