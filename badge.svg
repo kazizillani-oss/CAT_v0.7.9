@@ -67,17 +67,7 @@
     <circle cx="34.5" cy="-1.5" r="1.5" fill="#ffffff" opacity="0.4"/>
   </g>
 
-  <!-- Stylized Cat Ears (Left & Right 3D Polygonal Ears) -->
-  <g transform="translate(42, 54)">
-    <!-- Left Outer Ear -->
-    <polygon points="4,58 20,12 36,58" fill="#7aa2f7" opacity="0.2"/>
-    <polygon points="10,58 20,22 30,58" fill="#7aa2f7" opacity="0.4"/>
-    <polygon points="10,58 20,22 23,58" fill="#93b5ff" opacity="0.6"/>
-    <!-- Right Outer Ear -->
-    <polygon points="52,58 68,12 84,58" fill="#bb9af7" opacity="0.2"/>
-    <polygon points="58,58 68,22 78,58" fill="#bb9af7" opacity="0.4"/>
-    <polygon points="58,58 68,22 71,58" fill="#cbb2f9" opacity="0.6"/>
-  </g>
+ 
 
   <!-- CAT 3D Vector Geometric Typography (Flawless on all platforms, zero ascii glitches) -->
   <g id="cat-vector-logo">
