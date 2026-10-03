@@ -4,10 +4,7 @@
       <stop offset="0%" stop-color="#141525"/>
       <stop offset="100%" stop-color="#18192d"/>
     </linearGradient>
-    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#7aa2f7"/>
-      <stop offset="100%" stop-color="#bb9af7"/>
-    </linearGradient>
+    
   </defs>
   <rect width="280" height="36" rx="7" fill="url(#bg)"/>
   <rect x="0.5" y="0.5" width="279" height="35" rx="6.5" fill="none" stroke="#2d304a" stroke-width="1"/>
