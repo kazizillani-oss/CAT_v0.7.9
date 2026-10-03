@@ -8,7 +8,7 @@
 <hr>
 <br>
 
-<img width="2778" height="1284" alt="Image" src="https://github.com/user-attachments/assets/0014b60f-847a-45fc-bdaf-4d4efe29f3c5" />
+<img width="2778" height="1284" alt="Image" src="https://github.com/user-attachments/assets/50b9df15-52a3-4f49-8547-b6d924a62aad" />
 
 [![CI](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml/badge.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/badge/version-0.8.0b1-blue.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9)
