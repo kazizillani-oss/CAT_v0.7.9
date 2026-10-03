@@ -6,7 +6,6 @@
   <img alt="CAT — Coding Agent Terminal" src="badge-mini.svg" width="820">
 </picture>
 <hr>
-<br>
 <picture>
 <img alt="CAT — Coding Agent Terminal" src="badge.svg" width="820">
 </picture>
