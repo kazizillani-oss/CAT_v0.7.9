@@ -1,4 +1,4 @@
-﻿"""
+"""
 CCT — pipeline.py: the AI Execution Pipeline (v0.7.7 spec section 6/7/8).
 
 Large tasks automatically follow the spec's workflow, and the workflow

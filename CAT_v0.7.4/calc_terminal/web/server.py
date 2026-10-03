@@ -42,6 +42,7 @@ from calc_terminal.browser.watcher import PreviewFileWatcher, is_web_file
 from calc_terminal.browser.state import PreviewState, ServerState
 from calc_terminal.permissions import manager as perm_manager, PERMISSION_DEFS, MODES, MODE_LABELS
 from calc_terminal.web.cat_runtime import runtime
+from calc_terminal.web.provider_center import provider_center_categories
 from calc_terminal import eventbus
 from calc_terminal import (
     chat_store,
@@ -257,6 +258,10 @@ class ProfileSaveRequest(BaseModel):
     profile: Optional[Dict[str, Any]] = None
 
 
+class AuthDevicePollRequest(BaseModel):
+    user_code: str
+
+
 # --- Global State ---
 
 class ServerStateManager:
@@ -339,6 +344,9 @@ app = FastAPI(
     openapi_url=None if _is_prod else "/openapi.json",
 )
 
+# Keep device codes server-side; the browser only sees the human approval code.
+_pending_auth_devices: Dict[str, Dict[str, Any]] = {}
+
 _fomoji_origin = os.environ.get("FOMOJI_ORIGIN", "http://localhost:3000")
 _allowed_origins = [
     "http://localhost:8765",
@@ -367,6 +375,11 @@ app.add_middleware(
 static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+    # Keep asset URLs relative so the packaged index.html can also be opened
+    # directly from disk for a visual preview. These mounts preserve the same
+    # URLs when the app is served from FastAPI.
+    app.mount("/css", StaticFiles(directory=str(static_dir / "css")), name="css-assets")
+    app.mount("/js", StaticFiles(directory=str(static_dir / "js")), name="js-assets")
 
 # Mount .archify interactive architecture & workflow diagrams
 _archify_dir = Path(__file__).resolve().parents[3] / ".archify"
@@ -454,6 +467,65 @@ async def get_auth_status():
         }
     except Exception as e:
         return {"authenticated": False, "identity": None, "error": str(e)}
+
+
+@app.post("/api/auth/device/start")
+async def start_fomoji_device_auth():
+    """Start CAT's existing Fomoji device flow without exposing connector tokens."""
+    try:
+        if await asyncio.to_thread(fomoji_auth.is_authenticated):
+            return {"success": True, "authenticated": True}
+        now = time.time()
+        for old_code, pending in list(_pending_auth_devices.items()):
+            if pending.get("expires_at", 0) < now:
+                _pending_auth_devices.pop(old_code, None)
+        if len(_pending_auth_devices) >= 5:
+            raise HTTPException(status_code=429, detail="Too many active Fomoji sign-in requests. Wait for one to expire, then retry.")
+        flow = await asyncio.to_thread(fomoji_auth.start_device_login, fomoji_auth.DEFAULT_PERMISSIONS)
+        user_code = flow["user_code"]
+        expires_in = flow["expires_in_seconds"]
+        _pending_auth_devices[user_code] = {
+            "device_code": flow["device_code"],
+            "permissions": flow["permissions"],
+            "expires_at": time.time() + expires_in,
+        }
+        return {
+            "success": True,
+            "authenticated": False,
+            "user_code": user_code,
+            "verification_url": flow["verification_url"],
+            "poll_interval_seconds": max(2, flow["poll_interval_seconds"]),
+            "expires_in_seconds": expires_in,
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Could not start Fomoji authorization: {exc}") from exc
+
+
+@app.post("/api/auth/device/poll")
+async def poll_fomoji_device_auth(request: AuthDevicePollRequest):
+    """Poll approval and persist the connector token using CAT's protected auth store."""
+    user_code = (request.user_code or "").strip().upper()
+    pending = _pending_auth_devices.get(user_code)
+    if not pending:
+        raise HTTPException(status_code=404, detail="This Fomoji sign-in request is no longer active. Start again.")
+    if pending["expires_at"] < time.time():
+        _pending_auth_devices.pop(user_code, None)
+        return {"success": False, "status": "expired", "message": "The sign-in code expired. Start again."}
+    try:
+        result = await asyncio.to_thread(
+            fomoji_auth.poll_device_login, pending["device_code"], pending["permissions"]
+        )
+        status = result.get("status", "pending")
+        if status == "approved":
+            _pending_auth_devices.pop(user_code, None)
+            return {"success": True, "status": "approved"}
+        if status in ("denied", "expired"):
+            _pending_auth_devices.pop(user_code, None)
+        return {"success": status == "pending", "status": status}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Could not check Fomoji approval: {exc}") from exc
 
 
 @app.get("/api/diagnostics")
@@ -960,6 +1032,7 @@ async def perform_logout():
         fomoji_auth.logout()
     except Exception as e:
         print(f"Logout error: {e}")
+    _pending_auth_devices.clear()
     return {"success": True, "message": "Signed out successfully."}
 
 
@@ -1728,7 +1801,7 @@ async def delete_custom_mode(key: str):
 
 @app.get("/api/providers")
 async def list_providers():
-    """List all 155+ AI providers."""
+    """List the AI providers in the runtime catalog."""
     return {"providers": runtime.list_providers()}
 
 
@@ -1752,20 +1825,16 @@ async def get_provider_center():
     ollama_stat = runtime.get_ollama_status()
     
     popular_ids = {"ollama", "openai", "anthropic", "groq", "deepseek", "gemini", "openrouter", "mistral", "cohere", "together"}
-    categories = ["all", "local", "free", "reasoning", "coding", "vision", "fast", "multimodal"]
+    categories = ["all", "local", "free", "popular", "reasoning", "coding", "vision", "fast", "multimodal"]
     
     enriched = []
     for p in all_provs:
         pid = p.get("id", "")
         item = dict(p)
         item["popular"] = pid in popular_ids
-        tags = ["all"]
-        if pid == "ollama":
-            tags.extend(["local", "free"])
-        elif not p.get("needs_key", True):
-            tags.append("free")
-        item["categories"] = tags
+        item["categories"] = provider_center_categories(p, popular_ids)
         enriched.append(item)
+    enriched.sort(key=lambda provider: str(provider.get("name") or provider.get("id") or "").casefold())
         
     return {
         "providers": enriched,

@@ -19,6 +19,7 @@ import json
 import ast
 import time
 import unittest
+from unittest.mock import patch
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CAT_ROOT = os.path.dirname(_HERE)
@@ -83,6 +84,61 @@ class TestProviderCatalog(unittest.TestCase):
         for cid in expected_chinese:
             self.assertIn(cid, ids, f"Missing first-class Chinese provider: {cid}")
 
+    def test_web_provider_center_uses_catalog_capabilities(self):
+        from calc_terminal.web.provider_center import provider_center_categories
+
+        provider = {
+            "id": "ollama",
+            "name": "Ollama",
+            "description": "Local coding models",
+            "needs_key": False,
+            "free_models_available": True,
+            "supports_reasoning": True,
+            "supports_vision": True,
+            "supports_audio": False,
+        }
+        categories = provider_center_categories(provider, {"ollama"})
+        self.assertEqual(categories, ["local", "free", "popular", "reasoning", "vision", "multimodal", "coding"])
+
+    def test_web_provider_center_does_not_label_paid_non_reasoning_as_free(self):
+        from calc_terminal.web.provider_center import provider_center_categories
+
+        provider = {
+            "id": "custom-paid",
+            "name": "Custom Paid",
+            "description": "General inference endpoint",
+            "needs_key": True,
+            "free_models_available": False,
+        }
+        self.assertEqual(provider_center_categories(provider, set()), [])
+
+    def test_web_entry_uses_relative_stylesheet_and_script_paths(self):
+        static_dir = os.path.join(_CAT_ROOT, "web", "static")
+        with open(os.path.join(static_dir, "index.html"), encoding="utf-8") as source:
+            html = source.read()
+        self.assertIn('href="css/app.css"', html)
+        self.assertIn('src="js/app.js"', html)
+        self.assertTrue(os.path.isfile(os.path.join(static_dir, "css", "app.css")))
+        self.assertTrue(os.path.isfile(os.path.join(static_dir, "js", "app.js")))
+
+    def test_welcome_uses_real_recents_and_renders_cat_kitties_dynamically(self):
+        static_dir = os.path.join(_CAT_ROOT, "web", "static")
+        with open(os.path.join(static_dir, "index.html"), encoding="utf-8") as source:
+            html = source.read()
+        with open(os.path.join(static_dir, "js", "app.js"), encoding="utf-8") as source:
+            app_js = source.read()
+        self.assertNotIn('aria-pressed="true"', html)
+        for kitty in ("notebook", "agent", "build", "plan", "debugger", "research"):
+            self.assertIn(f"'{kitty}'", app_js)
+        self.assertIn('class="cct-kitty-grid"', html)
+        self.assertIn('renderKittyGrid()', app_js)
+        self.assertIn("Object.entries(data?.modes || {})", app_js)
+        self.assertIn("/api/modes/custom", app_js)
+        self.assertIn("Build something", html)
+        self.assertNotIn("openRecentPath('storeflow')", html)
+        self.assertNotIn("projects/calculator", app_js)
+        self.assertIn("No recent workspaces", app_js)
+
 
 class TestActiveAIState(unittest.TestCase):
     """Test ActiveAIState singleton, hot model switching, and persistence."""
@@ -128,6 +184,61 @@ class TestActiveAIState(unittest.TestCase):
         self.assertEqual(len(notified), 1)
         self.assertEqual(notified[0], ("anthropic", "claude-4-sonnet"))
         mgr.unsubscribe(listener)
+
+
+class TestFomojiDeviceFlow(unittest.TestCase):
+    def test_cli_device_login_reuses_the_shared_device_start(self):
+        from calc_terminal import fomoji_auth
+
+        identity = {"fomojiId": "usr_9", "name": "CAT User"}
+        prompts = []
+        start = {
+            "deviceCode": "device-secret", "userCode": "CAT-1234",
+            "verificationUrl": "/connector.html", "expiresIn": 300,
+            "pollIntervalSeconds": 3,
+        }
+        with patch.object(fomoji_auth, "ensure_fomoji_server", return_value=True), \
+             patch.object(fomoji_auth, "_device_start", return_value=start), \
+             patch.object(fomoji_auth, "_load_local", return_value={"token": "stored", "identity": identity}):
+            result = fomoji_auth.device_login(on_prompt=lambda **kwargs: prompts.append(kwargs), timeout_seconds=1)
+
+        self.assertEqual(result, identity)
+        self.assertEqual(prompts[0]["user_code"], "CAT-1234")
+        self.assertTrue(prompts[0]["verification_url"].endswith("?code=CAT-1234"))
+
+    def test_browser_device_flow_keeps_device_code_server_side_and_saves_approved_token(self):
+        from calc_terminal import fomoji_auth
+
+        start = {
+            "deviceCode": "device-secret",
+            "userCode": "CAT-ABCD",
+            "verificationUrl": "/connector.html",
+            "expiresIn": 300,
+            "pollIntervalSeconds": 3,
+        }
+        with patch.object(fomoji_auth, "ensure_fomoji_server", return_value=True), \
+             patch.object(fomoji_auth, "_device_start", return_value=start):
+            flow = fomoji_auth.start_device_login()
+
+        self.assertEqual(flow["user_code"], "CAT-ABCD")
+        self.assertTrue(flow["verification_url"].endswith("/connector.html?code=CAT-ABCD"))
+        self.assertEqual(flow["device_code"], "device-secret")
+        self.assertEqual(flow["expires_in_seconds"], 300)
+
+        approved = {
+            "status": "approved", "connectorToken": "connector-secret",
+            "fomojiId": "usr_42", "name": "CAT User", "email": "cat@example.test",
+        }
+        saved = []
+        with patch.object(fomoji_auth, "_device_poll", return_value=approved), \
+             patch.object(fomoji_auth, "_save_local", side_effect=saved.append), \
+             patch.object(fomoji_auth, "invalidate_cache"):
+            result = fomoji_auth.poll_device_login(flow["device_code"])
+
+        self.assertEqual(result["status"], "approved")
+        self.assertNotIn("connectorToken", result)
+        self.assertEqual(saved[0]["token"], "connector-secret")
+        self.assertEqual(saved[0]["identity"]["name"], "CAT User")
 
 
 class TestModelRouterCache(unittest.TestCase):

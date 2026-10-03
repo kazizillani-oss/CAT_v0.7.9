@@ -545,6 +545,59 @@ def get_identity_display(mask_pii: bool = True) -> str:
 # Device flow — the ONLY way a non-browser client pairs.
 # ---------------------------------------------------------------------------
 
+def start_device_login(permissions=None, ensure_server=True) -> Dict[str, Any]:
+    """Start the shared Fomoji device flow and return browser-safe instructions.
+
+    ``device_code`` is an internal CAT-to-Fomoji credential. Callers may keep it
+    in server memory to poll, but must never serialize it to a browser or log.
+    """
+    perms = permissions if permissions is not None else DEFAULT_PERMISSIONS
+    if ensure_server and not ensure_fomoji_server(auto_start=True, timeout=12):
+        raise FomojiAuthError("Fomoji is unavailable. Start or repair the Fomoji service, then try again.")
+    start = _device_start(perms)
+    device_code = str(start.get("deviceCode") or "")
+    user_code = str(start.get("userCode") or "").upper()
+    if not device_code or not user_code:
+        raise FomojiAuthError("Fomoji did not return a valid device authorization code.")
+    base_url = start.get("verificationUrl", "/connector.html")
+    separator = "&" if "?" in base_url else "?"
+    from urllib.parse import quote
+    verification_url = f"{get_fomoji_url()}{base_url}{separator}code={quote(user_code)}"
+    return {
+        "device_code": device_code,
+        "user_code": user_code,
+        "verification_url": verification_url,
+        "poll_interval_seconds": max(1, int(start.get("pollIntervalSeconds", 3))),
+        "expires_in_seconds": max(1, int(start.get("expiresInSeconds", start.get("expiresIn", 300)))),
+        "permissions": list(perms),
+    }
+
+
+def poll_device_login(device_code: str, permissions=None) -> Dict[str, Any]:
+    """Poll a Fomoji device code and persist an approved token in CAT's store.
+
+    Connector tokens are intentionally omitted from the return value.
+    """
+    result = _device_poll(device_code)
+    status = result.get("status", "pending")
+    if status != "approved":
+        return {"status": status}
+    token = result.get("connectorToken")
+    if not token:
+        raise FomojiAuthError("Fomoji approved the request but returned no connector token.")
+    perms = permissions if permissions is not None else DEFAULT_PERMISSIONS
+    identity = {
+        "fomojiId": result.get("fomojiId"),
+        "name": result.get("name"),
+        "email": result.get("email") or get_user_email(),
+        "identityType": result.get("identityType", "PERSON"),
+        "permissions": result.get("permissions", perms),
+        "applicationId": result.get("applicationId", APPLICATION_ID),
+    }
+    _save_local({"token": token, "identity": identity})
+    invalidate_cache()
+    return {"status": "approved", "identity": identity}
+
 def _device_start(permissions) -> Dict[str, Any]:
     return _request(
         "POST",
@@ -618,15 +671,11 @@ def device_login(
     Raises FomojiAuthError on any terminal failure.
     """
     perms = permissions if permissions is not None else DEFAULT_PERMISSIONS
-    # Ensure server is up before starting (auto-start if needed)
-    ensure_fomoji_server(auto_start=True, timeout=12)
-    start = _device_start(perms)
-    device_code = start["deviceCode"]
-    user_code = start["userCode"]
-    base_v_url = start.get("verificationUrl", "/connector.html")
-    sep = "&" if "?" in base_v_url else "?"
-    verification_url = f"{get_fomoji_url()}{base_v_url}{sep}code={user_code}"
-    poll_interval = int(start.get("pollIntervalSeconds", 3))
+    flow = start_device_login(perms)
+    device_code = flow["device_code"]
+    user_code = flow["user_code"]
+    verification_url = flow["verification_url"]
+    poll_interval = flow["poll_interval_seconds"]
 
     if on_prompt:
         try:
@@ -650,21 +699,10 @@ def device_login(
         if local and local.get("token") and local.get("identity"):
             invalidate_cache()
             return local["identity"]
-        result = _device_poll(device_code)
+        result = poll_device_login(device_code, perms)
         st = result.get("status")
         if st == "approved":
-            email = result.get("email") or get_user_email()
-            identity = {
-                "fomojiId": result.get("fomojiId"),
-                "name": result.get("name"),
-                "email": email,
-                "identityType": result.get("identityType", "PERSON"),
-                "permissions": result.get("permissions", perms),
-                "applicationId": result.get("applicationId", APPLICATION_ID),
-            }
-            _save_local({"token": result["connectorToken"], "identity": identity})
-            invalidate_cache()
-            return identity
+            return result["identity"]
         if st == "denied":
             raise FomojiAuthError("Connection request was denied in Fomoji.")
         if st == "expired":

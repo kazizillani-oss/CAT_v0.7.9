@@ -116,7 +116,7 @@ class TestInputCapabilities(unittest.TestCase):
             mock_user32.GetSystemMetrics.side_effect = side_effect
             mock_user32.GetDpiForSystem.return_value = 96
 
-            with patch("ctypes.windll.user32", mock_user32):
+            with patch("ctypes.windll.user32", mock_user32, create=True):
                 caps = detect_capabilities()
 
                 self.assertTrue(caps.touchscreen_available)
@@ -145,7 +145,7 @@ class TestInputCapabilities(unittest.TestCase):
             mock_user32.GetSystemMetrics.side_effect = side_effect
             mock_user32.GetDpiForSystem.return_value = 96
 
-            with patch("ctypes.windll.user32", mock_user32):
+            with patch("ctypes.windll.user32", mock_user32, create=True):
                 caps = detect_capabilities()
 
                 self.assertFalse(caps.touchscreen_available)

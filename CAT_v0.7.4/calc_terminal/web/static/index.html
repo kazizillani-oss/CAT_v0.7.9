@@ -3,20 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#161822">
-  <title>CAT v0.7.9.0 — Coding Agent Terminal</title>
-  <link rel="stylesheet" href="/static/css/app.css">
+  <meta name="theme-color" content="#0b1018">
+  <meta name="description" content="FATTY CAT — a focused AI, code, and research workspace powered by CAT Core.">
+  <title>FATTY CAT OS — AI Workspace</title>
+  <link rel="stylesheet" href="css/app.css">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐱</text></svg>">
 </head>
 <body>
   <div id="app">
-    <!-- Top Header Bar: ≡ ○ CAT  |  [ 🔒 Ask Every Time ]  |  ▣ compressed -->
+    <!-- FATTY CAT workspace header -->
     <header id="cct-header">
-      <div class="cct-header-left" onclick="FATTY.toggleNavMenu()" title="Main Menu">
+      <button type="button" class="cct-header-left" onclick="FATTY.toggleNavMenu()" title="Open FATTY CAT menu" aria-label="Open main menu">
         <span class="cct-brand-menu">≡</span>
-        <span class="cct-brand-circle">○</span>
-        <span class="cct-brand-title">CAT</span>
-      </div>
+        <span class="cct-brand-mark" aria-hidden="true"><i></i><i></i></span>
+        <span class="cct-brand-title">FATTY CAT</span>
+        <span class="cct-brand-caption">AI WORKSPACE</span>
+      </button>
+
+      <button type="button" class="cct-mobile-nav-toggle" onclick="FATTY.toggleMobileSidebar()" aria-label="Open workspace navigation" aria-expanded="false">☰</button>
 
       <div class="cct-header-center">
         <button class="cct-perm-pill-btn" id="cct-perm-pill-btn" onclick="FATTY.togglePermissionModal()" title="Click to Change Permission Mode">
@@ -25,9 +29,14 @@
         </button>
       </div>
 
-      <div class="cct-header-right" onclick="FATTY.openFolderDialog()" title="Current Workspace Directory">
+      <div class="cct-header-actions">
+      <button type="button" class="cct-auth-pill" id="cct-auth-pill" onclick="FATTY.openUserProfile()" title="Fomoji identity status">
+        <span class="cct-auth-indicator" id="cct-auth-indicator"></span><span id="cct-auth-label">Checking identity…</span>
+      </button>
+      <button type="button" class="cct-header-right" onclick="FATTY.openFolderDialog()" title="Current Workspace Directory">
         <span class="cct-ws-icon">▣</span>
-        <span class="cct-ws-name" id="cct-header-ws-name">compressed</span>
+        <span class="cct-ws-name" id="cct-header-ws-name">Workspace</span>
+      </button>
       </div>
     </header>
 
@@ -66,9 +75,9 @@
             <div class="cct-ws-summary">
               <div class="cct-ws-title">
                 <span>📁</span>
-                <span id="cct-ws-folder-name">compressed</span>
+                <span id="cct-ws-folder-name">Workspace</span>
               </div>
-              <div class="cct-ws-languages" id="cct-ws-folder-sub">HTML, JavaScript, CSS · 3</div>
+              <div class="cct-ws-languages" id="cct-ws-folder-sub">Open a project to browse its files</div>
             </div>
 
             <!-- ASCII Directory Tree -->
@@ -159,7 +168,7 @@
               <div class="cct-sb-setting-group">
                 <label class="cct-sb-setting-label">Active AI Model:</label>
                 <div class="cct-sb-model-pill" onclick="FATTY.openProviderCenter()">
-                  <span id="cct-sb-active-model-name">Ollama deepseek-r1</span>
+                  <span id="cct-sb-active-model-name">Provider not connected</span>
                   <span class="cct-sb-pill-action">Change ➜</span>
                 </div>
               </div>
@@ -194,76 +203,56 @@
           <!-- Top Right Folder Tag -->
           <div class="cct-opened-folder-tag" id="cct-opened-folder-tag">Opened folder: C:\Users\ADMIN</div>
 
-          <!-- State A: Welcome Dashboard (Screenshot 1) -->
+          <!-- FATTY CAT home: live workspace actions and real CAT state -->
           <div id="cct-welcome-view">
-            <!-- CAT Wordmark Logo (5 Dynamic Responsive Layout Tiers) -->
-            <div class="cct-ascii-hero-wrap">
-              <pre class="cct-cat-ascii" id="cct-cat-ascii-logo" title="CAT Wordmark Logo (Auto-Responsive)">  /\_/\   █████  █████  ██████
- ( o.o )  ██     ██▄▄█    ██  
-  > ^ <   █████  ██  █    ██  </pre>
+            <div class="cct-home-hero">
+              <div class="cct-home-orb" aria-hidden="true"><span class="cct-cat-ear left"></span><span class="cct-cat-ear right"></span><span class="cct-cat-face"><i></i><i></i><b></b></span><span class="cct-orbit orbit-one"></span><span class="cct-orbit orbit-two"></span></div>
+              <div class="cct-home-copy">
+                <div class="cct-home-eyebrow"><span class="cct-ready-dot"></span> YOUR AI WORKSPACE</div>
+                <div class="cct-version-row">Build something<br><span>remarkable.</span></div>
+                <div class="cct-tagline-row">CAT Core, Kitties and your AI providers in one focused workspace.</div>
+                <div class="cct-home-status"><span class="cct-ready-dot"></span><span id="cct-welcome-model">Connect CAT to see active provider</span><span class="cct-home-status-sep">·</span><span id="cct-home-kitty">Choose a Kitty</span></div>
+              </div>
             </div>
 
             <div class="cct-hero-info">
-              <div class="cct-version-row">CAT v0.7.9.0</div>
-              <div class="cct-tagline-row">Chemistry • Coding • Intelligence</div>
-              <div class="cct-ready-row">
-                <span class="cct-ready-dot">●</span>
-                <span class="cct-ready-mode">CAT Research</span>
-                <span class="cct-ready-faint">ready · type to start, / for commands</span>
-              </div>
-              <div class="cct-suggest-row">Create · Analyze · Build · Debug · Research</div>
-              <div class="cct-ai-status-row">
-                <span class="cct-ready-dot">●</span>
-                <span>AI STATUS — </span>
-                <span class="cct-ai-status-model" id="cct-welcome-model">ollama deepseek-r1:latest</span>
-                <span class="cct-ready-faint">· Ready</span>
-              </div>
+              <span class="cct-home-label">GET STARTED</span>
             </div>
 
-            <!-- 4 Action Buttons with Neon Cyan Border (Photos 1, 3) -->
             <div class="cct-welcome-actions">
-              <button class="cct-action-btn" onclick="FATTY.openFolderDialog()"><span class="cct-btn-icon">📁</span> Open</button>
-              <button class="cct-action-btn" onclick="FATTY.newChat()"><span class="cct-btn-icon">📝</span> New Chat</button>
-              <button class="cct-action-btn" onclick="FATTY.openSettings()"><span class="cct-btn-icon">⚙</span> Settings</button>
-              <button class="cct-action-btn" onclick="FATTY.openDocs()"><span class="cct-btn-icon">📖</span> Docs</button>
+              <button class="cct-action-btn cct-action-primary" onclick="FATTY.newChat()"><span class="cct-btn-icon">↗</span> Start a chat</button>
+              <button class="cct-action-btn" onclick="FATTY.openFolderDialog()"><span class="cct-btn-icon">⌘</span> Open workspace</button>
+              <button class="cct-action-btn" onclick="FATTY.openProviderCenter()"><span class="cct-btn-icon">◈</span> Choose a model</button>
             </div>
 
-            <!-- 3 Columns / Cards in Grid (Photos 1, 3) -->
+            <div class="cct-home-section-heading"><span>YOUR WORKSPACE</span><span>Powered by CAT Core</span></div>
             <div class="cct-welcome-columns">
               <div class="cct-column cct-card-box">
                 <div class="cct-column-title"><span>Recent Projects</span></div>
                 <div class="cct-card-content-list" id="cct-recent-welcome-list">
-                  <div class="cct-column-item" onclick="FATTY.openRecentPath('ADMIN')">📁 ADMIN</div>
-                  <div class="cct-column-item" onclick="FATTY.openRecentPath('storeflow')">📁 storeflow</div>
-                  <div class="cct-column-item" onclick="FATTY.openRecentPath('Scripts')">📁 Scripts</div>
-                  <div class="cct-column-item" onclick="FATTY.openRecentPath('CAT_v0.7.9')">📁 CAT_v0.7.9</div>
-                  <div class="cct-column-item" onclick="FATTY.openRecentPath('compressed')">📁 compressed</div>
-                  <div class="cct-column-item" onclick="FATTY.openRecentPath('scratch')">📁 scratch</div>
+                  <div class="cct-empty-state">Loading recent workspaces…</div>
                 </div>
               </div>
 
-              <div class="cct-column cct-card-box" id="cct-card-cat-greeting" onclick="window.FATTY && FATTY.cycleCatGreeting && FATTY.cycleCatGreeting()" style="cursor: pointer;">
-                <div class="cct-column-title">
-                  <span>CAT</span>
-                </div>
-                <div class="cct-card-content-list" id="cct-cat-greeting-box">
-                  <pre class="cct-3d-block-art" id="cct-3d-block-art" style="font-family: monospace; font-size: 11px; line-height: 1.15; color: #89b4fa; margin: 4px 0 8px 0; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">  █▀▀▄ █▀▀ █▀▀█ █▀▀▄ █  █
-  █▄▄▀ █▀▀ █▄▄█ █  █  ▀█▀
-  ▀  ▀ ▀▀▀ ▀  ▀ ▀▀▀    █ </pre>
-                  <div class="cct-column-item" id="cct-greeting-badge"><span class="cct-green">⚡</span> <span id="cct-routine-time">Routine Active</span></div>
-                  <div class="cct-greeting-msg" id="cct-greeting-msg" style="color: #cdd6f4; font-weight: 600; font-size: 13px; margin-top: 4px;">[01] &gt; CAT is ready.</div>
-                  <div class="cct-greeting-sub" id="cct-greeting-sub" style="color: #a6adc8; font-size: 12px; margin-top: 2px;">&gt; 🐾 Ready to code.</div>
+              <div class="cct-column cct-card-box cct-kitties-card">
+                <div class="cct-column-title"><span>Your Kitties</span><span class="cct-kitties-count">6 Kitties</span></div>
+                <div class="cct-kitty-grid">
+                  <button type="button" data-kitty="notebook" onclick="FATTY.selectMode('notebook')"><span>Notebook</span><small>Think &amp; learn</small></button>
+                  <button type="button" data-kitty="agent" onclick="FATTY.selectMode('agent')"><span>Agent</span><small>Use tools</small></button>
+                  <button type="button" data-kitty="build" aria-pressed="false" onclick="FATTY.selectMode('build')"><span>Build</span><small>Write code</small></button>
+                  <button type="button" data-kitty="plan" onclick="FATTY.selectMode('plan')"><span>Plan</span><small>Map the work</small></button>
+                  <button type="button" data-kitty="debugger" onclick="FATTY.selectMode('debugger')"><span>Debug</span><small>Find causes</small></button>
+                  <button type="button" data-kitty="research" onclick="FATTY.selectMode('research')"><span>Research</span><small>Explore sources</small></button>
                 </div>
               </div>
 
               <div class="cct-column cct-card-box">
                 <div class="cct-column-title"><span>Project &amp; Workspace</span></div>
                 <div class="cct-card-content-list cct-ws-stats-box">
-                  <div class="cct-stat-row"><b id="cct-ws-card-user">ADMIN</b> <span class="cct-faint cct-path-truncate" id="cct-ws-card-path" title="C:\Users\ADMIN">C:\Users\ADMIN</span></div>
-                  <div class="cct-stat-row cct-faint" id="cct-ws-stats-line">6.6 GB+ · 20000 files</div>
-                  <div class="cct-stat-row">Git: <span class="cct-cyan" id="cct-ws-git-status">—</span>  AI: <span class="cct-pink" id="cct-ws-ai-status">ollama (deepseek-r1:latest)</span></div>
-                  <div class="cct-stat-row cct-faint" id="cct-ws-languages-line">Languages: JSON, Lua, JavaScript, CSS +1</div>
-                  <div class="cct-stat-row">Todos: <span class="cct-cyan" id="cct-ws-todos-line">0/2 complete</span>  CPU: <span class="cct-green">OK</span></div>
+                  <div class="cct-stat-row"><b id="cct-ws-card-user">Workspace</b> <span class="cct-faint cct-path-truncate" id="cct-ws-card-path" title="">No project open</span></div>
+                  <div class="cct-stat-row cct-faint" id="cct-ws-stats-line">Workspace details appear when a project is open.</div>
+                  <div class="cct-stat-row">Git: <span class="cct-cyan" id="cct-ws-git-status">Not loaded</span>  AI: <span class="cct-pink" id="cct-ws-ai-status">Not connected</span></div>
+                  <div class="cct-stat-row cct-faint" id="cct-ws-languages-line">Languages: —</div>
                 </div>
               </div>
             </div>
@@ -274,8 +263,7 @@
               <span class="cct-preview-text">✓ Live Web Preview opened in CAT Browser — <a id="cct-preview-url-link" href="#" target="_blank">http://127.0.0.1:63295/index.html</a></span>
             </div>
 
-            <!-- Divider -->
-            <div class="cct-welcome-divider">- · - · -</div>
+            <div class="cct-home-footer-note">Your AI sessions, files and provider settings stay in your CAT workspace.</div>
           </div>
 
           <!-- State B: Active Chat Messages (Screenshot 2) -->
@@ -298,9 +286,9 @@
                 <span class="cct-mode-block b3"></span>
                 <span class="cct-mode-block b4"></span>
               </span>
-              <span class="cct-mode-badge" id="cct-mode-badge" onclick="FATTY.openModeSelector()" title="Click to change AI mode (Ctrl+M)">🔨 Build</span>
+              <span class="cct-mode-badge" id="cct-mode-badge" onclick="FATTY.openModeSelector()" title="Click to change Kitty (Ctrl+M)">Select a Kitty</span>
               <span class="cct-badge-sep">·</span>
-              <span class="cct-model-badge" id="cct-model-badge" onclick="FATTY.openModelPicker()" title="Click to select provider & model">OLLAMA deepseek-r1</span>
+              <span class="cct-model-badge" id="cct-model-badge" onclick="FATTY.openModelPicker()" title="Click to select provider & model">Provider not connected</span>
               <span class="cct-badge-sep">·</span>
               <span class="cct-workspace-badge" id="cct-ws-badge" onclick="FATTY.openFolderDialog()" title="Current workspace">Workspace</span>
             </div>
@@ -594,13 +582,13 @@
           <div class="cct-user-avatar" id="cct-user-avatar">🐱</div>
           <div class="cct-user-header-info">
             <div class="cct-user-name-row">
-              <span class="cct-user-name" id="cct-user-display-name">ADMIN</span>
-              <span class="cct-user-role-badge" id="cct-user-role-badge">Community / Pro</span>
+              <span class="cct-user-name" id="cct-user-display-name">Guest</span>
+              <span class="cct-user-role-badge" id="cct-user-role-badge">Loading account</span>
             </div>
             <div class="cct-user-status-row">
-              <span class="cct-status-dot online" id="cct-user-status-dot">●</span>
-              <span id="cct-user-status-text">Active Local Session</span>
-              <span class="cct-faint">· Fomoji Auth</span>
+              <span class="cct-status-dot" id="cct-user-status-dot">●</span>
+              <span id="cct-user-status-text">Identity not connected</span>
+              <span class="cct-faint">· Fomoji</span>
             </div>
           </div>
         </div>
@@ -608,19 +596,19 @@
         <!-- User Stats Grid -->
         <div class="cct-user-stats-grid">
           <div class="cct-user-stat-card">
-            <span class="cct-user-stat-num" id="cct-stat-chats-count">0</span>
+            <span class="cct-user-stat-num" id="cct-stat-chats-count">—</span>
             <span class="cct-user-stat-label">Saved Sessions</span>
           </div>
           <div class="cct-user-stat-card">
-            <span class="cct-user-stat-num" id="cct-stat-memory-count">0</span>
+            <span class="cct-user-stat-num" id="cct-stat-memory-count">—</span>
             <span class="cct-user-stat-label">Memory Facts</span>
           </div>
           <div class="cct-user-stat-card">
-            <span class="cct-user-stat-num" id="cct-stat-ws-count">1</span>
+            <span class="cct-user-stat-num" id="cct-stat-ws-count">—</span>
             <span class="cct-user-stat-label">Workspaces</span>
           </div>
           <div class="cct-user-stat-card">
-            <span class="cct-user-stat-num" id="cct-stat-active-provider">Ollama</span>
+            <span class="cct-user-stat-num" id="cct-stat-active-provider">—</span>
             <span class="cct-user-stat-label">Active Provider</span>
           </div>
         </div>
@@ -645,8 +633,16 @@
           <button class="cct-modal-btn" onclick="FATTY.togglePermissionModal()">🔒 Permissions Mode</button>
         </div>
       </div>
+      <div class="cct-auth-device-panel" id="cct-auth-device-panel" hidden>
+        <div class="cct-auth-device-heading">Connect Fomoji account</div>
+        <p>Open Fomoji and approve CAT’s requested access. Keep this window open while approval is checked.</p>
+        <div class="cct-auth-code" id="cct-auth-device-code">------</div>
+        <a class="cct-modal-btn primary" id="cct-auth-device-link" href="#" target="_blank" rel="noopener noreferrer">Continue to Fomoji</a>
+        <div class="cct-auth-device-status" id="cct-auth-device-status" role="status" aria-live="polite">Waiting for approval…</div>
+      </div>
       <div class="cct-modal-footer">
-        <button class="cct-modal-btn" onclick="FATTY.openSignOutModal()">Sign Out</button>
+        <button class="cct-modal-btn" id="cct-auth-login-button" onclick="FATTY.startFomojiLogin()">Connect Fomoji</button>
+        <button class="cct-modal-btn" id="cct-auth-signout-button" onclick="FATTY.openSignOutModal()">Sign Out</button>
         <button class="cct-modal-btn primary" onclick="FATTY.closeAllModals()">Done</button>
       </div>
     </div>
@@ -919,7 +915,7 @@
         <div style="display: flex; align-items: center; gap: 8px;">
           <span style="color: var(--accent-build);">⚡</span>
           <span>AI Provider &amp; Model Center</span>
-          <span class="cct-badge" style="background: rgba(125,207,255,0.15); color: #7dcfff; border: 1px solid #7dcfff; font-size: 11px;">155+ Providers</span>
+          <span id="cct-provider-total" class="cct-badge" style="background: rgba(125,207,255,0.15); color: #7dcfff; border: 1px solid #7dcfff; font-size: 11px;">Providers</span>
         </div>
         <button class="cct-modal-close-btn" onclick="FATTY.closeAllModals()">✕</button>
       </div>
@@ -936,9 +932,13 @@
         <button class="cct-pill" onclick="FATTY.filterProviderCategory('vision')">Vision / Audio</button>
       </div>
 
+      <nav class="cct-pm-alphabet" id="cct-pm-alphabet" aria-label="Filter providers by name">
+        <button type="button" class="active" data-letter="all" onclick="FATTY.filterProviderLetter('all')">ALL</button>
+      </nav>
+
       <!-- Search Box -->
       <div class="cct-pm-search-box">
-        <input type="text" class="cct-form-input" id="cct-picker-filter" placeholder="Search 150+ AI providers or models (ollama, openai, groq, deepseek, anthropic...)" oninput="FATTY.filterProviders(this.value)">
+        <input type="text" class="cct-form-input" id="cct-picker-filter" placeholder="Search providers (Ollama, OpenAI, Groq, DeepSeek...)" oninput="FATTY.filterProviders(this.value)">
       </div>
 
       <!-- Dual-Panel Center: Left Providers Grid, Right Provider Config & Models -->
@@ -1116,7 +1116,7 @@
   <!-- Toast Feedback Notifications Container -->
   <div id="cct-toast-container" class="cct-toast-container"></div>
 
-  <script src="/static/js/app.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>
 

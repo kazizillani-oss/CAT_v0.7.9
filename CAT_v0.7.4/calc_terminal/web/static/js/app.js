@@ -10,9 +10,9 @@
   // ─── STATE ─────────────────────────────────────────────────────────────
   const state = {
     workspaceId: 'current',
-    workspaceRoot: 'C:\\Users\\ADMIN\\Downloads\\compressed',
-    workspaceName: 'compressed',
-    activeMode: 'build',
+    workspaceRoot: '',
+    workspaceName: 'Workspace',
+    activeMode: '',
     modes: ['build', 'plan', 'research', 'debugger', 'agent', 'notebook'],
     modeMeta: {
       build: { label: 'Build', icon: '🔨', color: '#e0af68', bg: '#cca75d', desc: 'Autonomous coding, file editing, build commands & testing' },
@@ -22,8 +22,8 @@
       agent: { label: 'Agent', icon: '⚙', color: '#bb9af7', bg: '#9d7ad9', desc: 'Multi-turn autonomous tool execution loop over CAT core' },
       notebook: { label: 'Notebook', icon: '📘', color: '#7aa2f7', bg: '#587ec9', desc: 'Step-by-step chemistry derivations, formulas & numericals' }
     },
-    provider: 'OLLAMA',
-    model: 'deepseek-r1',
+    provider: '',
+    model: '',
     permissionMode: 'ask',
     permLabels: {
       ask: { text: 'Ask Every Time', icon: '🔒' },
@@ -37,13 +37,7 @@
     splitPreview: false,
     previewRunning: false,
     turns: [],
-    recentProjects: [
-      { name: 'compressed', path: 'C:\\Users\\ADMIN\\Downloads\\compressed' },
-      { name: 'ADMIN', path: 'C:\\Users\\ADMIN' },
-      { name: 'CAT_v0.7.9', path: 'C:\\Users\\ADMIN\\Downloads\\CAT_v0.7.9' },
-      { name: 'Downloads', path: 'C:\\Users\\ADMIN\\Downloads' },
-      { name: 'Scripts', path: 'C:\\Users\\ADMIN\\Downloads\\Scripts' }
-    ],
+    recentProjects: [],
     sessionCount: 0,
     logoVariant: 0,
     sessionNotebooks: [],
@@ -61,8 +55,11 @@
     sidebarActivities: [],
     sidebarExtensions: [],
     providerCenterData: null,
+    providerCategory: 'all',
+    providerLetter: 'all',
+    providerQuery: '',
     selectedProviderId: 'ollama',
-    selectedModelName: 'deepseek-r1',
+    selectedModelName: '',
     chatId: 'default',
     autoSave: true
   };
@@ -140,6 +137,7 @@
       console.log('Initializing 1:1 Fatty CAT simulation with Full Feature Integration...');
       this.bindDOM();
       this.bindResizers();
+      this.bindPointerDepth();
 
       // 1. Startup Welcome Lifecycle check (welcome_modal.py / Screenshot 2)
       await this.checkStartup();
@@ -152,6 +150,9 @@
 
       // 4. Load config & capabilities
       await this.loadConfig();
+      this.renderKittyGrid();
+      await this.loadModes();
+      this.loadAuthStatus();
 
       // 5. Preload commands for Command Palette
       await this.loadCommands();
@@ -159,20 +160,34 @@
       // 6. Update line numbers for editor
       this.updateLineNumbers();
 
-      // 7. Initialize ASCII wordmark logo variant
-      this.initLogo();
-
-      // 8. Load active session notebooks
+      // 7. Load active session notebooks
       await this.loadSessionNotebooks();
 
-      // 9. Initialize CAT 3D ASCII Block Art & Routine Greetings
-      this.initCatRoutineGreeting();
-
-      // 10. Initialize multi-file editor tabs bar
+      // 8. Initialize multi-file editor tabs bar
       this.renderEditorTabs();
 
-      // 11. Initialize sidebar tab
+      // 9. Initialize sidebar tab
       this.switchSidebarTab('explorer');
+    },
+
+    bindPointerDepth() {
+      if (!window.matchMedia || !window.matchMedia('(pointer: fine)').matches ||
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      let frame = 0;
+      window.addEventListener('pointermove', (event) => {
+        if (frame) return;
+        frame = window.requestAnimationFrame(() => {
+          frame = 0;
+          const nx = event.clientX / Math.max(window.innerWidth, 1);
+          const ny = event.clientY / Math.max(window.innerHeight, 1);
+          document.documentElement.style.setProperty('--pointer-x', `${nx * 100}%`);
+          document.documentElement.style.setProperty('--pointer-y', `${ny * 100}%`);
+          document.documentElement.style.setProperty('--pointer-dx', `${(nx - .5) * 8}px`);
+          document.documentElement.style.setProperty('--pointer-dy', `${(ny - .5) * 8}px`);
+          document.documentElement.style.setProperty('--pointer-rx', `${(.5 - ny) * 3}deg`);
+          document.documentElement.style.setProperty('--pointer-ry', `${(nx - .5) * 3}deg`);
+        });
+      }, { passive: true });
     },
 
     bindDOM() {
@@ -354,10 +369,11 @@
         let ws = await api.get('/api/workspace/current');
         if (ws && ws.path) {
           state.workspaceRoot = ws.path;
-          state.workspaceName = ws.name || 'compressed';
+          state.workspaceName = ws.name || 'Workspace';
         }
       } catch (e) {
-        console.log('Using default workspace path');
+        state.workspaceRoot = '';
+        state.workspaceName = 'Workspace';
       }
 
       // Update header workspace name
@@ -370,16 +386,19 @@
 
       // Update dashboard opened folder tag and workspace card
       const openedTag = document.getElementById('cct-opened-folder-tag');
-      if (openedTag) openedTag.textContent = `Opened folder: ${state.workspaceRoot}`;
+      if (openedTag) {
+        openedTag.textContent = state.workspaceRoot ? `Workspace · ${state.workspaceRoot}` : 'No workspace connected';
+        openedTag.style.display = state.workspaceRoot ? '' : 'none';
+      }
 
       const wsCardPath = document.getElementById('cct-ws-card-path');
       if (wsCardPath) {
-        wsCardPath.textContent = state.workspaceRoot;
+        wsCardPath.textContent = state.workspaceRoot || 'No project open';
         wsCardPath.title = state.workspaceRoot;
       }
 
       const wsCardUser = document.getElementById('cct-ws-card-user');
-      if (wsCardUser) wsCardUser.textContent = state.workspaceName || 'ADMIN';
+      if (wsCardUser) wsCardUser.textContent = state.workspaceName;
 
       // Fetch Tree
       try {
@@ -402,6 +421,14 @@
         }
       } catch (e) {
         this.renderFallbackTree();
+      }
+
+      try {
+        const recent = await api.get('/api/workspace/recent');
+        const items = recent.workspaces || recent.recent || [];
+        if (items.length) state.recentProjects = items;
+      } catch (e) {
+        // A direct-file preview has no CAT API; keep recents honestly empty.
       }
 
       this.renderRecentProjects();
@@ -449,48 +476,41 @@
     },
 
     renderFallbackTree() {
-      const fallbackNodes = [
-        {
-          name: 'projects',
-          type: 'directory',
-          path: 'projects',
-          children: [
-            {
-              name: 'calculator',
-              type: 'directory',
-              path: 'projects/calculator',
-              children: [
-                { name: 'index.html', type: 'file', path: 'projects/calculator/index.html', ext: '.html' },
-                { name: 'script.js', type: 'file', path: 'projects/calculator/script.js', ext: '.js' },
-                { name: 'style.css', type: 'file', path: 'projects/calculator/style.css', ext: '.css' }
-              ]
-            }
-          ]
-        }
-      ];
-      this.renderTree(fallbackNodes);
+      const container = document.getElementById('cct-tree-container');
+      if (!container) return;
+      container.replaceChildren();
+      const empty = document.createElement('div');
+      empty.className = 'cct-empty-state';
+      empty.textContent = 'Start CAT’s web server to browse workspace files.';
+      const retry = document.createElement('button');
+      retry.className = 'cct-empty-action';
+      retry.type = 'button';
+      retry.textContent = 'Retry connection';
+      retry.addEventListener('click', () => this.loadWorkspace());
+      container.append(empty, retry);
     },
 
     renderRecentProjects() {
       const container = document.getElementById('cct-recent-container');
-      if (!container) return;
-      container.innerHTML = '';
-
-      state.recentProjects.slice(0, 5).forEach((p) => {
-        const row = document.createElement('div');
-        row.className = 'cct-recent-row';
-        row.innerHTML = `
-          <span class="cct-recent-name">📁 ${p.name}</span>
-          <span class="cct-recent-del" title="Remove from recent">✕</span>
-        `;
-        row.querySelector('.cct-recent-name').addEventListener('click', () => {
-          this.openRecentPath(p.path);
+      const welcome = document.getElementById('cct-recent-welcome-list');
+      [container, welcome].filter(Boolean).forEach(list => {
+        list.replaceChildren();
+        if (!state.recentProjects.length) {
+          const empty = document.createElement('div');
+          empty.className = 'cct-empty-state';
+          empty.textContent = 'No recent workspaces';
+          list.appendChild(empty);
+          return;
+        }
+        state.recentProjects.slice(0, 5).forEach((project) => {
+          const row = document.createElement('button');
+          row.type = 'button';
+          row.className = 'cct-recent-row';
+          row.textContent = `▣  ${project.name || project.path || 'Workspace'}`;
+          row.title = project.path || '';
+          row.addEventListener('click', () => this.openRecentPath(project.path));
+          list.appendChild(row);
         });
-        row.querySelector('.cct-recent-del').addEventListener('click', (e) => {
-          e.stopPropagation();
-          row.remove();
-        });
-        container.appendChild(row);
       });
     },
 
@@ -1499,6 +1519,14 @@
         const center = await api.get('/api/providers/center');
         state.providerCenterData = center;
         state.providers = center.providers || [];
+        const totalEl = document.getElementById('cct-provider-total');
+        if (totalEl) totalEl.textContent = `${state.providers.length} Providers`;
+        state.providerCategory = 'all';
+        state.providerLetter = 'all';
+        state.providerQuery = '';
+        const search = document.getElementById('cct-picker-filter');
+        if (search) search.value = '';
+        this.renderProviderAlphabet();
 
         const activeProv = center.active ? center.active.provider : state.provider.toLowerCase();
         state.selectedProviderId = activeProv;
@@ -1513,38 +1541,52 @@
     },
 
     filterProviderCategory(cat) {
+      state.providerCategory = cat || 'all';
       document.querySelectorAll('#cct-pm-cat-bar .cct-pill').forEach(p => {
         p.classList.remove('active');
-        if (p.textContent.toLowerCase().includes(cat.toLowerCase()) || (cat === 'all' && p.textContent.toLowerCase() === 'all')) {
+        if ((p.getAttribute('onclick') || '').includes(`'${state.providerCategory}'`)) {
           p.classList.add('active');
         }
       });
-
-      if (!state.providerCenterData) return;
-      let provs = state.providerCenterData.providers || [];
-      if (cat !== 'all') {
-        provs = provs.filter(p => {
-          if (cat === 'local') return p.id === 'ollama';
-          if (cat === 'popular') return p.popular;
-          if (cat === 'free') return !p.needs_key || p.id === 'ollama';
-          return (p.categories || []).includes(cat);
-        });
-      }
-
-      this.renderProviderCards(provs);
+      this.applyProviderFilters();
     },
 
     filterProviders(query) {
-      const q = (query || '').toLowerCase().trim();
+      state.providerQuery = (query || '').toLowerCase().trim();
+      this.applyProviderFilters();
+    },
+
+    filterProviderLetter(letter) {
+      state.providerLetter = letter || 'all';
+      document.querySelectorAll('#cct-pm-alphabet button').forEach(button => {
+        button.classList.toggle('active', button.dataset.letter === state.providerLetter);
+      });
+      this.applyProviderFilters();
+    },
+
+    renderProviderAlphabet() {
+      const nav = document.getElementById('cct-pm-alphabet');
+      if (!nav) return;
+      const present = new Set((state.providerCenterData?.providers || []).map(p => (p.name || p.id || '').trim().charAt(0).toUpperCase()));
+      const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+      nav.innerHTML = '<button type="button" class="active" data-letter="all" onclick="FATTY.filterProviderLetter(\'all\')">ALL</button>' +
+        letters.map(letter => `<button type="button" data-letter="${letter}" onclick="FATTY.filterProviderLetter('${letter}')" ${present.has(letter) ? '' : 'disabled'}>${letter}</button>`).join('');
+    },
+
+    applyProviderFilters() {
       if (!state.providerCenterData) return;
-      let provs = state.providerCenterData.providers || [];
-      if (q) {
-        provs = provs.filter(p => {
-          const id = (p.id || '').toLowerCase();
-          const name = (p.name || '').toLowerCase();
-          return id.includes(q) || name.includes(q);
-        });
-      }
+      const q = state.providerQuery;
+      const cat = state.providerCategory;
+      const letter = state.providerLetter;
+      const provs = (state.providerCenterData.providers || []).filter(p => {
+        const name = (p.name || p.id || '').trim();
+        const searchable = `${p.id || ''} ${name} ${p.description || ''} ${p.country || ''}`.toLowerCase();
+        if (q && !searchable.includes(q)) return false;
+        if (letter !== 'all' && name.charAt(0).toUpperCase() !== letter) return false;
+        if (cat === 'all') return true;
+        if (cat === 'popular') return !!p.popular;
+        return (p.categories || []).includes(cat);
+      });
       this.renderProviderCards(provs);
     },
 
@@ -1574,6 +1616,11 @@
         card.addEventListener('click', () => {
           document.querySelectorAll('.cct-provider-card').forEach(c => c.classList.remove('active'));
           card.classList.add('active');
+          if (state.selectedProviderId !== p.id) {
+            state.selectedModelName = '';
+            const keyInput = document.getElementById('cct-pm-detail-apikey');
+            if (keyInput) keyInput.value = '';
+          }
           this.selectProvider(p.id);
         });
 
@@ -1595,7 +1642,7 @@
       const applyBtn = document.getElementById('cct-pm-apply-btn');
 
       if (latencyBadge) latencyBadge.style.display = 'none';
-      if (applyBtn) applyBtn.disabled = false;
+      if (applyBtn) applyBtn.disabled = !state.selectedModelName;
 
       if (nameEl) nameEl.textContent = prov.name || prov.id;
       if (subEl) subEl.textContent = `${prov.id} provider endpoint & configuration`;
@@ -1618,7 +1665,7 @@
       }
 
       try {
-        const res = await api.get(`/api/providers/${providerId}/models`);
+        const res = await api.get(`/api/models?provider_id=${encodeURIComponent(providerId)}`);
         const models = res.models || [];
         this.renderProviderModelsList(models);
       } catch (e) {
@@ -1651,6 +1698,8 @@
           document.querySelectorAll('.cct-model-item').forEach(mi => mi.classList.remove('active'));
           item.classList.add('active');
           state.selectedModelName = mName;
+          const applyBtn = document.getElementById('cct-pm-apply-btn');
+          if (applyBtn) applyBtn.disabled = false;
         });
         modelsList.appendChild(item);
       });
@@ -1663,7 +1712,7 @@
         modelsList.innerHTML = '<div style="padding: 6px; font-size: 11px; color: var(--term-text-muted);">Refreshing live models…</div>';
       }
       try {
-        const res = await api.get(`/api/providers/${state.selectedProviderId}/models?force_refresh=true`);
+        const res = await api.get(`/api/models?provider_id=${encodeURIComponent(state.selectedProviderId)}&force_refresh=true`);
         this.renderProviderModelsList(res.models || []);
         this.showToast(`Refreshed models for ${state.selectedProviderId} ✓`, 'info');
       } catch (e) {
@@ -1725,11 +1774,17 @@
       const baseurlInput = document.getElementById('cct-pm-detail-baseurl');
       const baseUrl = baseurlInput ? baseurlInput.value : '';
 
+      if (!state.selectedProviderId || !state.selectedModelName) {
+        this.showToast('Choose a provider and model first.', 'error');
+        return;
+      }
+
       try {
         await api.post('/api/models/switch', {
           provider: state.selectedProviderId,
           model: state.selectedModelName,
-          base_url: baseUrl
+          base_url: baseUrl,
+          api_key: document.getElementById('cct-pm-detail-apikey')?.value || undefined
         });
 
         state.provider = state.selectedProviderId.toUpperCase();
@@ -1841,6 +1896,15 @@
         `;
         listEl.appendChild(item);
       });
+    },
+
+    toggleMobileSidebar() {
+      const open = document.body.classList.toggle('mobile-nav-open');
+      const button = document.querySelector('.cct-mobile-nav-toggle');
+      if (button) {
+        button.setAttribute('aria-expanded', String(open));
+        button.setAttribute('aria-label', open ? 'Close workspace navigation' : 'Open workspace navigation');
+      }
     },
 
     async createNewChatSession() {
@@ -2169,7 +2233,8 @@
         const res = await api.post('/api/user/guest');
         if (res && res.user) {
           this.showToast(`Switched to ${res.guest_mode ? 'Guest Mode' : 'Local User'} ✓`, 'info');
-          this.openUserModal();
+          await this.loadAuthStatus();
+          await this.openUserModal();
         }
       } catch (e) {
         this.showToast('Guest mode toggle failed: ' + e.message, 'error');
@@ -2196,13 +2261,14 @@
       grid.innerHTML = '';
       state.modes.forEach(m => {
         const meta = state.modeMeta[m] || { label: m, icon: '●', color: '#fff', desc: '' };
-        const card = document.createElement('div');
+        const card = document.createElement('button');
+        card.type = 'button';
         card.className = 'cct-mode-card' + (m === state.activeMode ? ' active' : '');
         card.innerHTML = `
-          <span class="cct-mode-card-icon" style="color: ${meta.color};">${meta.icon}</span>
+          <span class="cct-mode-card-icon" style="color: ${this.escapeHtml(meta.color)};">${this.escapeHtml(meta.icon)}</span>
           <div class="cct-mode-card-info">
-            <span class="cct-mode-card-title" style="color: ${meta.color};">${meta.label}</span>
-            <span class="cct-mode-card-desc">${meta.desc}</span>
+            <span class="cct-mode-card-title" style="color: ${this.escapeHtml(meta.color)};">${this.escapeHtml(meta.label)}</span>
+            <span class="cct-mode-card-desc">${this.escapeHtml(meta.desc)}</span>
           </div>
         `;
         card.addEventListener('click', () => {
@@ -2211,24 +2277,101 @@
         grid.appendChild(card);
       });
 
+      let createButton = document.getElementById('cct-create-kitty-button');
+      if (!createButton) {
+        createButton = document.createElement('button');
+        createButton.id = 'cct-create-kitty-button';
+        createButton.type = 'button';
+        createButton.className = 'cct-modal-btn primary cct-create-kitty';
+        createButton.textContent = '＋ Create your own Kitty';
+        createButton.addEventListener('click', () => this.openCreateKitty());
+        grid.after(createButton);
+      }
+
       modal.style.display = 'flex';
     },
 
+    openCreateKitty() {
+      let modal = document.getElementById('cct-create-kitty-modal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'cct-create-kitty-modal';
+        modal.className = 'cct-modal-backdrop';
+        modal.innerHTML = `<section class="cct-modal-box cct-create-kitty-box" role="dialog" aria-modal="true" aria-labelledby="cct-create-kitty-title">
+          <header class="cct-modal-titlebar"><span id="cct-create-kitty-title">Create a custom Kitty</span><button type="button" class="cct-modal-close-btn" aria-label="Close" onclick="FATTY.closeCreateKitty()">✕</button></header>
+          <form class="cct-create-kitty-form" onsubmit="FATTY.createKitty(event)">
+            <label>Name<input class="cct-form-input" name="label" required maxlength="32" placeholder="e.g. Research partner"></label>
+            <label>Icon<input class="cct-form-input" name="icon" maxlength="4" value="✦"></label>
+            <label>Accent<input class="cct-form-input cct-color-input" name="accent_hex" type="color" value="#8ea8ff"></label>
+            <label>What should it do?<input class="cct-form-input" name="purpose" maxlength="120" placeholder="A short description"></label>
+            <label>Instructions<textarea class="cct-form-input" name="system_prompt" rows="5" maxlength="4000" placeholder="Describe how this Kitty should work"></textarea></label>
+            <footer class="cct-modal-footer"><button type="button" class="cct-modal-btn" onclick="FATTY.closeCreateKitty()">Cancel</button><button class="cct-modal-btn primary" type="submit">Create Kitty</button></footer>
+          </form></section>`;
+        document.body.appendChild(modal);
+      }
+      modal.style.display = 'flex';
+      modal.querySelector('input[name="label"]')?.focus();
+    },
+
+    closeCreateKitty() {
+      const modal = document.getElementById('cct-create-kitty-modal');
+      if (modal) modal.style.display = 'none';
+    },
+
+    async createKitty(event) {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const data = Object.fromEntries(new FormData(form).entries());
+      data.label = (data.label || '').trim();
+      data.key = data.label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+      if (!data.key) return this.showToast('Choose a name with letters or numbers.', 'error');
+      const submit = form.querySelector('button[type="submit"]');
+      if (submit) { submit.disabled = true; submit.textContent = 'Creating…'; }
+      try {
+        await api.post('/api/modes/custom', data);
+        await this.loadModes();
+        await this.selectMode(data.key);
+        this.closeCreateKitty();
+        this.showToast(`${data.label} Kitty created.`, 'success');
+      } catch (error) {
+        this.showToast(`Could not create Kitty: ${error.message}`, 'error');
+      } finally {
+        if (submit) { submit.disabled = false; submit.textContent = 'Create Kitty'; }
+      }
+    },
+
     async selectMode(modeId) {
+      try {
+        await api.post('/api/modes/switch', { mode: modeId });
+      } catch (e) {
+        this.showToast('Connect to CAT to switch Kitties.', 'error');
+        return;
+      }
       state.activeMode = modeId;
       const meta = state.modeMeta[modeId] || state.modeMeta.build;
+      this.renderKittyGrid();
+      document.documentElement.style.setProperty('--accent-build', meta.color);
+      document.documentElement.style.setProperty('--active-kitty-accent', meta.color);
+      document.querySelectorAll('.cct-kitty-grid [data-kitty]').forEach(button => {
+        const active = button.dataset.kitty === modeId;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', String(active));
+      });
 
       const badge = document.getElementById('cct-mode-badge');
       if (badge) {
         badge.textContent = `${meta.icon} ${meta.label}`;
         badge.style.color = meta.color;
+        badge.classList.remove('kitty-switch');
+        void badge.offsetWidth;
+        badge.classList.add('kitty-switch');
+        window.setTimeout(() => badge.classList.remove('kitty-switch'), 700);
       }
 
-      this.closeAllModals();
+      const homeKitty = document.getElementById('cct-home-kitty');
+      if (homeKitty) homeKitty.textContent = `${meta.icon} ${meta.label}`;
 
-      try {
-        await api.post('/api/modes/switch', { mode: modeId });
-      } catch (e) {}
+      this.closeAllModals();
     },
 
     // ─────────────────────────────────────────────────────────────────────
@@ -2526,10 +2669,94 @@
       } catch (e) {}
 
       const modelBadge = document.getElementById('cct-model-badge');
-      if (modelBadge) modelBadge.textContent = `${state.provider} ${state.model}`;
+      const activeModelLabel = state.provider && state.model ? `${state.provider} ${state.model}` : 'Provider not connected';
+      if (modelBadge) modelBadge.textContent = activeModelLabel;
 
       const welcomeModel = document.getElementById('cct-welcome-model');
-      if (welcomeModel) welcomeModel.textContent = `${state.provider.toLowerCase()} ${state.model}`;
+      if (welcomeModel) welcomeModel.textContent = activeModelLabel;
+      const sidebarModel = document.getElementById('cct-sb-active-model-name');
+      if (sidebarModel) sidebarModel.textContent = activeModelLabel;
+      const workspaceAiStatus = document.getElementById('cct-ws-ai-status');
+      if (workspaceAiStatus) workspaceAiStatus.textContent = activeModelLabel;
+    },
+
+    async loadAuthStatus() {
+      const label = document.getElementById('cct-auth-label');
+      const indicator = document.getElementById('cct-auth-indicator');
+      const pill = document.getElementById('cct-auth-pill');
+      try {
+        const auth = await api.get('/api/auth/status');
+        const identity = auth?.identity;
+        const authenticated = Boolean(auth?.authenticated);
+        if (label) label.textContent = authenticated ? (identity?.display_name || identity?.name || 'Fomoji connected') : 'Local session';
+        if (indicator) indicator.classList.toggle('connected', authenticated);
+        if (pill) {
+          pill.dataset.authenticated = String(authenticated);
+          pill.title = authenticated ? 'Fomoji account connected. Open profile.' : 'No Fomoji account connected. Open profile and authentication settings.';
+        }
+      } catch (error) {
+        if (label) label.textContent = 'Identity unavailable';
+        if (indicator) indicator.classList.remove('connected');
+        if (pill) pill.title = `Could not check Fomoji identity: ${error.message}`;
+      }
+    },
+
+    async loadModes() {
+      try {
+        const data = await api.get('/api/modes');
+        if (data?.order?.length) state.modes = data.order;
+        Object.entries(data?.modes || {}).forEach(([key, mode]) => {
+          state.modeMeta[key] = { label: mode.label || key, icon: mode.icon || '●', color: mode.accent || '#8ea8ff', desc: mode.purpose || '' };
+        });
+        if (data?.current) state.activeMode = data.current;
+        this.renderKittyGrid();
+        const meta = state.modeMeta[state.activeMode];
+        if (!meta) return;
+        document.documentElement.style.setProperty('--accent-build', meta.color);
+        document.documentElement.style.setProperty('--active-kitty-accent', meta.color);
+        const badge = document.getElementById('cct-mode-badge');
+        if (badge) {
+          badge.textContent = `${meta.icon} ${meta.label}`;
+          badge.style.color = meta.color;
+        }
+        const homeKitty = document.getElementById('cct-home-kitty');
+        if (homeKitty) homeKitty.textContent = `${meta.icon} ${meta.label}`;
+        document.querySelectorAll('.cct-kitty-grid [data-kitty]').forEach(button => {
+          const active = button.dataset.kitty === state.activeMode;
+          button.classList.toggle('active', active);
+          button.setAttribute('aria-pressed', String(active));
+        });
+      } catch (e) {
+        // No CAT server: leave Kitty selection unset instead of implying a live mode.
+      }
+    },
+
+    renderKittyGrid() {
+      const grid = document.querySelector('.cct-kitty-grid');
+      if (!grid) return;
+      const count = document.querySelector('.cct-kitties-count');
+      if (count) count.textContent = `${state.modes.length} ${state.modes.length === 1 ? 'Kitty' : 'Kitties'}`;
+      grid.innerHTML = '';
+      state.modes.forEach((modeId) => {
+        const meta = state.modeMeta[modeId] || { label: modeId, icon: '✦', color: '#9bb8ff', desc: 'Custom CAT mode' };
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.kitty = modeId;
+        button.style.setProperty('--kitty-accent', meta.color);
+        button.classList.toggle('active', modeId === state.activeMode);
+        button.setAttribute('aria-pressed', String(modeId === state.activeMode));
+        button.setAttribute('aria-label', `${meta.label}: ${meta.desc || 'Switch Kitty'}`);
+        button.innerHTML = `<span class="cct-kitty-icon">${this.escapeHtml(meta.icon)}</span><span class="cct-kitty-label">${this.escapeHtml(meta.label)}</span><small>${this.escapeHtml(meta.desc || 'CAT mode')}</small>`;
+        button.addEventListener('click', () => this.selectMode(modeId));
+        grid.appendChild(button);
+      });
+      const create = document.createElement('button');
+      create.type = 'button';
+      create.className = 'cct-kitty-add';
+      create.setAttribute('aria-label', 'Create a custom Kitty');
+      create.innerHTML = '<span aria-hidden="true">＋</span><span>Create a Kitty</span>';
+      create.addEventListener('click', () => this.openModeSelector());
+      grid.appendChild(create);
     },
 
     openSettings() {
@@ -2557,6 +2784,7 @@
 
       this.closeAllModals();
       await this.loadConfig();
+      await this.loadAuthStatus();
     },
 
     // ─────────────────────────────────────────────────────────────────────
@@ -3273,13 +3501,26 @@
 
       try {
         const prof = await api.get('/api/user/profile');
+        const safeName = this.escapeHtml(prof.user?.name || 'Local user');
+        const safeEmail = this.escapeHtml(prof.user?.email || '');
+        const safeRole = this.escapeHtml(prof.user?.role || 'local');
+        const safeProvider = this.escapeHtml(prof.active_provider || 'unknown');
+        const safeModel = this.escapeHtml(prof.active_model || 'unknown');
+        const safeAppVersion = this.escapeHtml(prof.app?.version || 'unknown');
+        const safeTagline = this.escapeHtml(prof.app?.tagline || '');
+        const safeCreator = this.escapeHtml(prof.app?.creator || '');
+        const safeStack = this.escapeHtml(prof.app?.tech_stack || '');
+        const loginButton = document.getElementById('cct-auth-login-button');
+        const signoutButton = document.getElementById('cct-auth-signout-button');
+        if (loginButton) loginButton.style.display = prof.authenticated ? 'none' : '';
+        if (signoutButton) signoutButton.style.display = prof.authenticated ? '' : 'none';
         if (content) {
           content.innerHTML = `
             <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
               <div style="font-size: 32px;">🐱</div>
               <div>
-                <div style="font-size: 15px; font-weight: bold; color: var(--term-text);">${prof.user.name}</div>
-                <div style="font-size: 11.5px; color: var(--term-text-muted);">${prof.user.email} · Role: ${prof.user.role}</div>
+                <div style="font-size: 15px; font-weight: bold; color: var(--term-text);">${safeName}</div>
+                <div style="font-size: 11.5px; color: var(--term-text-muted);">${safeEmail} · Role: ${safeRole}</div>
                 <div style="font-size: 11px; color: ${prof.authenticated ? 'var(--color-green)' : 'var(--color-amber)'}; margin-top: 2px;">
                   ● ${prof.authenticated ? 'Authenticated via Fomoji' : 'Local Guest Mode'}
                 </div>
@@ -3289,11 +3530,11 @@
             <div class="cct-profile-grid">
               <div class="cct-profile-metric">
                 <div class="cct-profile-metric-title">Active AI Model</div>
-                <div class="cct-profile-metric-val" style="font-size: 12px;">${prof.active_provider.toUpperCase()} / ${prof.active_model}</div>
+                <div class="cct-profile-metric-val" style="font-size: 12px;">${safeProvider.toUpperCase()} / ${safeModel}</div>
               </div>
               <div class="cct-profile-metric">
                 <div class="cct-profile-metric-title">App Version</div>
-                <div class="cct-profile-metric-val" style="font-size: 12px;">${prof.app.short_name} v${prof.app.version}</div>
+                <div class="cct-profile-metric-val" style="font-size: 12px;">FATTY CAT v${safeAppVersion}</div>
               </div>
               <div class="cct-profile-metric">
                 <div class="cct-profile-metric-title">Durable Memory Facts</div>
@@ -3306,13 +3547,84 @@
             </div>
 
             <div style="margin-top: 14px; font-size: 11px; color: var(--term-text-faint); line-height: 1.4;">
-              ${prof.app.tagline}<br>
-              Creator: ${prof.app.creator} · Tech stack: ${prof.app.tech_stack}
+              ${safeTagline}<br>
+              Creator: ${safeCreator} · Tech stack: ${safeStack}
             </div>
           `;
         }
       } catch (e) {
         if (content) content.innerHTML = `<div style="padding: 10px; color: var(--color-red);">${e.message}</div>`;
+      }
+    },
+
+    async startFomojiLogin() {
+      if (this._activeAuthCode || this._authPollTimer) {
+        this.showToast('A Fomoji approval request is already active.', 'info');
+        return;
+      }
+      const button = document.getElementById('cct-auth-login-button');
+      const panel = document.getElementById('cct-auth-device-panel');
+      const status = document.getElementById('cct-auth-device-status');
+      if (button) { button.disabled = true; button.textContent = 'Starting secure sign-in…'; }
+      try {
+        const result = await api.post('/api/auth/device/start', {});
+        if (result.authenticated) {
+          await this.loadAuthStatus();
+          await this.openUserModal();
+          return;
+        }
+        if (panel) panel.hidden = false;
+        const code = document.getElementById('cct-auth-device-code');
+        const link = document.getElementById('cct-auth-device-link');
+        if (code) code.textContent = result.user_code;
+        if (link) link.href = result.verification_url;
+        if (status) status.textContent = 'Waiting for approval in Fomoji…';
+        this._authPollDeadline = Date.now() + (result.expires_in_seconds || 300) * 1000;
+        this._activeAuthCode = result.user_code;
+        this.pollFomojiLogin(result.user_code, (result.poll_interval_seconds || 3) * 1000);
+      } catch (error) {
+        this.showToast(`Fomoji sign-in could not start: ${error.message}`, 'error');
+      } finally {
+        if (button) { button.disabled = false; button.textContent = 'Connect Fomoji'; }
+      }
+    },
+
+    async pollFomojiLogin(userCode, intervalMs) {
+      const status = document.getElementById('cct-auth-device-status');
+      try {
+        const result = await api.post('/api/auth/device/poll', { user_code: userCode });
+        if (result.status === 'approved') {
+          clearTimeout(this._authPollTimer);
+          this._authPollTimer = null;
+          this._activeAuthCode = null;
+          if (status) status.textContent = 'Account connected. CAT now uses your Fomoji identity.';
+          const panel = document.getElementById('cct-auth-device-panel');
+          if (panel) panel.hidden = true;
+          await this.loadAuthStatus();
+          await this.openUserModal();
+          this.showToast('Fomoji account connected.', 'success');
+          return;
+        }
+        if (result.status === 'denied' || result.status === 'expired') {
+          clearTimeout(this._authPollTimer);
+          this._authPollTimer = null;
+          this._activeAuthCode = null;
+          if (status) status.textContent = result.message || (result.status === 'denied' ? 'The request was denied. You can try again.' : 'This code expired. Start sign-in again.');
+          return;
+        }
+        if (Date.now() >= (this._authPollDeadline || 0)) {
+          this._activeAuthCode = null;
+          if (status) status.textContent = 'This code expired. Start sign-in again.';
+          return;
+        }
+        this._authPollTimer = window.setTimeout(() => this.pollFomojiLogin(userCode, intervalMs), intervalMs);
+      } catch (error) {
+        if (status) status.textContent = `Could not check approval: ${error.message}. Retrying…`;
+        if (Date.now() < (this._authPollDeadline || 0)) {
+          this._authPollTimer = window.setTimeout(() => this.pollFomojiLogin(userCode, intervalMs), intervalMs);
+        } else {
+          this._activeAuthCode = null;
+        }
       }
     },
 
@@ -3322,6 +3634,9 @@
     },
 
     async confirmSignOut() {
+      clearTimeout(this._authPollTimer);
+      this._authPollTimer = null;
+      this._activeAuthCode = null;
       try {
         await api.post('/api/auth/logout');
         alert('Signed out successfully.');

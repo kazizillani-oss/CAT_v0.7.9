@@ -278,7 +278,9 @@ def test_tool_run_terminal_streaming_and_live_activity():
     import calc_terminal.activity as act_mod
     act_mod.set_current_turn("test-turn-automation")
 
-    res = agent._tool_run_terminal({"command": "python -c \"print('CAT_AUTO_TEST_OK')\""})
+    import sys
+    cmd_str = f'"{sys.executable}" -c "print(\'CAT_AUTO_TEST_OK\')"'
+    res = agent._tool_run_terminal({"command": cmd_str})
     assert "CAT_AUTO_TEST_OK" in res
     assert "✓ success" in res
 
@@ -694,7 +696,7 @@ def test_tool_run_terminal_devserver_detection_and_immediate_return(tmp_path):
         "time.sleep(10)\n",
         encoding="utf-8"
     )
-    cmd = f'echo npm run dev > nul & "{sys.executable}" "{mock_script}"'
+    cmd = f'echo npm run dev && "{sys.executable}" "{mock_script}"'
     t0 = time.time()
     res = agent._tool_run_terminal({"command": cmd, "timeout": 15})
     elapsed = time.time() - t0

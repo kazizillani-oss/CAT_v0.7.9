@@ -1,4 +1,4 @@
-﻿import asyncio, sys, os, traceback
+import asyncio, sys, os, traceback
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from textual.app import App
 from calc_terminal.ui import theme_css

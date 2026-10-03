@@ -1,4 +1,4 @@
-﻿"""v0.7.8.2 panel pilot: open every redesigned screen headlessly and
+"""v0.7.8.2 panel pilot: open every redesigned screen headlessly and
 check no exception/duplicate-id/mount failure occurs. Exercises:
 AttachPanel, McpServersPanel (+ Add form), BackupProvidersPanel
 (+ Add form), SettingsPanel, OpenWorkspaceScreen (untouched control).
