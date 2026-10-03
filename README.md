@@ -19,7 +19,7 @@
 
 CODING AGENT TERMINAL · v0.8.0b1 [beta]
 ```
-<img width="2778" height="1284" alt="Image" src="https://github.com/user-attachments/assets/9d6a3ecb-ea31-48ad-a77a-141fe3f6b9fa" />
+<img width="400" height="225" alt="Image" src="https://github.com/user-attachments/assets/8606180d-2b5c-441d-817a-031c32bfdba7" />
 
 [![CI](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml/badge.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/badge/version-0.8.0b1-blue.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9)
