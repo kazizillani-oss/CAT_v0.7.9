@@ -7,6 +7,8 @@
 </picture>
 <hr>
 <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="badge.svg">
+  <source media="(prefers-color-scheme: light)" srcset="badge.svg">
 <img alt="CAT — Coding Agent Terminal" src="badge.svg" width="820">
 </picture>
 
