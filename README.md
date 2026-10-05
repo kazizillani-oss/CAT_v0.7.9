@@ -12,7 +12,7 @@
 <img alt="CAT — Coding Agent Terminal" src="badge.svg" width="820">
 </picture>
 
-[![CI](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml/badge.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml)
+[![CLI](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml/badge.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/badge/version-0.8.0b1-blue.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9)
 [![VS Code Extension](https://img.shields.io/badge/VS%20Code%20Extension-v0.8.6-blue.svg)](https://marketplace.visualstudio.com/items?itemName=KaziZillani.cat-cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
