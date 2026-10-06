@@ -9,7 +9,7 @@
 <picture>
    <source media="(prefers-color-scheme: dark)" srcset="badge.svg">
   <source media="(prefers-color-scheme: light)" srcset="badge.svg">
-<img alt="CAT — Coding Agent Terminal" src="badge.svg" width="820">
+<img alt="CAT — Coding Agent Terminal" src="badge.svg" width="850">
 </picture>
 
 [![CLI](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml/badge.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml)
