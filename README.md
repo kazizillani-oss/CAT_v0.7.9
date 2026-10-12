@@ -6,11 +6,13 @@
   <img alt="CAT — Coding Agent Terminal" src="badge-mini.svg" width="820">
 </picture>
 <hr>
-<br>
+<picture>
+   <source media="(prefers-color-scheme: dark)" srcset="badge.svg">
+  <source media="(prefers-color-scheme: light)" srcset="badge.svg">
+<img alt="CAT — Coding Agent Terminal" src="badge.svg" width="850">
+</picture>
 
-<img width="2778" height="1284" alt="Image" src="https://github.com/user-attachments/assets/50b9df15-52a3-4f49-8547-b6d924a62aad" />
-
-[![CI](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml/badge.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml)
+[![CLI](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml/badge.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/badge/version-0.8.0b1-blue.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9)
 [![VS Code Extension](https://img.shields.io/badge/VS%20Code%20Extension-v0.8.6-blue.svg)](https://marketplace.visualstudio.com/items?itemName=KaziZillani.cat-cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -25,9 +27,9 @@
 ## ⚡ Quick Install
 
 CAT is distributed across multiple channels. Choose the method that best fits your workflow:
-
+<picture>
 <img width="480" height="270" alt="Image" src="https://github.com/user-attachments/assets/386f319d-dae9-465b-ae14-91b73e497d91" />
-
+</picture>
 ### Option 1: Install from PyPI (Recommended for most users)
 
 > **Status: Coming after PyPI release — not yet published.**
