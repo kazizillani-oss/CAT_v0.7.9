@@ -849,7 +849,10 @@ html.reduce-motion *::after{
   align-items:center;
   justify-content:center;
   gap:2px;
-  width:56px;
+  flex:1 1 auto;
+  min-width:48px;
+  max-width:140px;
+  width:auto;
   height:52px;
   border-radius:999px;
   border:none;

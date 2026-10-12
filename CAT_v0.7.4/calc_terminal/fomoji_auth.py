@@ -143,18 +143,32 @@ def _request(
         req.add_header("Authorization", f"Bearer {auth_token}")
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            raw = resp.read().decode("utf-8")
-            return json.loads(raw) if raw else {}
+            raw = resp.read().decode("utf-8", errors="replace")
+            if not raw or not raw.strip():
+                return {}
+            try:
+                return json.loads(raw)
+            except (json.JSONDecodeError, ValueError) as jde:
+                raise FomojiAuthError(
+                    f"Fomoji server returned non-JSON response from {base}{path}: {jde}"
+                ) from None
     except urllib.error.HTTPError as e:
-        raw = e.read().decode("utf-8")
         try:
-            parsed = json.loads(raw)
+            raw = e.read().decode("utf-8", errors="replace")
+        except Exception:
+            raw = ""
+        try:
+            parsed = json.loads(raw) if raw and raw.strip() else {}
             message = parsed.get("error", raw)
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, ValueError):
             message = raw or str(e)
         raise FomojiAuthError(f"Fomoji request failed ({e.code}): {message}") from None
     except urllib.error.URLError as e:
         raise FomojiAuthError(f"Could not reach Fomoji at {base}: {e.reason}") from None
+    except FomojiAuthError:
+        raise
+    except Exception as e:
+        raise FomojiAuthError(f"Fomoji request error: {e}") from None
 
 
 # ---------------------------------------------------------------------------
@@ -268,7 +282,7 @@ def _show_server_loading(quiet: bool = False):
     return _advance, _finish
 
 
-def ensure_fomoji_server(auto_start: bool = True, timeout: int = 18) -> bool:
+def ensure_fomoji_server(auto_start: bool = True, timeout: int = 35) -> bool:
     """Ensure Fomoji server is reachable. If not and auto_start is True,
     use the robust fomoji_manager to check dependencies, handle ports,
     and start the server. Never raises."""
@@ -287,16 +301,50 @@ def ensure_fomoji_server(auto_start: bool = True, timeout: int = 18) -> bool:
 
 
 def check_server_reachable(timeout: int = 4) -> bool:
-    """Best-effort liveness probe — hits a public endpoint, never auth."""
-    base = get_fomoji_url()
-    url = f"{base}/api/connector/applications"
-    req = urllib.request.Request(url, method="GET")
-    req.add_header("Content-Type", "application/json")
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return 200 <= resp.status < 400
-    except Exception:
-        return False
+    """Best-effort liveness probe — hits a public endpoint, verifies JSON response from Fomoji.
+    Probes candidate base URLs (base, localhost, 127.0.0.1) across Windows IPv4/IPv6 dual stack."""
+    base = get_fomoji_url().rstrip("/")
+    candidates = [base]
+    if "localhost" in base:
+        candidates.append(base.replace("localhost", "127.0.0.1"))
+    elif "127.0.0.1" in base:
+        candidates.append(base.replace("127.0.0.1", "localhost"))
+
+    probe_timeout = max(0.5, min(float(timeout), 2.0))
+    for cand_base in candidates:
+        url = f"{cand_base}/api/connector/applications"
+        req = urllib.request.Request(url, method="GET")
+        req.add_header("Accept", "application/json")
+        req.add_header("User-Agent", "CAT-Fomoji-Auth-Probe")
+        try:
+            with urllib.request.urlopen(req, timeout=probe_timeout) as resp:
+                if resp.status == 200:
+                    raw = resp.read().decode("utf-8", errors="replace")
+                    if raw and raw.strip():
+                        data = json.loads(raw)
+                        if isinstance(data, dict) and (
+                            "applications" in data or data.get("ok") is True or data.get("service") == "fomoji"
+                        ):
+                            return True
+        except Exception:
+            pass
+
+        # Fallback probe
+        for fallback_path in ("/index.html", "/"):
+            try:
+                fb_req = urllib.request.Request(f"{cand_base}{fallback_path}", method="GET")
+                with urllib.request.urlopen(fb_req, timeout=probe_timeout) as resp:
+                    if resp.status in (200, 302, 304):
+                        cookie_hdr = resp.headers.get("Set-Cookie", "")
+                        if "fomoji" in cookie_hdr.lower():
+                            return True
+                        content = resp.read(2048).decode("utf-8", errors="replace").lower()
+                        if "fomoji" in content:
+                            return True
+            except Exception:
+                pass
+
+    return False
 
 
 def status(force_refresh: bool = False) -> str:
@@ -335,10 +383,16 @@ def status(force_refresh: bool = False) -> str:
         )
     except FomojiAuthError as e:
         msg = str(e)
-        st = "server_unreachable" if "Could not reach Fomoji" in msg else "not_connected"
+        st = "server_unreachable" if any(k in msg for k in ("Could not reach Fomoji", "non-JSON response", "request error", "timed out")) else "not_connected"
         _STATUS_CACHE["status"] = st
         _STATUS_CACHE["ts"] = now
         return st
+    except Exception:
+        _STATUS_CACHE["status"] = "server_unreachable"
+        _STATUS_CACHE["ts"] = now
+        return "server_unreachable"
+    if not isinstance(result, dict):
+        result = {}
     s = result.get("status", "not_connected")
     if s != "connected":
         if s in ("expired", "not_connected"):
@@ -652,6 +706,11 @@ def _launch_cat_browser_for_verification(verification_url: str, user_code: str) 
             print(f"  Sign In: {sign_in_url}")
             print(f"  Sign Up: {sign_up_url}")
             print(f"  Approve in CAT's browser, then return here.")
+        try:
+            from .host.launcher import launch_cat_host
+            launch_cat_host(start_browser_url=sign_in_url, start_mode="browser", block=False)
+        except Exception:
+            pass
     except Exception:
         pass
 
@@ -1230,28 +1289,15 @@ def _auth_cli(argv=None) -> int:
         if not check_server_reachable():
             ensure_fomoji_server(auto_start=True, timeout=12)
         url = f"{get_fomoji_url()}/passkey.html"
-        print(f"\n  Opening Fomoji Passkey Authentication in browser...")
+        print(f"\n  Opening Fomoji Passkey Authentication in CAT browser...")
         print(f"  URL: {url}\n")
-        import webbrowser
-        print(f"  Launching system browser (Edge/Chrome) for Windows Hello / Passkey support...")
-        opened = False
-        if sys.platform == "win32":
-            try:
-                os.startfile(url)
-                opened = True
-            except Exception:
-                try:
-                    import subprocess
-                    subprocess.Popen(["cmd", "/c", "start", "", url], shell=True)
-                    opened = True
-                except Exception:
-                    pass
-        if not opened:
-            try:
-                webbrowser.open(url)
-            except Exception:
-                pass
-        return 0
+        try:
+            from .host.launcher import launch_cat_host
+            launch_cat_host(start_browser_url=url, start_mode="browser", block=False)
+            return 0
+        except Exception as e:
+            print(f"  [CAT Browser] Launch note: {e}")
+            return 1
 
     if action in ("config", "--config", "providers", "--providers", "oauth"):
         p_name = None
@@ -1332,11 +1378,14 @@ def _auth_cli(argv=None) -> int:
             device_code = start["deviceCode"]
             user_code = start["userCode"]
             sign_up_url = f"{get_fomoji_url()}/signup.html?redirect_uri=/connector.html&code={user_code}"
-            print(f"\n  Opening Fomoji Sign Up in browser...")
+            print(f"\n  Opening Fomoji Sign Up in CAT browser...")
             print(f"  Sign Up URL: {sign_up_url}")
             print(f"  Your Code: {user_code}\n")
-            import webbrowser
-            webbrowser.open(sign_up_url)
+            try:
+                from .host.launcher import launch_cat_host
+                launch_cat_host(start_browser_url=sign_up_url, start_mode="browser", block=False)
+            except Exception:
+                pass
             _print_device_prompt(user_code, sign_up_url)
             deadline = time.monotonic() + 300
             while time.monotonic() < deadline:
@@ -1402,9 +1451,12 @@ def _auth_cli(argv=None) -> int:
                     return _auth_cli(["passkey"])
                 elif choice == "2":
                     url = f"{get_fomoji_url()}/index.html"
-                    print(f"\n  Opening OAuth login at {url} ...")
-                    import webbrowser
-                    webbrowser.open(url)
+                    print(f"\n  Opening OAuth login at {url} in CAT browser...")
+                    try:
+                        from .host.launcher import launch_cat_host
+                        launch_cat_host(start_browser_url=url, start_mode="browser", block=False)
+                    except Exception:
+                        pass
                     # And start device flow for completion
                     choice = "3"
                 elif choice == "4":

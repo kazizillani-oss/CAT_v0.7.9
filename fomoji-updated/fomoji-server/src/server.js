@@ -10,6 +10,7 @@ const {
   securityHeadersMiddleware,
   corsMiddleware,
   errorHandler,
+  catBrowserExclusivityMiddleware,
 } = require('./security');
 
 const webauthnRouter = require('./routes/webauthn');
@@ -104,6 +105,9 @@ app.all('/api/open-system-browser', (req, res) => {
 // Serve Archify interactive architecture & workflow diagrams
 const archifyDir = path.resolve(__dirname, '../../../.archify');
 app.use('/archify', express.static(archifyDir, { dotfiles: 'allow' }));
+
+// Exclusively protect Fomoji front-end: only accessible within CAT Browser
+app.use(catBrowserExclusivityMiddleware);
 
 // The Fomoji static front-end with dotfiles blocked
 app.use(express.static(path.join(__dirname, '..', 'public'), { dotfiles: 'ignore', index: ['index.html'] }));

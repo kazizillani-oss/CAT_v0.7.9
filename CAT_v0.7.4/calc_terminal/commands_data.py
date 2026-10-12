@@ -92,6 +92,8 @@ COMMANDS = [
     ("/cat", "Open CAT Browser (Chromium / Qt WebEngine) — our own browser"),
     ("/browser open", "Open a URL in CAT Browser"),
     ("/browser search", "Search the web in CAT Browser (Google/DuckDuckGo)"),
+    ("/mascot", "Page Mascot Studio — interactive Otter & Fatty Cat cursor mascots"),
+    ("/mascots", "Alias for /mascot — launch or switch page mascots"),
     ("/signout", "Sign out of Fomoji — clear CAT session"),
     ("/logout", "Alias for /signout"),
     ("/todo", "NEW AI Todo Manager — manual + AI-detected tasks, per project"),

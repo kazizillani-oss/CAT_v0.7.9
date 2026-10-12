@@ -183,11 +183,38 @@ class AgentRegistry:
                     self._persist_state_overrides()
             return agent
 
+    def validate_agent(self, agent: AgentSpec) -> tuple[bool, str]:
+        """Validates an AgentSpec configuration. Returns (is_valid, error_message)."""
+        if not agent.id or not isinstance(agent.id, str) or not agent.id.strip():
+            return False, "Agent ID cannot be empty."
+        if not re.match(r"^[a-zA-Z0-9_\-\.]+$", agent.id):
+            return False, f"Invalid agent ID '{agent.id}': must contain only alphanumeric characters, dashes, dots, and underscores."
+        if not agent.name or not isinstance(agent.name, str) or not agent.name.strip():
+            return False, "Agent display name cannot be empty."
+        valid_modes = {"notebook", "build", "research", "plan", "debugger", "agent"}
+        if agent.primary_mode and agent.primary_mode.lower() not in valid_modes:
+            return False, f"Invalid primary mode '{agent.primary_mode}'. Valid modes: {', '.join(sorted(valid_modes))}."
+        if agent.permissions and isinstance(agent.permissions, dict):
+            level = agent.permissions.get("level", "restricted")
+            if level not in ("ask", "restricted", "full"):
+                return False, f"Invalid permission level '{level}'. Must be 'ask', 'restricted', or 'full'."
+        return True, "Valid"
+
     def get(self, agent_id: str) -> Optional[AgentSpec]:
-        """Look up an agent by ID."""
+        """Look up an agent by ID or Name (case-insensitive)."""
+        if not agent_id:
+            return None
         self._ensure_loaded()
         with _REGISTRY_LOCK:
-            return self._custom.get(agent_id) or self._builtin.get(agent_id)
+            key = agent_id.lower().strip()
+            if key in self._custom:
+                return self._custom[key]
+            if key in self._builtin:
+                return self._builtin[key]
+            for a in list(self._custom.values()) + list(self._builtin.values()):
+                if a.id.lower() == key or a.name.lower() == key:
+                    return a
+            return None
 
     def list(self, include_disabled: bool = True, category: Optional[str] = None) -> List[AgentSpec]:
         """Lists all registered agents."""

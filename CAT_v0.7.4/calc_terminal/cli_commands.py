@@ -261,20 +261,24 @@ def agents_cli(argv: List[str]) -> int:
             else:
                 prompt = "Hello"
 
-        from . import aicore
         from . import ai_modes
+        from . import agent as agent_runner
         ai_modes.set_active_agent(aid)
         print(f"Running turn with {ag.icon} {ag.name} [{ag.primary_mode}]...")
-        sys_prompt = ag.system_instructions or f"You are {ag.name}."
-        res = aicore.query_ai(prompt=prompt, system_prompt=sys_prompt, mode=ag.primary_mode)
-        txt = res.get("text", "")
+        # Agent definitions need the tool loop, not a plain text completion.
+        # Besides enabling Kitty tools, this avoids treating query_ai's text
+        # return value as a response dictionary (which made this command fail).
+        txt, steps, _meta = agent_runner.run_agent(
+            prompt,
+            mode=ag.primary_mode,
+            verbose=True,
+            agent_spec=ag,
+        )
         if txt:
             print(f"\n{txt}\n")
-            return 0
-        elif res.get("error"):
-            print(f"Agent turn error: {res['error']}", file=sys.stderr)
-            return 1
-        return 0
+        if steps:
+            print(f"  ({len(steps)} tool step(s) run)")
+        return 1 if not txt else 0
 
     if sub == "memory":
         if len(args) < 2:
@@ -1319,5 +1323,339 @@ def experiment_cli(argv: List[str]) -> int:
             return 1
 
     print(f"Unknown experiment command: {sub}. Run `cat experiment --help`.", file=sys.stderr)
+    return 1
+
+
+def kitties_cli(argv: List[str]) -> int:
+    """Alias for agents_cli to manage Kitties."""
+    return agents_cli(argv)
+
+
+def scheduler_cli(argv: List[str]) -> int:
+    """Handles `cat schedule` / `cat tasks` background task operations."""
+    from .tasks.scheduler import task_scheduler, TaskStatus
+
+    args = argv[1:] if argv and argv[0] in ("schedule", "--schedule", "tasks", "--tasks") else argv
+    sub = args[0].lower() if args else "list"
+
+    if sub in ("--help", "-h", "help"):
+        print("Usage: cat schedule [command] [options]")
+        print("\nCommands:")
+        print("  list (default)      List all scheduled and background tasks")
+        print("  add <name> <agent> <objective> [--interval <sec>]  Schedule a task")
+        print("  run <task_id>       Execute task immediately")
+        print("  pause <task_id>     Pause a task")
+        print("  resume <task_id>    Resume a paused task")
+        print("  cancel <task_id>    Cancel a task")
+        print("  delete <task_id>    Remove a task definition")
+        return 0
+
+    if sub in ("list", "ls"):
+        tasks = task_scheduler.list_tasks()
+        print("=" * 78)
+        print("                       CAT SCHEDULED TASKS")
+        print("=" * 78)
+        if not tasks:
+            print("  No tasks currently scheduled.")
+            return 0
+        print(f"  {'ID':<14} | {'Name':<22} | {'Agent':<8} | {'Type':<10} | {'Status'}")
+        print("  " + "-" * 74)
+        for t in tasks:
+            print(f"  {t.task_id:<14} | {t.name[:22]:<22} | {t.agent_id:<8} | {t.schedule_type:<10} | {t.status.value}")
+        return 0
+
+    if sub in ("run", "exec"):
+        if len(args) < 2:
+            print("Usage: cat schedule run <task_id>", file=sys.stderr)
+            return 1
+        tid = args[1]
+        res = task_scheduler.execute_task_now(tid)
+        print(f"Execution result: {res}")
+        return 0
+
+    if sub in ("pause", "stop"):
+        if len(args) < 2:
+            print("Usage: cat schedule pause <task_id>", file=sys.stderr)
+            return 1
+        ok = task_scheduler.pause_task(args[1])
+        print(f"{'Paused' if ok else 'Failed to pause'} task {args[1]}.")
+        return 0
+
+    if sub in ("resume", "start"):
+        if len(args) < 2:
+            print("Usage: cat schedule resume <task_id>", file=sys.stderr)
+            return 1
+        ok = task_scheduler.resume_task(args[1])
+        print(f"{'Resumed' if ok else 'Failed to resume'} task {args[1]}.")
+        return 0
+
+    if sub in ("cancel", "kill"):
+        if len(args) < 2:
+            print("Usage: cat schedule cancel <task_id>", file=sys.stderr)
+            return 1
+        ok = task_scheduler.cancel_task(args[1])
+        print(f"{'Cancelled' if ok else 'Failed to cancel'} task {args[1]}.")
+        return 0
+
+    print(f"Unknown scheduler command: {sub}. Run `cat schedule --help`.", file=sys.stderr)
+    return 1
+
+
+# -----------------------------------------------------------------------------
+# 6. Extensions, Skills & Commands CLI
+# -----------------------------------------------------------------------------
+
+def extensions_cli(argv: List[str]) -> int:
+    """Handles `cat extensions` and `cat extension` operations."""
+    from . import extensions as ext_mgr
+    from .extension_installer import CURATED_CATALOGUE
+
+    args = argv[1:] if argv and argv[0] in ("extensions", "--extensions", "extension", "--extension") else argv
+    sub = args[0].lower() if args else "list"
+
+    if sub in ("--help", "-h", "help"):
+        print("Usage: cat extensions [command] [options]")
+        print("\nCommands:")
+        print("  list (default)      List all installed and available extensions")
+        print("  info <id>           View detailed metadata for a component")
+        print("  install <repo/url>  Install extension/skill/command from GitHub or catalogue")
+        print("  uninstall <id>      Uninstall extension and remove managed files")
+        print("  enable <id>         Enable an extension")
+        print("  disable <id>        Disable an extension")
+        print("  update <id>         Check and apply updates for an extension")
+        print("  catalogue           Browse curated CAT extensions, skills, and commands")
+        return 0
+
+    if sub in ("list", "ls"):
+        ctype = None
+        if "--type" in args:
+            idx = args.index("--type")
+            if idx + 1 < len(args):
+                ctype = args[idx + 1]
+
+        exts = ext_mgr.list_extensions(component_type=ctype)
+        print("=" * 80)
+        print("                     CAT EXTENSIONS & COMPONENT REGISTRY")
+        print("=" * 80)
+        print(f"  {'#':<3} | {'Type':<8} | {'ID':<24} | {'Name':<20} | {'Ver':<7} | {'Status'}")
+        print("  " + "-" * 76)
+        for i, e in enumerate(exts):
+            t_str = str(e.get("type", "ext")).upper()[:7]
+            st_str = "● Enabled" if e.get("enabled") and e.get("installed") else "○ Disabled" if e.get("installed") else "○ Available"
+            print(f"  {i+1:<3} | {t_str:<8} | {e['id']:<24} | {e['name'][:18]:<20} | v{e.get('version', '1.0'):<6} | {st_str}")
+        print("=" * 80)
+        print(f"Total Components: {len(exts)}")
+        print("Commands: cat extensions info <id> | cat extensions install <repo> | cat extensions update <id>")
+        return 0
+
+    if sub in ("info", "details", "show"):
+        if len(args) < 2:
+            print("Usage: cat extensions info <extension_id>", file=sys.stderr)
+            return 1
+        eid = args[1]
+        m = ext_mgr.get_metadata(eid)
+        if not m:
+            print(f"Extension '{eid}' not found.", file=sys.stderr)
+            return 1
+        print("=" * 64)
+        print(f"  {m.get('icon', '🧩')} {m.get('name')} ({m.get('id')})")
+        print("=" * 64)
+        print(f"  Type           : {m.get('type', 'extension').upper()}")
+        print(f"  Version        : v{m.get('version', '1.0.0')}")
+        print(f"  Status         : {m.get('state')}")
+        print(f"  Publisher      : {m.get('publisher', 'Unknown')} ({'✓ Verified' if m.get('publisher_verified') else 'Unverified'})")
+        if m.get('published_at'):
+            print(f"  Published Date : {m.get('published_at')}")
+        if m.get('install_time'):
+            t_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(m.get('install_time')))
+            print(f"  Installed Date : {t_str}")
+        print(f"  Source         : {m.get('install_source', 'local')}")
+        print(f"  Category       : {m.get('category', 'General')}")
+        print(f"  Size           : {m.get('size_display', '?')}")
+        if m.get('permissions'):
+            print(f"  Permissions    : {', '.join(m.get('permissions'))}")
+        if m.get('dependencies'):
+            print(f"  Dependencies   : {', '.join(m.get('dependencies'))}")
+        print(f"\n  Description:\n    {m.get('description')}")
+        return 0
+
+    if sub in ("install", "add"):
+        if len(args) < 2:
+            print("Usage: cat extensions install <github_url_or_slug_or_id>", file=sys.stderr)
+            return 1
+        target = args[1]
+        print(f"Inspecting and installing '{target}'...")
+        # Check if built-in
+        if target in ext_mgr.BUILTIN_EXTENSIONS:
+            ok, msg = ext_mgr.install(target)
+        else:
+            ok, msg = ext_mgr.install_from_github(target)
+        if ok:
+            print(msg)
+            return 0
+        else:
+            print(f"Installation failed: {msg}", file=sys.stderr)
+            return 1
+
+    if sub in ("uninstall", "remove", "rm"):
+        if len(args) < 2:
+            print("Usage: cat extensions uninstall <extension_id> [--force]", file=sys.stderr)
+            return 1
+        eid = args[1]
+        force = "--force" in args
+        ok, msg = ext_mgr.uninstall(eid, force=force)
+        if ok:
+            print(msg)
+            return 0
+        else:
+            print(f"Uninstallation failed: {msg}", file=sys.stderr)
+            return 1
+
+    if sub == "enable":
+        if len(args) < 2:
+            print("Usage: cat extensions enable <extension_id>", file=sys.stderr)
+            return 1
+        ok, msg = ext_mgr.enable(args[1])
+        if ok:
+            print(msg)
+            return 0
+        else:
+            print(f"Enable failed: {msg}", file=sys.stderr)
+            return 1
+
+    if sub == "disable":
+        if len(args) < 2:
+            print("Usage: cat extensions disable <extension_id>", file=sys.stderr)
+            return 1
+        ok, msg = ext_mgr.disable(args[1])
+        if ok:
+            print(msg)
+            return 0
+        else:
+            print(f"Disable failed: {msg}", file=sys.stderr)
+            return 1
+
+    if sub in ("update", "upgrade"):
+        if len(args) < 2:
+            print("Usage: cat extensions update <extension_id>", file=sys.stderr)
+            return 1
+        eid = args[1]
+        print(f"Checking updates for '{eid}'...")
+        has_up, cur_v, new_v, det = ext_mgr.check_for_updates(eid)
+        if not has_up:
+            print(f"'{eid}' is already up to date (v{cur_v}).")
+            return 0
+        print(f"Update available: v{cur_v} -> v{new_v}. Updating...")
+        ok, msg = ext_mgr.update(eid)
+        if ok:
+            print(msg)
+            return 0
+        else:
+            print(f"Update failed: {msg}", file=sys.stderr)
+            return 1
+
+    if sub in ("catalogue", "catalog", "search"):
+        print("=" * 80)
+        print("                     CURATED CAT EXTENSION CATALOGUE")
+        print("=" * 80)
+        print(f"  {'#':<3} | {'Type':<8} | {'ID':<26} | {'Version':<8} | {'Description'}")
+        print("  " + "-" * 76)
+        for i, c in enumerate(CURATED_CATALOGUE):
+            inst = " (Installed)" if ext_mgr.is_installed(c["id"]) else ""
+            print(f"  {i+1:<3} | {c['type'].upper():<8} | {c['id']:<26} | v{c['version']:<7} | {c['description'][:30]}...{inst}")
+        print("=" * 80)
+        print("To install: cat extensions install <catalogue_id>")
+        return 0
+
+    print(f"Unknown extensions command: {sub}. Run `cat extensions --help`.", file=sys.stderr)
+    return 1
+
+
+def skills_cli(argv: List[str]) -> int:
+    """Handles `cat skills` CLI operations."""
+    from .skills.registry import get_skill_registry
+
+    reg = get_skill_registry()
+    args = argv[1:] if argv and argv[0] in ("skills", "--skills", "skill", "--skill") else argv
+    sub = args[0].lower() if args else "list"
+
+    if sub in ("--help", "-h", "help"):
+        print("Usage: cat skills [command] [options]")
+        print("\nCommands:")
+        print("  list (default)      List all skills available to Kitties")
+        print("  info <id>           View instructions and tool requirements for a skill")
+        return 0
+
+    if sub in ("list", "ls"):
+        skills = reg.list_skills()
+        print("=" * 80)
+        print("                         CAT SKILLS REGISTRY")
+        print("=" * 80)
+        print(f"  {'#':<3} | {'ID':<28} | {'Category':<12} | {'Tools':<15} | {'State'}")
+        print("  " + "-" * 76)
+        for i, s in enumerate(skills):
+            st = "● Enabled" if s.enabled else "○ Disabled"
+            tools_str = f"{len(s.required_tools)} tools"
+            print(f"  {i+1:<3} | {s.id:<28} | {s.category:<12} | {tools_str:<15} | {st}")
+        print("=" * 80)
+        print(f"Total Skills: {len(skills)}")
+        return 0
+
+    if sub in ("info", "show"):
+        if len(args) < 2:
+            print("Usage: cat skills info <skill_id>", file=sys.stderr)
+            return 1
+        s = reg.get(args[1])
+        if not s:
+            print(f"Skill '{args[1]}' not found.", file=sys.stderr)
+            return 1
+        print("=" * 64)
+        print(f"  SKILL: {s.name} ({s.id})")
+        print("=" * 64)
+        print(f"  Category    : {s.category}")
+        print(f"  Version     : v{s.version}")
+        print(f"  Built-in    : {'Yes' if s.builtin else 'No'}")
+        print(f"  Enabled     : {'Yes' if s.enabled else 'No'}")
+        print(f"  Tools       : {', '.join(s.required_tools) if s.required_tools else 'None'}")
+        print(f"\n  Description:\n    {s.description}")
+        if s.instructions:
+            print(f"\n  Kitty Instructions:\n    {s.instructions}")
+        return 0
+
+    print(f"Unknown skills command: {sub}. Run `cat skills --help`.", file=sys.stderr)
+    return 1
+
+
+def commands_cli(argv: List[str]) -> int:
+    """Handles `cat commands` CLI operations."""
+    from .commands_registry import get_command_registry
+
+    reg = get_command_registry()
+    args = argv[1:] if argv and argv[0] in ("commands", "--commands", "command", "--command") else argv
+    sub = args[0].lower() if args else "list"
+
+    if sub in ("--help", "-h", "help"):
+        print("Usage: cat commands [command] [options]")
+        print("\nCommands:")
+        print("  list (default)      List all registered custom CLI commands")
+        return 0
+
+    if sub in ("list", "ls"):
+        cmds = reg.list_commands(include_disabled=True)
+        print("=" * 80)
+        print("                       CAT CUSTOM COMMANDS REGISTRY")
+        print("=" * 80)
+        if not cmds:
+            print("  No custom commands installed. Install from extensions or GitHub!")
+            return 0
+        print(f"  {'#':<3} | {'Command':<18} | {'Extension':<24} | {'Usage':<20} | {'State'}")
+        print("  " + "-" * 76)
+        for i, c in enumerate(cmds):
+            st = "● Enabled" if c.enabled else "○ Disabled"
+            print(f"  {i+1:<3} | cat {c.name:<14} | {c.extension_id:<24} | {c.usage[:18]:<20} | {st}")
+        print("=" * 80)
+        return 0
+
+    print(f"Unknown commands command: {sub}. Run `cat commands --help`.", file=sys.stderr)
     return 1
 

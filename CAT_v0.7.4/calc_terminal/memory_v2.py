@@ -68,6 +68,7 @@ class Memory:
     confidence: float = 1.0
     last_used: float = 0.0
     project_path: str = ""
+    status: str = "approved"
 
     def __post_init__(self):
         now = time.time()
@@ -88,13 +89,14 @@ class Memory:
 
 
 class MemoryManager:
-    """Manages session, long-term, and per-project memory."""
+    """Manages session, task, long-term, and per-project memory with governance."""
 
     def __init__(self, memory_dir: Optional[str] = None):
         self.memory_dir = memory_dir or os.path.join(os.path.expanduser("~"), ".cct_memory_v2")
         os.makedirs(self.memory_dir, exist_ok=True)
 
         self._session: List[Dict[str, str]] = []
+        self._task_memories: Dict[str, List[Dict[str, Any]]] = {}
 
         self._db_path = os.path.join(self.memory_dir, "cct_memory.db")
         self._init_db()
@@ -124,10 +126,15 @@ class MemoryManager:
                     importance REAL DEFAULT 0.5,
                     confidence REAL DEFAULT 1.0,
                     last_used REAL DEFAULT 0.0,
-                    project_path TEXT DEFAULT ''
+                    project_path TEXT DEFAULT '',
+                    status TEXT DEFAULT 'approved'
                 )
                 """
             )
+            try:
+                conn.execute("ALTER TABLE memories ADD COLUMN status TEXT DEFAULT 'approved'")
+            except sqlite3.OperationalError:
+                pass
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_memories_category ON memories(category)"
             )
@@ -157,6 +164,28 @@ class MemoryManager:
         """Clear all session turns."""
         self._session.clear()
 
+    # ── Task memory (isolated per-task) ───────────────────────────────────
+
+    def store_task_fact(self, task_id: str, fact: str, category: str = "general") -> None:
+        """Store an isolated fact for a specific active task execution."""
+        if not task_id:
+            return
+        sanitized = _sanitize_content(fact)
+        entry = {
+            "fact": sanitized,
+            "category": category,
+            "timestamp": time.time(),
+        }
+        self._task_memories.setdefault(task_id, []).append(entry)
+
+    def get_task_context(self, task_id: str) -> List[Dict[str, Any]]:
+        """Return all isolated facts recorded for task_id."""
+        return list(self._task_memories.get(task_id, []))
+
+    def clear_task_memory(self, task_id: str) -> None:
+        """Clear task facts once task is completed or aborted."""
+        self._task_memories.pop(task_id, None)
+
     # ── Long-term memory (SQLite) ─────────────────────────────────────────
 
     def store_memory(
@@ -166,6 +195,7 @@ class MemoryManager:
         importance: float = 0.5,
         confidence: float = 1.0,
         source: str = "user",
+        status: str = "approved",
     ) -> Memory:
         """Store a new memory record. Returns the created Memory."""
         if category not in VALID_CATEGORIES:
@@ -178,6 +208,7 @@ class MemoryManager:
             source=source,
             importance=importance,
             confidence=confidence,
+            status=status,
         )
 
         conn = self._get_db()
@@ -185,13 +216,14 @@ class MemoryManager:
             conn.execute(
                 """
                 INSERT INTO memories (id, category, content, source, created_at,
-                                      updated_at, importance, confidence, last_used, project_path)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                      updated_at, importance, confidence, last_used, project_path, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     mem.id, mem.category, mem.content, mem.source,
                     mem.created_at, mem.updated_at, mem.importance,
                     mem.confidence, mem.last_used, mem.project_path,
+                    mem.status,
                 ),
             )
             conn.commit()
@@ -317,7 +349,7 @@ class MemoryManager:
         """Update fields on an existing memory. Returns updated Memory or None."""
         allowed = {
             "category", "content", "source", "importance",
-            "confidence", "project_path", "last_used",
+            "confidence", "project_path", "last_used", "status",
         }
         updates = {k: v for k, v in kwargs.items() if k in allowed}
         if not updates:
@@ -347,6 +379,99 @@ class MemoryManager:
             return Memory(**dict(row)) if row else None
         finally:
             conn.close()
+
+    def inspect_memory(self, memory_id: str) -> Optional[Dict[str, Any]]:
+        """Inspect a specific memory record by ID with full metadata."""
+        conn = self._get_db()
+        try:
+            row = conn.execute("SELECT * FROM memories WHERE id = ?", (memory_id,)).fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
+
+    def correct_memory(self, memory_id: str, new_content: str) -> Optional[Memory]:
+        """User-approved correction of memory content with sanitization."""
+        return self.update_memory(memory_id, content=new_content)
+
+    def approve_memory(self, memory_id: str) -> bool:
+        """Mark a suggested memory as user-approved."""
+        res = self.update_memory(memory_id, status="approved")
+        return res is not None
+
+    def get_approved_preferences(self) -> List[Memory]:
+        """Retrieve user-approved preferences."""
+        conn = self._get_db()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM memories WHERE category LIKE '%preference%' AND status = 'approved' ORDER BY importance DESC"
+            ).fetchall()
+            return [Memory(**dict(r)) for r in rows]
+        finally:
+            conn.close()
+
+    def delete_by_category(self, category: str) -> int:
+        """Delete all memories in a given category. Returns count deleted."""
+        conn = self._get_db()
+        try:
+            cur = conn.execute("DELETE FROM memories WHERE category = ?", (category,))
+            conn.commit()
+            return cur.rowcount
+        finally:
+            conn.close()
+
+    def export_memories(
+        self,
+        format: str = "json",
+        category: Optional[str] = None,
+        project_path: Optional[str] = None,
+    ) -> str:
+        """Export all governed memories (session, task, long-term, project) in json or markdown format."""
+        all_ltm = self.get_all_memories()
+        if category:
+            all_ltm = [m for m in all_ltm if m.category == category]
+
+        data = {
+            "session_turns": self._session,
+            "tasks": self._task_memories,
+            "long_term_memories": [m.to_dict() for m in all_ltm],
+            "projects": self._project_memories if not project_path else {
+                project_path: self.get_project_context(project_path)
+            },
+        }
+
+        if format.lower() == "json":
+            return json.dumps(data, indent=2, ensure_ascii=False)
+
+        lines = ["# CAT CLI Governed Memory Export", ""]
+        lines.append("## Long-Term Memories")
+        if not all_ltm:
+            lines.append("_No long-term memories found._\n")
+        else:
+            for m in all_ltm:
+                lines.append(f"- **[{m.category}]** (ID: `{m.id}`, Status: `{m.status}`, Imp: {m.importance}): {m.content}")
+            lines.append("")
+
+        lines.append("## Active Task Memories")
+        if not self._task_memories:
+            lines.append("_No active task memories._\n")
+        else:
+            for tid, facts in self._task_memories.items():
+                lines.append(f"### Task: `{tid}`")
+                for f in facts:
+                    lines.append(f"- [{f.get('category', 'general')}]: {f.get('fact', '')}")
+            lines.append("")
+
+        lines.append("## Project Facts")
+        if not self._project_memories:
+            lines.append("_No project facts._\n")
+        else:
+            for p, facts in self._project_memories.items():
+                lines.append(f"### Project: `{p}`")
+                for f in facts:
+                    lines.append(f"- [{f.get('category', 'general')}]: {f.get('fact', '')}")
+            lines.append("")
+
+        return "\n".join(lines)
 
     # ── Project memory (per-project JSON) ─────────────────────────────────
 

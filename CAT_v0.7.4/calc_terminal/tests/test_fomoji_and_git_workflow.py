@@ -317,3 +317,63 @@ def test_gitignore_protects_secrets_and_caches(tmp_path):
         assert "__pycache__/" in content
         assert "*.sqlite" in content
         assert "node_modules/" in content
+
+
+# ============================================================================
+# 15. Non-JSON response / HTML error handling (prevents JSONDecodeError crashes)
+# ============================================================================
+def test_fomoji_request_non_json_raises_fomoji_auth_error():
+    from calc_terminal.fomoji_auth import _request, FomojiAuthError
+    html_response = b"<!DOCTYPE html><html><body>Error</body></html>"
+    mock_resp = MagicMock()
+    mock_resp.read.return_value = html_response
+    mock_resp.__enter__.return_value = mock_resp
+
+    with patch("urllib.request.urlopen", return_value=mock_resp):
+        with pytest.raises(FomojiAuthError) as exc_info:
+            _request("GET", "/api/connector/status")
+        assert "non-JSON response" in str(exc_info.value)
+
+
+def test_fomoji_status_graceful_on_non_json():
+    from calc_terminal.fomoji_auth import status, _STATUS_CACHE
+    html_response = b"<!DOCTYPE html><html><body>Error</body></html>"
+    mock_resp = MagicMock()
+    mock_resp.read.return_value = html_response
+    mock_resp.__enter__.return_value = mock_resp
+
+    _STATUS_CACHE["status"] = None
+    _STATUS_CACHE["ts"] = 0.0
+
+    with patch("calc_terminal.fomoji_auth._load_local", return_value={"token": "fake_tok"}), \
+         patch("urllib.request.urlopen", return_value=mock_resp):
+        st = status(force_refresh=True)
+        assert st == "server_unreachable"
+
+
+def test_check_server_reachable_rejects_html():
+    from calc_terminal.fomoji_auth import check_server_reachable as auth_probe
+    from calc_terminal.fomoji_manager import check_server_reachable as mgr_probe
+
+    html_resp = MagicMock()
+    html_resp.status = 200
+    html_resp.read.return_value = b"<!DOCTYPE html><html>Remotion Studio</html>"
+    html_resp.__enter__.return_value = html_resp
+
+    with patch("urllib.request.urlopen", return_value=html_resp):
+        assert auth_probe() is False
+        assert mgr_probe() is False
+
+
+def test_check_server_reachable_accepts_valid_fomoji():
+    from calc_terminal.fomoji_auth import check_server_reachable as auth_probe
+    from calc_terminal.fomoji_manager import check_server_reachable as mgr_probe
+
+    json_resp = MagicMock()
+    json_resp.status = 200
+    json_resp.read.return_value = b'{"applications": [{"applicationId": "cat"}]}'
+    json_resp.__enter__.return_value = json_resp
+
+    with patch("urllib.request.urlopen", return_value=json_resp):
+        assert auth_probe() is True
+        assert mgr_probe() is True

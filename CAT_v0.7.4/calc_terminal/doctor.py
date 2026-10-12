@@ -567,13 +567,21 @@ def report(fix=False):
     except Exception as e:
         print(f"    Storage Err : {e}")
 
-    # --- Extensions -----------------------------------------------------
-    print("[14] Extensions & Customization:")
+    # --- Extensions, Skills & Custom Commands ---------------------------
+    print("[14] Extensions, Skills & Commands:")
     try:
         from . import extensions
-        all_exts = extensions.discover() if hasattr(extensions, "discover") else []
-        en_ext = sum(1 for x in all_exts if extensions.is_enabled(x.get("id", "")))
+        from .skills.registry import get_skill_registry
+        from .commands_registry import get_command_registry
+        all_exts = extensions.list_extensions()
+        en_ext = sum(1 for x in all_exts if x.get("enabled") and x.get("installed"))
         print(f"    Extensions  : {len(all_exts)} registered ({en_ext} enabled)")
+        skills = get_skill_registry().list_skills()
+        en_skills = sum(1 for s in skills if s.enabled)
+        print(f"    Skills      : {len(skills)} loaded for Kitties ({en_skills} active)")
+        cmds = get_command_registry().list_commands(include_disabled=True)
+        en_cmds = sum(1 for c in cmds if c.enabled)
+        print(f"    CLI Commands: {len(cmds)} custom commands ({en_cmds} enabled)")
     except Exception as e:
         print(f"    Ext Err     : {e}")
 

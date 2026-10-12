@@ -241,25 +241,57 @@
   }
 
   /* ------------------------------------------------------------------
-     Eye tracking (pointer) — cheap: only active within a radius, off
-     entirely while asleep/disabled/reduced motion.
+     Eye tracking (pointer) — smooth RAF with deadband and cached center
      ------------------------------------------------------------------ */
+  var eyeRaf = 0;
+  var targetEyeClientX = 0, targetEyeClientY = 0;
+  var cachedCenter = null;
+  var lastCenterTime = 0;
+  var lastEyeX = 0, lastEyeY = 0;
+
   function onDocPointerMove(e) {
     if (!el || !current.interactive || !current.animate || reduceMotion() || isSleeping()) return;
-    var rect = el.getBoundingClientRect();
-    var cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
-    var dx = e.clientX - cx, dy = e.clientY - cy;
+    targetEyeClientX = e.clientX;
+    targetEyeClientY = e.clientY;
+    if (!eyeRaf) {
+      eyeRaf = window.requestAnimationFrame(updateEyesRaf);
+    }
+  }
+
+  function updateEyesRaf() {
+    eyeRaf = 0;
+    if (!el || !current.interactive || !current.animate || reduceMotion() || isSleeping()) return;
+    var now = Date.now();
+    if (!cachedCenter || (now - lastCenterTime > 400)) {
+      var rect = el.getBoundingClientRect();
+      cachedCenter = { cx: rect.left + rect.width / 2, cy: rect.top + rect.height / 2 };
+      lastCenterTime = now;
+    }
+    var dx = targetEyeClientX - cachedCenter.cx, dy = targetEyeClientY - cachedCenter.cy;
     var dist = Math.sqrt(dx * dx + dy * dy);
     if (dist > 280) { recenterEyes(); return; }
     var maxShift = 2.6;
-    setEyeOffset(Math.max(-1, Math.min(1, dx / 140)) * maxShift, Math.max(-1, Math.min(1, dy / 140)) * maxShift);
+    var x = Math.max(-1, Math.min(1, dx / 140)) * maxShift;
+    var y = Math.max(-1, Math.min(1, dy / 140)) * maxShift;
+    if (Math.abs(x - lastEyeX) < 0.12 && Math.abs(y - lastEyeY) < 0.12) return;
+    lastEyeX = x;
+    lastEyeY = y;
+    setEyeOffset(x, y);
   }
+
   function setEyeOffset(x, y) {
     if (!eyeL || !eyeR) return;
     var t = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px)';
-    eyeL.style.transform = t; eyeR.style.transform = t;
+    eyeL.style.transform = t;
+    eyeR.style.transform = t;
   }
-  function recenterEyes() { setEyeOffset(0, 0); }
+
+  function recenterEyes() {
+    if (lastEyeX === 0 && lastEyeY === 0) return;
+    lastEyeX = 0;
+    lastEyeY = 0;
+    setEyeOffset(0, 0);
+  }
 
   /* ------------------------------------------------------------------
      Interaction -> emotion

@@ -100,8 +100,8 @@ class ViewerRegistry:
             return PresentationViewer(path, **kwargs)
         self.register(ViewerProvider("presentation", "Presentation Slide Viewer", pptx_exts, _pptx_factory))
 
-        # 5. Spreadsheets (XLSX, CSV)
-        sheet_exts = {".xlsx", ".csv"}
+        # 5. Spreadsheets (XLSX/XLSM and delimited text)
+        sheet_exts = {".xlsx", ".xlsm", ".csv", ".tsv"}
         def _sheet_factory(path, **kwargs):
             from .spreadsheet_viewer import SpreadsheetViewer
             return SpreadsheetViewer(path, **kwargs)

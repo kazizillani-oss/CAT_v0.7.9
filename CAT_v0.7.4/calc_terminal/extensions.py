@@ -1,39 +1,37 @@
 """
-CCT Extension Manager — VS Code-style (v0.7.9.10).
+CCT Extension Manager — Unified Extensions, Skills, Commands & Integrations (v0.7.9.10).
 
-Central registry for Gestures / CAT Vision / Personalize and future
-third-party extensions. Implements the full lifecycle:
+Central registry for Gestures, Personalize, Skills, Custom Commands, and Integrations.
+Implements the full lifecycle:
 
     NOT_INSTALLED -> INSTALL -> INSTALLED_ENABLED
     INSTALLED_ENABLED -> DISABLE -> INSTALLED_DISABLED
     INSTALLED_DISABLED -> ENABLE -> INSTALLED_ENABLED
     INSTALLED_* -> UNINSTALL -> NOT_INSTALLED
 
-Main menu queries is_installed() && is_enabled() — never hard-coded.
-
-Persistence: ~/.cct_extensions_registry.json (source of truth) +
-~/.cct_config.json .extensions for backward compat migration.
-Startup: discover() -> validate -> load enabled -> register features.
-
-Features: metadata (name, icon, creator, verified, trusted, size,
-version, category), size from filesystem, publisher identity (individual
-vs company), trusted, VS Code-style UX, error isolation.
+Features:
+- Unified Component Taxonomy: "extension" | "skill" | "command" | "integration"
+- Rich Metadata: Stable ID, display name, author/publisher, original publication date,
+  installation date, version, latest version, source, status, dependencies, permissions, errors.
+- GitHub & Package Installation: Secure inspection, manifest validation, path traversal
+  protection, and automated subsystem registration.
+- Subsystem Integration:
+    * Skills register into SkillRegistry for Kitty discovery.
+    * Commands register into CustomCommandRegistry for CLI dispatch.
+- Dependency checking during uninstallation.
+- Preservation of built-in extensions: Gestures and Personalize (Publisher: Kazi Zillani).
 """
 
 from __future__ import annotations
 
 import json
 import os
+import shutil
+import sys
 import time
 import threading
 from pathlib import Path
-from typing import Dict, List, Optional, Any
-
-# --------------------------------------------------------------------------
-# Built-in extension definitions (available to install). These use the same
-# infrastructure as future third-party extensions — no special hard-coded
-# path for these three.
-# --------------------------------------------------------------------------
+from typing import Dict, List, Optional, Any, Tuple
 
 # Base directory for size calculation (calc_terminal package)
 _PKG_ROOT = Path(__file__).parent
@@ -63,14 +61,13 @@ def _format_size(nbytes: int) -> str:
         return f"{nbytes/1024:.1f} KB"
     return f"{nbytes/1024/1024:.1f} MB"
 
-# Built-in extensions — these are the only ones shipped with CAT.
-# Future third-party extensions will be discovered from ~/.cct_extensions/
-# or registry and use the same schema.
+# Built-in extensions — shipped with CAT.
 BUILTIN_EXTENSIONS: Dict[str, Dict[str, Any]] = {
     "gestures": {
         "id": "gestures",
         "name": "Gestures",
         "display_name": "Gestures",
+        "type": "extension",
         "description": "Advanced gesture controls for CAT — double-click, long-press, swipe and custom shortcuts.",
         "icon": "✋",
         "publisher": "Kazi Zillani",
@@ -85,11 +82,16 @@ BUILTIN_EXTENSIONS: Dict[str, Dict[str, Any]] = {
         "size_display": None,
         "action": "gestures",  # header.NAV_ITEMS action id
         "kind": "builtin",
+        "published_at": "2026-01-01",
+        "permissions": ["input_events"],
+        "dependencies": [],
+        "compatibility": ">=0.7.0",
     },
     "personalize": {
         "id": "personalize",
         "name": "Personalize",
         "display_name": "Personalize",
+        "type": "extension",
         "description": "AI personality, tone, custom instructions and memory — make CAT yours.",
         "icon": "🎨",
         "publisher": "Kazi Zillani",
@@ -104,6 +106,10 @@ BUILTIN_EXTENSIONS: Dict[str, Dict[str, Any]] = {
         "size_display": None,
         "action": "customize_ai",
         "kind": "builtin",
+        "published_at": "2026-01-01",
+        "permissions": ["preferences", "memory"],
+        "dependencies": [],
+        "compatibility": ">=0.7.0",
     },
 }
 
@@ -118,15 +124,14 @@ EXTENSIONS = BUILTIN_EXTENSIONS
 
 # Registry file (source of truth)
 REGISTRY_FILE = Path.home() / ".cct_extensions_registry.json"
+
 # Directory for custom user extensions
 CUSTOM_EXTENSIONS_DIR = Path.home() / ".cct_extensions"
-# Legacy config key for migration
 _LEGACY_CONFIG_KEY = "extensions"
 
 _lock = threading.RLock()
 
 # In-memory cache of registry state
-# state: {ext_id: {"installed": bool, "enabled": bool, "version": str, "install_time": float, "size_bytes": int}}
 _cached_state: Optional[Dict[str, Dict[str, Any]]] = None
 _cached_mtime: float = 0
 
@@ -141,20 +146,16 @@ def _load_registry() -> Dict[str, Dict[str, Any]]:
         except Exception:
             pass
 
-        # Try registry file
         data: Dict[str, Dict[str, Any]] = {}
         if REGISTRY_FILE.exists():
             try:
                 with open(REGISTRY_FILE, "r", encoding="utf-8") as f:
                     raw = json.load(f)
                     if isinstance(raw, dict):
-                        # support both {id: {installed, enabled}} and legacy list
                         if "extensions" in raw and isinstance(raw["extensions"], dict):
                             data = raw["extensions"]
                         else:
-                            # flat dict
                             data = raw
-                        # filter to known structure
                         filtered = {}
                         for k, v in data.items():
                             if isinstance(v, dict):
@@ -164,16 +165,26 @@ def _load_registry() -> Dict[str, Dict[str, Any]]:
                                     "version": str(v.get("version", "")),
                                     "install_time": float(v.get("install_time", 0) or 0),
                                     "size_bytes": int(v.get("size_bytes", 0) or 0),
+                                    "type": str(v.get("type", "extension")),
+                                    "published_at": v.get("published_at"),
+                                    "updated_at": float(v.get("updated_at", 0) or 0),
+                                    "source": str(v.get("source", "")),
+                                    "permissions": list(v.get("permissions", [])),
+                                    "dependencies": list(v.get("dependencies", [])),
+                                    "manifest": v.get("manifest", {}),
+                                    "install_error": v.get("install_error"),
+                                    "runtime_error": v.get("runtime_error"),
                                 }
                             elif isinstance(v, bool):
-                                # legacy: True => installed+enabled, False => installed disabled? But old code used False = disabled (installed but disabled)
-                                # For migration, treat True as installed+enabled, False as installed+disabled
                                 filtered[str(k)] = {
                                     "installed": True,
                                     "enabled": bool(v),
                                     "version": "",
                                     "install_time": 0,
                                     "size_bytes": 0,
+                                    "type": "extension",
+                                    "permissions": [],
+                                    "dependencies": [],
                                 }
                         data = filtered
             except Exception:
@@ -187,31 +198,33 @@ def _load_registry() -> Dict[str, Dict[str, Any]]:
                 if isinstance(legacy, dict) and legacy:
                     for k, v in legacy.items():
                         if k in BUILTIN_EXTENSIONS:
+                            b_meta = BUILTIN_EXTENSIONS[k]
                             if isinstance(v, bool):
                                 data[str(k)] = {
                                     "installed": True,
                                     "enabled": bool(v),
-                                    "version": BUILTIN_EXTENSIONS[k].get("version", "1.0.0"),
+                                    "version": b_meta.get("version", "1.0.0"),
                                     "install_time": time.time(),
                                     "size_bytes": _get_size_for(k),
+                                    "type": b_meta.get("type", "extension"),
+                                    "published_at": b_meta.get("published_at"),
+                                    "permissions": b_meta.get("permissions", []),
+                                    "dependencies": b_meta.get("dependencies", []),
                                 }
                             elif isinstance(v, dict):
                                 data[str(k)] = {
                                     "installed": bool(v.get("installed", True)),
                                     "enabled": bool(v.get("enabled", True)),
-                                    "version": str(v.get("version", "")),
+                                    "version": str(v.get("version", b_meta.get("version", "1.0.0"))),
                                     "install_time": float(v.get("install_time", 0) or time.time()),
                                     "size_bytes": int(v.get("size_bytes", 0) or _get_size_for(k)),
+                                    "type": str(v.get("type", b_meta.get("type", "extension"))),
+                                    "published_at": v.get("published_at", b_meta.get("published_at")),
+                                    "permissions": list(v.get("permissions", b_meta.get("permissions", []))),
+                                    "dependencies": list(v.get("dependencies", b_meta.get("dependencies", []))),
                                 }
             except Exception:
                 pass
-
-        # First run: extensions are NOT installed until user installs them
-        # (VS Code-style: Install → Enable → appears in menu).
-        # Keep data empty so get_state() returns NOT_INSTALLED for builtins.
-        if not data:
-            # don't auto-install — user must click Install in Extensions panel
-            pass
 
         _cached_state = dict(data)
         try:
@@ -238,14 +251,12 @@ def _save_registry(data: Dict[str, Dict[str, Any]]):
                 _cached_mtime = REGISTRY_FILE.stat().st_mtime
             except Exception:
                 _cached_mtime = time.time()
-            # also sync to config.extensions for backward compat (simple bool)
+            # Sync to config.extensions for backward compat
             try:
                 from . import config as _cfg
                 cfg = _cfg.load_config()
-                # keep legacy simple dict for old code that reads config.extensions
                 legacy = {}
                 for k, v in data.items():
-                    # only store enabled if installed, else not present? For legacy, store enabled bool if installed, else missing
                     if v.get("installed"):
                         legacy[k] = bool(v.get("enabled", False))
                 cfg.extensions = legacy
@@ -258,32 +269,22 @@ def _save_registry(data: Dict[str, Dict[str, Any]]):
 
 def _get_size_for(ext_id: str) -> int:
     """Calculate size for extension from its source files."""
-    # Check cache from builtin
     meta = BUILTIN_EXTENSIONS.get(ext_id)
     if meta and meta.get("size_bytes"):
         return int(meta["size_bytes"])
     paths = _BUILTIN_PATHS.get(ext_id, [])
     nbytes = _calc_size(paths) if paths else 0
-    # if no paths, try to find extension dir ~/.cct_extensions/<id>/
     if nbytes == 0:
-        ext_dir = Path.home() / ".cct_extensions" / ext_id
+        ext_dir = CUSTOM_EXTENSIONS_DIR / ext_id
         if ext_dir.exists():
             nbytes = _calc_size([ext_dir])
     if nbytes == 0:
-        # fallback: estimate 100KB per extension
         nbytes = 1024 * 100
     return nbytes
 
 
-def _ensure_size(ext_id: str, state: Dict[str, Any]) -> int:
-    if state.get("size_bytes"):
-        return int(state["size_bytes"])
-    nbytes = _get_size_for(ext_id)
-    state["size_bytes"] = nbytes
-    return nbytes
-
 # --------------------------------------------------------------------------
-# Public ExtensionManager API (spec section 15)
+# Public ExtensionManager API
 # --------------------------------------------------------------------------
 
 def discover() -> List[Dict[str, Any]]:
@@ -306,7 +307,7 @@ def is_disabled(extension_id: str) -> bool:
     return bool(rec and rec.get("installed") and not rec.get("enabled"))
 
 def get_state(extension_id: str) -> str:
-    """Return state string: NOT_INSTALLED | INSTALLED_DISABLED | INSTALLED_ENABLED | INSTALLING etc."""
+    """Return state string: NOT_INSTALLED | INSTALLED_DISABLED | INSTALLED_ENABLED."""
     data = _load_registry()
     rec = data.get(extension_id)
     if not rec or not rec.get("installed"):
@@ -316,14 +317,15 @@ def get_state(extension_id: str) -> str:
     return "INSTALLED_DISABLED"
 
 def get_metadata(extension_id: str) -> Optional[Dict[str, Any]]:
-    """Return full metadata for extension, including live size, installed/enabled."""
+    """Return full rich metadata for extension, including live size, installed/enabled."""
     base = BUILTIN_EXTENSIONS.get(extension_id)
+    data = _load_registry()
+    rec = data.get(extension_id, {})
+
     if not base:
         # Check custom extension directory ~/.cct_extensions/<id>/
         ext_dir = CUSTOM_EXTENSIONS_DIR / extension_id
         manifest_file = ext_dir / "extension.json"
-        data = _load_registry()
-        rec = data.get(extension_id, {})
         manifest = {}
         if manifest_file.exists():
             try:
@@ -336,12 +338,14 @@ def get_metadata(extension_id: str) -> Optional[Dict[str, Any]]:
 
         if manifest or rec:
             nbytes = _calc_size([ext_dir]) if ext_dir.exists() else int(rec.get("size_bytes", 1024 * 100))
-            display_name = manifest.get("name") or manifest.get("display_name") or extension_id.title()
+            display_name = manifest.get("display_name") or manifest.get("name") or extension_id.title()
+            ctype = str(manifest.get("type") or rec.get("type") or "extension").lower()
             return {
                 "id": extension_id,
                 "name": display_name,
                 "display_name": display_name,
-                "description": manifest.get("description", "Custom user extension"),
+                "type": ctype,
+                "description": manifest.get("description", rec.get("description", "Custom user component")),
                 "icon": manifest.get("icon", "🧩"),
                 "publisher": manifest.get("publisher", rec.get("publisher", "Unknown")),
                 "publisher_type": manifest.get("publisher_type", "individual"),
@@ -356,26 +360,28 @@ def get_metadata(extension_id: str) -> Optional[Dict[str, Any]]:
                 "installed": bool(rec.get("installed", True)),
                 "enabled": bool(rec.get("enabled", True)),
                 "install_time": rec.get("install_time", 0),
+                "published_at": manifest.get("published_at", rec.get("published_at")),
+                "updated_at": rec.get("updated_at", 0),
+                "install_source": rec.get("source", "local"),
+                "permissions": list(manifest.get("permissions") or rec.get("permissions") or []),
+                "dependencies": list(manifest.get("dependencies") or rec.get("dependencies") or []),
+                "cat_compatibility": manifest.get("compatibility", ">=0.7.0"),
+                "platform_compatibility": manifest.get("platforms", ["windows", "linux", "darwin"]),
+                "install_error": rec.get("install_error"),
+                "runtime_error": rec.get("runtime_error"),
                 "state": get_state(extension_id),
                 "kind": "custom",
                 "action": manifest.get("action", f"ext_{extension_id}"),
             }
         return None
-    # built-in
-    data = _load_registry()
-    rec = data.get(extension_id, {})
-    is_inst = bool(rec.get("installed")) if rec else True  # default installed for backward compat handled in _load_registry
-    # Actually _load_registry ensures installed for builtins if empty, so if rec is None after load, it means not installed? But _load_registry would have created it if empty.
-    # For explicit check, if rec is None, treat as not installed only if registry has been initialized with data
-    # To know if not installed, check if extension_id in data
+
+    # Built-in extension
     installed = is_installed(extension_id)
     enabled = is_enabled(extension_id)
-    # calculate size
-    nbytes = 0
-    if rec:
-        nbytes = rec.get("size_bytes") or _get_size_for(extension_id)
-    else:
+    nbytes = rec.get("size_bytes") if rec else None
+    if not nbytes:
         nbytes = _get_size_for(extension_id)
+
     meta = dict(base)
     meta.update({
         "size_bytes": nbytes,
@@ -384,6 +390,10 @@ def get_metadata(extension_id: str) -> Optional[Dict[str, Any]]:
         "enabled": enabled,
         "state": get_state(extension_id),
         "install_time": rec.get("install_time", 0) if rec else 0,
+        "updated_at": rec.get("updated_at", 0) if rec else 0,
+        "install_source": "builtin",
+        "install_error": rec.get("install_error"),
+        "runtime_error": rec.get("runtime_error"),
     })
     return meta
 
@@ -391,17 +401,20 @@ def get_size(extension_id: str) -> int:
     meta = get_metadata(extension_id)
     return int(meta["size_bytes"]) if meta else 0
 
-def list_extensions() -> List[Dict[str, Any]]:
-    """List all available extensions (built-in + discovered) with live states."""
+def list_extensions(category: Optional[str] = None, component_type: Optional[str] = None) -> List[Dict[str, Any]]:
+    """
+    List all available extensions (built-in + discovered) with live states,
+    with optional filtering by category or component type (extension/skill/command/integration).
+    """
     out = []
     seen = set()
-    # built-ins first
+    # Built-ins first
     for kid in BUILTIN_EXTENSIONS:
         meta = get_metadata(kid)
         if meta:
             out.append(meta)
             seen.add(kid)
-    # discover custom extensions from ~/.cct_extensions
+    # Discover custom extensions from ~/.cct_extensions
     if CUSTOM_EXTENSIONS_DIR.exists():
         try:
             for sub in CUSTOM_EXTENSIONS_DIR.iterdir():
@@ -412,7 +425,7 @@ def list_extensions() -> List[Dict[str, Any]]:
                         seen.add(sub.name)
         except Exception:
             pass
-    # add any custom installed extensions in registry not in builtins
+    # Add any custom installed extensions in registry not in directories
     data = _load_registry()
     for kid in data:
         if kid not in seen:
@@ -420,141 +433,304 @@ def list_extensions() -> List[Dict[str, Any]]:
             if meta:
                 out.append(meta)
                 seen.add(kid)
+
+    # Apply filters
+    if category:
+        cat_low = category.strip().lower()
+        out = [m for m in out if str(m.get("category", "")).lower() == cat_low]
+    if component_type:
+        type_low = component_type.strip().lower()
+        if type_low != "all":
+            out = [m for m in out if str(m.get("type", "extension")).lower() == type_low]
+
     return out
 
-def list_installed() -> List[Dict[str, Any]]:
-    return [m for m in list_extensions() if m.get("installed")]
+def list_installed(component_type: Optional[str] = None) -> List[Dict[str, Any]]:
+    return [m for m in list_extensions(component_type=component_type) if m.get("installed")]
 
-def list_enabled() -> List[Dict[str, Any]]:
-    return [m for m in list_extensions() if m.get("enabled") and m.get("installed")]
+def list_enabled(component_type: Optional[str] = None) -> List[Dict[str, Any]]:
+    return [m for m in list_extensions(component_type=component_type) if m.get("enabled") and m.get("installed")]
 
-# Lifecycle: INSTALL -> INSTALLED_ENABLED
-def install(extension_id: str) -> tuple[bool, str]:
+# --------------------------------------------------------------------------
+# Lifecycle: INSTALL -> ENABLE -> DISABLE -> UPDATE -> UNINSTALL
+# --------------------------------------------------------------------------
+
+def install(extension_id: str) -> Tuple[bool, str]:
     """INSTALL: NOT_INSTALLED -> INSTALLED_ENABLED. Returns (ok, msg)."""
-    # validate exists as available
-    if extension_id not in BUILTIN_EXTENSIONS:
-        # check if it's already installed custom
+    # 1. If it's a built-in extension
+    if extension_id in BUILTIN_EXTENSIONS:
         data = _load_registry()
-        if extension_id in data and data[extension_id].get("installed"):
+        rec = data.get(extension_id)
+        if rec and rec.get("installed"):
+            if not rec.get("enabled"):
+                rec["enabled"] = True
+                _save_registry(data)
+                return True, f"✓ {BUILTIN_EXTENSIONS[extension_id]['display_name']} enabled"
             return False, f"{extension_id} is already installed"
-        # unknown extension — cannot install from marketplace yet (would need download)
-        # For built-in, we allow install; for unknown, treat as install of custom placeholder
-        if extension_id not in data:
-            return False, f"Extension '{extension_id}' not found in marketplace"
-    data = _load_registry()
-    rec = data.get(extension_id)
-    if rec and rec.get("installed"):
-        # if already installed but disabled, enable it (spec: INSTALL on installed should probably enable)
-        if not rec.get("enabled"):
-            rec["enabled"] = True
-            _save_registry(data)
-            return True, f"{extension_id} enabled"
-        return False, f"{extension_id} is already installed"
-    # perform install
-    nbytes = _get_size_for(extension_id)
-    # simulate installing state (could be async, but spec says update immediately)
-    data[extension_id] = {
-        "installed": True,
-        "enabled": True,
-        "version": BUILTIN_EXTENSIONS.get(extension_id, {}).get("version", "1.0.0"),
-        "install_time": time.time(),
-        "size_bytes": nbytes,
-    }
-    _save_registry(data)
-    # CAT Customization lifecycle hook
-    if extension_id == "customization":
-        try:
-            from . import customization as _cust
-            _cust.on_install()
-            _cust.on_enable()
-        except Exception:
-            pass
-    # feature registration will happen via should_show_in_menu / startup
-    return True, f"✓ {BUILTIN_EXTENSIONS.get(extension_id, {}).get('display_name', extension_id)} installed successfully"
 
-def uninstall(extension_id: str) -> tuple[bool, str]:
-    """UNINSTALL: INSTALLED_* -> NOT_INSTALLED. Returns (ok, msg)."""
+        nbytes = _get_size_for(extension_id)
+        b_meta = BUILTIN_EXTENSIONS[extension_id]
+        data[extension_id] = {
+            "installed": True,
+            "enabled": True,
+            "version": b_meta.get("version", "1.0.0"),
+            "install_time": time.time(),
+            "published_at": b_meta.get("published_at"),
+            "type": b_meta.get("type", "extension"),
+            "permissions": b_meta.get("permissions", []),
+            "dependencies": b_meta.get("dependencies", []),
+            "size_bytes": nbytes,
+            "source": "builtin",
+        }
+        _save_registry(data)
+        return True, f"✓ {b_meta.get('display_name', extension_id)} installed successfully"
+
+    # 2. Check if already installed
+    data = _load_registry()
+    if extension_id in data and data[extension_id].get("installed"):
+        if not data[extension_id].get("enabled"):
+            return enable(extension_id)
+        return False, f"Extension '{extension_id}' is already installed"
+
+    # 3. Check if available in curated catalogue
+    from .extension_installer import CURATED_CATALOGUE
+    for item in CURATED_CATALOGUE:
+        if item["id"] == extension_id:
+            return install_from_github(item["repo_url"])
+
+    return False, f"Extension '{extension_id}' not found in marketplace"
+
+
+def install_from_github(repo_url_or_slug: str, mock_data: Optional[Dict[str, Any]] = None) -> Tuple[bool, str]:
+    """
+    Install a Skill, Command, Integration, or Extension from a GitHub repository or catalogue item.
+    Performs full pre-installation inspection, path traversal validation, managed extraction,
+    and registration with Kitties and CLI subsystems.
+    """
+    from .extension_installer import (
+        inspect_repository,
+        install_from_zip,
+        register_component_in_subsystems,
+    )
+
+    # 1. Inspect repository and validate manifest without executing code
+    insp = inspect_repository(repo_url_or_slug, mock_data=mock_data)
+    if not insp.valid:
+        return False, f"Inspection failed: {insp.error}"
+
+    if not insp.compatibility_ok:
+        return False, f"Compatibility check failed: {insp.compatibility_notes}"
+
+    cid = insp.id
+    if is_installed(cid):
+        return False, f"Component '{cid}' is already installed. Use update('{cid}') to upgrade."
+
+    dest_dir = CUSTOM_EXTENSIONS_DIR / cid
+    dest_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        # 2. Extract files or write manifest
+        if insp.archive_bytes:
+            ok, msg = install_from_zip(insp.archive_bytes, insp, target_dir=dest_dir)
+            if not ok:
+                return False, msg
+        else:
+            # Write canonical extension.json
+            with open(dest_dir / "extension.json", "w", encoding="utf-8") as f:
+                json.dump(insp.manifest, f, indent=2)
+
+            # If script code or entrypoint is provided in manifest
+            if insp.manifest.get("script_code"):
+                script_path = dest_dir / f"{cid}.py"
+                with open(script_path, "w", encoding="utf-8") as f:
+                    f.write(insp.manifest["script_code"])
+
+        # 3. Register in appropriate subsystems (SkillRegistry, CustomCommandRegistry, etc.)
+        reg_ok, reg_msg = register_component_in_subsystems(insp, dest_dir)
+        if not reg_ok:
+            shutil.rmtree(dest_dir, ignore_errors=True)
+            return False, reg_msg
+
+        return True, f"✓ Successfully installed {insp.component_type} '{insp.name}' (v{insp.version}) from GitHub!"
+    except Exception as e:
+        shutil.rmtree(dest_dir, ignore_errors=True)
+        return False, f"Installation failed: {e}"
+
+
+def check_for_dependencies(extension_id: str) -> List[str]:
+    """Check if any currently installed extension depends on extension_id."""
+    dependents = []
+    for ext in list_installed():
+        if ext["id"] == extension_id:
+            continue
+        deps = ext.get("dependencies", [])
+        if extension_id in deps:
+            dependents.append(ext["id"])
+    return dependents
+
+
+def uninstall(extension_id: str, force: bool = False) -> Tuple[bool, str]:
+    """UNINSTALL: Removes registered capabilities and managed files safely."""
     data = _load_registry()
     rec = data.get(extension_id)
     if not rec or not rec.get("installed"):
-        return False, f"{extension_id} is not installed"
-    # remove
+        return False, f"'{extension_id}' is not installed"
+
+    # Dependency check: warn if other extensions rely on this one
+    dependents = check_for_dependencies(extension_id)
+    if dependents and not force:
+        return False, (
+            f"Cannot uninstall '{extension_id}': Required as a dependency by {dependents}. "
+            f"Disable or uninstall them first."
+        )
+
+    meta = get_metadata(extension_id) or {}
+    ctype = meta.get("type", "extension")
+
+    # 1. Unregister from Kitty Skills if it's a Skill
+    if ctype == "skill":
+        try:
+            from .skills.registry import get_skill_registry
+            get_skill_registry().unregister(extension_id)
+        except Exception:
+            pass
+
+    # 2. Unregister from Custom Commands if it's a Command
+    if ctype == "command" or extension_id:
+        try:
+            from .commands_registry import get_command_registry
+            get_command_registry().unregister_by_extension(extension_id)
+        except Exception:
+            pass
+
+    # 3. Remove from source-of-truth registry
     del data[extension_id]
     _save_registry(data)
-    # also clean up extension directory if exists
+
+    # 4. Safely remove ONLY the extension's managed directory
     try:
-        ext_dir = Path.home() / ".cct_extensions" / extension_id
-        if ext_dir.exists():
-            import shutil
+        ext_dir = CUSTOM_EXTENSIONS_DIR / extension_id
+        if ext_dir.exists() and ext_dir.is_dir():
             shutil.rmtree(ext_dir, ignore_errors=True)
     except Exception:
         pass
-    if extension_id == "customization":
-        try:
-            from . import customization as _cust2
-            _cust2.on_uninstall()
-        except Exception:
-            pass
-    return True, f"✓ {extension_id} uninstalled"
 
-def enable(extension_id: str) -> tuple[bool, str]:
+    return True, f"✓ {meta.get('display_name', extension_id)} uninstalled successfully"
+
+
+def enable(extension_id: str) -> Tuple[bool, str]:
     """ENABLE: INSTALLED_DISABLED -> INSTALLED_ENABLED."""
     data = _load_registry()
     rec = data.get(extension_id)
     if not rec or not rec.get("installed"):
-        return False, f"{extension_id} is not installed — install first"
+        return False, f"'{extension_id}' is not installed — install first"
     if rec.get("enabled"):
-        return False, f"{extension_id} is already enabled"
+        return False, f"'{extension_id}' is already enabled"
+
     rec["enabled"] = True
+    rec["updated_at"] = time.time()
     _save_registry(data)
-    if extension_id == "customization":
+
+    meta = get_metadata(extension_id) or {}
+    ctype = meta.get("type", "extension")
+
+    # Re-enable in subsystem
+    if ctype == "skill":
         try:
-            from . import customization as _cust3
-            _cust3.on_enable()
+            from .skills.registry import get_skill_registry
+            sk = get_skill_registry().get(extension_id)
+            if sk:
+                sk.enabled = True
         except Exception:
             pass
-    return True, f"✓ {get_metadata(extension_id)['display_name']} enabled"
+    elif ctype == "command":
+        try:
+            from .commands_registry import get_command_registry
+            get_command_registry().set_extension_enabled(extension_id, True)
+        except Exception:
+            pass
 
-def disable(extension_id: str) -> tuple[bool, str]:
+    return True, f"✓ {meta.get('display_name', extension_id)} enabled"
+
+
+def disable(extension_id: str) -> Tuple[bool, str]:
     """DISABLE: INSTALLED_ENABLED -> INSTALLED_DISABLED."""
     data = _load_registry()
     rec = data.get(extension_id)
     if not rec or not rec.get("installed"):
-        return False, f"{extension_id} is not installed"
+        return False, f"'{extension_id}' is not installed"
     if not rec.get("enabled"):
-        return False, f"{extension_id} is already disabled"
+        return False, f"'{extension_id}' is already disabled"
+
     rec["enabled"] = False
+    rec["updated_at"] = time.time()
     _save_registry(data)
-    if extension_id == "customization":
+
+    meta = get_metadata(extension_id) or {}
+    ctype = meta.get("type", "extension")
+
+    # Deactivate in subsystem
+    if ctype == "skill":
         try:
-            from . import customization as _cust4
-            _cust4.on_disable()
+            from .skills.registry import get_skill_registry
+            sk = get_skill_registry().get(extension_id)
+            if sk:
+                sk.enabled = False
         except Exception:
             pass
-    return True, f"✓ {get_metadata(extension_id)['display_name']} disabled"
+    elif ctype == "command":
+        try:
+            from .commands_registry import get_command_registry
+            get_command_registry().set_extension_enabled(extension_id, False)
+        except Exception:
+            pass
 
-def toggle(extension_id: str) -> tuple[bool, str]:
+    return True, f"✓ {meta.get('display_name', extension_id)} disabled"
+
+
+def toggle(extension_id: str) -> Tuple[bool, str]:
     if is_enabled(extension_id):
         return disable(extension_id)
     if is_installed(extension_id):
         return enable(extension_id)
     return install(extension_id)
 
-# Backward compat for old simple API (bool)
+
+def check_for_updates(extension_id: str) -> Tuple[bool, str, str, Dict[str, Any]]:
+    """Check for component updates without executing code."""
+    from .extension_installer import check_for_updates as _check_installer
+    return _check_installer(extension_id)
+
+
+def update(extension_id: str) -> Tuple[bool, str]:
+    """Update an installed extension if a newer version is available."""
+    has_update, curr_v, latest_v, details = check_for_updates(extension_id)
+    if not has_update:
+        return False, f"'{extension_id}' is already at the latest version (v{curr_v})."
+
+    source = details.get("source")
+    if not source:
+        return False, "Cannot update: no remote source URL recorded."
+
+    # Backup current state and perform re-installation
+    uninstall(extension_id, force=True)
+    ok, msg = install_from_github(source)
+    if ok:
+        return True, f"✓ Successfully updated '{extension_id}' from v{curr_v} to v{latest_v}!"
+    return False, f"Update failed: {msg}"
+
+
 def set_enabled(key: str, enabled: bool):
+    """Backward compatibility helper."""
     if enabled:
-        # if not installed, install
         if not is_installed(key):
             install(key)
         else:
             enable(key)
     else:
-        # disable but keep installed
         if is_installed(key):
             disable(key)
-        else:
-            # if not installed, nothing to disable
-            pass
+
 
 def should_show_in_menu(action_id: str) -> bool:
     """For header.NAV_ITEMS filtering: show only if installed+enabled."""
@@ -563,7 +739,7 @@ def should_show_in_menu(action_id: str) -> bool:
     if action_id.startswith("ext_"):
         key = action_id[4:]
         return is_installed(key) and is_enabled(key)
-    # map action -> extension key
+    # Map action -> extension key
     action_to_key = {v["action"]: k for k, v in BUILTIN_EXTENSIONS.items()}
     key = action_to_key.get(action_id)
     if key is None:
@@ -580,7 +756,8 @@ def create_extension(
     category: str = "Custom",
     version: str = "1.0.0",
     script_code: str = "",
-) -> tuple[bool, str]:
+    component_type: str = "extension",
+) -> Tuple[bool, str]:
     """Create a new custom extension in ~/.cct_extensions/<id>/ and register it."""
     try:
         clean_id = (extension_id or "").strip().lower().replace(" ", "_").replace("-", "_")
@@ -588,15 +765,16 @@ def create_extension(
             return False, "Extension ID cannot be empty."
         if clean_id in BUILTIN_EXTENSIONS:
             return False, f"'{clean_id}' conflicts with a built-in extension."
-        
+
         ext_dir = CUSTOM_EXTENSIONS_DIR / clean_id
         ext_dir.mkdir(parents=True, exist_ok=True)
-        
+
         display_name = (name or "").strip() or clean_id.title()
         manifest = {
             "id": clean_id,
             "name": display_name,
             "display_name": display_name,
+            "type": component_type,
             "description": (description or "").strip() or "Custom user-created extension",
             "icon": (icon or "").strip() or "🧩",
             "publisher": (publisher or "").strip() or "User",
@@ -609,34 +787,43 @@ def create_extension(
             "keywords": ["custom", clean_id],
             "kind": "custom",
             "action": f"ext_{clean_id}",
+            "published_at": time.strftime("%Y-%m-%d"),
+            "permissions": [],
+            "dependencies": [],
         }
-        
+
         manifest_file = ext_dir / "extension.json"
         with open(manifest_file, "w", encoding="utf-8") as f:
             json.dump(manifest, f, indent=2)
-            
+
         script_file = ext_dir / f"{clean_id}.py"
         if not script_file.exists() or script_code:
             code = script_code or f'"""\nCAT Extension: {display_name}\n"""\n\ndef activate(app=None):\n    pass\n'
             with open(script_file, "w", encoding="utf-8") as f:
                 f.write(code)
-                
+
         data = _load_registry()
         data[clean_id] = {
             "installed": True,
             "enabled": True,
             "version": manifest["version"],
             "install_time": time.time(),
+            "published_at": manifest["published_at"],
+            "type": component_type,
             "size_bytes": _calc_size([ext_dir]),
             "manifest": manifest,
+            "source": "local",
+            "permissions": [],
+            "dependencies": [],
         }
         _save_registry(data)
         return True, f"✓ Custom extension '{display_name}' created and enabled successfully!"
     except Exception as e:
         return False, f"Failed to create extension: {e}"
 
+
 # --------------------------------------------------------------------------
-# Feature registration (for future extensions that add menu items, panels, etc.)
+# Feature registration (for extensions that register menu items, panels, etc.)
 # --------------------------------------------------------------------------
 
 _registered_features: Dict[str, Dict[str, Any]] = {}
@@ -658,8 +845,9 @@ def get_registered_features(feature_type: str = None) -> List[Dict[str, Any]]:
         return [v for v in _registered_features.values() if v["type"] == feature_type]
     return list(_registered_features.values())
 
+
 # --------------------------------------------------------------------------
-# Startup
+# Startup & Subsystem Integration
 # --------------------------------------------------------------------------
 
 def validate_all() -> List[str]:
@@ -667,7 +855,6 @@ def validate_all() -> List[str]:
     errors = []
     for ext in list_installed():
         try:
-            # check that its module files still exist (for built-ins)
             paths = _BUILTIN_PATHS.get(ext["id"], [])
             if paths:
                 for p in paths:
@@ -677,57 +864,94 @@ def validate_all() -> List[str]:
             errors.append(f"{ext['id']}: {e}")
     return errors
 
+
 def load_enabled():
-    """Load enabled extensions at startup — register their features."""
+    """Load and activate enabled extensions at startup into Kitty & Command subsystems."""
     for ext in list_enabled():
+        eid = ext["id"]
+        ctype = ext.get("type", "extension")
         try:
-            # For built-ins, registration is implicit via should_show_in_menu;
-            # for future third-party, we would import and call their activate().
-            pass
+            # If skill, ensure registered in SkillRegistry
+            if ctype == "skill":
+                try:
+                    from .skills.registry import get_skill_registry
+                    from .skills.skill_model import SkillDefinition
+                    reg = get_skill_registry()
+                    if not reg.get(eid):
+                        sk = SkillDefinition(
+                            id=eid,
+                            name=ext["name"],
+                            version=ext.get("version", "1.0.0"),
+                            description=ext.get("description", ""),
+                            category=ext.get("category", "general").lower(),
+                            required_tools=ext.get("manifest", {}).get("required_tools", []),
+                            instructions=ext.get("manifest", {}).get("instructions", ""),
+                            enabled=True,
+                        )
+                        reg.register(sk)
+                except Exception:
+                    pass
+
+            # If command, ensure registered in CustomCommandRegistry
+            elif ctype == "command":
+                try:
+                    from .commands_registry import get_command_registry, CommandSpec
+                    cmd_reg = get_command_registry()
+                    cmd_name = ext.get("manifest", {}).get("command_name") or eid
+                    if not cmd_reg.get(cmd_name):
+                        script_p = CUSTOM_EXTENSIONS_DIR / eid / f"{cmd_name}.py"
+                        cmd_reg.register(
+                            CommandSpec(
+                                id=eid,
+                                name=cmd_name,
+                                description=ext.get("description", ""),
+                                extension_id=eid,
+                                script_path=str(script_p) if script_p.exists() else None,
+                                enabled=True,
+                            )
+                        )
+                except Exception:
+                    pass
         except Exception as e:
-            # error isolation: don't crash CAT
-            print(f"[extensions] failed to load {ext['id']}: {e}")
+            print(f"[extensions] Failed to activate {eid}: {e}", file=sys.stderr)
+
 
 def startup():
-    """Full startup sequence: discover -> validate -> load enabled -> build menu."""
+    """Full startup sequence: discover -> validate -> load enabled."""
     try:
         discover()
         errs = validate_all()
         if errs:
             for err in errs:
-                print(f"[extensions] validate: {err}")
+                print(f"[extensions] validate: {err}", file=sys.stderr)
         load_enabled()
     except Exception as e:
-        print(f"[extensions] startup failed: {e} — CAT will continue without extensions")
+        print(f"[extensions] startup failed: {e} — CAT will continue without extensions", file=sys.stderr)
 
-# Backwards compat aliases for old code that used simple enabled check
+
 def enabled_actions() -> set:
     return {v["action"] for v in BUILTIN_EXTENSIONS.values() if is_enabled(v["id"])}
 
-# For tests: reset to defaults (used in testing)
+
 def _reset_for_tests():
+    """Reset registry to clean state for test suites."""
     try:
         if REGISTRY_FILE.exists():
             REGISTRY_FILE.unlink()
     except Exception:
         pass
-    # clear legacy config state too
     try:
         from . import config as _cfg
         cfg = _cfg.load_config()
         cfg.extensions = {}
-        # also clear registry snapshot in config if any
-        if hasattr(cfg, "user_modes"):
-            # don't clear user modes here - that's for ai_modes, not extensions
-            pass
         _cfg.save_config(cfg)
     except Exception:
         pass
     global _cached_state, _cached_mtime
     _cached_state = None
     _cached_mtime = 0
-    # re-create with all installed+enabled
     _load_registry()
+
 
 def _clear_all_for_test():
     _reset_for_tests()

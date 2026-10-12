@@ -13,6 +13,9 @@ from __future__ import annotations
 import os
 import sys
 import pathlib
+from .diagnostics import install_diagnostics, install_qt_message_handler, log_exception
+
+install_diagnostics()
 
 def _has_module(name: str) -> bool:
     try:
@@ -81,55 +84,18 @@ def _store_pending_verification(url: str):
 
 
 def get_optimal_chromium_flags() -> str:
-    """Computes stable, hardware-adaptive, anti-flicker Chromium flags.
-    Prevents GPU driver crashes, black screens, visual shattering, and scrolling lag on low-end PCs."""
-    flags = [
-        "--enable-gpu-rasterization",
-        "--enable-zero-copy",
-        "--enable-smooth-scrolling",
-        "--disable-dev-shm-usage",
-        "--disable-features=CalculateNativeWinOcclusion",
-        "--no-sandbox",
-        "--disable-checker-imaging",
-        "--enable-features=SmoothScrolling",
-        "--disable-background-timer-throttling",
-        "--disable-renderer-backgrounding",
-        "--blink-settings=scrollAnimatorEnabled=true",
-    ]
-    if sys.platform == "win32":
-        # Direct3D 11 via ANGLE provides rock-solid stability across Intel HD, AMD, and Nvidia on Windows
-        flags.append("--use-angle=d3d11")
-        flags.append("--enable-accelerated-video-decode")
-
-    # Detect hardware capabilities adaptively
-    try:
-        from ..hardware_analyzer import HardwareAnalyzer
-        prof = HardwareAnalyzer.analyze()
-        ai_cap = getattr(prof, "ai_capability", "")
-        if not ai_cap and hasattr(prof, "local_ai_tier"):
-            ai_cap = getattr(prof.local_ai_tier, "value", str(prof.local_ai_tier))
-        is_low_end = (
-            not prof.has_gpu
-            or prof.ram_total_gb <= 8.5
-            or prof.cpu_threads <= 4
-            or ai_cap in ("LIMITED", "MODERATE")
-        )
-    except Exception:
-        is_low_end = True
-
-    if is_low_end:
-        # Low-end PC optimization: limit threads and renderer processes to avoid pegging CPU/RAM
-        # Prevent GPU memory thrashing and visual shattering
-        flags.append("--renderer-process-limit=2")
-        flags.append("--num-raster-threads=2")
-        flags.append("--disable-background-networking")
-        flags.append("--disable-partial-raster")
-    else:
-        # Higher-end PC: multi-threaded rasterization
-        flags.append("--renderer-process-limit=4")
-        flags.append("--num-raster-threads=3")
-        flags.append("--enable-features=CanvasOopRasterization")
-
+    """Keep Chromium's normal GPU, process isolation, and raster heuristics."""
+    # Forced renderer/raster limits made unrelated tabs share a renderer and
+    # let one renderer fault take down several sites. Chromium already adapts
+    # these choices to the active GPU, RAM, and platform; keep its defaults.
+    # In particular, do not disable GPU acceleration or its crash protections.
+    flags = ["--no-default-browser-check"]
+    if sys.platform.startswith("linux"):
+        flags.append("--disable-dev-shm-usage")
+    if os.environ.get("CAT_BROWSER_GPU_COMPOSITING", "").lower() == "compat":
+        # Used only after the supervised GPU-composited browser process faults.
+        # Chromium keeps other GPU APIs available while using software compositing.
+        flags.append("--disable-gpu-compositing")
     return " ".join(flags)
 
 
@@ -143,7 +109,8 @@ def _ensure_qt_app():
     
     # Adaptive anti-flicker & performance flags
     os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = get_optimal_chromium_flags()
-    os.environ.setdefault("QTWEBENGINE_DISABLE_SANDBOX", "1")
+    if sys.platform.startswith("linux") and hasattr(os, "geteuid") and os.geteuid() == 0:
+        os.environ.setdefault("QTWEBENGINE_DISABLE_SANDBOX", "1")
 
     try:
         from PySide6.QtCore import QCoreApplication, Qt
@@ -163,10 +130,33 @@ def _ensure_qt_app():
     except Exception:
         pass
 
+    # On Windows, register explicit AppUserModelID BEFORE any window / QApplication is created
+    # so Windows Shell groups and shows CAT Browser with its own identity instead of Python.exe
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("kazizillani.cat.browser.v08")
+        except Exception:
+            pass
+
     app = QApplication.instance()
     if app is None:
         app = QApplication(sys.argv)
+        # Apply official CAT Browser icon to application instance early
+        try:
+            from ..terminal_identity import get_browser_icon_path
+            ico = get_browser_icon_path()
+            if ico and os.path.isfile(ico):
+                try:
+                    from PySide6.QtGui import QIcon
+                except ImportError:
+                    from PyQt6.QtGui import QIcon  # type: ignore
+                app.setWindowIcon(QIcon(ico))
+        except Exception:
+            pass
+        install_qt_message_handler()
         return app, True
+    install_qt_message_handler()
     return app, False
 
 
@@ -207,6 +197,24 @@ def launch_cat_host(
     if start_browser_url in ("fatty", "--fatty", "cat web"):
         start_browser_url = "http://localhost:8765/"
         start_mode = "browser"
+    elif start_browser_url in ("terminal", "--terminal", "cli", "--cli", "console", "cat terminal", "about:cat-cli"):
+        start_browser_url = "about:home"
+        start_mode = "browser"
+    elif start_browser_url in ("viewer", "--viewer", "about:viewer"):
+        start_browser_url = "http://localhost:8765/viewer.html"
+        start_mode = "browser"
+    elif start_browser_url in ("fomoji", "--fomoji", "login", "auth"):
+        start_browser_url = "http://localhost:3000/home.html"
+        start_mode = "browser"
+
+    if start_browser_url:
+        try:
+            p = pathlib.Path(start_browser_url).expanduser()
+            if p.exists() and p.is_file():
+                start_browser_url = p.resolve().as_uri()
+                start_mode = "browser"
+        except Exception:
+            pass
 
     if start_browser_url and "8765" in start_browser_url:
         try:
@@ -215,8 +223,16 @@ def launch_cat_host(
         except Exception:
             pass
 
-    if not block:
-        url = start_browser_url or "about:home"
+    if start_browser_url and ("3000" in start_browser_url or "fomoji" in start_browser_url):
+        try:
+            from ..fomoji_manager import check_server_reachable, initialize_fomoji_subsystem
+            if not check_server_reachable(timeout=0.8):
+                initialize_fomoji_subsystem(interactive=False)
+        except Exception:
+            pass
+
+    url = start_browser_url or "about:home"
+    if start_browser_url or start_mode == "browser" or not block:
         _store_pending_verification(url)
         # 1. Check if running in current process
         try:
@@ -228,7 +244,7 @@ def launch_cat_host(
             if app is not None:
                 for w in app.topLevelWidgets():
                     try:
-                        if w.__class__.__name__ == "CATDesktopWindow" and hasattr(w, "browser"):
+                        if hasattr(w, "navigate"):
                             w.navigate(url)
                             if hasattr(w, "_bring_to_front"):
                                 w._bring_to_front()
@@ -264,56 +280,69 @@ def launch_cat_host(
                             if pid > 0:
                                 is_running = _is_pid_alive(pid)
                             else:
-                                is_running = True
+                                is_running = False
                 except Exception:
                     is_running = False
 
                 if is_running:
                     # Active window will pick up _store_pending_verification within 250ms
-                    # On Windows, immediately restore & bring it to foreground over maximized terminal!
+                    # On Windows, strictly verify that a visible window exists before returning 0!
                     if sys.platform == "win32":
                         try:
                             import ctypes
+                            user32 = ctypes.windll.user32
+                            if hwnd > 0 and (not user32.IsWindow(hwnd) or not user32.IsWindowVisible(hwnd)):
+                                hwnd = 0
                             if hwnd <= 0 and pid > 0:
                                 def _enum_cb(h, extra):
                                     lp = ctypes.c_ulong()
-                                    ctypes.windll.user32.GetWindowThreadProcessId(h, ctypes.byref(lp))
-                                    if lp.value == pid and ctypes.windll.user32.IsWindowVisible(h):
+                                    user32.GetWindowThreadProcessId(h, ctypes.byref(lp))
+                                    if lp.value == pid and user32.IsWindowVisible(h):
                                         extra.append(h)
                                         return False
                                     return True
-                                WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_int, ctypes.py_object)
+                                WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.py_object)
                                 found = []
-                                ctypes.windll.user32.EnumWindows(WNDENUMPROC(_enum_cb), found)
+                                user32.EnumWindows.argtypes = [WNDENUMPROC, ctypes.py_object]
+                                user32.EnumWindows.restype = ctypes.c_bool
+                                user32.EnumWindows(WNDENUMPROC(_enum_cb), found)
                                 if found:
                                     hwnd = found[0]
 
-                            if hwnd > 0:
-                                user32 = ctypes.windll.user32
+                            if hwnd > 0 and user32.IsWindow(hwnd) and user32.IsWindowVisible(hwnd):
                                 kernel32 = ctypes.windll.kernel32
-                                user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+                                if user32.IsIconic(hwnd):
+                                    user32.ShowWindow(hwnd, 9)  # SW_RESTORE
                                 fg_hwnd = user32.GetForegroundWindow()
-                                fg_thread = user32.GetWindowThreadProcessId(fg_hwnd, None) if fg_hwnd else 0
-                                cur_thread = kernel32.GetCurrentThreadId()
-                                attached = False
-                                if fg_thread and fg_thread != cur_thread:
-                                    attached = bool(user32.AttachThreadInput(cur_thread, fg_thread, True))
-                                swp_flags = 0x0001 | 0x0002 | 0x0040  # SWP_NOSIZE | SWP_NOMOVE | SWP_SHOWWINDOW
-                                user32.SetWindowPos(hwnd, -1, 0, 0, 0, 0, swp_flags)  # HWND_TOPMOST
-                                user32.SetWindowPos(hwnd, -2, 0, 0, 0, 0, swp_flags)  # HWND_NOTOPMOST
-                                user32.BringWindowToTop(hwnd)
-                                user32.SetForegroundWindow(hwnd)
-                                if attached:
-                                    user32.AttachThreadInput(cur_thread, fg_thread, False)
+                                if fg_hwnd != hwnd:
+                                    fg_thread = user32.GetWindowThreadProcessId(fg_hwnd, None) if fg_hwnd else 0
+                                    cur_thread = kernel32.GetCurrentThreadId()
+                                    attached = False
+                                    if fg_thread and fg_thread != cur_thread:
+                                        attached = bool(user32.AttachThreadInput(cur_thread, fg_thread, True))
+                                    if hasattr(user32, "SwitchToThisWindow"):
+                                        user32.SwitchToThisWindow(hwnd, True)
+                                    user32.BringWindowToTop(hwnd)
+                                    user32.SetForegroundWindow(hwnd)
+                                    if attached:
+                                        user32.AttachThreadInput(cur_thread, fg_thread, False)
+                                return 0
+                            else:
+                                # No visible window found — dead/ghost background process, spawn fresh window!
+                                is_running = False
+                                hb_path.unlink(missing_ok=True)
                         except Exception:
-                            pass
-                    return 0
+                            is_running = False
+                            hb_path.unlink(missing_ok=True)
+                    else:
+                        return 0
                 else:
                     # Stale heartbeat file from dead/crashed process -> clean it up
                     hb_path.unlink(missing_ok=True)
         except Exception:
             pass
 
+    if not block:
         # 3. No active CAT Browser window found -> spawn in background
         has_qt = _has_module("PySide6") or _has_module("PyQt6")
         if has_qt:
@@ -337,7 +366,7 @@ def launch_cat_host(
                 ppath = env.get("PYTHONPATH", "")
                 env["PYTHONPATH"] = ws_root + (os.pathsep + ppath if ppath else "")
                 popen_kwargs["cwd"] = ws_root
-            cmd = [exe, "-m", "calc_terminal.host.launcher", "--url", url, "--mode", "browser"]
+            cmd = [exe, "-m", "calc_terminal.host.supervisor", "--url", url]
             creationflags = 0
             if sys.platform == "win32":
                 creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
@@ -358,6 +387,9 @@ def launch_cat_host(
 
     has_qt = _has_module("PySide6") or _has_module("PyQt6")
     if has_qt:
+        if os.environ.get("CAT_BROWSER_SUPERVISED_CHILD") != "1":
+            from .supervisor import run_supervisor
+            return run_supervisor(url)
         return _launch_with_qt(start_browser_url, start_mode, repl)
 
     print("\n[CAT Browser] No browser engine found.", file=sys.stderr)
@@ -372,9 +404,16 @@ def _launch_with_qt(start_browser_url, start_mode, repl) -> int:
         os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = get_optimal_chromium_flags()
         app, created = _ensure_qt_app()
 
-        from .desktop import CATDesktopWindow
         initial_url = start_browser_url if (start_mode == "browser" or start_browser_url) else None
-        w = CATDesktopWindow(repl=repl, start_browser_url=initial_url)
+        try:
+            from .desktop import CATDesktopWindow
+            w = CATDesktopWindow(repl=repl, start_browser_url=initial_url)
+        except Exception:
+            log_exception("desktop_window_creation_failed", fallback="standalone_qt_browser")
+            # Fallback to standalone Qt browser window if Desktop wrapper has an issue
+            from ..browser_gui.qt_browser import CATBrowserWindow
+            w = CATBrowserWindow(start_url=initial_url)
+
         w.show()
         try:
             if hasattr(w, "_bring_to_front"):
@@ -389,6 +428,7 @@ def _launch_with_qt(start_browser_url, start_mode, repl) -> int:
             return app.exec()  # type: ignore
         return 0
     except Exception as e:
+        log_exception("browser_launch_failed")
         import traceback
         print(f"[CAT Browser] launch failed: {e}", file=sys.stderr)
         traceback.print_exc()
@@ -419,13 +459,16 @@ def create_browser_window(start_browser_url=None, start_mode="browser", repl=Non
 def main():
     import argparse
     p = argparse.ArgumentParser(description="CAT Browser - embedded Chromium")
-    p.add_argument("url_pos", nargs="?", default=None, help="URL to open (positional)")
-    p.add_argument("--url", default=None, help="URL to open")
+    p.add_argument("url_pos", nargs="?", default=None, help="URL or file to open (positional)")
+    p.add_argument("--url", default=None, help="URL or file to open")
     p.add_argument("--mode", choices=["terminal", "browser"], default="browser")
     p.add_argument("--no-block", action="store_true")
     p.add_argument("--status", action="store_true")
     p.add_argument("--fatty", action="store_true", help="Open Fatty CAT Web interface")
-    args = p.parse_args()
+    p.add_argument("--terminal", action="store_true", help="Open CAT CLI Web Terminal")
+    p.add_argument("--fomoji", action="store_true", help="Open Fomoji Portal")
+    p.add_argument("--viewer", action="store_true", help="Open Document & Media Viewer")
+    args, unknown = p.parse_known_args()
 
     if args.status:
         import json
@@ -433,7 +476,16 @@ def main():
         return 0
 
     start_url = args.url or args.url_pos
-    if args.fatty:
+    if args.terminal:
+        start_url = "about:home"
+        args.mode = "browser"
+    elif args.fomoji:
+        start_url = "http://localhost:3000/home.html"
+        args.mode = "browser"
+    elif args.viewer:
+        start_url = "http://localhost:8765/viewer.html"
+        args.mode = "browser"
+    elif args.fatty:
         start_url = "http://localhost:8765/"
         args.mode = "browser"
     elif start_url and "localhost" in start_url and args.mode == "terminal":

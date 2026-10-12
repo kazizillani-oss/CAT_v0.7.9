@@ -7,19 +7,24 @@ FastAPI server that serves the PWA frontend and bridges to CAT core.
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 import json
 import os
+import posixpath
 import re
 import sys
 import time
 import uuid
+import zipfile
+import xml.etree.ElementTree as ET
+from io import BytesIO
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -54,6 +59,8 @@ from calc_terminal import (
     ai_personalization as ap,
     customization as cust,
 )
+from calc_terminal.agents.agent_model import AgentSpec
+from calc_terminal.agents.registry import get_agent_registry
 from calc_terminal.providers import provider_manager as pm
 from calc_terminal.ui import theme_css, header as cct_header, welcome_modal
 from calc_terminal.gestures import manager as gestures_mgr
@@ -122,6 +129,31 @@ class PermissionDecideRequest(BaseModel):
 
 class ModeSwitchRequest(BaseModel):
     mode: str
+
+
+class AgentDefinitionRequest(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = ""
+    icon: Optional[str] = "🤖"
+    primary_mode: Optional[str] = "build"
+    system_instructions: Optional[str] = ""
+    personality: Optional[str] = ""
+    tools: Optional[List[str]] = None
+    tags: Optional[List[str]] = None
+    enabled: Optional[bool] = True
+
+
+class AgentDefinitionPatch(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    primary_mode: Optional[str] = None
+    system_instructions: Optional[str] = None
+    personality: Optional[str] = None
+    tools: Optional[List[str]] = None
+    tags: Optional[List[str]] = None
+    enabled: Optional[bool] = None
 
 
 class CustomModeRequest(BaseModel):
@@ -203,6 +235,9 @@ class RecentRemoveRequest(BaseModel):
 class ChatCreateRequest(BaseModel):
     name: Optional[str] = None
     project_path: Optional[str] = None
+    current_mode: Optional[str] = None
+    provider: Optional[str] = None
+    model: Optional[str] = None
 
 
 class ChatRenameRequest(BaseModel):
@@ -380,6 +415,10 @@ if static_dir.exists():
     # URLs when the app is served from FastAPI.
     app.mount("/css", StaticFiles(directory=str(static_dir / "css")), name="css-assets")
     app.mount("/js", StaticFiles(directory=str(static_dir / "js")), name="js-assets")
+    if (static_dir / "mascots").exists():
+        app.mount("/mascots", StaticFiles(directory=str(static_dir / "mascots")), name="mascots-assets")
+    if (static_dir / "icons").exists():
+        app.mount("/icons", StaticFiles(directory=str(static_dir / "icons")), name="icons-assets")
 
 # Mount .archify interactive architecture & workflow diagrams
 _archify_dir = Path(__file__).resolve().parents[3] / ".archify"
@@ -422,6 +461,226 @@ async def serve_index():
     return HTMLResponse(content="<h1>FATTY CAT</h1><p>index.html not found.</p>", status_code=404)
 
 
+
+
+@app.get("/viewer", response_class=HTMLResponse)
+@app.get("/viewer.html", response_class=HTMLResponse)
+async def serve_viewer():
+    view_path = static_dir / "viewer.html"
+    if view_path.exists():
+        return HTMLResponse(content=view_path.read_text(encoding="utf-8"))
+    return HTMLResponse(content="<h1>CAT Viewer</h1><p>viewer.html not found.</p>", status_code=404)
+
+
+@app.get("/api/file/view")
+async def serve_file_for_view(path: str):
+    """Safely serves a local document, image, or PDF for viewing in CAT Viewer."""
+    try:
+        p = Path(path).expanduser().resolve()
+        if not p.exists() or not p.is_file():
+            raise HTTPException(status_code=404, detail=f"File not found: {path}")
+        import mimetypes
+        media_type, _ = mimetypes.guess_type(str(p))
+        # Inline disposition is required for the browser viewer's PDF/image
+        # embeds; naming every response forced Chromium to download it instead.
+        return FileResponse(str(p), media_type=media_type or "application/octet-stream")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+def _pdf_page_response(document, page_index: int, scale: float = 1.2) -> Response:
+    """Render a PDF page to PNG so Qt WebEngine does not depend on its PDF plugin."""
+    if page_index < 0 or page_index >= document.page_count:
+        raise HTTPException(status_code=416, detail="PDF page is outside the document.")
+    scale = max(0.5, min(float(scale), 2.5))
+    try:
+        import pymupdf as fitz
+    except ImportError:
+        try:
+            import fitz
+        except ImportError as exc:
+            raise HTTPException(status_code=503, detail="PDF preview needs the PyMuPDF package.") from exc
+    pixmap = document.load_page(page_index).get_pixmap(
+        matrix=fitz.Matrix(scale, scale), alpha=False
+    )
+    return Response(
+        content=pixmap.tobytes("png"),
+        media_type="image/png",
+        headers={
+            "X-CAT-PDF-Pages": str(document.page_count),
+            "X-CAT-PDF-Page": str(page_index + 1),
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+@app.get("/api/file/pdf-page")
+async def serve_pdf_page(path: str, page: int = 0, scale: float = 1.2):
+    """Render one local PDF page as PNG for reliable embedded browser previews."""
+    try:
+        p = Path(path).expanduser().resolve()
+        if not p.is_file() or p.suffix.lower() != ".pdf":
+            raise HTTPException(status_code=404, detail="PDF file not found.")
+        try:
+            import pymupdf as fitz
+        except ImportError:
+            try:
+                import fitz
+            except ImportError as exc:
+                raise HTTPException(status_code=503, detail="PDF preview needs the PyMuPDF package.") from exc
+        with fitz.open(str(p)) as document:
+            return _pdf_page_response(document, page, scale)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Could not render this PDF: {exc}") from exc
+
+
+@app.post("/api/file/pdf-page-upload")
+async def render_uploaded_pdf_page(file: UploadFile = File(...), page: int = 0, scale: float = 1.2):
+    """Render a page from the viewer's local file picker without saving the upload."""
+    try:
+        import pymupdf as fitz
+    except ImportError:
+        try:
+            import fitz
+        except ImportError as exc:
+            raise HTTPException(status_code=503, detail="PDF preview needs the PyMuPDF package.") from exc
+    try:
+        payload = await file.read()
+        if len(payload) > 80 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="PDF preview is limited to 80 MB.")
+        with fitz.open(stream=payload, filetype="pdf") as document:
+            return _pdf_page_response(document, page, scale)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Could not render this PDF: {exc}") from exc
+
+
+def _office_preview(payload: bytes, extension: str) -> dict:
+    """Extract readable OOXML content for Office previews without extra parsers."""
+    main_ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+    sheet_ns = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+    rel_ns = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
+    package_rel_ns = "{http://schemas.openxmlformats.org/package/2006/relationships}"
+    drawing_ns = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+    with zipfile.ZipFile(BytesIO(payload)) as archive:
+        names = set(archive.namelist())
+        if extension == ".docx":
+            if "word/document.xml" not in names:
+                raise ValueError("This Word file has no document body.")
+            doc = ET.fromstring(archive.read("word/document.xml"))
+            body = doc.find(f"{main_ns}body")
+            blocks = []
+            if body is not None:
+                for child in body:
+                    if child.tag == f"{main_ns}p":
+                        text = "".join(node.text or "" for node in child.findall(f".//{main_ns}t"))
+                        if text.strip():
+                            style = child.find(f"{main_ns}pPr/{main_ns}pStyle")
+                            blocks.append({"type": "heading" if style is not None and "heading" in style.get(f"{main_ns}val", "").lower() else "paragraph", "text": text})
+                    elif child.tag == f"{main_ns}tbl":
+                        rows = []
+                        for tr in child.findall(f"{main_ns}tr"):
+                            rows.append([" ".join(t.text or "" for t in tc.findall(f".//{main_ns}t")) for tc in tr.findall(f"{main_ns}tc")])
+                        blocks.append({"type": "table", "rows": rows})
+            return {"kind": "document", "blocks": blocks}
+        if extension == ".pptx":
+            slides = []
+            slide_names = sorted((n for n in names if re.fullmatch(r"ppt/slides/slide\d+\.xml", n)), key=lambda n: int(re.search(r"slide(\d+)", n).group(1)))
+            for slide_path in slide_names[:500]:
+                slide = ET.fromstring(archive.read(slide_path))
+                paragraphs = []
+                for paragraph in slide.findall(f".//{drawing_ns}p"):
+                    text = "".join(node.text or "" for node in paragraph.findall(f".//{drawing_ns}t"))
+                    if text.strip():
+                        paragraphs.append(text)
+                slides.append(paragraphs)
+            return {"kind": "presentation", "slides": slides}
+        if extension not in (".xlsx", ".xlsm"):
+            raise ValueError("This Office format is not supported for in-app preview.")
+
+        shared = []
+        if "xl/sharedStrings.xml" in names:
+            strings = ET.fromstring(archive.read("xl/sharedStrings.xml"))
+            shared = ["".join(t.text or "" for t in item.findall(f".//{sheet_ns}t")) for item in strings.findall(f"{sheet_ns}si")]
+        workbook = ET.fromstring(archive.read("xl/workbook.xml"))
+        rels = {}
+        if "xl/_rels/workbook.xml.rels" in names:
+            rel_root = ET.fromstring(archive.read("xl/_rels/workbook.xml.rels"))
+            rels = {rel.get("Id"): rel.get("Target", "") for rel in rel_root.findall(f"{package_rel_ns}Relationship")}
+        sheets = []
+        sheets_node = workbook.find(f"{sheet_ns}sheets")
+        if sheets_node is not None:
+            for sheet in sheets_node.findall(f"{sheet_ns}sheet")[:100]:
+                target = rels.get(sheet.get(f"{rel_ns}id"), "")
+                sheet_path = target.lstrip("/") if target.startswith("/") else posixpath.normpath(posixpath.join("xl", target))
+                if not sheet_path.startswith("xl/") or sheet_path not in names:
+                    continue
+                root = ET.fromstring(archive.read(sheet_path))
+                rows = []
+                data_node = root.find(f"{sheet_ns}sheetData")
+                if data_node is not None:
+                    for row_node in data_node.findall(f"{sheet_ns}row")[:2000]:
+                        row_values = []
+                        for cell in row_node.findall(f"{sheet_ns}c"):
+                            address = cell.get("r", "")
+                            col = 0
+                            for ch in re.match(r"[A-Z]+", address).group(0) if re.match(r"[A-Z]+", address) else "":
+                                col = col * 26 + ord(ch) - 64
+                            col = max(0, col - 1)
+                            while len(row_values) <= min(col, 299):
+                                row_values.append("")
+                            cell_type = cell.get("t", "")
+                            if cell_type == "inlineStr":
+                                value = "".join(t.text or "" for t in cell.findall(f".//{sheet_ns}t"))
+                            else:
+                                value_node = cell.find(f"{sheet_ns}v")
+                                value = value_node.text if value_node is not None and value_node.text else ""
+                                if cell_type == "s" and value.isdigit() and int(value) < len(shared):
+                                    value = shared[int(value)]
+                            if col < 300:
+                                row_values[col] = value
+                        if row_values:
+                            rows.append(row_values)
+                sheets.append({"name": sheet.get("name", f"Sheet {len(sheets)+1}"), "rows": rows})
+        return {"kind": "spreadsheet", "sheets": sheets}
+
+
+@app.get("/api/file/office-preview")
+async def preview_office_path(path: str):
+    try:
+        p = Path(path).expanduser().resolve()
+        ext = p.suffix.lower()
+        if not p.is_file():
+            raise HTTPException(status_code=404, detail="Office file not found.")
+        if p.stat().st_size > 80 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="Office preview is limited to 80 MB.")
+        return _office_preview(p.read_bytes(), ext)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Could not preview this Office file: {exc}") from exc
+
+
+@app.post("/api/file/office-preview")
+async def preview_office_upload(file: UploadFile = File(...)):
+    try:
+        payload = await file.read()
+        if len(payload) > 80 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="Office preview is limited to 80 MB.")
+        return _office_preview(payload, Path(file.filename or "").suffix.lower())
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Could not preview this Office file: {exc}") from exc
+
+
+
+
 # --- Health Check ---
 
 @app.get("/health")
@@ -459,14 +718,18 @@ async def get_auth_status():
     """Get Fomoji identity and authentication state."""
     try:
         from calc_terminal import fomoji_auth
-        return {
-            "authenticated": fomoji_auth.is_authenticated(),
-            "identity": fomoji_auth.get_identity(),
-            "state": fomoji_auth.status(),
-            "fomoji_url": fomoji_auth.get_fomoji_url(),
-        }
+        def _snapshot():
+            auth_state = fomoji_auth.status()
+            authenticated = auth_state == "connected" or fomoji_auth.is_skip_enabled()
+            return {
+                "authenticated": authenticated,
+                "identity": fomoji_auth.get_identity() if authenticated else None,
+                "state": auth_state,
+                "fomoji_url": fomoji_auth.get_fomoji_url(),
+            }
+        return await asyncio.to_thread(_snapshot)
     except Exception as e:
-        return {"authenticated": False, "identity": None, "error": str(e)}
+        return {"authenticated": False, "identity": None, "state": "server_unreachable", "error": str(e)}
 
 
 @app.post("/api/auth/device/start")
@@ -781,7 +1044,28 @@ async def get_chat_session(chat_id: str):
     chat = chat_store.get_chat(chat_id)
     if not chat:
         raise HTTPException(status_code=404, detail="Chat session not found")
+    chat_store.touch_last_opened(chat_id)
     return chat
+
+
+def _ensure_chat_session(chat_id: Optional[str], message: str, mode: str, project_path: Optional[str]):
+    """Return a valid shared CAT chat, creating one when a client starts fresh."""
+    if chat_id and chat_id != "default":
+        existing = chat_store.get_chat(chat_id)
+        if existing:
+            return existing
+    config = aicore.load_config()
+    workspace_root = project_path or ws_paths.active_project() or ""
+    title = " ".join((message or "").split())[:64] or "New chat"
+    return chat_store.create_chat(
+        name=title,
+        workspace_root=workspace_root,
+        project_path=workspace_root,
+        created_mode=mode,
+        current_mode=mode,
+        provider=config.get("provider", ""),
+        model=config.get("model", ""),
+    )
 
 
 @app.post("/api/chats")
@@ -792,6 +1076,10 @@ async def create_new_chat(req: ChatCreateRequest):
         name=req.name,
         workspace_root=req.project_path or active_ws,
         project_path=req.project_path or active_ws,
+        created_mode=req.current_mode,
+        current_mode=req.current_mode,
+        provider=req.provider,
+        model=req.model,
     )
     return chat
 
@@ -902,25 +1190,41 @@ DEFAULT_BACKUP_MODELS = {
 @app.post("/api/backup-providers")
 async def save_backup_providers_chain(req: BackupProvidersSaveRequest):
     """Save the reordered/configured failover chain."""
+    catalog = {str(p.get("id", "")).lower(): p for p in runtime.list_providers() if p.get("id")}
     formatted = []
     for item in req.providers:
         if isinstance(item, str):
             p = item.lower()
-            m = DEFAULT_BACKUP_MODELS.get(p, "default-model")
-            formatted.append({
+            meta = catalog.get(p, {})
+            fallback_models = meta.get("fallback_models") or []
+            m = (DEFAULT_BACKUP_MODELS.get(p) or meta.get("default_model") or
+                 meta.get("model") or (fallback_models[0] if fallback_models else ""))
+            if not m:
+                continue
+            item = {
                 "provider": p,
                 "model": m,
                 "enabled": True,
-                "api_style": "ollama" if p == "ollama" else "openai",
-                "base_url": "http://localhost:11434" if p == "ollama" else "",
-            })
-        elif isinstance(item, dict):
-            entry = dict(item)
-            p = str(entry.get("provider", "")).lower()
-            if not entry.get("model"):
-                entry["model"] = DEFAULT_BACKUP_MODELS.get(p, "default-model")
-            formatted.append(entry)
+            }
+        if not isinstance(item, dict):
+            continue
+        entry = dict(item)
+        p = str(entry.get("provider", "")).strip().lower()
+        model = str(entry.get("model", "")).strip()
+        if not p or not model:
+            continue
+        meta = catalog.get(p, {})
+        entry["provider"] = p
+        entry["model"] = model
+        entry["enabled"] = entry.get("enabled", True) is not False
+        entry["api_style"] = "ollama" if p == "ollama" else (entry.get("api_style") or meta.get("api_style") or "openai")
+        if not entry.get("base_url"):
+            entry["base_url"] = ("http://localhost:11434" if p == "ollama" else
+                                 meta.get("api_endpoint") or meta.get("base_url") or "")
+        formatted.append(entry)
     ok = pm.save_backup_providers(formatted)
+    if not ok:
+        raise HTTPException(status_code=500, detail="Could not persist the backup provider chain.")
     return {"success": ok, "providers": pm.load_backup_providers()}
 
 
@@ -1154,44 +1458,42 @@ async def get_workspace_tree(workspace_id: str):
     if not root or not os.path.isdir(root):
         raise HTTPException(status_code=404, detail="Workspace not found")
     
-    # Run scan for stats
-    try:
-        from calc_terminal import workspace_index
-        ctx = workspace_index.scan(root)
-    except Exception:
-        ctx = {"languages": [], "file_count": 0}
-    
-    skip_names = {".git", ".pytest_cache", "__pycache__", "node_modules", ".venv", "venv", ".idea", ".vscode"}
-    
-    def walk_dir(current_path: Path, rel_path: str = ""):
-        children = []
+    def _build_tree():
+        # Tree requests must never monopolize FastAPI's event loop. Large source
+        # workspaces can contain hundreds of thousands of files, so bound the
+        # initial tree and let the UI request/open subfolders as needed.
         try:
-            entries = sorted(list(current_path.iterdir()), key=lambda e: (not e.is_dir(), e.name.lower()))
-            for entry in entries:
-                if entry.name in skip_names or entry.name.startswith("."):
-                    continue
-                entry_rel = f"{rel_path}/{entry.name}" if rel_path else entry.name
-                if entry.is_dir():
-                    children.append({
-                        "name": entry.name,
-                        "path": entry_rel,
-                        "type": "directory",
-                        "children": walk_dir(entry, entry_rel),
-                    })
-                elif entry.is_file():
-                    children.append({
-                        "name": entry.name,
-                        "path": entry_rel,
-                        "type": "file",
-                        "ext": entry.suffix.lower(),
-                        "size": entry.stat().st_size,
-                    })
+            from calc_terminal import workspace_index
+            ctx = workspace_index.scan(root)
         except Exception:
-            pass
-        return children
+            ctx = {"languages": [], "file_count": 0}
 
-    langs = ctx.get("languages", [])
-    f_count = ctx.get("file_count", 0)
+        skip_names = {".git", ".pytest_cache", "__pycache__", "node_modules", ".venv", "venv", ".idea", ".vscode"}
+        def walk_dir(current_path: Path, rel_path: str = "", depth: int = 0):
+            children = []
+            if depth >= 5:
+                return children
+            try:
+                entries = sorted(current_path.iterdir(), key=lambda e: (not e.is_dir(), e.name.lower()))
+                for entry in entries:
+                    if entry.name in skip_names or entry.name.startswith("."):
+                        continue
+                    if len(children) >= 250:
+                        break
+                    entry_rel = f"{rel_path}/{entry.name}" if rel_path else entry.name
+                    if entry.is_dir():
+                        children.append({"name": entry.name, "path": entry_rel, "type": "directory", "children": walk_dir(entry, entry_rel, depth + 1)})
+                    elif entry.is_file():
+                        children.append({"name": entry.name, "path": entry_rel, "type": "file", "ext": entry.suffix.lower(), "size": entry.stat().st_size})
+            except Exception:
+                pass
+            return children
+
+        langs = ctx.get("languages", [])
+        f_count = ctx.get("file_count", 0)
+        return langs, f_count, walk_dir(Path(root))
+
+    langs, f_count, children = await asyncio.to_thread(_build_tree)
     summary_str = f"{', '.join(langs[:3])} · {f_count}" if langs else (f"{f_count} files" if f_count else "")
 
     return {
@@ -1199,7 +1501,7 @@ async def get_workspace_tree(workspace_id: str):
         "path": "",
         "full_path": root,
         "type": "directory",
-        "children": walk_dir(Path(root)),
+        "children": children,
         "summary": {
             "languages": langs,
             "file_count": f_count,
@@ -1432,27 +1734,27 @@ async def chat(request: ChatRequest):
         ws_paths.set_active_project(request.project_path)
 
     # Record user turn if chat_id provided
-    cid = request.chat_id
-    if cid:
-        try:
-            chat_store.add_turn(cid, "user", request.message)
-        except Exception:
-            pass
-
-    # Get AI config
+    mode = request.mode or "build"
+    session = _ensure_chat_session(request.chat_id, request.message, mode, request.project_path)
+    cid = session["id"]
     config = aicore.load_config()
+    chat_store.add_turn(cid, "user", request.message, mode=mode,
+                        provider=config.get("provider"), model=config.get("model"))
 
     # Process the message (run_in_executor to avoid blocking)
     try:
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
-            None, _process_chat_message, request.message, request.mode or "build", config
+            None, _process_chat_message, request.message, mode, config
         )
         if cid:
             result["chat_id"] = cid
             resp_text = result.get("response") or "(No response)"
             try:
-                chat_store.add_turn(cid, "assistant", resp_text)
+                chat_store.add_turn(
+                    cid, "assistant", resp_text, mode=mode,
+                    provider=result.get("provider"), model=result.get("model"),
+                )
             except Exception:
                 pass
         return result
@@ -1472,7 +1774,10 @@ async def chat(request: ChatRequest):
         if cid:
             err_res["chat_id"] = cid
             try:
-                chat_store.add_turn(cid, "assistant", err_res["response"])
+                chat_store.add_turn(
+                    cid, "assistant", err_res["response"], mode=mode,
+                    provider=prov, model=mod,
+                )
             except Exception:
                 pass
         return err_res
@@ -1492,24 +1797,27 @@ async def run_agent_endpoint(request: AgentRequest):
     """Run the CAT agent (same as CLI /agent mode)."""
     if request.project_path:
         ws_paths.set_active_project(request.project_path)
-    cid = getattr(request, "chat_id", None)
-    if cid:
-        try:
-            chat_store.add_turn(cid, "user", request.message)
-        except Exception:
-            pass
+    mode = request.mode or "agent"
+    session = _ensure_chat_session(request.chat_id, request.message, mode, request.project_path)
+    cid = session["id"]
+    config = aicore.load_config()
+    chat_store.add_turn(cid, "user", request.message, mode=mode,
+                        provider=config.get("provider"), model=config.get("model"))
     loop = asyncio.get_event_loop()
     try:
         result = await loop.run_in_executor(
             None, lambda: _run_agent_sync(
-                request.message, request.mode, request.max_steps
+                request.message, mode, request.max_steps
             )
         )
         if cid:
             result["chat_id"] = cid
             if result.get("response"):
                 try:
-                    chat_store.add_turn(cid, "assistant", result["response"])
+                    chat_store.add_turn(
+                        cid, "assistant", result["response"], mode=mode,
+                        provider=result.get("provider"), model=result.get("model"),
+                    )
                 except Exception:
                     pass
         return result
@@ -1604,11 +1912,16 @@ def _git_op_sync(action: str, root: str, message: str = None, file: str = None, 
     """Execute a git operation synchronously."""
     import subprocess
     def run_git(args):
+        popen_kwargs = {"cwd": root, "stdout": subprocess.PIPE, "stderr": subprocess.PIPE}
+        if sys.platform == "win32":
+            popen_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+            si = subprocess.STARTUPINFO()
+            si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            si.wShowWindow = 0  # SW_HIDE
+            popen_kwargs["startupinfo"] = si
         proc = subprocess.Popen(
             ["git"] + args,
-            cwd=root,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            **popen_kwargs,
         )
         stdout, stderr = proc.communicate(timeout=15)
         return proc.returncode, stdout.decode("utf-8", errors="replace"), stderr.decode("utf-8", errors="replace")
@@ -1741,12 +2054,37 @@ async def chat_stream(request: ChatRequest):
 
     async def generate():
         try:
+            mode = request.mode or "notebook"
+            if request.project_path:
+                ws_paths.set_active_project(request.project_path)
+            session = _ensure_chat_session(request.chat_id, request.message, mode, request.project_path)
+            chat_id = session["id"]
+            history = [
+                {"role": turn.get("role"), "content": turn.get("content", "")}
+                for turn in session.get("turns", [])
+                if turn.get("role") in {"user", "assistant"} and turn.get("content")
+            ][-40:]
+            config = aicore.load_config()
+            yield f"data: {json.dumps({'type': 'session', 'chat_id': chat_id})}\n\n"
+            response_text = []
+            completed = False
             async for chunk in runtime.stream_chat(
                 message=request.message,
-                mode=request.mode or "notebook",
+                mode=mode,
+                history=history,
                 project_path=request.project_path,
             ):
+                if chunk.get("type") == "token":
+                    response_text.append(chunk.get("text", ""))
+                elif chunk.get("type") == "done":
+                    completed = True
                 yield f"data: {json.dumps(chunk)}\n\n"
+            if completed:
+                chat_store.add_turn(chat_id, "user", request.message, mode=mode,
+                                    provider=config.get("provider"), model=config.get("model"))
+                if response_text:
+                    chat_store.add_turn(chat_id, "assistant", "".join(response_text), mode=mode,
+                                        provider=config.get("provider"), model=config.get("model"))
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
 
@@ -1797,32 +2135,106 @@ async def delete_custom_mode(key: str):
     return {"success": True, "message": msg}
 
 
+# --- CAT Agent Definitions (separate from the six chat modes) ---
+
+@app.get("/api/agents")
+async def list_agent_definitions():
+    registry = get_agent_registry()
+    return {"agents": [agent.to_dict() for agent in registry.list(include_disabled=True)]}
+
+
+@app.post("/api/agents")
+async def create_agent_definition(request: AgentDefinitionRequest):
+    if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]{1,63}", request.id):
+        raise HTTPException(status_code=400, detail="Agent id must be 2-64 safe characters.")
+    if request.primary_mode not in {"build", "plan", "research", "debugger", "agent", "notebook"}:
+        raise HTTPException(status_code=400, detail="Unsupported primary mode.")
+    if not request.name.strip():
+        raise HTTPException(status_code=400, detail="Agent name cannot be empty.")
+    registry = get_agent_registry()
+    if registry.get(request.id):
+        raise HTTPException(status_code=409, detail="An agent with that id already exists.")
+    agent = AgentSpec(
+        id=request.id, name=request.name[:100], description=(request.description or "")[:1000],
+        icon=(request.icon or "🤖")[:8], primary_mode=request.primary_mode,
+        system_instructions=(request.system_instructions or "")[:12000],
+        personality=(request.personality or "")[:2000], tools=request.tools or [], tags=request.tags or [],
+    )
+    registry.register(agent)
+    return {"success": True, "agent": agent.to_dict()}
+
+
+@app.patch("/api/agents/{agent_id}")
+async def update_agent_definition(agent_id: str, request: AgentDefinitionPatch):
+    registry = get_agent_registry()
+    agent = registry.get(agent_id)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found.")
+    changes = (request.model_dump if hasattr(request, "model_dump") else request.dict)(exclude_unset=True, exclude_none=True)
+    if agent.builtin and set(changes) - {"enabled"}:
+        raise HTTPException(status_code=403, detail="Built-in agent definitions are read-only.")
+    if "primary_mode" in changes and changes["primary_mode"] not in {"build", "plan", "research", "debugger", "agent", "notebook"}:
+        raise HTTPException(status_code=400, detail="Unsupported primary mode.")
+    if "name" in changes:
+        changes["name"] = changes["name"][:100]
+    if "description" in changes:
+        changes["description"] = changes["description"][:1000]
+    if "system_instructions" in changes:
+        changes["system_instructions"] = changes["system_instructions"][:12000]
+    if "personality" in changes:
+        changes["personality"] = changes["personality"][:2000]
+    if "icon" in changes:
+        changes["icon"] = changes["icon"][:8]
+    for field in ("tools", "tags"):
+        if field in changes:
+            changes[field] = [str(value)[:100] for value in changes[field][:100]]
+    updated = registry.update(agent_id, changes)
+    return {"success": True, "agent": updated.to_dict()}
+
+
+@app.delete("/api/agents/{agent_id}")
+async def delete_agent_definition(agent_id: str):
+    registry = get_agent_registry()
+    agent = registry.get(agent_id)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found.")
+    if agent.builtin:
+        raise HTTPException(status_code=403, detail="Built-in agent definitions cannot be deleted.")
+    registry.unregister(agent_id)
+    return {"success": True}
+
+
 # --- Providers & Models Management ---
 
 @app.get("/api/providers")
 async def list_providers():
     """List the AI providers in the runtime catalog."""
-    return {"providers": runtime.list_providers()}
+    return {"providers": await asyncio.to_thread(runtime.list_providers)}
 
 
 @app.get("/api/models")
 async def list_models(provider_id: str, force_refresh: bool = False):
     """Get models for a specific provider with metadata and categories."""
-    return {"models": runtime.get_models_for_provider(provider_id, force_refresh=force_refresh)}
+    models = await asyncio.to_thread(runtime.get_models_for_provider, provider_id, force_refresh)
+    return {"models": models}
 
 
 @app.post("/api/models/switch")
 async def switch_model(request: ModelSwitchRequest):
     """Switch active provider and model in CAT configuration."""
-    return runtime.switch_model(request.provider, request.model, request.api_key, request.base_url)
+    return await asyncio.to_thread(
+        runtime.switch_model, request.provider, request.model, request.api_key, request.base_url
+    )
 
 
 @app.get("/api/providers/center")
 async def get_provider_center():
     """Return all provider metadata, categories, active status, and live Ollama status for the Provider Model Center."""
-    cfg = aicore.load_config()
-    all_provs = runtime.list_providers()
-    ollama_stat = runtime.get_ollama_status()
+    cfg, all_provs, ollama_stat = await asyncio.gather(
+        asyncio.to_thread(aicore.load_config),
+        asyncio.to_thread(runtime.list_providers),
+        asyncio.to_thread(runtime.get_ollama_status),
+    )
     
     popular_ids = {"ollama", "openai", "anthropic", "groq", "deepseek", "gemini", "openrouter", "mistral", "cohere", "together"}
     categories = ["all", "local", "free", "popular", "reasoning", "coding", "vision", "fast", "multimodal"]
@@ -1888,7 +2300,10 @@ async def verify_provider_endpoint(req: ProviderVerifyRequest):
                 "api_key": req.api_key or "",
                 "base_url": req.base_url or "",
             }
-            res = aicore.query_ai("ping", config=cfg, size_class="simple")
+            # Probe the selected endpoint directly. query_ai() includes the
+            # configured failover chain, which could report another provider's
+            # success as if this backup itself had passed.
+            res = aicore._query_ai_once("ping", config=cfg, size_class="simple")
             latency = int((time.time() - t0) * 1000)
             if aicore.is_error_response(res):
                 return {"success": False, "latency_ms": latency, "error": res}
@@ -1935,6 +2350,75 @@ async def get_live_activities(limit: int = 50):
         }
     except Exception as e:
         return {"activities": [], "summary": {}, "resources": {}, "error": str(e)}
+
+
+@app.get("/api/activity/summary")
+async def get_activity_summary(days: int = 30):
+    """Aggregate persisted CAT conversations into honest usage totals and daily points."""
+    days = max(0, min(int(days), 3650))
+    now = time.time()
+    cutoff = now - (days * 86400) if days else 0
+    daily: Dict[str, Dict[str, Any]] = {}
+    daily_session_ids: Dict[str, Set[str]] = {}
+    sessions = messages = tokens = 0
+    token_data_available = False
+    model_counts: Dict[str, int] = {}
+    active_dates: Set[str] = set()
+
+    try:
+        chats = chat_store.get_chat_summaries(include_archived=True, include_legacy=True)
+        for summary in chats:
+            chat_id = summary.get("id")
+            if not chat_id:
+                continue
+            chat = chat_store.get_chat(chat_id) or {}
+            created_at = float(chat.get("created_at") or summary.get("created_at") or 0)
+            chat_active = False
+            for turn in chat.get("turns", []):
+                timestamp = float(turn.get("timestamp") or 0)
+                if timestamp < cutoff or turn.get("role") not in {"user", "assistant"}:
+                    continue
+                messages += 1
+                chat_active = True
+                day_key = datetime.fromtimestamp(timestamp).date().isoformat()
+                point = daily.setdefault(day_key, {"sessions": 0, "messages": 0})
+                point["messages"] += 1
+                daily_session_ids.setdefault(day_key, set()).add(str(chat_id))
+                active_dates.add(day_key)
+                model = str(turn.get("model") or chat.get("model") or "").strip()
+                if model:
+                    model_counts[model] = model_counts.get(model, 0) + 1
+                usage = turn.get("usage") if isinstance(turn.get("usage"), dict) else {}
+                count = usage.get("total_tokens")
+                if isinstance(count, (int, float)) and count >= 0:
+                    token_data_available = True
+                    tokens += int(count)
+
+            if chat_active:
+                sessions += 1
+            elif created_at >= cutoff:
+                sessions += 1
+                day_key = datetime.fromtimestamp(created_at).date().isoformat() if created_at else ""
+                if day_key:
+                    daily_session_ids.setdefault(day_key, set()).add(str(chat_id))
+                    active_dates.add(day_key)
+
+        for day_key, chat_ids in daily_session_ids.items():
+            daily.setdefault(day_key, {"sessions": 0, "messages": 0})["sessions"] = len(chat_ids)
+
+        result: Dict[str, Any] = {
+            "range_days": days or "all",
+            "sessions": sessions,
+            "messages": messages,
+            "active_days": len(active_dates),
+            "favorite_model": max(model_counts, key=model_counts.get) if model_counts else None,
+            "daily": [{"date": key, **value} for key, value in sorted(daily.items())],
+        }
+        if token_data_available:
+            result["total_tokens"] = tokens
+        return result
+    except Exception as exc:
+        return {"range_days": days or "all", "sessions": 0, "messages": 0, "active_days": 0, "favorite_model": None, "daily": [], "error": str(exc)}
 
 
 @app.post("/api/activities/clear")
@@ -3323,6 +3807,9 @@ def is_server_running(host: str = "127.0.0.1", port: int = 8765, timeout: float 
         return False
 
 
+FATTY_PID_FILE = Path.home() / ".cat_fatty_server.pid"
+
+
 def ensure_fatty_server(timeout: float = 10.0, auto_start: bool = True) -> bool:
     """Ensure the Fatty CAT web server is running.
     If not running and auto_start is True, spawn it as a background process.
@@ -3336,21 +3823,31 @@ def ensure_fatty_server(timeout: float = 10.0, auto_start: bool = True) -> bool:
     import subprocess
     python_exe = sys.executable or "python"
 
-    creationflags = 0
+    popen_kwargs = {
+        "stdout": subprocess.DEVNULL,
+        "stderr": subprocess.DEVNULL,
+    }
     if sys.platform == "win32":
-        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+        popen_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+        si = subprocess.STARTUPINFO()
+        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        si.wShowWindow = 0  # SW_HIDE
+        popen_kwargs["startupinfo"] = si
 
     try:
+
         # `python -m calc_terminal.web.server` works from ANY cwd when CAT is
         # pip-installed (and from a source checkout too), so do not force
         # cwd to the git repo root — that path does not exist on a friend's
         # computer. Inherit the caller's cwd instead.
-        subprocess.Popen(
+        proc = subprocess.Popen(
             [python_exe, "-m", "calc_terminal.web.server"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            creationflags=creationflags,
+            **popen_kwargs,
         )
+        try:
+            FATTY_PID_FILE.write_text(str(proc.pid), encoding="utf-8")
+        except Exception:
+            pass
     except Exception as e:
         print(f"[FATTY CAT] Failed to auto-start server: {e}", file=sys.stderr)
         return False
@@ -3361,6 +3858,31 @@ def ensure_fatty_server(timeout: float = 10.0, auto_start: bool = True) -> bool:
             return True
         time.sleep(0.3)
     return False
+
+
+def stop_fatty_server():
+    """Cleanly terminate any background Fatty CAT server process."""
+    try:
+        if FATTY_PID_FILE.exists():
+            pid_str = FATTY_PID_FILE.read_text(encoding="utf-8").strip()
+            FATTY_PID_FILE.unlink(missing_ok=True)
+            if pid_str and pid_str.isdigit():
+                pid = int(pid_str)
+                if sys.platform == "win32":
+                    si = subprocess.STARTUPINFO()
+                    si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                    si.wShowWindow = 0
+                    subprocess.run(
+                        ["taskkill", "/F", "/T", "/PID", str(pid)],
+                        capture_output=True, timeout=5,
+                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
+                        startupinfo=si,
+                    )
+                else:
+                    import signal
+                    os.kill(pid, signal.SIGTERM)
+    except Exception:
+        pass
 
 
 # ============================================================

@@ -66,34 +66,46 @@ MODE_ORDER = ["notebook", "research", "plan", "build", "debugger", "agent"]
 # for borders/bubbles.
 MODE_META = {
     "notebook": dict(
-        label="Notebook", icon="\U0001f4d8", accent=(122, 162, 247),  # blue
-        purpose="Daily AI \u2014 first-principles science, mathematics, reasoning, and conceptual problem-solving.",
+        label="Qala", full_label="Qala · Notebook & Science", role="Notebook & Scientific Agent",
+        icon="🧬", accent=(122, 162, 247),  # blue
+        purpose="Qala · Notebook & Science — equations, scientific notebooks, SymPy symbolic math, numerical computations, and LaTeX.",
         gradient=((93, 132, 240), (145, 190, 255)),  # blue gradient
+        agent_id="qala",
     ),
     "research": dict(
-        label="Research", icon="\U0001f50d", accent=(255, 105, 180),  # hot pink
-        purpose="DeepSearch \u2014 multi-angle web research, API analysis, documentation synthesis, and live citations.",
+        label="Sage", full_label="Sage · Research Agent", role="Research Agent",
+        icon="🔍", accent=(255, 105, 180),  # hot pink
+        purpose="Sage · Research Agent — deep investigation, live web search, API verification, and cited documentation synthesis.",
         gradient=((255, 192, 203), (255, 105, 180)),  # pink to hot pink
+        agent_id="sage",
     ),
     "plan": dict(
-        label="Plan", icon="\U0001f9ed", accent=(158, 206, 106),  # green
-        purpose="Strategic Planning \u2014 project roadmaps, system architectures, milestone specifications, and edge-case auditing.",
+        label="Mira", full_label="Mira · Planning Agent", role="Planning Agent",
+        icon="🧭", accent=(158, 206, 106),  # green
+        purpose="Mira · Planning Agent — strategic roadmaps, request decomposition, milestone tracking, and task graphs.",
         gradient=((120, 180, 80), (185, 230, 140)),  # green gradient
+        agent_id="mira",
     ),
     "build": dict(
-        label="Build", icon="\U0001f528", accent=(224, 175, 104),  # orange
-        purpose="Software Engineering \u2014 robust code generation, architecture design, complete refactoring, and test suites.",
+        label="Aria", full_label="Aria · Build Agent", role="Build Agent",
+        icon="🛠️", accent=(224, 175, 104),  # orange
+        purpose="Aria · Build Agent — production code implementation, feature development, refactoring, and test suites.",
         gradient=((230, 150, 70), (250, 200, 130)),  # orange gradient
+        agent_id="aria",
     ),
     "debugger": dict(
-        label="Debugger", icon="\U0001f41b", accent=(220, 20, 60),  # red
-        purpose="Root-Cause Diagnosis \u2014 crash analysis, stack trace dissection, performance profiling, and surgical fixes.",
+        label="Dex", full_label="Dex · Debugger Agent", role="Debugger Agent",
+        icon="🐛", accent=(220, 20, 60),  # red
+        purpose="Dex · Debugger Agent — root-cause diagnosis, stack trace dissection, surgical fixes, and test validation.",
         gradient=((220, 20, 60), (255, 150, 150)),  # red to light red
+        agent_id="dex",
     ),
     "agent": dict(
-        label=" Agent", icon="\u2699", accent=(187, 154, 247),  # purple
-        purpose="Autonomous Operator \u2014 Think Mode chain-of-thought, full computer & CAT CLI automation, shell commands, and file operations.",
+        label="Nova", full_label="Nova · Autonomous Agent", role="Autonomous Agent",
+        icon="⚡", accent=(187, 154, 247),  # purple
+        purpose="Nova · Autonomous Agent — multi-step planning, tool selection, specialist delegation, and verified completion.",
         gradient=((150, 120, 240), (210, 180, 255)),  # violet gradient
+        agent_id="nova",
     ),
 }
 
@@ -714,6 +726,18 @@ def label(key=None):
     return meta(key)["label"]
 
 
+def full_label(key=None):
+    return meta(key).get("full_label", meta(key)["label"])
+
+
+def kitty_name(key=None):
+    return meta(key)["label"]
+
+
+def kitty_title(key=None):
+    return meta(key).get("full_label", meta(key)["label"])
+
+
 def icon(key=None):
     return meta(key)["icon"]
 
@@ -774,6 +798,17 @@ def alias_for(mode_key):
 
 
 # ------------------------------------------------------- system prompts --
+_QALA_SYSTEM_PROMPT = (
+    "You are Qala, the dedicated Notebook and Scientific Agent in CAT CLI.\n"
+    "You are a female-presenting scientific computing specialist with a friendly, professional, "
+    "intelligent, and approachable communication style.\n"
+    "You specialize in mathematical reasoning, algebraic equations, calculus, differential equations, "
+    "linear algebra, probability, numerical computation, scientific notebooks (.ipynb), and LaTeX typesetting.\n"
+    "Always use exact symbolic math (SymPy) or verified numerical computing (NumPy/SciPy) rather than guessing. "
+    "Produce elegant Unicode mathematical notation for terminal readability and author valid LaTeX for technical documentation.\n\n"
+    + identity.IDENTITY_BLOCK
+)
+
 _BUILD_SYSTEM_PROMPT = (
     "You are CAT Build, the software-development persona of CAT AI "
     "(Coding Agent Terminal), embedded inside the same chat as CAT's "
@@ -866,6 +901,8 @@ def system_prompt_for(mode_key):
     without touching the mode prompts themselves."""
     if mode_key in MODE_META and MODE_META[mode_key].get("system_prompt"):
         base = MODE_META[mode_key]["system_prompt"]
+    elif mode_key == "notebook":
+        base = _QALA_SYSTEM_PROMPT
     elif mode_key == "build":
         base = _BUILD_SYSTEM_PROMPT
     elif mode_key == "plan":

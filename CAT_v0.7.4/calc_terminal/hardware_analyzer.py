@@ -27,6 +27,17 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Tuple
 
 
+def _win_hidden_kwargs() -> dict:
+    kwargs = {}
+    if sys.platform == "win32":
+        kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+        si = subprocess.STARTUPINFO()
+        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        si.wShowWindow = 0  # SW_HIDE
+        kwargs["startupinfo"] = si
+    return kwargs
+
+
 @dataclass
 class CPUInfo:
     model: str = "Unknown CPU"
@@ -421,7 +432,7 @@ class HardwareAnalyzer:
                         if best_gpu.vendor == "NVIDIA" and shutil.which("nvidia-smi"):
                             try:
                                 cmd = ["nvidia-smi", "--query-gpu=name,memory.total,memory.free,driver_version", "--format=csv,noheader"]
-                                out = subprocess.check_output(cmd, timeout=1.5, text=True)
+                                out = subprocess.check_output(cmd, timeout=1.5, text=True, **_win_hidden_kwargs())
                                 lines = [l.strip() for l in out.splitlines() if l.strip()]
                                 if lines:
                                     parts = [p.strip() for p in lines[0].split(",")]
@@ -437,7 +448,7 @@ class HardwareAnalyzer:
         if shutil.which("nvidia-smi"):
             try:
                 cmd = ["nvidia-smi", "--query-gpu=name,memory.total,memory.free,driver_version", "--format=csv,noheader"]
-                out = subprocess.check_output(cmd, timeout=1.5, text=True)
+                out = subprocess.check_output(cmd, timeout=1.5, text=True, **_win_hidden_kwargs())
                 lines = [l.strip() for l in out.splitlines() if l.strip()]
                 if lines:
                     parts = [p.strip() for p in lines[0].split(",")]
@@ -500,7 +511,7 @@ class HardwareAnalyzer:
         if sys.platform == "win32":
             try:
                 cmd = ["wmic", "path", "win32_VideoController", "get", "name,adapterram"]
-                out = subprocess.check_output(cmd, timeout=1.5, text=True)
+                out = subprocess.check_output(cmd, timeout=1.5, text=True, **_win_hidden_kwargs())
                 lines = [l.strip() for l in out.splitlines() if l.strip() and "Name" not in l and "AdapterRAM" not in l]
                 for line in lines:
                     parts = line.split()

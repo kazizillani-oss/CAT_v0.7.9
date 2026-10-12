@@ -25,6 +25,7 @@ Spec section 1 event shape:
 from __future__ import annotations
 
 import os
+import sys
 import platform
 import shutil
 import subprocess
@@ -57,6 +58,16 @@ def _fmt_duration(ms: int) -> str:
     m = int(s // 60)
     r = s % 60
     return f"{m}m {r:.0f}s"
+
+def _win_hidden_kwargs() -> dict:
+    kwargs = {}
+    if sys.platform == "win32":
+        kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+        si = subprocess.STARTUPINFO()
+        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        si.wShowWindow = 0  # SW_HIDE
+        kwargs["startupinfo"] = si
+    return kwargs
 
 # ── thread-local current turn (so any nested tool call without explicit turn_id still binds to the active UI turn)
 _thread_local = threading.local()
@@ -277,6 +288,9 @@ class ResourceMonitor:
         self._last_warning_time = 0.0
         self._last_warning_level = "normal"
         self._cooldown_sec = 30.0
+        self._last_gpu_query_ts = 0.0
+        self._cached_gpu_info = (None, None, None)
+        self._gpu_available = None
 
     def sample_now(self) -> ResourceSample:
         sys_used_gb = 0.0
@@ -327,21 +341,41 @@ class ResourceMonitor:
                 pass
 
         # Try real GPU query via nvidia-smi if available (never fake!)
-        try:
-            if shutil.which("nvidia-smi"):
-                out = subprocess.check_output(
-                    ["nvidia-smi", "--query-gpu=name,memory.used,memory.total", "--format=csv,noheader,nounits"],
-                    timeout=1.5, text=True
-                )
-                lines = [l.strip() for l in out.splitlines() if l.strip()]
-                if lines:
-                    parts = [p.strip() for p in lines[0].split(",")]
-                    if len(parts) >= 3:
-                        gpu_name = parts[0]
-                        gpu_used_gb = round(float(parts[1]) / 1024.0, 2)
-                        gpu_total_gb = round(float(parts[2]) / 1024.0, 2)
-        except Exception:
-            pass
+        # Throttled to 15s cache, fully window-hidden on Windows to eliminate popup console windows
+        now_ts = time.time()
+        if self._gpu_available is not False:
+            if now_ts - self._last_gpu_query_ts >= 15.0:
+                self._last_gpu_query_ts = now_ts
+                try:
+                    smi_bin = shutil.which("nvidia-smi")
+                    if smi_bin:
+                        popen_kwargs = {"timeout": 1.5, "text": True}
+                        if platform.system() == "Windows":
+                            popen_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+                            si = subprocess.STARTUPINFO()
+                            si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                            si.wShowWindow = 0  # SW_HIDE
+                            popen_kwargs["startupinfo"] = si
+                        out = subprocess.check_output(
+                            [smi_bin, "--query-gpu=name,memory.used,memory.total", "--format=csv,noheader,nounits"],
+                            **popen_kwargs
+                        )
+                        lines = [l.strip() for l in out.splitlines() if l.strip()]
+                        if lines:
+                            parts = [p.strip() for p in lines[0].split(",")]
+                            if len(parts) >= 3:
+                                self._cached_gpu_info = (
+                                    parts[0],
+                                    round(float(parts[1]) / 1024.0, 2),
+                                    round(float(parts[2]) / 1024.0, 2),
+                                )
+                                self._gpu_available = True
+                    else:
+                        self._gpu_available = False
+                except Exception:
+                    self._gpu_available = False
+
+            gpu_name, gpu_used_gb, gpu_total_gb = self._cached_gpu_info
 
         # Thresholds per spec:
         # <70% normal, 70-85% elevated, 85-95% high, >95% critical

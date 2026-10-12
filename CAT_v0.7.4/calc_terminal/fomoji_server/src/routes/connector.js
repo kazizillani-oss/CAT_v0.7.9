@@ -103,6 +103,13 @@ function resolveConnectorAuth(req) {
 }
 
 // ---------------------------------------------------------------------
+// GET /api/connector/ping — lightweight public liveness probe
+// ---------------------------------------------------------------------
+router.get('/ping', (req, res) => {
+  res.json({ ok: true, service: 'fomoji' });
+});
+
+// ---------------------------------------------------------------------
 // GET /api/connector/applications — public registry listing. No auth
 // needed: this is "what could I connect", not "what am I connected to".
 // ---------------------------------------------------------------------

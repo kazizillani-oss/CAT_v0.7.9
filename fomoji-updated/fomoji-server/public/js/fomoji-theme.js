@@ -16,6 +16,10 @@
 (function () {
   'use strict';
 
+  if (/CATBrowser/i.test(navigator.userAgent || '')) {
+    document.documentElement.classList.add('cat-browser-renderer');
+  }
+
   var KEY = 'fomoji_appearance_v1';
 
   /* ------------------------------------------------------------------

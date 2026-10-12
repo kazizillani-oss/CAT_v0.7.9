@@ -214,11 +214,16 @@ def _parse_json_protocol(text: str, known_tools: set) -> List[ToolCall]:
             advance_len = len(text) - brace_pos
 
         if isinstance(obj, dict):
-            raw_action = obj.get("action", "")
+            raw_action = str(obj.get("action", "")).strip()
             raw_tool = obj.get("tool", obj.get("name", ""))
 
+            # Explicitly reject final response actions from being converted to tool calls
+            if raw_action.lower() in ("final", "finish", "done", "complete", "stop", "end", "answer"):
+                idx = brace_pos + max(1, advance_len)
+                continue
+
             candidate_tool = ""
-            if str(raw_action).lower() in ("tool", "call", "execute", "function", "action"):
+            if raw_action.lower() in ("tool", "call", "execute", "function", "action"):
                 candidate_tool = raw_tool or raw_action
             elif raw_action:
                 candidate_tool = raw_action

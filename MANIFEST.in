@@ -7,6 +7,9 @@ recursive-include CAT_v0.7.4/calc_terminal/web/static *
 recursive-include CAT_v0.7.4/calc_terminal/fomoji_server *
 recursive-include fomoji-updated/fomoji-server *
 include CAT_v0.7.4/calc_terminal/cat.ico
+include CAT_v0.7.4/calc_terminal/cat_browser.ico
+include CAT_v0.7.4/calc_terminal/cat_browser.png
+include CAT_v0.7.4/calc_terminal/cat.png
 include CAT_v0.7.4/calc_terminal/web/static/icons/cat.ico
 include README.md LICENSE
 global-exclude __pycache__ *.pyc *.pyo *.pyd

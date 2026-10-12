@@ -74,6 +74,7 @@ web = [
     "uvicorn>=0.20.0",
     "pydantic>=2.0",
     "python-multipart>=0.0.6",
+    "PyMuPDF>=1.24",
 ]
 science = [
     "sympy>=1.12",
@@ -122,7 +123,7 @@ exclude = ["calc_terminal.tests*"]
 # the Fatty CAT server serves web/static/*, and terminal_identity needs the
 # icons. Without this block `pip install .` silently drops them.
 [tool.setuptools.package-data]
-"calc_terminal" = ["cat.ico", "*.ico"]
+"calc_terminal" = ["cat.ico", "*.ico", "cat_browser.ico", "cat_browser.png", "*.png"]
 "calc_terminal.models" = ["*.json"]
 "calc_terminal.providers" = ["*.json"]
 "calc_terminal.fomoji_server" = [

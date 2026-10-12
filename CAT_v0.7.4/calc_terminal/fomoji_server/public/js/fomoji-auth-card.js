@@ -17,6 +17,7 @@ class FomojiCardError extends Error {}
 
 const FomojiAuthCard = (() => {
   const THREE_CDN = 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js';
+  const CAT_BROWSER = /CATBrowser/i.test(navigator.userAgent || '');
   let threePromise = null;
 
   function loadThree() {
@@ -76,78 +77,151 @@ const FomojiAuthCard = (() => {
     };
   }
 
-  // Renders the per-user pattern into `container` (a DOM element) using
-  // Three.js, seeded entirely from patternSeed. Returns a `dispose()` fn.
-  async function renderPattern(container, patternSeed) {
-    const THREE = await loadThree();
+  function render2DPatternFallback(container, patternSeed) {
     const rand = mulberry32(patternSeed);
-    // Pull several independent streams out of the one seed so shape count,
-    // palette, and layout don't all move together.
-    const hueBase = rand() * 360;
-    const shapeCount = 14 + Math.floor(rand() * 10);
-    const shapeKind = Math.floor(rand() * 3); // 0=icosahedron, 1=octahedron, 2=torus
-
     const width = container.clientWidth || 320;
     const height = container.clientHeight || 320;
-
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-    camera.position.set(0, 0, 9);
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    canvas.style.borderRadius = '12px';
     container.innerHTML = '';
-    container.appendChild(renderer.domElement);
+    container.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return function () {};
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-    const key = new THREE.DirectionalLight(0xffffff, 0.9);
-    key.position.set(3, 4, 5);
-    scene.add(key);
-
-    const group = new THREE.Group();
+    const hueBase = rand() * 360;
+    const shapeCount = 14 + Math.floor(rand() * 8);
+    const shapes = [];
     for (let i = 0; i < shapeCount; i++) {
-      const hue = (hueBase + rand() * 70 - 35 + 360) % 360;
-      const color = new THREE.Color().setHSL(hue / 360, 0.42, 0.5 + rand() * 0.18);
-      let geo;
-      if (shapeKind === 0) geo = new THREE.IcosahedronGeometry(0.24 + rand() * 0.22, 0);
-      else if (shapeKind === 1) geo = new THREE.OctahedronGeometry(0.24 + rand() * 0.22, 0);
-      else geo = new THREE.TorusGeometry(0.18 + rand() * 0.14, 0.06 + rand() * 0.05, 8, 16);
-      const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.45, metalness: 0.25 });
-      const mesh = new THREE.Mesh(geo, mat);
-
-      const radius = 1.2 + rand() * 2.6;
-      const theta = rand() * Math.PI * 2;
-      const phi = Math.acos(rand() * 2 - 1);
-      mesh.position.set(
-        radius * Math.sin(phi) * Math.cos(theta),
-        radius * Math.sin(phi) * Math.sin(theta),
-        radius * Math.cos(phi) * 0.6
-      );
-      mesh.rotation.set(rand() * Math.PI, rand() * Math.PI, rand() * Math.PI);
-      mesh.userData.spin = 0.08 + rand() * 0.18;
-      mesh.userData.axis = new THREE.Vector3(rand() - 0.5, rand() - 0.5, rand() - 0.5).normalize();
-      group.add(mesh);
+      shapes.push({
+        x: rand() * width,
+        y: rand() * height,
+        r: 12 + rand() * 26,
+        hue: (hueBase + rand() * 70 - 35 + 360) % 360,
+        vx: (rand() - 0.5) * 0.4,
+        vy: (rand() - 0.5) * 0.4,
+      });
     }
-    scene.add(group);
 
     let raf = null;
     let disposed = false;
-    function tick() {
+    const staticMode = CAT_BROWSER || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function draw() {
       if (disposed) return;
-      group.rotation.y += 0.0022;
-      group.children.forEach((m) => m.rotateOnAxis(m.userData.axis, m.userData.spin * 0.01));
-      renderer.render(scene, camera);
-      raf = requestAnimationFrame(tick);
+      if (document.hidden) { raf = null; return; }
+      ctx.clearRect(0, 0, width, height);
+      for (let i = 0; i < shapes.length; i++) {
+        const s = shapes[i];
+        s.x = (s.x + s.vx + width) % width;
+        s.y = (s.y + s.vy + height) % height;
+        const grad = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r);
+        grad.addColorStop(0, 'hsla(' + s.hue + ', 70%, 65%, 0.85)');
+        grad.addColorStop(1, 'hsla(' + s.hue + ', 70%, 50%, 0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (!staticMode) raf = requestAnimationFrame(draw);
     }
-    tick();
+    const resume = () => {
+      if (!document.hidden && !disposed && raf === null && !staticMode) draw();
+    };
+    document.addEventListener('visibilitychange', resume);
+    draw();
 
     return function dispose() {
       disposed = true;
+      document.removeEventListener('visibilitychange', resume);
       if (raf) cancelAnimationFrame(raf);
-      group.children.forEach((m) => { m.geometry.dispose(); m.material.dispose(); });
-      renderer.dispose();
+      if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
     };
+  }
+
+  // Renders the per-user pattern into `container` (a DOM element) using
+  // Three.js, seeded entirely from patternSeed. Returns a `dispose()` fn.
+  async function renderPattern(container, patternSeed) {
+    // Avoid loading WebGL/Three.js at all in CAT Browser and reduced-motion
+    // mode. The deterministic 2D canvas preserves the identity-card artwork.
+    if (CAT_BROWSER || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return render2DPatternFallback(container, patternSeed);
+    }
+    try {
+      const THREE = await loadThree();
+      const rand = mulberry32(patternSeed);
+      // Pull several independent streams out of the one seed so shape count,
+      // palette, and layout don't all move together.
+      const hueBase = rand() * 360;
+      const shapeCount = 14 + Math.floor(rand() * 10);
+      const shapeKind = Math.floor(rand() * 3); // 0=icosahedron, 1=octahedron, 2=torus
+
+      const width = container.clientWidth || 320;
+      const height = container.clientHeight || 320;
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+      camera.position.set(0, 0, 9);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      container.innerHTML = '';
+      container.appendChild(renderer.domElement);
+
+      scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+      const key = new THREE.DirectionalLight(0xffffff, 0.9);
+      key.position.set(3, 4, 5);
+      scene.add(key);
+
+      const group = new THREE.Group();
+      for (let i = 0; i < shapeCount; i++) {
+        const hue = (hueBase + rand() * 70 - 35 + 360) % 360;
+        const color = new THREE.Color().setHSL(hue / 360, 0.42, 0.5 + rand() * 0.18);
+        let geo;
+        if (shapeKind === 0) geo = new THREE.IcosahedronGeometry(0.24 + rand() * 0.22, 0);
+        else if (shapeKind === 1) geo = new THREE.OctahedronGeometry(0.24 + rand() * 0.22, 0);
+        else geo = new THREE.TorusGeometry(0.18 + rand() * 0.14, 0.06 + rand() * 0.05, 8, 16);
+        const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.45, metalness: 0.25 });
+        const mesh = new THREE.Mesh(geo, mat);
+
+        const radius = 1.2 + rand() * 2.6;
+        const theta = rand() * Math.PI * 2;
+        const phi = Math.acos(rand() * 2 - 1);
+        mesh.position.set(
+          radius * Math.sin(phi) * Math.cos(theta),
+          radius * Math.sin(phi) * Math.sin(theta),
+          radius * Math.cos(phi) * 0.6
+        );
+        mesh.rotation.set(rand() * Math.PI, rand() * Math.PI, rand() * Math.PI);
+        mesh.userData.spin = 0.08 + rand() * 0.18;
+        mesh.userData.axis = new THREE.Vector3(rand() - 0.5, rand() - 0.5, rand() - 0.5).normalize();
+        group.add(mesh);
+      }
+      scene.add(group);
+
+      let raf = null;
+      let disposed = false;
+      function tick() {
+        if (disposed) return;
+        group.rotation.y += 0.0022;
+        group.children.forEach((m) => m.rotateOnAxis(m.userData.axis, m.userData.spin * 0.01));
+        renderer.render(scene, camera);
+        raf = requestAnimationFrame(tick);
+      }
+      tick();
+
+      return function dispose() {
+        disposed = true;
+        if (raf) cancelAnimationFrame(raf);
+        group.children.forEach((m) => { m.geometry.dispose(); m.material.dispose(); });
+        renderer.dispose();
+      };
+    } catch (e) {
+      return render2DPatternFallback(container, patternSeed);
+    }
   }
 
   return {

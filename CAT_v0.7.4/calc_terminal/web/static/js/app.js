@@ -7,6 +7,10 @@
 (function() {
   'use strict';
 
+  if (/CATBrowser/i.test(navigator.userAgent || '')) {
+    document.documentElement.classList.add('cat-browser-renderer');
+  }
+
   // ─── STATE ─────────────────────────────────────────────────────────────
   const state = {
     workspaceId: 'current',
@@ -60,7 +64,7 @@
     providerQuery: '',
     selectedProviderId: 'ollama',
     selectedModelName: '',
-    chatId: 'default',
+    chatId: null,
     autoSave: true
   };
 
@@ -135,9 +139,16 @@
   window.FATTY = {
     async init() {
       console.log('Initializing 1:1 Fatty CAT simulation with Full Feature Integration...');
+      if (window.location.protocol === 'file:') {
+        console.warn('Fatty CAT running via file:// protocol.');
+      }
+      document.title = 'Fatty CAT — AI Workspace';
       this.bindDOM();
       this.bindResizers();
       this.bindPointerDepth();
+      this.initAppearance();
+      this.initSidebar();
+      this.loadThemePalette();
 
       // 1. Startup Welcome Lifecycle check (welcome_modal.py / Screenshot 2)
       await this.checkStartup();
@@ -150,14 +161,13 @@
 
       // 4. Load config & capabilities
       await this.loadConfig();
+      this.loadUsageOverview(30);
+      this.loadModelOverview();
       this.renderKittyGrid();
-      await this.loadModes();
+      await Promise.all([this.loadModes(), this.loadCommands()]);
       this.loadAuthStatus();
 
-      // 5. Preload commands for Command Palette
-      await this.loadCommands();
-
-      // 6. Update line numbers for editor
+      // 5. Update line numbers for editor
       this.updateLineNumbers();
 
       // 7. Load active session notebooks
@@ -171,27 +181,62 @@
     },
 
     bindPointerDepth() {
+      if (document.documentElement.classList.contains('cat-browser-renderer')) return;
       if (!window.matchMedia || !window.matchMedia('(pointer: fine)').matches ||
           window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-      let frame = 0;
+      let targetX = 0.5, targetY = 0.5;
+      let currX = 0.5, currY = 0.5;
+      let isRunning = false;
+
+      const updateProps = () => {
+        const dx = targetX - currX;
+        const dy = targetY - currY;
+        if (Math.abs(dx) > 0.0005 || Math.abs(dy) > 0.0005) {
+          currX += dx * 0.15;
+          currY += dy * 0.15;
+          document.documentElement.style.setProperty('--pointer-x', `${(currX * 100).toFixed(1)}%`);
+          document.documentElement.style.setProperty('--pointer-y', `${(currY * 100).toFixed(1)}%`);
+          document.documentElement.style.setProperty('--pointer-dx', `${((currX - 0.5) * 8).toFixed(2)}px`);
+          document.documentElement.style.setProperty('--pointer-dy', `${((currY - 0.5) * 8).toFixed(2)}px`);
+          document.documentElement.style.setProperty('--pointer-rx', `${((0.5 - currY) * 3).toFixed(2)}deg`);
+          document.documentElement.style.setProperty('--pointer-ry', `${((currX - 0.5) * 3).toFixed(2)}deg`);
+          window.requestAnimationFrame(updateProps);
+        } else {
+          currX = targetX;
+          currY = targetY;
+          document.documentElement.style.setProperty('--pointer-x', `${(currX * 100).toFixed(1)}%`);
+          document.documentElement.style.setProperty('--pointer-y', `${(currY * 100).toFixed(1)}%`);
+          document.documentElement.style.setProperty('--pointer-dx', `${((currX - 0.5) * 8).toFixed(2)}px`);
+          document.documentElement.style.setProperty('--pointer-dy', `${((currY - 0.5) * 8).toFixed(2)}px`);
+          document.documentElement.style.setProperty('--pointer-rx', `${((0.5 - currY) * 3).toFixed(2)}deg`);
+          document.documentElement.style.setProperty('--pointer-ry', `${((currX - 0.5) * 3).toFixed(2)}deg`);
+          isRunning = false;
+        }
+      };
+
       window.addEventListener('pointermove', (event) => {
-        if (frame) return;
-        frame = window.requestAnimationFrame(() => {
-          frame = 0;
-          const nx = event.clientX / Math.max(window.innerWidth, 1);
-          const ny = event.clientY / Math.max(window.innerHeight, 1);
-          document.documentElement.style.setProperty('--pointer-x', `${nx * 100}%`);
-          document.documentElement.style.setProperty('--pointer-y', `${ny * 100}%`);
-          document.documentElement.style.setProperty('--pointer-dx', `${(nx - .5) * 8}px`);
-          document.documentElement.style.setProperty('--pointer-dy', `${(ny - .5) * 8}px`);
-          document.documentElement.style.setProperty('--pointer-rx', `${(.5 - ny) * 3}deg`);
-          document.documentElement.style.setProperty('--pointer-ry', `${(nx - .5) * 3}deg`);
-        });
+        targetX = event.clientX / Math.max(window.innerWidth, 1);
+        targetY = event.clientY / Math.max(window.innerHeight, 1);
+        if (!isRunning) {
+          isRunning = true;
+          window.requestAnimationFrame(updateProps);
+        }
       }, { passive: true });
     },
 
     bindDOM() {
       const input = document.getElementById('cct-message-input');
+      const conversation = document.getElementById('cct-conversation');
+      if (conversation && !conversation.dataset.composerGlassBound) {
+        this._chatFollowOutput = conversation.scrollHeight - conversation.clientHeight - conversation.scrollTop < 72;
+        const syncComposerScrollState = () => {
+          document.body.classList.toggle('cct-chat-scrolled', conversation.scrollTop > 4);
+          this._chatFollowOutput = conversation.scrollHeight - conversation.clientHeight - conversation.scrollTop < 72;
+        };
+        conversation.addEventListener('scroll', syncComposerScrollState, { passive: true });
+        conversation.dataset.composerGlassBound = 'true';
+        syncComposerScrollState();
+      }
       if (input) {
         input.addEventListener('keydown', (e) => {
           if (e.key === 'Enter' && !e.shiftKey) {
@@ -303,16 +348,6 @@
         }
       });
 
-      // Outside click listener to dismiss main menu popup
-      document.addEventListener('click', (e) => {
-        const popup = document.getElementById('cct-main-menu-popup');
-        const brand = document.querySelector('.cct-header-left');
-        if (popup && popup.style.display === 'block') {
-          if (!popup.contains(e.target) && (!brand || !brand.contains(e.target))) {
-            popup.style.display = 'none';
-          }
-        }
-      });
     },
 
     bindResizers() {
@@ -330,6 +365,7 @@
           if (!isDragging) return;
           const newWidth = Math.max(180, Math.min(500, e.clientX));
           sidebar.style.width = newWidth + 'px';
+          sidebar.style.flexBasis = `${newWidth}px`;
         });
         window.addEventListener('mouseup', () => {
           isDragging = false;
@@ -379,6 +415,20 @@
       // Update header workspace name
       const headWs = document.getElementById('cct-header-ws-name');
       if (headWs) headWs.textContent = state.workspaceName;
+      const composerWs = document.getElementById('cct-composer-workspace');
+      if (composerWs) {
+        composerWs.textContent = state.workspaceName;
+        composerWs.setAttribute('aria-label', state.workspaceRoot ? `Change workspace (${state.workspaceName})` : 'Open a workspace');
+      }
+
+      const startFolder = document.getElementById('cct-start-folder-name');
+      if (startFolder) startFolder.textContent = state.workspaceName;
+
+      const startPath = document.getElementById('cct-start-folder-path');
+      if (startPath) {
+        startPath.textContent = state.workspaceRoot || '';
+        startPath.title = state.workspaceRoot || '';
+      }
 
       // Update sidebar workspace name
       const sideWs = document.getElementById('cct-ws-folder-name');
@@ -493,6 +543,7 @@
     renderRecentProjects() {
       const container = document.getElementById('cct-recent-container');
       const welcome = document.getElementById('cct-recent-welcome-list');
+      const startRecents = document.getElementById('cct-start-recent-list');
       [container, welcome].filter(Boolean).forEach(list => {
         list.replaceChildren();
         if (!state.recentProjects.length) {
@@ -506,12 +557,38 @@
           const row = document.createElement('button');
           row.type = 'button';
           row.className = 'cct-recent-row';
-          row.textContent = `▣  ${project.name || project.path || 'Workspace'}`;
+          const pathName = (project.path || '').split(/[\\/]/).filter(Boolean).pop();
+          row.textContent = `▣  ${project.name || pathName || 'Workspace'}`;
           row.title = project.path || '';
           row.addEventListener('click', () => this.openRecentPath(project.path));
           list.appendChild(row);
         });
       });
+
+      if (startRecents) {
+        startRecents.replaceChildren();
+        if (!state.recentProjects.length) {
+          const empty = document.createElement('div');
+          empty.className = 'cct-empty-state';
+          empty.textContent = 'No recent workspaces';
+          startRecents.appendChild(empty);
+        } else {
+          state.recentProjects.slice(0, 6).forEach((project) => {
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'cct-ws-recent-card';
+            card.title = project.path || '';
+            const icon = document.createElement('span');
+            icon.textContent = '📁 ';
+            const text = document.createElement('span');
+            text.className = 'path-text';
+            text.textContent = project.path || project.name || 'Workspace';
+            card.append(icon, text);
+            card.addEventListener('click', () => this.openRecentPath(project.path));
+            startRecents.appendChild(card);
+          });
+        }
+      }
     },
 
     // ─────────────────────────────────────────────────────────────────────
@@ -660,6 +737,16 @@
       state.editorOpen = true;
 
       this.switchEditorTab(state.activeFileIndex);
+    },
+
+    openMediaViewer() {
+      const file = state.currentFile;
+      if (!file || !file.path) {
+        this.showToast('Open a file before previewing it.', 'info');
+        return;
+      }
+      const url = `/viewer.html?path=${encodeURIComponent(file.path)}`;
+      window.open(url, '_blank', 'noopener');
     },
 
     updateLineNumbers() {
@@ -819,6 +906,7 @@
       const welcome = document.getElementById('cct-welcome-view');
       const turnsBox = document.getElementById('cct-chat-turns');
       if (welcome) welcome.style.display = 'none';
+      document.getElementById('cct-conversation')?.classList.remove('cct-start-screen');
       if (turnsBox) turnsBox.style.display = 'flex';
 
       this.appendUserMessage(cmdText);
@@ -827,11 +915,13 @@
         case '/clear':
           if (turnsBox) turnsBox.innerHTML = '';
           if (welcome) welcome.style.display = 'flex';
+          document.getElementById('cct-conversation')?.classList.add('cct-start-screen');
           state.chatId = null;
           return;
         case '/new':
         case '/chat':
         case '/newchat':
+          state.chatId = null;
           this.newChat();
           this.appendSystemNotice('Started a new conversation session.');
           return;
@@ -994,6 +1084,91 @@
     // ─────────────────────────────────────────────────────────────────────
     // CHAT & CONVERSATION & AGENT EXECUTION
     // ─────────────────────────────────────────────────────────────────────
+    setMascotActivity(activity) {
+      (window.fattyMascots || [window.fattyMascot]).filter(Boolean).forEach(mascot => {
+        if (typeof mascot.setActivity === 'function') mascot.setActivity(activity);
+      });
+    },
+
+    initAppearance() {
+      const saved = localStorage.getItem('fatty-appearance') || 'system';
+      const media = window.matchMedia ? window.matchMedia('(prefers-color-scheme: light)') : null;
+      this.applyAppearance(saved, media && media.matches);
+      if (media) media.addEventListener('change', event => {
+        if ((localStorage.getItem('fatty-appearance') || 'system') === 'system') this.applyAppearance('system', event.matches);
+      });
+    },
+
+    async loadThemePalette() {
+      try {
+        const data = await api.get('/api/themes');
+        document.documentElement.dataset.themeLight = String(Boolean(data.is_light));
+        this.applyThemeVariables(data.css_variables);
+        const appearance = localStorage.getItem('fatty-appearance') || 'system';
+        const media = window.matchMedia ? window.matchMedia('(prefers-color-scheme: light)') : null;
+        this.applyAppearance(appearance, media && media.matches);
+      } catch (error) {
+        console.warn('Could not load the active theme palette:', error);
+      }
+    },
+
+    applyThemeVariables(variables) {
+      if (!variables || typeof variables !== 'object') return;
+      const root = document.documentElement;
+      const aliases = {
+        'app-background': '--term-bg',
+        background: '--term-bg',
+        surface: '--term-surface',
+        'surface-alt': '--term-surface-alt',
+        border: '--term-border',
+        'border-active': '--term-border-highlight',
+        text: '--term-text',
+        'text-muted': '--term-text-muted',
+        'text-faint': '--term-text-faint',
+        accent: '--color-blue',
+        success: '--color-green',
+        warning: '--color-amber',
+        error: '--color-red'
+      };
+      Object.entries(variables).forEach(([key, value]) => {
+        if (typeof value !== 'string') return;
+        root.style.setProperty(`--${key}`, value);
+        if (aliases[key]) root.style.setProperty(aliases[key], value);
+      });
+    },
+
+    setAppearance(mode) {
+      if (!['system', 'light', 'dark'].includes(mode)) return;
+      localStorage.setItem('fatty-appearance', mode);
+      const media = window.matchMedia ? window.matchMedia('(prefers-color-scheme: light)') : null;
+      this.applyAppearance(mode, media && media.matches);
+    },
+
+    applyAppearance(mode, systemLight) {
+      const light = mode === 'light' || (mode === 'system' && Boolean(systemLight));
+      document.documentElement.classList.toggle('cct-light-theme', light);
+      document.documentElement.dataset.appearance = mode;
+      document.documentElement.dataset.systemLight = String(Boolean(systemLight));
+      document.querySelectorAll('[data-appearance-choice]').forEach(button => {
+        button.setAttribute('aria-pressed', String(button.dataset.appearanceChoice === mode));
+      });
+    },
+
+    initSidebar() {
+      const saved = localStorage.getItem('fatty-sidebar-collapsed') === 'true';
+      const mobileLayout = window.matchMedia('(max-width: 760px), (orientation: portrait)').matches;
+      document.body.classList.toggle('sidebar-collapsed', saved && !mobileLayout);
+      document.addEventListener('click', event => {
+        if (document.body.classList.contains('mobile-nav-open') &&
+            !event.target.closest('#cct-sidebar') && !event.target.closest('.cct-mobile-nav-toggle')) {
+          this.toggleMobileSidebar();
+        }
+      });
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && document.body.classList.contains('mobile-nav-open')) this.toggleMobileSidebar();
+      });
+    },
+
     async sendMessage() {
       const input = document.getElementById('cct-message-input');
       if (!input) return;
@@ -1013,6 +1188,7 @@
       const welcome = document.getElementById('cct-welcome-view');
       const turnsBox = document.getElementById('cct-chat-turns');
       if (welcome) welcome.style.display = 'none';
+      document.getElementById('cct-conversation')?.classList.remove('cct-start-screen');
       if (turnsBox) turnsBox.style.display = 'flex';
 
       // 1. Append User Bubble
@@ -1020,6 +1196,7 @@
 
       // 2. Append Assistant Loading Card
       const cardEl = this.appendAssistantLoading();
+      this.setMascotActivity('thinking');
       const meta = state.modeMeta[state.activeMode] || state.modeMeta.build;
       const t0 = Date.now();
 
@@ -1029,6 +1206,7 @@
 
       if (isAgentMode || (state.activeMode === 'build' && isExplicitFileTask)) {
         try {
+          this.setMascotActivity('working');
           const res = await api.post('/api/agent', {
             message: text,
             mode: 'agent',
@@ -1048,6 +1226,8 @@
             timings: { ttfb_ms: 180, memory_ms: 20, loop_ms: elapsed * 1000 },
             calls: res.steps ? Math.max(1, res.steps.length) : 1
           });
+          if (state.activeSidebarTab === 'chats') this.loadSidebarChats();
+          this.setMascotActivity('success');
         } catch (e) {
           this.updateAssistantCard(cardEl, {
             text: `(Agent error: ${e.message})`,
@@ -1058,6 +1238,7 @@
             timings: { ttfb_ms: 20, memory_ms: 10, loop_ms: 30 },
             calls: 1
           });
+          this.setMascotActivity('error');
         }
         return;
       }
@@ -1067,7 +1248,14 @@
       let thinkingText = '';
       let inThinkingBlock = false;
       let hasReceivedFirstToken = false;
+      let hasSetWorkingActivity = false;
       let ttfbMs = 0;
+      // Streaming providers can emit many tiny chunks. Rebuilding the full
+      // Markdown card for each chunk makes long replies progressively slower.
+      // Keep the live preview responsive while capping expensive DOM/Markdown
+      // work; finalizeAssistantCard renders the complete response at the end.
+      let lastStreamingRenderAt = 0;
+      const STREAMING_RENDER_INTERVAL_MS = 160;
 
       try {
         const response = await fetch('/api/chat/stream', {
@@ -1110,12 +1298,18 @@
               continue;
             }
 
-            if (!hasReceivedFirstToken) {
+            if (chunk.type === 'session') {
+              state.chatId = chunk.chat_id || state.chatId;
+            } else if (chunk.type === 'token' && !hasReceivedFirstToken) {
               hasReceivedFirstToken = true;
               ttfbMs = Date.now() - t0;
             }
 
             if (chunk.type === 'token') {
+              if (!hasSetWorkingActivity) {
+                this.setMascotActivity('working');
+                hasSetWorkingActivity = true;
+              }
               accumulatedText += chunk.text;
 
               if (accumulatedText.includes('<think>')) {
@@ -1130,12 +1324,16 @@
                 }
               }
 
-              this.renderStreamingAssistantCard(cardEl, {
-                rawText: accumulatedText,
-                thinkingText,
-                inThinkingBlock,
-                elapsedMs: Date.now() - t0
-              });
+              const now = performance.now();
+              if (!document.hidden && now - lastStreamingRenderAt >= STREAMING_RENDER_INTERVAL_MS) {
+                lastStreamingRenderAt = now;
+                this.renderStreamingAssistantCard(cardEl, {
+                  rawText: accumulatedText,
+                  thinkingText,
+                  inThinkingBlock,
+                  elapsedMs: Date.now() - t0
+                });
+              }
             } else if (chunk.type === 'done') {
               break;
             } else if (chunk.type === 'error') {
@@ -1164,10 +1362,13 @@
           },
           calls: 1
         });
+        if (state.activeSidebarTab === 'chats') this.loadSidebarChats();
+        this.setMascotActivity('success');
 
       } catch (streamErr) {
         console.warn('Streaming failed, falling back to standard /api/chat:', streamErr);
         try {
+          this.setMascotActivity('thinking');
           const res = await api.post('/api/chat', {
             message: text,
             mode: state.activeMode,
@@ -1175,6 +1376,7 @@
             chat_id: state.chatId
           });
           if (res && res.chat_id) state.chatId = res.chat_id;
+          if (state.activeSidebarTab === 'chats') this.loadSidebarChats();
           const elapsed = Math.round((Date.now() - t0) / 1000);
           this.updateAssistantCard(cardEl, {
             text: res.response || '(No response from AI)',
@@ -1186,6 +1388,7 @@
             timings: res.timings || { ttfb_ms: 300, memory_ms: 30, loop_ms: elapsed * 1000 },
             calls: 1
           });
+          this.setMascotActivity('success');
         } catch (e2) {
           this.updateAssistantCard(cardEl, {
             text: `(AI error: ${e2.message})`,
@@ -1196,6 +1399,7 @@
             timings: { ttfb_ms: 20, memory_ms: 10, loop_ms: 30 },
             calls: 1
           });
+          this.setMascotActivity('error');
         }
       }
     },
@@ -1204,38 +1408,58 @@
       if (!cardEl) return;
       const meta = state.modeMeta[state.activeMode] || state.modeMeta.build;
       const elapsedSec = (elapsedMs / 1000).toFixed(1);
-
-      let thinkingHtml = '';
+      const hasThinking = rawText.includes('<think>');
       let answerText = rawText;
-
-      if (rawText.includes('<think>')) {
-        const parts = rawText.split('</think>');
-        if (parts.length > 1) {
-          answerText = parts[1].trim();
-        } else {
-          answerText = '';
-        }
-
-        thinkingHtml = `
-          <details class="cct-thinking-block" ${inThinkingBlock ? 'open' : ''}>
-            <summary class="cct-thinking-summary">
-              <span class="cct-thinking-pulse">🧠</span>
-              <span>Thinking Process (${state.model})</span>
-              <span style="font-size: 10px; margin-left: auto; color: var(--term-text-muted);">${elapsedSec}s</span>
-            </summary>
-            <div class="cct-thinking-content">${this.escapeHtml(thinkingText)}</div>
-          </details>
-        `;
+      if (hasThinking) {
+        const endThink = rawText.indexOf('</think>');
+        answerText = endThink >= 0 ? rawText.slice(endThink + 8).trim() : '';
       }
 
-      cardEl.innerHTML = `
-        <div class="cct-card-header">${meta.icon} ${meta.label}</div>
-        ${thinkingHtml}
-        <div class="cct-card-content">${answerText ? this.formatContent(answerText) : (inThinkingBlock ? '<span style="color: var(--term-text-muted);">Formulating response… ▌</span>' : '▌')}</div>
-        <div class="cct-card-meta">
-          <div class="cct-meta-line" style="color: #7dcfff;">Streaming tokens from ${state.provider} ${state.model}… (${elapsedSec}s)</div>
-        </div>
-      `;
+      // Build the preview DOM once. Re-running the Markdown formatter and
+      // replacing this whole subtree on every update made long streams lag.
+      let preview = cardEl._streamPreview;
+      if (!preview) {
+        cardEl.replaceChildren();
+        const header = document.createElement('div');
+        header.className = 'cct-card-header';
+        header.textContent = `${meta.icon} ${meta.label}`;
+
+        const details = document.createElement('details');
+        details.className = 'cct-thinking-block';
+        const summary = document.createElement('summary');
+        summary.className = 'cct-thinking-summary';
+        const icon = document.createElement('span');
+        icon.className = 'cct-thinking-pulse';
+        icon.textContent = '🧠';
+        const label = document.createElement('span');
+        const elapsed = document.createElement('span');
+        elapsed.style.cssText = 'font-size:10px;margin-left:auto;color:var(--term-text-muted)';
+        summary.append(icon, label, elapsed);
+        const thinking = document.createElement('div');
+        thinking.className = 'cct-thinking-content';
+        details.append(summary, thinking);
+
+        const content = document.createElement('div');
+        content.className = 'cct-card-content';
+        content.style.whiteSpace = 'pre-wrap';
+        content.style.overflowWrap = 'anywhere';
+        const footer = document.createElement('div');
+        footer.className = 'cct-card-meta';
+        const metaLine = document.createElement('div');
+        metaLine.className = 'cct-meta-line';
+        metaLine.style.color = '#7dcfff';
+        footer.appendChild(metaLine);
+        cardEl.append(header, details, content, footer);
+        preview = cardEl._streamPreview = { details, label, elapsed, thinking, content, metaLine };
+      }
+
+      preview.details.hidden = !hasThinking;
+      preview.details.open = hasThinking && inThinkingBlock;
+      preview.label.textContent = `Thinking Process (${state.model})`;
+      preview.elapsed.textContent = `${elapsedSec}s`;
+      preview.thinking.textContent = thinkingText || '';
+      preview.content.textContent = answerText || (inThinkingBlock ? 'Formulating response… ▌' : '▌');
+      preview.metaLine.textContent = `Streaming tokens from ${state.provider} ${state.model}… (${elapsedSec}s)`;
       this.scrollToBottom();
     },
 
@@ -1293,7 +1517,7 @@
         </div>
       `;
       turnsBox.appendChild(wrapper);
-      this.scrollToBottom();
+      this.scrollToBottom(true);
     },
 
     appendAssistantLoading() {
@@ -1306,7 +1530,11 @@
 
       card.innerHTML = `
         <div class="cct-card-header">${meta.icon} ${meta.label}</div>
-        <div class="cct-card-content">Thinking… ▌</div>
+        <div class="cct-card-content cct-thinking-indicator" role="status" aria-live="polite">
+          <span class="cct-thinking-orbit" aria-hidden="true">✦</span>
+          <span>Thinking</span>
+          <span class="cct-thinking-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        </div>
         <div class="cct-card-meta">
           <div class="cct-meta-line">Connecting to ${state.provider} ${state.model}…</div>
         </div>
@@ -1356,15 +1584,18 @@
       const welcome = document.getElementById('cct-welcome-view');
       const turnsBox = document.getElementById('cct-chat-turns');
       if (welcome) welcome.style.display = 'flex';
+      document.getElementById('cct-conversation')?.classList.add('cct-start-screen');
       if (turnsBox) {
         turnsBox.innerHTML = '';
         turnsBox.style.display = 'none';
       }
     },
 
-    scrollToBottom() {
+    scrollToBottom(force = false) {
       const conv = document.getElementById('cct-conversation');
-      if (conv) conv.scrollTop = conv.scrollHeight;
+      if (!conv || (!force && !this._chatFollowOutput)) return;
+      conv.scrollTop = conv.scrollHeight;
+      this._chatFollowOutput = true;
     },
 
     // ─────────────────────────────────────────────────────────────────────
@@ -1442,23 +1673,36 @@
       if (!list) return;
       list.innerHTML = '';
 
+      const commandCount = state.commands.filter(c => c.type !== 'prompt').length;
+      const promptCount = state.commands.length - commandCount;
+      const visibleCommandCount = state.filteredCommands.filter(c => c.type !== 'prompt').length;
+      const visiblePromptCount = state.filteredCommands.length - visibleCommandCount;
+      const countLabel = document.getElementById('cct-palette-count');
+      if (countLabel) {
+        countLabel.textContent = document.getElementById('cct-palette-input')?.value.trim()
+          ? `${visibleCommandCount} commands${visiblePromptCount ? ` · ${visiblePromptCount} prompts` : ''}`
+          : `${commandCount} commands · ${promptCount} prompts`;
+      }
+
       if (!state.filteredCommands.length) {
         list.innerHTML = '<div style="padding: 12px 16px; color: var(--term-text-faint);">No commands found matching query.</div>';
         return;
       }
 
-      state.filteredCommands.slice(0, 40).forEach((c, idx) => {
+      state.filteredCommands.forEach((c, idx) => {
         const item = document.createElement('div');
         item.className = 'cct-palette-item' + (idx === state.paletteSelectedIndex ? ' active' : '');
+        item.setAttribute('role', 'option');
+        item.setAttribute('aria-selected', String(idx === state.paletteSelectedIndex));
         item.innerHTML = `
           <div class="cct-palette-item-left">
             <span class="cct-palette-cmd">${this.escapeHtml(c.command)}</span>
             <span class="cct-palette-desc">${this.escapeHtml(c.description)}</span>
           </div>
-          <span class="cct-palette-badge">cmd</span>
+          <span class="cct-palette-badge">${c.type === 'prompt' ? 'prompt' : 'command'}</span>
         `;
         item.addEventListener('click', () => {
-          this.executeCommandFromPalette(c.command);
+          this.executeCommandFromPalette(c.command, c.type);
         });
         list.appendChild(item);
       });
@@ -1466,13 +1710,13 @@
 
     paletteNext() {
       if (!state.filteredCommands.length) return;
-      state.paletteSelectedIndex = (state.paletteSelectedIndex + 1) % Math.min(40, state.filteredCommands.length);
+      state.paletteSelectedIndex = (state.paletteSelectedIndex + 1) % state.filteredCommands.length;
       this.updatePaletteActiveItem();
     },
 
     palettePrev() {
       if (!state.filteredCommands.length) return;
-      state.paletteSelectedIndex = (state.paletteSelectedIndex - 1 + Math.min(40, state.filteredCommands.length)) % Math.min(40, state.filteredCommands.length);
+      state.paletteSelectedIndex = (state.paletteSelectedIndex - 1 + state.filteredCommands.length) % state.filteredCommands.length;
       this.updatePaletteActiveItem();
     },
 
@@ -1481,9 +1725,11 @@
       items.forEach((it, idx) => {
         if (idx === state.paletteSelectedIndex) {
           it.classList.add('active');
+          it.setAttribute('aria-selected', 'true');
           it.scrollIntoView({ block: 'nearest' });
         } else {
           it.classList.remove('active');
+          it.setAttribute('aria-selected', 'false');
         }
       });
     },
@@ -1491,12 +1737,22 @@
     executePaletteIndex() {
       const selected = state.filteredCommands[state.paletteSelectedIndex];
       if (selected) {
-        this.executeCommandFromPalette(selected.command);
+        this.executeCommandFromPalette(selected.command, selected.type);
       }
     },
 
-    executeCommandFromPalette(cmdStr) {
+    executeCommandFromPalette(cmdStr, type = 'command') {
       this.closeAllModals();
+      if (type === 'prompt') {
+        const composer = document.getElementById('cct-message-input');
+        if (composer) {
+          composer.value = cmdStr;
+          composer.dispatchEvent(new Event('input', { bubbles: true }));
+          composer.focus();
+          this.sendMessage();
+        }
+        return;
+      }
       this.executeSlashCommand(cmdStr);
     },
 
@@ -1791,7 +2047,11 @@
         state.model = state.selectedModelName;
 
         const composerBadge = document.getElementById('cct-model-badge');
-        if (composerBadge) composerBadge.textContent = `${state.provider} ${state.model}`;
+        if (composerBadge) {
+          composerBadge.textContent = `${state.provider} ${state.model}`;
+          composerBadge.title = `${state.provider} ${state.model}`;
+          composerBadge.setAttribute('aria-label', `Active model: ${state.provider} ${state.model}. Select to change provider or model.`);
+        }
 
         const welcomeModel = document.getElementById('cct-welcome-model');
         if (welcomeModel) welcomeModel.textContent = `${state.provider.toLowerCase()} ${state.model}`;
@@ -1815,7 +2075,7 @@
     switchSidebarTab(tabName) {
       state.activeSidebarTab = tabName;
 
-      ['explorer', 'chats', 'activities', 'extensions', 'settings'].forEach(t => {
+      ['explorer', 'chats', 'activities', 'extensions', 'agents', 'settings'].forEach(t => {
         const btn = document.getElementById(`cct-sb-tab-${t}`);
         const view = document.getElementById(`cct-sb-view-${t}`);
         if (btn) {
@@ -1833,6 +2093,8 @@
         this.loadSidebarActivities();
       } else if (tabName === 'extensions') {
         this.loadSidebarExtensions();
+      } else if (tabName === 'agents') {
+        this.loadAgentDefinitions();
       } else if (tabName === 'settings') {
         this.syncSidebarSettings();
       }
@@ -1852,20 +2114,75 @@
       }
     },
 
+    async loadAgentDefinitions() {
+      const list = document.getElementById('cct-agent-registry-list');
+      if (!list) return;
+      list.textContent = 'Loading CAT agent definitions…';
+      try {
+        const response = await api.get('/api/agents');
+        const agents = response.agents || [];
+        list.replaceChildren();
+        agents.forEach(agent => {
+          const card = document.createElement('article');
+          card.className = 'cct-agent-definition-card';
+          const heading = document.createElement('div');
+          heading.className = 'cct-agent-definition-heading';
+          heading.textContent = `${agent.icon || '🤖'} ${agent.name}`;
+          const detail = document.createElement('p');
+          detail.textContent = `${agent.id} · ${agent.primary_mode}${agent.builtin ? ' · built-in' : ' · custom'}`;
+          const description = document.createElement('p');
+          description.textContent = agent.description || agent.system_instructions || 'No description';
+          card.append(heading, detail, description);
+          if (!agent.builtin) {
+            const remove = document.createElement('button');
+            remove.type = 'button'; remove.className = 'cct-sb-mini-btn'; remove.textContent = 'Delete';
+            remove.addEventListener('click', () => this.deleteAgentDefinition(agent.id));
+            card.appendChild(remove);
+          }
+          list.appendChild(card);
+        });
+      } catch (error) { list.textContent = `Could not load agents: ${error.message}`; }
+    },
+
+    async createAgentDefinition(event) {
+      event.preventDefault();
+      const body = {
+        id: document.getElementById('cct-agent-id').value.trim(),
+        name: document.getElementById('cct-agent-name').value.trim(),
+        primary_mode: document.getElementById('cct-agent-mode').value,
+        system_instructions: document.getElementById('cct-agent-instructions').value.trim(),
+      };
+      try {
+        await api.post('/api/agents', body);
+        event.target.reset();
+        this.showToast('Agent definition saved to CAT registry.', 'success');
+        await this.loadAgentDefinitions();
+      } catch (error) { this.showToast(`Could not create agent: ${error.message}`, 'error'); }
+    },
+
+    async deleteAgentDefinition(agentId) {
+      try {
+        await api.del(`/api/agents/${encodeURIComponent(agentId)}`);
+        this.showToast('Agent definition removed.', 'success');
+        await this.loadAgentDefinitions();
+      } catch (error) { this.showToast(`Could not remove agent: ${error.message}`, 'error'); }
+    },
+
     filterSidebarChats(query) {
       const q = (query || '').toLowerCase().trim();
       if (!q) {
         this.renderSidebarChatsList(state.sidebarChats);
         return;
       }
-      const filtered = state.sidebarChats.filter(c => 
-        (c.title && c.title.toLowerCase().includes(q)) ||
+      const filtered = state.sidebarChats.filter(c =>
+        ((c.name || c.title || '').toLowerCase().includes(q)) ||
         (c.id && c.id.toLowerCase().includes(q))
       );
       this.renderSidebarChatsList(filtered);
     },
 
     renderSidebarChatsList(chats) {
+      this.renderSessionActivity(state.sidebarChats || chats);
       const listEl = document.getElementById('cct-sidebar-chats-list');
       if (!listEl) return;
 
@@ -1879,31 +2196,138 @@
         const item = document.createElement('div');
         const isActive = state.chatId === chat.id;
         item.className = `cct-sb-chat-item ${isActive ? 'active' : ''}`;
+        const chatTitle = String(chat.name || chat.title || 'Untitled Session');
+        item.dataset.chatTitle = chatTitle;
 
-        const msgCount = chat.message_count !== undefined ? chat.message_count : (chat.messages ? chat.messages.length : 0);
+        const msgCount = chat.turn_count ?? chat.message_count ?? (chat.messages ? chat.messages.length : 0);
         const timeStr = chat.updated_at ? new Date(chat.updated_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+        const safeId = this.escapeHtml(String(chat.id || ''));
 
         item.innerHTML = `
-          <div class="cct-sb-chat-info" onclick="FATTY.loadChatSession('${chat.id}')">
-            <span class="cct-sb-chat-title" title="${this.escapeHtml(chat.title || 'Untitled Session')}">💬 ${this.escapeHtml(chat.title || 'Untitled Session')}</span>
+          <div class="cct-sb-chat-info" onclick="FATTY.loadChatSession('${safeId}')">
+            <span class="cct-sb-chat-title" title="${this.escapeHtml(chatTitle)}">${this.escapeHtml(chatTitle)}</span>
             <span class="cct-sb-chat-meta">${msgCount} msgs ${timeStr ? '· ' + timeStr : ''}</span>
           </div>
           <div class="cct-sb-chat-actions">
-            <button class="cct-sb-chat-action-btn" onclick="FATTY.renameChatSession('${chat.id}', '${this.escapeHtml(chat.title || '')}', event)" title="Rename (✎)">✎</button>
-            <button class="cct-sb-chat-action-btn" onclick="FATTY.exportChatSession('${chat.id}', event)" title="Export (⤓)">⤓</button>
-            <button class="cct-sb-chat-action-btn" onclick="FATTY.deleteChatSession('${chat.id}', event)" title="Delete (🗑)">🗑</button>
+            <button class="cct-sb-chat-action-btn" onclick="FATTY.renameChatSession('${safeId}', this.closest('.cct-sb-chat-item').dataset.chatTitle, event)" title="Rename session" aria-label="Rename session">✎</button>
+            <button class="cct-sb-chat-action-btn" onclick="FATTY.exportChatSession('${safeId}', event)" title="Export session" aria-label="Export session">⤓</button>
+            <button class="cct-sb-chat-action-btn" onclick="FATTY.deleteChatSession('${safeId}', event)" title="Delete session" aria-label="Delete session">🗑</button>
           </div>
         `;
         listEl.appendChild(item);
       });
     },
 
+    renderSessionActivity(chats) {
+      const el = document.getElementById('cct-session-activity');
+      if (!el) return;
+      const list = Array.isArray(chats) ? chats : (state.sidebarChats || []);
+      el.textContent = `${list.length} chat session${list.length === 1 ? '' : 's'}`;
+    },
+
+    async changeActivityDays(days = 30) {
+      try {
+        const res = await api.get(`/api/activity/summary?days=${days}`);
+        return res;
+      } catch (e) {
+        return null;
+      }
+    },
+
+    switchOverviewPanel(panel) {
+      const overview = panel !== 'models';
+      const overviewPanel = document.getElementById('cct-overview-panel');
+      const modelsPanel = document.getElementById('cct-models-panel');
+      const overviewTab = document.getElementById('cct-overview-tab');
+      const modelsTab = document.getElementById('cct-models-tab');
+      if (overviewPanel) overviewPanel.hidden = !overview;
+      if (modelsPanel) modelsPanel.hidden = overview;
+      if (overviewTab) { overviewTab.classList.toggle('active', overview); overviewTab.setAttribute('aria-selected', String(overview)); }
+      if (modelsTab) { modelsTab.classList.toggle('active', !overview); modelsTab.setAttribute('aria-selected', String(!overview)); }
+      if (!overview) this.loadModelOverview();
+    },
+
+    async loadUsageOverview(days = 30) {
+      document.querySelectorAll('.cct-overview-ranges [data-days]').forEach(button => {
+        button.classList.toggle('active', Number(button.dataset.days) === Number(days));
+      });
+      try {
+        const summary = await api.get(`/api/activity/summary?days=${encodeURIComponent(days)}`);
+        const put = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+        put('cct-overview-sessions', Number(summary.sessions || 0).toLocaleString());
+        put('cct-overview-messages', Number(summary.messages || 0).toLocaleString());
+        put('cct-overview-tokens', Number.isFinite(summary.total_tokens) ? Number(summary.total_tokens).toLocaleString() : 'Not tracked');
+        put('cct-overview-active-days', Number(summary.active_days || 0).toLocaleString());
+        put('cct-overview-favorite-model', summary.favorite_model || '—');
+        this.renderUsageHeatmap(summary.daily || []);
+      } catch (error) {
+        const heatmap = document.getElementById('cct-overview-heatmap');
+        if (heatmap) heatmap.textContent = 'Usage overview is unavailable until CAT is connected.';
+      }
+    },
+
+    renderUsageHeatmap(daily) {
+      const grid = document.getElementById('cct-overview-heatmap');
+      if (!grid) return;
+      const counts = new Map((daily || []).map(day => [day.date, Number(day.messages || 0)]));
+      const max = Math.max(1, ...counts.values());
+      const cells = [];
+      for (let offset = 27; offset >= 0; offset--) {
+        const day = new Date();
+        day.setHours(12, 0, 0, 0);
+        day.setDate(day.getDate() - offset);
+        const key = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+        const count = counts.get(key) || 0;
+        const cell = document.createElement('span');
+        cell.className = 'cct-usage-day';
+        cell.dataset.level = count ? String(Math.max(1, Math.ceil(count / max * 4))) : '0';
+        cell.title = `${day.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · ${count} messages`;
+        cell.setAttribute('aria-label', cell.title);
+        cells.push(cell);
+      }
+      grid.replaceChildren(...cells);
+    },
+
+    async loadModelOverview() {
+      const current = document.getElementById('cct-model-overview-active');
+      const providersEl = document.getElementById('cct-model-overview-providers');
+      if (!current || !providersEl) return;
+      try {
+        const data = await api.get('/api/providers/center');
+        const active = data.active || {};
+        current.textContent = [active.provider, active.model].filter(Boolean).join(' · ') || 'No model selected';
+        const providers = data.providers || [];
+        providersEl.replaceChildren();
+        const label = document.createElement('span');
+        label.className = 'cct-model-overview-count';
+        label.textContent = `${providers.length} providers in CAT`;
+        providersEl.appendChild(label);
+        providers.slice(0, 8).forEach(provider => {
+          const chip = document.createElement('span');
+          chip.className = 'cct-provider-chip';
+          chip.textContent = provider.name || provider.id;
+          if ((provider.id || '').toLowerCase() === (active.provider || '').toLowerCase()) chip.dataset.active = 'true';
+          providersEl.appendChild(chip);
+        });
+      } catch (error) {
+        current.textContent = 'Provider status unavailable';
+        providersEl.replaceChildren();
+      }
+    },
+
     toggleMobileSidebar() {
       const open = document.body.classList.toggle('mobile-nav-open');
       const button = document.querySelector('.cct-mobile-nav-toggle');
+      const collapseButton = document.querySelector('.cct-sidebar-collapse');
       if (button) {
         button.setAttribute('aria-expanded', String(open));
         button.setAttribute('aria-label', open ? 'Close workspace navigation' : 'Open workspace navigation');
+        button.textContent = open ? '×' : '☰';
+      }
+      if (collapseButton && window.matchMedia('(max-width: 760px), (orientation: portrait)').matches) {
+        collapseButton.setAttribute('aria-label', open ? 'Close workspace navigation' : 'Open workspace navigation');
+        collapseButton.title = open ? 'Close navigation' : 'Open navigation';
+        collapseButton.textContent = open ? '×' : '☰';
       }
     },
 
@@ -1925,13 +2349,26 @@
       try {
         const data = await api.get(`/api/chats/${chatId}`);
         state.chatId = chatId;
+        const savedWorkspace = data.workspace_root || data.project_path || '';
+        if (savedWorkspace && savedWorkspace !== state.workspaceRoot) {
+          try {
+            await this.openDirectWorkspace(savedWorkspace);
+          } catch (workspaceError) {
+            this.showToast(`Chat loaded; its workspace could not be opened: ${workspaceError.message}`, 'error');
+          }
+        }
+        const savedMode = data.current_mode || data.created_mode;
+        if (savedMode && state.modeMeta[savedMode] && savedMode !== state.activeMode) {
+          await this.selectMode(savedMode);
+        }
         const welcome = document.getElementById('cct-welcome-view');
         const turnsBox = document.getElementById('cct-chat-turns');
         if (welcome) welcome.style.display = 'none';
+        document.getElementById('cct-conversation')?.classList.remove('cct-start-screen');
         if (turnsBox) {
           turnsBox.style.display = 'flex';
           turnsBox.innerHTML = '';
-          const messages = data.messages || [];
+          const messages = data.messages || data.turns || [];
           messages.forEach(m => {
             if (m.role === 'user') {
               this.appendUserMessage(m.content);
@@ -1949,7 +2386,7 @@
             }
           });
         }
-        this.loadSidebarChats();
+        await this.loadSidebarChats();
       } catch (e) {
         this.showToast(`Error loading chat: ${e.message}`, 'error');
       }
@@ -2139,7 +2576,11 @@
         if (btn) btn.classList.toggle('active', state.permissionMode === p);
       });
       const sbModelName = document.getElementById('cct-sb-active-model-name');
-      if (sbModelName) sbModelName.textContent = `${state.provider} ${state.model}`;
+      if (sbModelName) {
+        const modelLabel = [state.provider, state.model].filter(value => value && value !== 'undefined' && value !== 'none').join(' ');
+        sbModelName.textContent = modelLabel || 'Provider not connected';
+        sbModelName.title = modelLabel || 'Provider not connected';
+      }
     },
 
     switchSettingsTab(tab) {
@@ -2348,7 +2789,10 @@
         return;
       }
       state.activeMode = modeId;
+      document.body.dataset.activeMode = modeId;
       const meta = state.modeMeta[modeId] || state.modeMeta.build;
+      const currentModeLabel = document.getElementById('cct-mode-current-label');
+      if (currentModeLabel) currentModeLabel.textContent = `${meta.label} mode`;
       this.renderKittyGrid();
       document.documentElement.style.setProperty('--accent-build', meta.color);
       document.documentElement.style.setProperty('--active-kitty-accent', meta.color);
@@ -2670,7 +3114,11 @@
 
       const modelBadge = document.getElementById('cct-model-badge');
       const activeModelLabel = state.provider && state.model ? `${state.provider} ${state.model}` : 'Provider not connected';
-      if (modelBadge) modelBadge.textContent = activeModelLabel;
+      if (modelBadge) {
+        modelBadge.textContent = activeModelLabel;
+        modelBadge.title = activeModelLabel;
+        modelBadge.setAttribute('aria-label', `Active model: ${activeModelLabel}. Select to change provider or model.`);
+      }
 
       const welcomeModel = document.getElementById('cct-welcome-model');
       if (welcomeModel) welcomeModel.textContent = activeModelLabel;
@@ -2688,16 +3136,22 @@
         const auth = await api.get('/api/auth/status');
         const identity = auth?.identity;
         const authenticated = Boolean(auth?.authenticated);
-        if (label) label.textContent = authenticated ? (identity?.display_name || identity?.name || 'Fomoji connected') : 'Local session';
+        const userName = identity?.display_name || identity?.name || identity?.email || (authenticated ? 'Fomoji account' : 'Connect Fomoji');
+        if (label) label.textContent = userName;
         if (indicator) indicator.classList.toggle('connected', authenticated);
         if (pill) {
           pill.dataset.authenticated = String(authenticated);
-          pill.title = authenticated ? 'Fomoji account connected. Open profile.' : 'No Fomoji account connected. Open profile and authentication settings.';
+          pill.title = authenticated
+            ? 'Connected to Fomoji as ' + userName
+            : (auth?.state === 'server_unreachable' ? 'Fomoji service is unavailable. Check that it is running, then retry.' : 'Sign in to Fomoji');
         }
       } catch (error) {
-        if (label) label.textContent = 'Identity unavailable';
+        if (label) label.textContent = 'Connect Fomoji';
         if (indicator) indicator.classList.remove('connected');
-        if (pill) pill.title = `Could not check Fomoji identity: ${error.message}`;
+        if (pill) {
+          pill.dataset.authenticated = 'false';
+          pill.title = 'Fomoji status could not be loaded: ' + (error?.message || 'connection failed');
+        }
       }
     },
 
@@ -2709,6 +3163,8 @@
           state.modeMeta[key] = { label: mode.label || key, icon: mode.icon || '●', color: mode.accent || '#8ea8ff', desc: mode.purpose || '' };
         });
         if (data?.current) state.activeMode = data.current;
+        const overviewMode = document.getElementById('cct-overview-mode');
+        if (overviewMode) overviewMode.textContent = state.modeMeta[state.activeMode]?.label || state.activeMode || 'Build';
         this.renderKittyGrid();
         const meta = state.modeMeta[state.activeMode];
         if (!meta) return;
@@ -2788,111 +3244,8 @@
     },
 
     // ─────────────────────────────────────────────────────────────────────
-    // MAIN MENU & STARTUP LIFECYCLE
+    // STARTUP LIFECYCLE
     // ─────────────────────────────────────────────────────────────────────
-    async toggleNavMenu(e) {
-      if (e) e.stopPropagation();
-      const popup = document.getElementById('cct-main-menu-popup');
-      if (!popup) return;
-      if (popup.style.display === 'block') {
-        popup.style.display = 'none';
-        return;
-      }
-      await this.loadNavMenu();
-      popup.style.display = 'block';
-    },
-
-    async loadNavMenu() {
-      const container = document.getElementById('cct-main-menu-items');
-      if (!container) return;
-      container.innerHTML = '<div style="padding: 8px 12px; color: var(--term-text-muted); font-size: 11px;">Loading menu...</div>';
-
-      try {
-        const data = await api.get('/api/menu');
-        const items = data.items || [];
-        container.innerHTML = '';
-
-        items.forEach(item => {
-          if (item.is_separator) {
-            const sep = document.createElement('div');
-            sep.className = 'cct-menu-sep';
-            container.appendChild(sep);
-            return;
-          }
-          if (item.is_section_header) {
-            const sec = document.createElement('div');
-            sec.className = 'cct-menu-section';
-            sec.textContent = item.label;
-            container.appendChild(sec);
-            return;
-          }
-          if (item.is_placeholder) {
-            return;
-          }
-
-          const row = document.createElement('div');
-          row.className = 'cct-menu-item';
-          row.innerHTML = `
-            <div class="cct-menu-item-left">
-              <span class="cct-menu-icon">${item.icon || '•'}</span>
-              <span>${item.label}</span>
-            </div>
-            ${item.shortcut ? `<span class="cct-menu-shortcut">${item.shortcut}</span>` : ''}
-          `;
-          row.addEventListener('click', (ev) => {
-            ev.stopPropagation();
-            document.getElementById('cct-main-menu-popup').style.display = 'none';
-            this.handleMenuAction(item.action);
-          });
-          container.appendChild(row);
-        });
-      } catch (err) {
-        container.innerHTML = '<div style="padding: 8px 12px; color: var(--color-red); font-size: 11px;">Failed to load menu</div>';
-      }
-    },
-
-    handleMenuAction(action) {
-      switch (action) {
-        case 'open_folder':
-          this.openFolderDialog();
-          break;
-        case 'recent_workspaces':
-          this.openRecentWorkspacesModal();
-          break;
-        case 'chats':
-          this.openChatsModal();
-          break;
-        case 'mcp_servers':
-          this.openMcpModal();
-          break;
-        case 'backup_providers':
-          this.openBackupProvidersModal();
-          break;
-        case 'themes':
-          this.openThemesModal();
-          break;
-        case 'extensions':
-          this.openExtensionsModal();
-          break;
-        case 'user':
-          this.openUserModal();
-          break;
-        case 'signout':
-          this.openSignOutModal();
-          break;
-        case 'cust_customization':
-        case 'cust_personalize':
-          this.openPersonalizeModal();
-          break;
-        case 'cust_gestures':
-          this.openGesturesModal();
-          break;
-        default:
-          console.log('Action selected:', action);
-          break;
-      }
-    },
-
     async checkStartup() {
       try {
         const st = await api.get('/api/startup/status');
@@ -3196,7 +3549,7 @@
                   <span>💬 ${c.name || 'Untitled Chat'}</span>
                   ${isActive ? '<span style="color: var(--color-blue); font-size: 10px;">● ACTIVE</span>' : ''}
                 </div>
-                <div class="cct-card-row-sub">${c.message_count || 0} messages · Updated ${c.updated_at ? new Date(c.updated_at * 1000).toLocaleTimeString() : 'Recently'}</div>
+                <div class="cct-card-row-sub">${c.turn_count ?? c.message_count ?? 0} messages · Updated ${c.updated_at ? new Date(c.updated_at * 1000).toLocaleTimeString() : 'Recently'}</div>
               </div>
               <div class="cct-card-row-actions">
                 <button class="cct-icon-btn" onclick="FATTY.renameChatSession('${c.id}', '${(c.name || '').replace(/'/g, "\\'")}')">Rename</button>
@@ -3213,64 +3566,55 @@
     },
 
     async createNewChatSession() {
-      const name = prompt('New chat title:', 'Chat ' + new Date().toLocaleTimeString());
-      if (!name) return;
       try {
-        const res = await api.post('/api/chats', { name, project_path: state.workspaceRoot });
-        if (res && res.id) {
-          this.switchChatSession(res.id);
-        }
-      } catch (e) {
-        alert('Could not create chat: ' + e.message);
+        const name = `Chat ${new Date().toLocaleString()}`;
+        const res = await api.post('/api/chats', {
+          name,
+          project_path: state.workspaceRoot,
+          current_mode: state.activeMode,
+          provider: state.provider,
+          model: state.model
+        });
+        if (!res || !res.id) throw new Error('The server did not return a chat session ID.');
+        await this.switchChatSession(res.id);
+        await this.loadSidebarChats();
+        this.showToast('New chat created.', 'success');
+      } catch (error) {
+        this.showToast(`Could not create chat: ${error.message}`, 'error');
       }
     },
 
-    async renameChatSession(id, oldName) {
+    async renameChatSession(id, oldName, event) {
+      if (event) event.stopPropagation();
       const name = prompt('Rename chat:', oldName);
-      if (!name || name === oldName) return;
-      await api.post(`/api/chats/${id}/rename`, { name });
-      this.openChatsModal();
+      if (!name || !name.trim() || name.trim() === oldName) return;
+      try {
+        await api.post(`/api/chats/${id}/rename`, { name: name.trim() });
+        await this.loadSidebarChats();
+        if (document.getElementById('cct-chats-modal')?.style.display === 'flex') await this.openChatsModal();
+        this.showToast('Chat renamed.', 'success');
+      } catch (error) { this.showToast(`Could not rename chat: ${error.message}`, 'error'); }
     },
 
-    async deleteChatSession(id) {
+    async deleteChatSession(id, event) {
+      if (event) event.stopPropagation();
       if (!confirm('Are you sure you want to delete this chat session?')) return;
-      await api.del(`/api/chats/${id}`);
-      if (state.chatId === id) {
-        state.chatId = null;
-        this.newChat();
-      }
-      this.openChatsModal();
+      try {
+        await api.del(`/api/chats/${id}`);
+        if (state.chatId === id) {
+          state.chatId = null;
+          this.newChat();
+        }
+        await this.loadSidebarChats();
+        if (document.getElementById('cct-chats-modal')?.style.display === 'flex') await this.openChatsModal();
+        this.showToast('Chat deleted.', 'info');
+      } catch (error) { this.showToast(`Could not delete chat: ${error.message}`, 'error'); }
     },
 
     async switchChatSession(id) {
       try {
-        const chat = await api.get(`/api/chats/${id}`);
-        state.chatId = id;
         this.closeAllModals();
-
-        // Switch main screen to chat turns
-        const welcome = document.getElementById('cct-welcome-view');
-        const turnsBox = document.getElementById('cct-chat-turns');
-        if (welcome) welcome.style.display = 'none';
-        if (turnsBox) {
-          turnsBox.style.display = 'flex';
-          turnsBox.innerHTML = '';
-          const messages = chat.messages || [];
-          messages.forEach(m => {
-            if (m.role === 'user') {
-              this.appendUserMessage(m.content);
-            } else if (m.role === 'assistant') {
-              const card = this.appendAssistantLoading();
-              this.updateAssistantCard(card, {
-                text: m.content,
-                model: state.model,
-                mode: state.activeMode,
-                time: '0:01',
-                tools_used: []
-              });
-            }
-          });
-        }
+        await this.loadChatSession(id);
       } catch (err) {
         alert('Could not load chat: ' + err.message);
       }
@@ -3364,7 +3708,17 @@
 
       try {
         const data = await api.get('/api/backup-providers');
-        this.backupChain = data.providers || [];
+        this.backupChain = (data.providers || []).map((entry) => {
+          if (typeof entry === 'string') return { provider: entry.toLowerCase(), model: '', enabled: true };
+          return { ...entry, provider: String(entry.provider || '').toLowerCase(), model: String(entry.model || '') };
+        }).filter((entry) => entry.provider);
+        try {
+          const catalog = await api.get('/api/providers');
+          const options = document.getElementById('cct-backup-provider-options');
+          if (options) options.innerHTML = (catalog.providers || []).map((provider) =>
+            `<option value="${this.escapeHtml(provider.id || '')}">${this.escapeHtml(provider.name || provider.id || '')}</option>`
+          ).join('');
+        } catch (_) { /* Manual provider IDs remain accepted. */ }
         this.renderBackupChain();
       } catch (e) {
         if (list) list.innerHTML = `<div style="padding: 10px; color: var(--color-red);">${e.message}</div>`;
@@ -3380,24 +3734,54 @@
         return;
       }
       this.backupChain.forEach((p, idx) => {
+        const provider = String(p.provider || 'unknown');
+        const model = String(p.model || 'Model not set');
         const row = document.createElement('div');
         row.className = 'cct-card-row';
         row.innerHTML = `
           <div class="cct-card-row-info">
             <div class="cct-card-row-title">
               <span style="color: var(--color-cyan); font-weight: bold;">#${idx + 1}</span>
-              <span>📡 ${p.toUpperCase()}</span>
+              <span>📡 ${this.escapeHtml(provider.toUpperCase())}</span>
             </div>
+            <div class="cct-card-row-subtitle">${this.escapeHtml(model)} · ${p.enabled === false ? 'Disabled' : 'Enabled'}</div>
           </div>
           <div class="cct-card-row-actions">
             <button class="cct-icon-btn" onclick="FATTY.moveBackupChain(${idx}, -1)" ${idx === 0 ? 'disabled' : ''}>▲</button>
             <button class="cct-icon-btn" onclick="FATTY.moveBackupChain(${idx}, 1)" ${idx === this.backupChain.length - 1 ? 'disabled' : ''}>▼</button>
-            <button class="cct-icon-btn" onclick="FATTY.testBackupProvider('${p}')">Test</button>
+            <button class="cct-icon-btn" onclick="FATTY.toggleBackupProvider(${idx})">${p.enabled === false ? 'Enable' : 'Disable'}</button>
+            <button class="cct-icon-btn" onclick="FATTY.testBackupProvider(${idx})">Test</button>
             <button class="cct-icon-btn" onclick="FATTY.removeBackupFromChain(${idx})">✕</button>
           </div>
         `;
         list.appendChild(row);
       });
+    },
+
+    addBackupProvider() {
+      const providerEl = document.getElementById('cct-backup-provider-input');
+      const modelEl = document.getElementById('cct-backup-model-input');
+      const keyEl = document.getElementById('cct-backup-key-input');
+      const provider = (providerEl?.value || '').trim().toLowerCase();
+      const model = (modelEl?.value || '').trim();
+      const apiKey = (keyEl?.value || '').trim();
+      if (!provider || !model) {
+        alert('Enter both a provider ID and a model ID.');
+        return;
+      }
+      const duplicate = this.backupChain.some((entry) => entry.provider === provider && entry.model === model);
+      if (!duplicate) this.backupChain.push({ provider, model, api_key: apiKey, enabled: true });
+      if (providerEl) providerEl.value = '';
+      if (modelEl) modelEl.value = '';
+      if (keyEl) keyEl.value = '';
+      this.renderBackupChain();
+    },
+
+    toggleBackupProvider(index) {
+      const entry = this.backupChain[index];
+      if (!entry) return;
+      entry.enabled = entry.enabled === false;
+      this.renderBackupChain();
     },
 
     moveBackupChain(index, delta) {
@@ -3414,18 +3798,28 @@
       this.renderBackupChain();
     },
 
-    async testBackupProvider(name) {
+    async testBackupProvider(index) {
+      const entry = this.backupChain[index];
+      if (!entry) return;
       try {
-        const res = await api.post('/api/verify', { provider: name });
-        alert(`Provider [${name}] connectivity: ${res.ok ? 'SUCCESS' : 'FAILED'}\n${res.message || ''}`);
+        const res = await api.post('/api/providers/verify', {
+          provider: entry.provider,
+          model: entry.model,
+          api_key: entry.api_key || '',
+          base_url: entry.base_url || ''
+        });
+        const message = res.preview || res.error || '';
+        alert(`Provider [${entry.provider}] connectivity: ${res.success ? 'SUCCESS' : 'FAILED'}${res.latency_ms != null ? ` (${res.latency_ms} ms)` : ''}\n${message}`);
       } catch (e) {
-        alert(`Test error for [${name}]: ${e.message}`);
+        alert(`Test error for [${entry.provider}]: ${e.message}`);
       }
     },
 
     async saveBackupChain() {
       try {
-        await api.post('/api/backup-providers', { providers: this.backupChain });
+        const result = await api.post('/api/backup-providers', { providers: this.backupChain });
+        if (!result || result.success !== true) throw new Error('The server did not save the backup provider chain.');
+        this.backupChain = (result.providers || this.backupChain).map((entry) => ({ ...entry }));
         alert('Backup failover chain saved successfully.');
         this.closeAllModals();
       } catch (e) {
@@ -3469,20 +3863,11 @@
     async applyTheme(themeName) {
       try {
         const res = await api.post('/api/themes/select', { theme: themeName });
-        if (res && res.css_variables) {
-          for (const [key, val] of Object.entries(res.css_variables)) {
-            document.documentElement.style.setProperty(`--${key}`, val);
-            if (key === 'background') document.documentElement.style.setProperty('--term-bg', val);
-            if (key === 'surface') document.documentElement.style.setProperty('--term-surface', val);
-            if (key === 'primary') document.documentElement.style.setProperty('--color-blue', val);
-          }
-        }
         if (res) {
-          if (res.is_light) {
-            document.documentElement.classList.add('cct-light-theme');
-          } else {
-            document.documentElement.classList.remove('cct-light-theme');
-          }
+          document.documentElement.dataset.themeLight = String(Boolean(res.is_light));
+          this.applyThemeVariables(res.css_variables);
+          const appearance = localStorage.getItem('fatty-appearance') || 'system';
+          this.applyAppearance(appearance, window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches);
         }
         this.openThemesModal();
       } catch (e) {
@@ -3579,10 +3964,12 @@
         if (code) code.textContent = result.user_code;
         if (link) link.href = result.verification_url;
         if (status) status.textContent = 'Waiting for approval in Fomoji…';
+        this.setMascotActivity('approval');
         this._authPollDeadline = Date.now() + (result.expires_in_seconds || 300) * 1000;
         this._activeAuthCode = result.user_code;
         this.pollFomojiLogin(result.user_code, (result.poll_interval_seconds || 3) * 1000);
       } catch (error) {
+        this.setMascotActivity('error');
         this.showToast(`Fomoji sign-in could not start: ${error.message}`, 'error');
       } finally {
         if (button) { button.disabled = false; button.textContent = 'Connect Fomoji'; }
@@ -3597,6 +3984,7 @@
           clearTimeout(this._authPollTimer);
           this._authPollTimer = null;
           this._activeAuthCode = null;
+          this.setMascotActivity('success');
           if (status) status.textContent = 'Account connected. CAT now uses your Fomoji identity.';
           const panel = document.getElementById('cct-auth-device-panel');
           if (panel) panel.hidden = true;
@@ -3609,6 +3997,7 @@
           clearTimeout(this._authPollTimer);
           this._authPollTimer = null;
           this._activeAuthCode = null;
+          this.setMascotActivity('error');
           if (status) status.textContent = result.message || (result.status === 'denied' ? 'The request was denied. You can try again.' : 'This code expired. Start sign-in again.');
           return;
         }
@@ -3827,9 +4216,18 @@
     },
 
     toggleSidebar() {
-      const sb = document.getElementById('cct-sidebar');
-      if (!sb) return;
-      sb.style.display = sb.style.display === 'none' ? 'flex' : 'none';
+      if (window.matchMedia('(max-width: 760px), (orientation: portrait)').matches) {
+        this.toggleMobileSidebar();
+        return;
+      }
+      const collapsed = document.body.classList.toggle('sidebar-collapsed');
+      localStorage.setItem('fatty-sidebar-collapsed', String(collapsed));
+      const button = document.querySelector('.cct-sidebar-collapse');
+      if (button) {
+        button.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+        button.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+        button.textContent = collapsed ? '›' : '‹';
+      }
     },
 
     closeAllModals(e) {
@@ -3839,8 +4237,6 @@
       document.querySelectorAll('.cct-modal-backdrop').forEach(m => {
         m.style.display = 'none';
       });
-      const menu = document.getElementById('cct-main-menu-popup');
-      if (menu) menu.style.display = 'none';
     },
 
     // ─────────────────────────────────────────────────────────────────────

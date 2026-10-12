@@ -119,3 +119,49 @@ class TestAgentMultitaskingAndRecovery:
         assert len(tools_run) == 2
         assert tools_run[0] == ("read_file", "file1.txt")
         assert tools_run[1] == ("list_directory", "src")
+
+    def test_user_screenshot_glitch_and_mojibake_cleanup(self):
+        raw_screenshot_output = (
+            'USER: TOOL RESULT: [final] The user\'s request was: "analysis this image and what can i give you". '
+            'I\'m not sure how to respond to that. Could you clarify what you need?\n\n'
+            '{"action": "final", "text": "## ANALYSIS COMPLETE: ChatGPT Image Oct 11, 2026, 05_{04}_{20} PM.png\\n\\n'
+            '### Summary of what was analyzed\\n\\n'
+            '1. Image identity: A 1254Ã1254 pixel PNG screen capture.\\n'
+            '2. Embedded C_PA provenance metadata.\\n'
+            '3. Closed symmetric BÂ®zier-curve path geometry.\\n\\n'
+            'Conclusion: The image analysis is complete."}'
+        )
+        cleaned = agent.clean_final_text(raw_screenshot_output)
+        assert "USER: TOOL RESULT:" not in cleaned
+        assert '{"action": "final"' not in cleaned
+        assert "1254×1254" in cleaned
+        assert "Bézier" in cleaned
+        assert "\\n\\n" not in cleaned
+        assert "## ANALYSIS COMPLETE:" in cleaned
+        assert "Conclusion: The image analysis is complete." in cleaned
+
+    def test_normalizer_rejects_final_action_as_tool(self):
+        text = '{"action": "final", "text": "Task finished successfully."}'
+        calls = normalize_tool_calls(text, ["final", "read_file"])
+        assert len(calls) == 0
+
+    def test_device_control_providers_smart_automations(self):
+        from calc_terminal import device_control as dc
+        desk = dc.PROVIDERS["desktop"]
+        plan_status = desk.plan("system_status", {})
+        res_status = desk.execute(plan_status)
+        assert res_status["ok"] is True
+        assert "OS:" in res_status["output"]
+
+        plan_ps = desk.plan("list_processes", {})
+        res_ps = desk.execute(plan_ps)
+        assert res_ps["ok"] is True
+        assert len(res_ps["output"]) > 0
+
+        browser = dc.PROVIDERS["browser"]
+        plan_links = browser.plan("extract_links", {"target": "https://example.com"})
+        assert "Extracts all hyperlinks" in plan_links["effect"]
+
+        android = dc.PROVIDERS["android"]
+        plan_ui = android.plan("dump_ui", {})
+        assert "Inspects Android screen UI element hierarchy" in plan_ui["effect"]

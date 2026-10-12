@@ -62,9 +62,9 @@
   background:var(--bot-eye-bg);
   display:flex; align-items:center; justify-content:center;
   overflow:hidden;
-  transition:height .12s ease, width .12s ease, transform .18s ease;
+  transition:height .12s ease, width .12s ease;
 }
-.fabot-pupil{ width:5px; height:5px; border-radius:50%; background:var(--bot-pupil); transition:transform 90ms linear; }
+.fabot-pupil{ width:5px; height:5px; border-radius:50%; background:var(--bot-pupil); will-change:transform; transform:translateZ(0); }
 
 .fabot[data-eyes="oval"] .fabot-eye{ width:9px; height:14px; border-radius:50%; }
 .fabot[data-eyes="wide"] .fabot-eye{ width:13px; height:13px; }

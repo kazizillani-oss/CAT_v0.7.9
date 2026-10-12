@@ -327,43 +327,12 @@ class AgentRuntime:
         return isinstance(data, dict) and isinstance(data.get("action"), str)
 
     def clean_final_text(self, text):
-        if not text or not isinstance(text, str):
-            return text or ""
-        stripped = text.strip()
-        if not stripped:
-            return ""
-
-        m = re.search(r"\{.*\}", stripped, re.S)
-        if m and len(m.group(0).replace(" ", "")) >= len(stripped.replace(" ", "")) * 0.7:
-            try:
-                data = json.loads(m.group(0))
-                payload = self._extract_protocol_text(data)
-                if payload and payload.strip():
-                    return payload.strip()
-            except Exception:
-                pass
-
-        out = []
-        cursor = 0
-        changed = False
-        for start, end in self._balanced_json_spans(text):
-            chunk = text[start:end]
-            try:
-                data = json.loads(chunk)
-            except Exception:
-                continue
-            if not self._is_protocol_blob(data):
-                continue
-            out.append(text[cursor:start])
-            cursor = end
-            changed = True
-        if changed:
-            out.append(text[cursor:])
-            cleaned = "".join(out)
-            cleaned = re.sub(r"[ \t]+\n", "\n", cleaned)
-            cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
-            return _fix_spacing(cleaned or text.strip())
-        return _fix_spacing(text)
+        try:
+            from .agent import clean_final_text as _cft
+            cleaned = _cft(text)
+            return _fix_spacing(cleaned)
+        except Exception:
+            return _fix_spacing(text)
 
     def _check_permission(self, name, args, permission_callback):
         spec = self.tools[name]

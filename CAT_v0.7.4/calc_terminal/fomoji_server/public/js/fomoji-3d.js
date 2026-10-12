@@ -21,7 +21,8 @@
   'use strict';
 
   var DEPTH_LEVELS = ['off', 'low', 'medium', 'high'];
-  var DEFAULT_DEPTH = 'medium';
+  var CAT_BROWSER = /CATBrowser/i.test(navigator.userAgent || '');
+  var DEFAULT_DEPTH = CAT_BROWSER ? 'off' : 'medium';
 
   function motionAllowed() {
     var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -42,6 +43,7 @@
 
   function applyDepth(level) {
     var safe = DEPTH_LEVELS.indexOf(level) >= 0 ? level : DEFAULT_DEPTH;
+    if (CAT_BROWSER) document.documentElement.classList.add('cat-browser-renderer');
     document.documentElement.dataset.depth3d = motionAllowed() ? safe : (safe === 'off' ? 'off' : 'low');
   }
 
@@ -66,18 +68,50 @@
 
   /* ---- optional pointer-tilt for data-tilt="pointer" cards ---- */
   function initPointerTilt() {
-    if (!motionAllowed()) return;
+    if (!motionAllowed() || CAT_BROWSER || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
     var els = document.querySelectorAll('.card-3d[data-tilt="pointer"]');
     els.forEach(function (el) {
-      el.addEventListener('pointermove', function (e) {
-        var rect = el.getBoundingClientRect();
-        var px = (e.clientX - rect.left) / rect.width - 0.5;  // -0.5..0.5
-        var py = (e.clientY - rect.top) / rect.height - 0.5;
-        var maxTilt = parseFloat(getComputedStyle(el).getPropertyValue('--fx-depth-tilt')) || 7;
-        el.style.setProperty('--tilt-x', (-py * maxTilt * 2).toFixed(2) + 'deg');
-        el.style.setProperty('--tilt-y', (px * maxTilt * 2).toFixed(2) + 'deg');
+      var rect = null;
+      var maxTilt = 7;
+      var rafId = null;
+      var targetX = 0;
+      var targetY = 0;
+
+      function updateTilt() {
+        rafId = null;
+        el.style.setProperty('--tilt-x', targetX.toFixed(2) + 'deg');
+        el.style.setProperty('--tilt-y', targetY.toFixed(2) + 'deg');
+      }
+
+      el.addEventListener('pointerenter', function () {
+        rect = el.getBoundingClientRect();
+        maxTilt = parseFloat(getComputedStyle(el).getPropertyValue('--fx-depth-tilt')) || 7;
+        el.style.transition = 'transform 0s linear, box-shadow var(--fx-duration-slow) var(--fx-ease-decel)';
       });
+
+      el.addEventListener('pointermove', function (e) {
+        if (!rect) {
+          rect = el.getBoundingClientRect();
+          maxTilt = parseFloat(getComputedStyle(el).getPropertyValue('--fx-depth-tilt')) || 7;
+        }
+        var rawPx = (e.clientX - rect.left) / (rect.width || 1) - 0.5;
+        var rawPy = (e.clientY - rect.top) / (rect.height || 1) - 0.5;
+        var px = Math.max(-0.5, Math.min(0.5, rawPx));
+        var py = Math.max(-0.5, Math.min(0.5, rawPy));
+        targetX = Math.max(-maxTilt * 2, Math.min(maxTilt * 2, -py * maxTilt * 2));
+        targetY = Math.max(-maxTilt * 2, Math.min(maxTilt * 2, px * maxTilt * 2));
+        if (!rafId) {
+          rafId = requestAnimationFrame(updateTilt);
+        }
+      });
+
       el.addEventListener('pointerleave', function () {
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
+        rect = null;
+        el.style.transition = '';
         el.style.setProperty('--tilt-x', '0deg');
         el.style.setProperty('--tilt-y', '0deg');
       });

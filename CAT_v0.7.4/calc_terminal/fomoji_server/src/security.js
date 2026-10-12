@@ -31,7 +31,7 @@ function securityHeadersMiddleware(req, res, next) {
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 
   // Restrict sensitive hardware features
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 
   // Strict-Transport-Security (1 year) when deployed over HTTPS or in production
   if (IS_PRODUCTION || (ORIGIN && ORIGIN.startsWith('https://'))) {
@@ -44,10 +44,11 @@ function securityHeadersMiddleware(req, res, next) {
     [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
-      "style-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: https:",
       "connect-src 'self' https:",
-      "font-src 'self' data:",
+      "font-src 'self' data: https://fonts.gstatic.com",
       "object-src 'none'",
       "frame-ancestors 'none'",
       "base-uri 'self'",
@@ -191,6 +192,156 @@ function errorHandler(err, req, res, next) {
   });
 }
 
+/**
+ * 6. CAT Browser Exclusivity Middleware
+ * Ensures Fomoji portal can ONLY be opened inside CAT Browser.
+ * If opened in Chrome, Edge, Firefox, or Safari, displays a 3D Liquid Glass Access Restricted Screen.
+ */
+function catBrowserExclusivityMiddleware(req, res, next) {
+  // Only protect HTML page requests and root navigation; allow API & static assets (CSS, JS, images, fonts)
+  const isHtmlRequest =
+    req.path === '/' ||
+    req.path.endsWith('.html') ||
+    (req.headers.accept && req.headers.accept.includes('text/html') && !req.path.startsWith('/api/') && !req.path.startsWith('/archify/'));
+
+  if (!isHtmlRequest) {
+    return next();
+  }
+
+  const ua = req.headers['user-agent'] || '';
+  const xCat = req.headers['x-cat-browser'];
+  const isCatBrowser = ua.includes('CATBrowser') || xCat === '1';
+
+  if (isCatBrowser) {
+    return next();
+  }
+
+  // Block external browsers with 3D Liquid Glass Security Screen
+  res.status(403);
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  return res.send(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fomoji Security — CAT Browser Exclusive</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: radial-gradient(circle at 50% 15%, #18192b 0%, #0c0d16 80%);
+      color: #e4e6f8;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+      overflow: hidden;
+    }
+    .liquid-orb {
+      position: absolute;
+      width: 480px;
+      height: 480px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(124, 107, 255, 0.28) 0%, rgba(94, 233, 160, 0.08) 60%, transparent 80%);
+      filter: blur(60px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .card {
+      position: relative;
+      z-index: 1;
+      max-width: 520px;
+      width: 100%;
+      padding: 44px 38px;
+      text-align: center;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-top: 1.5px solid rgba(255, 255, 255, 0.35);
+      border-bottom: 2px solid rgba(0, 0, 0, 0.6);
+      border-radius: 24px;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    }
+    .shield-icon {
+      font-size: 56px;
+      margin-bottom: 14px;
+      display: inline-block;
+      filter: drop-shadow(0 0 20px rgba(124, 107, 255, 0.7));
+    }
+    .pill {
+      display: inline-block;
+      padding: 5px 14px;
+      border-radius: 999px;
+      background: rgba(124, 107, 255, 0.18);
+      border: 1px solid rgba(124, 107, 255, 0.45);
+      color: #c7d2fe;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    h1 {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.4px;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #ffffff 40%, #a5b4fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    p {
+      color: #9094be;
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 28px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 13px 28px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 14px;
+      color: #ffffff;
+      text-decoration: none;
+      cursor: pointer;
+      background: linear-gradient(180deg, #7c6bff 0%, #6353ea 100%);
+      box-shadow: 0 6px 20px rgba(124, 107, 255, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      transition: all 0.2s ease;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(124, 107, 255, 0.6);
+    }
+    .note {
+      margin-top: 20px;
+      font-size: 11px;
+      color: #63678e;
+    }
+  </style>
+</head>
+<body>
+  <div class="liquid-orb"></div>
+  <div class="card">
+    <div class="shield-icon">🛡️</div>
+    <div><span class="pill">Hardware Enclave Protected</span></div>
+    <h1>CAT Browser Exclusive</h1>
+    <p>Fomoji biometric passkeys and identities are cryptographically bound to <b>CAT Browser</b>. External browsers (Chrome, Edge, Firefox, Safari) cannot access this secure enclave.</p>
+    <a class="btn" href="cat://open?url=http://localhost:3000/home.html">
+      <span>🐱 Open in CAT Browser</span>
+    </a>
+    <div class="note">Security Protocol: Zero-Trust Hardware Isolation</div>
+  </div>
+</body>
+</html>`);
+}
+
 module.exports = {
   correlationIdMiddleware,
   securityHeadersMiddleware,
@@ -201,4 +352,5 @@ module.exports = {
   signupRateLimiter,
   passwordResetRateLimiter,
   errorHandler,
+  catBrowserExclusivityMiddleware,
 };

@@ -36,35 +36,54 @@
     el.dataset.lgBound = '1';
 
     var pressing = false, startX = 0, startY = 0;
+    var rafMove = null;
+    var cachedRect = null;
+
+    el.addEventListener('pointerenter', function () {
+      cachedRect = el.getBoundingClientRect();
+    });
 
     el.addEventListener('pointermove', function (e) {
       if (!isLiquid()) return;
-      var r = el.getBoundingClientRect();
+      if (!cachedRect) cachedRect = el.getBoundingClientRect();
+      var r = cachedRect;
       if (!r.width || !r.height) return;
-      var x = ((e.clientX - r.left) / r.width) * 100;
-      var y = ((e.clientY - r.top) / r.height) * 100;
-      el.style.setProperty('--lg-x', x.toFixed(1) + '%');
-      el.style.setProperty('--lg-y', y.toFixed(1) + '%');
+      var clientX = e.clientX;
+      var clientY = e.clientY;
 
-      if (pressing && motionAllowed()) {
-        var strength = getComputedStyle(document.documentElement).getPropertyValue('--fx-stretch-strength').trim();
-        var s = parseFloat(strength) || 0;
-        if (s > 0) {
-          var dx = ((e.clientX - startX) / r.width) * 10 * s;   // small, physical, not gimmicky
-          var dy = ((e.clientY - startY) / r.height) * 10 * s;
-          el.style.setProperty('--lg-stretch-x', dx.toFixed(2) + 'px');
-          el.style.setProperty('--lg-stretch-y', dy.toFixed(2) + 'px');
-        }
+      if (!rafMove) {
+        rafMove = requestAnimationFrame(function () {
+          rafMove = null;
+          var x = ((clientX - r.left) / r.width) * 100;
+          var y = ((clientY - r.top) / r.height) * 100;
+          el.style.setProperty('--lg-x', x.toFixed(1) + '%');
+          el.style.setProperty('--lg-y', y.toFixed(1) + '%');
+
+          if (pressing && motionAllowed() && cachedStrength > 0) {
+            var dx = ((clientX - startX) / r.width) * 10 * cachedStrength;   // small, physical, not gimmicky
+            var dy = ((clientY - startY) / r.height) * 10 * cachedStrength;
+            el.style.setProperty('--lg-stretch-x', dx.toFixed(2) + 'px');
+            el.style.setProperty('--lg-stretch-y', dy.toFixed(2) + 'px');
+          }
+        });
       }
     });
 
+    var cachedStrength = 0;
     el.addEventListener('pointerdown', function (e) {
       pressing = true;
       startX = e.clientX; startY = e.clientY;
+      cachedRect = el.getBoundingClientRect();
+      var strength = getComputedStyle(document.documentElement).getPropertyValue('--fx-stretch-strength').trim();
+      cachedStrength = parseFloat(strength) || 0;
     });
 
     function release() {
       pressing = false;
+      if (rafMove) {
+        cancelAnimationFrame(rafMove);
+        rafMove = null;
+      }
       el.style.setProperty('--lg-stretch-x', '0px');
       el.style.setProperty('--lg-stretch-y', '0px');
     }
@@ -72,6 +91,7 @@
     el.addEventListener('pointercancel', release);
     el.addEventListener('pointerleave', function () {
       release();
+      cachedRect = null;
       el.style.setProperty('--lg-x', '50%');
       el.style.setProperty('--lg-y', '30%');
     });
@@ -107,13 +127,28 @@
   });
 
   /* ---- 4: floating tab-bar indicator ---- */
+  var rafIndicator = null;
+  var isMutatingIndicator = false;
+
+  function requestPositionIndicator() {
+    if (rafIndicator) return;
+    rafIndicator = requestAnimationFrame(function () {
+      rafIndicator = null;
+      positionIndicator();
+    });
+  }
+
   function positionIndicator() {
     var tabbar = document.querySelector('.tabbar');
     if (!tabbar) return;
 
     if (!isLiquid()) {
       var existing = tabbar.querySelector('.tab-indicator');
-      if (existing) existing.remove();
+      if (existing) {
+        isMutatingIndicator = true;
+        existing.remove();
+        isMutatingIndicator = false;
+      }
       return;
     }
 
@@ -125,50 +160,79 @@
       indicator = document.createElement('div');
       indicator.className = 'tab-indicator';
       indicator.setAttribute('aria-hidden', 'true');
+      isMutatingIndicator = true;
       tabbar.insertBefore(indicator, tabbar.firstChild);
+      isMutatingIndicator = false;
     }
 
     var barRect = tabbar.getBoundingClientRect();
     var tabRect = active.getBoundingClientRect();
     // getBoundingClientRect() returns the BORDER edge, but this indicator is
     // position:absolute inside .tabbar, so its left/top are resolved against
-    // the PADDING edge of that containing block, not the border edge. With
-    // .tabbar's 1px border, subtracting barRect directly left every
-    // indicator on every page offset by the border width — small on its
-    // own, but combined with any rounding it's what made the pill look like
-    // it never quite lined up with its tab. clientLeft/clientTop report the
-    // border width (0 if borders are ever removed), so subtracting them
-    // corrects the offset properly instead of guessing a fixed 1px.
+    // the PADDING edge of that containing block, not the border edge.
     var borderLeft = tabbar.clientLeft || 0;
     var borderTop = tabbar.clientTop || 0;
     indicator.style.left = (tabRect.left - barRect.left - borderLeft) + 'px';
     indicator.style.width = tabRect.width + 'px';
-    // top/height were the one part still hardcoded in CSS (6px/52px, sized
-    // for the default floating tab). Measuring them here too means the
-    // indicator actually matches compact's 44px tabs and labeled's 46px
-    // row tabs instead of overflowing past the bar edge on those variants.
     indicator.style.top = (tabRect.top - barRect.top - borderTop) + 'px';
     indicator.style.height = tabRect.height + 'px';
   }
 
   function boot() {
     bindAllSurfaces(document);
-    positionIndicator();
+    requestPositionIndicator();
+
+    var tabbar = document.querySelector('.tabbar');
+    if (tabbar) {
+      var tabMo = new MutationObserver(function () {
+        if (!isMutatingIndicator) {
+          requestPositionIndicator();
+        }
+      });
+      tabMo.observe(tabbar, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    }
 
     var mo = new MutationObserver(function (mutations) {
+      if (isMutatingIndicator) return;
       var needsBind = false;
       mutations.forEach(function (m) {
         m.addedNodes && m.addedNodes.forEach(function (node) {
-          if (node.nodeType === 1) needsBind = true;
+          if (node.nodeType === 1 && !node.classList.contains('tab-indicator')) {
+            if (node.matches && (node.matches(STRETCH_SELECTOR) || node.querySelector(STRETCH_SELECTOR))) {
+              needsBind = true;
+            }
+          }
         });
       });
       if (needsBind) bindAllSurfaces(document);
-      positionIndicator();
     });
     mo.observe(document.body, { childList: true, subtree: true });
 
-    window.addEventListener('resize', positionIndicator);
-    document.addEventListener('fomoji-appearance-change', positionIndicator);
+    window.addEventListener('resize', requestPositionIndicator);
+    document.addEventListener('fomoji-appearance-change', requestPositionIndicator);
+    installSecurityShield();
+  }
+
+  function installSecurityShield() {
+    document.addEventListener('contextmenu', function (e) {
+      e.preventDefault();
+      return false;
+    }, true);
+
+    document.addEventListener('keydown', function (e) {
+      if (e.keyCode === 123) {
+        e.preventDefault();
+        return false;
+      }
+      if (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) {
+        e.preventDefault();
+        return false;
+      }
+      if (e.ctrlKey && (e.keyCode === 85 || e.keyCode === 83)) {
+        e.preventDefault();
+        return false;
+      }
+    }, true);
   }
 
   if (document.readyState === 'loading') {

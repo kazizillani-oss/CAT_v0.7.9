@@ -363,15 +363,21 @@ def _tool_bonding(args):
     return f"Exported a stylized electron-localization / bonding density map for {key}: {path}"
 
 
+
 def _tool_web_search(args):
     query = str(args.get("query", "")).strip()
     if not query:
         return "No query given."
-    results = aicore.web_search(query, max_results=int(args.get("max_results", 5) or 5))
+    max_res = int(args.get("max_results", 5) or 5)
+    detailed = aicore.web_search_detailed(query, max_results=max_res)
+    results = detailed.get("results", [])
+    if not detailed.get("ok"):
+        return f"Web search failed ({detailed.get('status')}): {detailed.get('error_message') or 'Unable to contact search engine'}"
     if not results:
-        return f"No web results found for '{query}' (search unreachable or blocked)."
+        return f"Web search for '{detailed.get('query', query)}' completed but found 0 results."
+    prov = detailed.get("provider", "web")
     lines = [f"[{i+1}] {r['title']} — {r['url']}\n    {r['snippet']}" for i, r in enumerate(results)]
-    return "Web search results:\n" + "\n".join(lines)
+    return f"Web search results ({prov}):\n" + "\n".join(lines)
 
 
 def _tool_deep_research(args):
@@ -474,6 +480,24 @@ def _mark_change(**fields):
                 fs_cache.invalidate_path(os.path.dirname(str(p)))
     except Exception:
         pass
+    # Track file artifact in ArtifactManager
+    try:
+        from .artifacts.artifact_manager import get_artifact_manager
+        current_spec = getattr(_CURRENT_AGENT_SPEC, "spec", None)
+        agent_id = getattr(current_spec, "name", "kitty") if current_spec else "kitty"
+        p = fields.get("path") or fields.get("new_path")
+        kind = fields.get("kind", "modify")
+        if p and os.path.exists(p) and not os.path.isdir(p):
+            get_artifact_manager().record_artifact(
+                task_id="",
+                agent_id=str(agent_id),
+                file_path=str(p),
+                action=kind,
+                diff_summary=f"{kind} {os.path.basename(str(p))}",
+            )
+    except Exception:
+        pass
+
 
 
 def _tool_write_file(args):
@@ -1167,9 +1191,14 @@ def _kill_proc_tree(proc):
         pid = proc.pid
         if sys.platform == "win32":
             try:
+                si = subprocess.STARTUPINFO()
+                si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                si.wShowWindow = 0  # SW_HIDE
                 subprocess.run(
                     ["taskkill", "/F", "/T", "/PID", str(pid)],
-                    capture_output=True, timeout=5
+                    capture_output=True, timeout=5,
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
+                    startupinfo=si,
                 )
             except Exception:
                 pass
@@ -1341,6 +1370,19 @@ def _tool_run_terminal(args):
     raw_cmd = str(args.get("command", "")).strip()
     if not raw_cmd:
         return "No command given."
+
+    try:
+        from .automation.platform_automation import is_emergency_stopped, get_platform_automation_manager, AutomationSafetyLevel
+        if is_emergency_stopped():
+            return "Refused: Global emergency stop is active. Terminal execution is halted."
+        pam = get_platform_automation_manager()
+        if pam.safety_level == AutomationSafetyLevel.RESTRICTED:
+            is_safe, reason = pam.is_command_safe(raw_cmd)
+            if not is_safe:
+                return f"Refused by Platform Safety Policy: {reason}"
+    except Exception:
+        pass
+
     cmd = _make_noninteractive_command(raw_cmd)
     try:
         timeout = min(max(float(args.get("timeout", 60) or 60), 1.0), 300.0)
@@ -1434,7 +1476,14 @@ def _tool_run_terminal(args):
             "env": run_env,
         }
         if sys.platform == "win32":
-            proc_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+            proc_kwargs["creationflags"] = (
+                subprocess.CREATE_NEW_PROCESS_GROUP |
+                getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+            )
+            si = subprocess.STARTUPINFO()
+            si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            si.wShowWindow = 0  # SW_HIDE
+            proc_kwargs["startupinfo"] = si
 
         proc = subprocess.Popen(cmd, **proc_kwargs)
         register_tool_process(proc)
@@ -2057,6 +2106,21 @@ def _tool_read_file(args):
         return f"Refused: {e}"
     if not os.path.isfile(path):
         return f"'{path}' is not a file (or doesn't exist)."
+
+    # Safe handling of media / binary / non-text files to prevent binary garbage in prompt
+    try:
+        from . import attachments
+        ext = os.path.splitext(path)[1].lower()
+        kind = attachments.detect_kind(path)
+        if kind in ("image", "pdf", "archive", "audio", "video") or ext in getattr(attachments, "BINARY_EXTS", set()):
+            content, meta, kind_name, err = attachments.extract_attachment_context(path)
+            if content:
+                return f"Inspected {kind_name} file '{path}':\n{content}"
+            if err:
+                return f"Could not inspect '{path}': {err}"
+    except Exception:
+        pass
+
     content, truncated = aicore.read_text_file_for_context(path)
     if content is None:
         return f"Could not read '{path}' (binary or unreadable)."
@@ -2070,6 +2134,13 @@ def _tool_device_action(args):
     executes it only when the provider reports it can really do the
     thing. The permission dispatch (perm_key device_control) is the
     user's explicit approval gate; every action is logged."""
+    try:
+        from .automation.platform_automation import is_emergency_stopped
+        if is_emergency_stopped():
+            return "Refused: Global emergency stop is active. Device actions are halted."
+    except Exception:
+        pass
+
     from . import device_control as dc
     provider_key = str(args.get("provider", "")).strip().lower()
     action = str(args.get("action", "run")).strip() or "run"
@@ -2097,6 +2168,19 @@ def _tool_device_action(args):
         return f"Device action approved and executed ({provider_key}/{action}): {note}"
     return (f"Device action planned but execution failed: "
             + str(result.get("note", "unknown error")))
+
+
+def _tool_cat_browser(args):
+    """Agentic CAT Browser controller: drives CAT Browser tabs,
+    multitasking, navigation, DOM evaluation, and page inspection."""
+    action = str(args.get("action", "open")).strip().lower()
+    target = str(args.get("url") or args.get("target") or args.get("script") or "").strip()
+    return _tool_device_action({
+        "provider": "browser",
+        "action": action,
+        "target": target,
+        "command": target,
+    })
 
 
 def _tool_list_directory(args):
@@ -2161,44 +2245,213 @@ def _tool_customize_cat_cli(args):
         return f"Error customizing CAT CLI: {e}"
 
 
+_DELEGATION_DEPTH = threading.local()
+_CURRENT_AGENT_SPEC = threading.local()
+
+
 def _tool_delegate_task_to_kitty(args):
-    """Share task, prompts, and code solutions to another specialized Kitty (e.g. build, debugger, automator)."""
-    target = str(args.get("target_kitty", "")).strip().lower()
+    """Real delegation from Nova to specialist Kitty (Aria, Dex, Mira, Sage, Qala, or custom).
+    Executes the delegated Kitty's workflow with its allowed tools and returns genuine results."""
+    target_raw = str(args.get("target_kitty", "")).strip().lower()
     objective = str(args.get("task_objective", "")).strip()
-    prompt = str(args.get("prompt", "")).strip()
-    solution = str(args.get("solution", "") or args.get("response", "")).strip()
-    code = str(args.get("code_snippets", "")).strip()
-    if not target or not objective:
-        return "Must specify target_kitty (e.g. 'build', 'debugger', 'automator') and task_objective."
+    if not target_raw or not objective:
+        return "Must specify target_kitty (e.g. 'aria'/'build', 'dex'/'debugger', 'mira'/'plan', 'sage'/'research', 'qala'/'notebook') and task_objective."
+
+    depth = getattr(_DELEGATION_DEPTH, "depth", 0)
+    if depth >= 2:
+        return f"Delegation depth limit reached ({depth}). Complete the task directly without further delegation."
+
+    alias_map = {
+        "build": "aria", "coder": "aria", "cat-coder": "aria",
+        "debug": "dex", "debugger": "dex", "cat-debugger": "dex",
+        "plan": "mira", "planner": "mira", "cat-planner": "mira",
+        "research": "sage", "researcher": "sage", "cat-researcher": "sage",
+        "notebook": "qala", "science": "qala", "math": "qala",
+        "agent": "nova", "autonomous": "nova",
+    }
+    target = alias_map.get(target_raw, target_raw)
+
+    context = str(args.get("context", "")).strip()
+    full_objective = f"[Shared Context from Nova]: {context}\n\nTask: {objective}" if context else objective
+
     try:
-        from . import ai_modes
-        from .workflow_engine import workflow_engine
-        current = ai_modes.current_kitty()
-        handoff = ai_modes.share_task_between_kitties(
-            from_kitty=current,
-            to_kitty=target,
-            task_objective=objective,
-            prompt=prompt,
-            response=solution,
-            code_snippets=code
-        )
-        workflow_engine.record_point_to_point_step(
-            source_node=f"kitty.{current}",
-            target_node=f"kitty.{target}",
-            step_name=f"Delegate Task: {objective[:60]}",
-            payload={"from_kitty": current, "to_kitty": target, "objective": objective},
-            result="Handoff Queued",
-            duration_ms=10
-        )
-        if args.get("switch_active", True):
-            ai_modes.set_kitty(target)
+        from .agents.registry import get_agent_registry
+        reg = get_agent_registry()
+        spec = reg.get(target)
+        if not spec:
+            return f"Specialist Kitty '{target}' not found in registry. Available Kitties: aria, dex, mira, sage, nova, qala."
+
+        # Central policy enforcement: child permissions are clamped to caller permissions
+        # to prevent privilege escalation via delegation (Requirement 11).
+        caller_spec = getattr(_CURRENT_AGENT_SPEC, "spec", None)
+        if caller_spec and hasattr(caller_spec, "permissions") and caller_spec.permissions:
+            import dataclasses
+            clamped_permissions = dict(spec.permissions)
+            for perm_k, perm_v in caller_spec.permissions.items():
+                if perm_v is False:
+                    clamped_permissions[perm_k] = False
+            spec = dataclasses.replace(spec, permissions=clamped_permissions)
+
+        from .event_stream import stream
+        stream.emit("agent_delegation_started", source="agent",
+                    from_kitty=getattr(caller_spec, "name", "nova"), to_kitty=spec.name, objective=objective)
+
+        _DELEGATION_DEPTH.depth = depth + 1
+        try:
+            result_text, steps, meta = run_agent(
+                user_text=full_objective,
+                max_steps=10,
+                mode=spec.primary_mode,
+                agent_spec=spec,
+                verbose=False,
+            )
+        finally:
+            _DELEGATION_DEPTH.depth = depth
+
+        stream.emit("agent_delegation_completed", source="agent",
+                    to_kitty=spec.name, steps_count=len(steps))
+
+        summary_steps = []
+        for s in steps:
+            s_name = s[0] if isinstance(s, (list, tuple)) else "?"
+            summary_steps.append(f"- Executed tool: {s_name}")
+        steps_info = ("\n" + "\n".join(summary_steps)) if summary_steps else " (completed via specialized reasoning)"
+
         return (
-            f"Successfully shared task and delegated to '{target}' Kitty.\n"
-            f"Handoff ID: {handoff['id']}\n"
-            f"Target '{target}' Kitty is now equipped with the full shared context and prompt solution."
+            f"[{spec.name} · {spec.description.split('—')[0].strip()} Verified Result]:\n"
+            f"Objective: {objective}\n"
+            f"Sub-task operations:{steps_info}\n\n"
+            f"Result:\n{result_text}"
         )
     except Exception as e:
-        return f"Error delegating task to Kitty '{target}': {e}"
+        return f"Error executing delegated task with Kitty '{target}': {e}"
+
+
+def _tool_qala_solve_math(args):
+    """Solve equations, calculus (diff, integrate, limit), linear algebra, or numerical math via Qala's science engine."""
+    try:
+        from .compute import qala_science
+        op = str(args.get("operation", "equation")).strip().lower()
+        if op in ("equation", "solve"):
+            eq = str(args.get("equation", "")).strip()
+            solve_for = str(args.get("solve_for", "x")).strip()
+            return json.dumps(qala_science.solve_symbolic_equation(eq, solve_for), indent=2)
+        elif op in ("diff", "derivative", "integrate", "integral", "limit", "lim"):
+            expr = str(args.get("expression", "")).strip()
+            var = str(args.get("variable", "x")).strip()
+            lower = args.get("lower")
+            upper = args.get("upper")
+            point = args.get("point")
+            return json.dumps(qala_science.perform_calculus(
+                op, expr, var=var,
+                lower=str(lower) if lower is not None else None,
+                upper=str(upper) if upper is not None else None,
+                point=str(point) if point is not None else None
+            ), indent=2)
+        elif op in ("matrix", "det", "inv", "eigen", "rank"):
+            mat = args.get("matrix", [])
+            sub_op = args.get("sub_op", "det") if op == "matrix" else op
+            return json.dumps(qala_science.linear_algebra_ops(mat, sub_op), indent=2)
+        elif op in ("numerical_integrate", "quad"):
+            func = str(args.get("func", "sin(x)")).strip()
+            a = float(args.get("a", 0.0))
+            b = float(args.get("b", 1.0))
+            return json.dumps(qala_science.numerical_integration(func, a, b), indent=2)
+        elif op in ("numerical_root", "root"):
+            func = str(args.get("func", "x**2 - 2")).strip()
+            x0 = float(args.get("x0", 1.0))
+            return json.dumps(qala_science.numerical_root_finding(func, x0), indent=2)
+        return f"Unknown math operation '{op}'. Supported: equation, diff, integrate, limit, matrix, numerical_integrate, numerical_root."
+    except Exception as e:
+        return f"Math computation error: {e}"
+
+
+def _tool_qala_notebook_ops(args):
+    """Jupyter Notebook (.ipynb) operations: read, create, edit_cell, add_cell, execute_cell."""
+    try:
+        from .compute import qala_science
+        action = str(args.get("action", "read")).strip().lower()
+        path = str(args.get("path", "")).strip()
+        if path:
+            path = _resolve_tool_path(path)
+        if action == "read":
+            return json.dumps(qala_science.read_notebook(path), indent=2)
+        elif action == "create":
+            title = str(args.get("title", "Notebook"))
+            cells = args.get("cells", [])
+            res_data = qala_science.create_notebook(path, title=title, cells=cells)
+        elif action == "edit_cell":
+            idx = int(args.get("cell_index", 0))
+            new_src = str(args.get("source", ""))
+            ctype = args.get("cell_type")
+            res_data = qala_science.edit_notebook_cell(path, idx, new_src, ctype)
+        elif action == "add_cell":
+            src = str(args.get("source", ""))
+            ctype = str(args.get("cell_type", "code"))
+            pos = args.get("position")
+            res_data = qala_science.add_notebook_cell(path, src, cell_type=ctype, position=int(pos) if pos is not None else None)
+        elif action == "execute_cell":
+            code = str(args.get("code", "")).strip()
+            return json.dumps(qala_science.execute_notebook_cell(code), indent=2)
+        else:
+            return f"Unknown notebook action '{action}'. Supported: read, create, edit_cell, add_cell, execute_cell."
+
+        if path and os.path.exists(path):
+            try:
+                from .artifacts.artifact_manager import get_artifact_manager
+                get_artifact_manager().record_artifact(
+                    task_id="",
+                    agent_id="qala",
+                    file_path=path,
+                    action=action,
+                    diff_summary=f"Notebook {action}: {os.path.basename(path)}"
+                )
+            except Exception:
+                pass
+        return json.dumps(res_data, indent=2)
+    except Exception as e:
+        return f"Notebook operation error: {e}"
+
+
+def _tool_qala_render_latex(args):
+    """Validate and render LaTeX mathematical expressions into readable Unicode terminal format."""
+    try:
+        from .compute import latex_engine
+        latex_str = str(args.get("latex", "")).strip()
+        valid, err = latex_engine.validate_latex(latex_str)
+        rendered = latex_engine.render_to_terminal_unicode(latex_str)
+        return (
+            f"LaTeX Validation: {'Valid' if valid else f'Warning: {err}'}\n"
+            f"Original LaTeX: {latex_str}\n"
+            f"Terminal Rendered:\n{rendered}"
+        )
+    except Exception as e:
+        return f"LaTeX rendering error: {e}"
+
+
+def _tool_qala_compile_latex(args):
+    """Compile a LaTeX document or fragment into a PDF."""
+    try:
+        from .compute import latex_engine
+        content = str(args.get("latex", "")).strip()
+        out_pdf = str(args.get("output_pdf", "output.pdf")).strip()
+        out_pdf = _resolve_tool_path(out_pdf, for_write=True)
+        res = latex_engine.compile_latex_to_pdf(content, out_pdf)
+        if os.path.exists(out_pdf):
+            try:
+                from .artifacts.artifact_manager import get_artifact_manager
+                get_artifact_manager().record_artifact(
+                    task_id="",
+                    agent_id="qala",
+                    file_path=out_pdf,
+                    action="compile_latex",
+                    diff_summary=f"Compiled PDF: {os.path.basename(out_pdf)}"
+                )
+            except Exception:
+                pass
+        return json.dumps(res, indent=2)
+    except Exception as e:
+        return f"LaTeX compilation error: {e}"
 
 
 TOOLS = {
@@ -2218,9 +2471,35 @@ TOOLS = {
     },
     "delegate_task_to_kitty": {
         "run": _tool_delegate_task_to_kitty,
-        "desc": "Share prompts, code solutions, and hand off tasks to another specialized Kitty (e.g. build, debugger, automator).",
-        "args": '{"target_kitty": "build", "task_objective": "Implement code from plan", "code_snippets": "..."}',
+        "desc": "Delegate specialized sub-tasks to specialist Kitties (Aria=build, Dex=debugger, Mira=plan, Sage=research, Qala=science/notebook).",
+        "args": '{"target_kitty": "aria", "task_objective": "Implement the core auth middleware and run tests"}',
         "describe": lambda a: ("Delegate to Kitty", str(a.get("target_kitty", "")), str(a.get("task_objective", ""))),
+    },
+    "qala_solve_math": {
+        "run": _tool_qala_solve_math,
+        "desc": "Solve mathematical equations symbolically (SymPy) or numerically (NumPy/SciPy): algebra, calculus (diff/integrate/limit), linear algebra, or roots.",
+        "args": '{"operation": "integrate", "expression": "x**2 * exp(-x)", "variable": "x", "lower": 0, "upper": "oo"}',
+        "describe": lambda a: ("Solve Mathematics", str(a.get("operation", "math")), str(a.get("expression") or a.get("equation", ""))),
+    },
+    "qala_notebook_ops": {
+        "run": _tool_qala_notebook_ops,
+        "desc": "Jupyter Notebook (.ipynb) operations: read cells, create notebook, edit cells, add cells, or execute code cells.",
+        "args": '{"action": "read", "path": "analysis.ipynb"}  (actions: read, create, edit_cell, add_cell, execute_cell)',
+        "perm_key": "write_files",
+        "describe": lambda a: (f"Notebook {a.get('action', 'ops')}", str(a.get("path", "")), "Jupyter notebook operation"),
+    },
+    "qala_render_latex": {
+        "run": _tool_qala_render_latex,
+        "desc": "Validate LaTeX mathematical expressions and render them into readable Unicode terminal math.",
+        "args": '{"latex": "\\int_{0}^{\\infty} x^2 e^{-x} dx = 2"}',
+        "describe": lambda a: ("Render LaTeX", "math", str(a.get("latex", ""))[:40]),
+    },
+    "qala_compile_latex": {
+        "run": _tool_qala_compile_latex,
+        "desc": "Compile a complete LaTeX document or fragment into a PDF using detected system LaTeX compiler.",
+        "args": '{"latex": "\\section{Report}... ", "output_pdf": "report.pdf"}',
+        "perm_key": "write_files",
+        "describe": lambda a: ("Compile LaTeX PDF", str(a.get("output_pdf", "")), "Compile LaTeX to PDF document"),
     },
 
     "list_formulas": {
@@ -2483,6 +2762,15 @@ TOOLS = {
         "describe": lambda a: (f"Device action: {a.get('provider', '?')}/{a.get('action', '?')}",
                                 str(a.get("target", "") or a.get("command", "")),
                                 "Automate full computer or connected device (approved)."),
+    },
+    "cat_browser": {
+        "run": _tool_cat_browser,
+        "desc": "Drive CAT Browser in agentic mode: open URLs, create new tabs, switch tabs, close tabs, list open tabs, evaluate JavaScript, and multitask seamlessly without crashes.",
+        "args": '{"action": "open", "url": "http://localhost:3000"}  (actions: open, new_tab, close_tab, switch_tab, list_tabs, eval_js, fetch, search)',
+        "perm_key": "device_control",
+        "describe": lambda a: (f"CAT Browser: {a.get('action', 'open')}",
+                                str(a.get("url") or a.get("target") or a.get("script", "")),
+                                "Automate CAT Browser in agentic mode."),
     },
 }
 
@@ -2895,24 +3183,133 @@ def _normalize_action(action):
 # clean payload is ever rendered.
 
 
+def repair_mojibake(text: str) -> str:
+    """Repair Latin-1 / UTF-8 encoding corruption (mojibake) like '1254Ã1254' -> '1254×1254',
+    'BÂ®zier' -> 'Bézier', and mis-encoded smart quotes, dashes, and accents."""
+    if not text or not isinstance(text, str):
+        return text or ""
+
+    # Fix pattern: dimension numbers separated by corrupted multiplication sign (e.g. 1254Ã1254 -> 1254×1254)
+    text = re.sub(r'(\d+)\s*Ã\s*(\d+)', r'\1×\2', text)
+    text = re.sub(r'(\d+)\s*Ã—\s*(\d+)', r'\1×\2', text)
+    text = text.replace("BÂ®zier", "Bézier")
+    text = text.replace("BÃ©zier", "Bézier")
+
+    # Double-encoded UTF-8 pass
+    if any(m in text for m in ("Ã", "Â", "â€", "â—", "âœ")):
+        try:
+            # Test encoding as latin1 and decoding as utf-8
+            repaired = text.encode("latin1", errors="ignore").decode("utf-8", errors="ignore")
+            # If the repair did not truncate or distort the string, use it
+            if repaired and len(repaired) >= len(text) * 0.75:
+                text = repaired
+        except Exception:
+            pass
+
+    # Direct substitution dictionary for lingering artifacts
+    mojibake_map = {
+        "Ã—": "×",
+        "â€”": "—",
+        "â€“": "–",
+        "â€¦": "…",
+        "â€˜": "'",
+        "â€™": "'",
+        "â€œ": '"',
+        "â€\x9d": '"',
+        "â€": '"',
+        "Â°": "°",
+        "Â©": "©",
+        "Â®": "®",
+        "â€¢": "•",
+        "Ã©": "é",
+        "Ã¨": "è",
+        "Ã¡": "á",
+        "Ã ": "à",
+        "Ã¼": "ü",
+        "Ã¶": "ö",
+        "Ã¤": "ä",
+        "Ã±": "ñ",
+        "Ã§": "ç",
+    }
+    for bad, good in mojibake_map.items():
+        text = text.replace(bad, good)
+    return text
+
+
+def _unescape_text_payload(payload: str) -> str:
+    if not isinstance(payload, str):
+        return str(payload or "")
+    if "\\n" in payload:
+        payload = payload.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\t", "\t")
+        payload = payload.replace('\\"', '"')
+    return payload
+
+
+def _extract_final_action_from_raw(text: str) -> Optional[str]:
+    """Fallback when json.loads fails on {"action": "final", "text": "..."}
+    due to unescaped internal quotes or newlines."""
+    pat = re.compile(
+        r'\{\s*"action"\s*:\s*"(?:final|finish|done|answer)"\s*,\s*"(?:text|answer|response|message)"\s*:\s*"(.*)',
+        re.DOTALL | re.IGNORECASE
+    )
+    m = pat.search(text)
+    if m:
+        raw_tail = m.group(1).rstrip()
+        if raw_tail.endswith('"}'):
+            raw_tail = raw_tail[:-2]
+        elif raw_tail.endswith('}') and raw_tail.rfind('"') != -1:
+            raw_tail = raw_tail[:raw_tail.rfind('"')]
+        elif raw_tail.endswith('"'):
+            raw_tail = raw_tail[:-1]
+        return _unescape_text_payload(raw_tail)
+    return None
+
+
 def _balanced_json_spans(text):
-    """Yield (start, end) spans of brace-balanced JSON-looking objects
-    in `text` (handles nested braces like {"args": {"expression": ..}}).
-    Not a full JSON parser — spans are validated with json.loads later."""
+    """Yield (start, end) spans of brace-balanced JSON objects in `text`.
+    String-aware and escape-aware so braces inside quoted strings
+    (e.g. filenames with '{04}', code blocks, regex) never corrupt depth."""
     spans = []
-    depth = 0
-    start = -1
-    for i, ch in enumerate(text):
-        if ch == "{":
-            if depth == 0:
-                start = i
-            depth += 1
-        elif ch == "}":
-            if depth > 0:
-                depth -= 1
-                if depth == 0 and start >= 0:
-                    spans.append((start, i + 1))
-                    start = -1
+    i = 0
+    n = len(text)
+    while i < n:
+        if text[i] == "{":
+            start = i
+            depth = 0
+            in_string = False
+            escape = False
+            found_end = -1
+            j = i
+            while j < n:
+                ch = text[j]
+                if escape:
+                    escape = False
+                    j += 1
+                    continue
+                if ch == "\\":
+                    escape = True
+                    j += 1
+                    continue
+                if ch == '"':
+                    in_string = not in_string
+                    j += 1
+                    continue
+                if not in_string:
+                    if ch == "{":
+                        depth += 1
+                    elif ch == "}":
+                        depth -= 1
+                        if depth == 0:
+                            found_end = j + 1
+                            break
+                j += 1
+            if found_end != -1:
+                spans.append((start, found_end))
+                i = found_end
+            else:
+                i += 1
+        else:
+            i += 1
     return spans
 
 
@@ -2942,14 +3339,12 @@ def clean_final_text(text):
     """Parse any leaked tool-protocol JSON/XML out of `text` and return
     only the clean user-facing content. Pure function, never raises.
 
-    Handles four shapes:
-      1. The whole reply is one JSON object (optionally fence-wrapped)
-         with a "text"/"answer"/"response" payload  -> returns payload.
-      2. A JSON protocol object is glued before/after real prose
-         (e.g. a tool echo)                          -> strips the blob.
-      3. XML-like tool call tags (<minimax:toolcall>, <invoke>, etc.)
-         are stripped from displayed text.
-      4. Plain prose (no JSON/XML)                   -> returned unchanged.
+    Handles:
+      1. Whole-reply JSON with a text payload (also fence-wrapped).
+      2. Preamble/echo + JSON final action (extracts clean payload, drops hallucinated headers).
+      3. Protocol blobs embedded before/after real prose.
+      4. XML tool call tags (<minimax:toolcall>, <invoke>, etc.) stripped.
+      5. Mojibake repair pass for encoding glitches (1254Ã1254 -> 1254×1254).
     """
     if not text or not isinstance(text, str):
         return text or ""
@@ -2957,18 +3352,27 @@ def clean_final_text(text):
     if not stripped:
         return ""
 
-    # Shape 1: whole-reply JSON with a text payload (also fence-wrapped).
+    # Check for embedded {"action": "final", "text": "..."} block
+    fallback_text = _extract_final_action_from_raw(stripped)
+    if fallback_text and fallback_text.strip():
+        # Clean tags and mojibake
+        cleaned = strip_tool_markup(fallback_text.strip())
+        return repair_mojibake(cleaned)
+
+    # Shape 1: whole-reply or predominantly JSON protocol object with a text payload
     m = re.search(r"\{.*\}", stripped, re.S)
-    if m and len(m.group(0).replace(" ", "")) >= len(stripped.replace(" ", "")) * 0.7:
+    if m:
+        candidate_json = m.group(0)
         try:
-            data = json.loads(m.group(0))
+            data = json.loads(candidate_json)
             payload = _extract_protocol_text(data)
             if payload and payload.strip():
-                return payload.strip()
+                cleaned = strip_tool_markup(_unescape_text_payload(payload.strip()))
+                return repair_mojibake(cleaned)
         except Exception:
             pass
 
-    # Shape 2: strip protocol blobs wherever they're embedded, keep prose.
+    # Shape 2: strip protocol blobs wherever they're embedded, keep prose
     out = []
     cursor = 0
     changed = False
@@ -2977,10 +3381,19 @@ def clean_final_text(text):
         try:
             data = json.loads(chunk)
         except Exception:
+            extracted = _extract_final_action_from_raw(chunk)
+            if extracted and extracted.strip():
+                out.append(extracted.strip())
+                cursor = end
+                changed = True
             continue
         if not _is_protocol_blob(data):
             continue
-        out.append(text[cursor:start])
+        payload = _extract_protocol_text(data)
+        if payload and payload.strip():
+            out.append(_unescape_text_payload(payload.strip()))
+        else:
+            out.append(text[cursor:start])
         cursor = end
         changed = True
     if changed:
@@ -2990,9 +3403,10 @@ def clean_final_text(text):
         cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
         text = cleaned or text.strip()
 
-    # v0.8.0: Strip XML-like tool call tags that some providers emit
-    # (e.g. <minimax:toolcall><invoke name="...">...</invoke></minimax:toolcall>)
-    # These are internal protocol and must never reach the user.
+    # Strip hallucinated role/conversation scaffolding headers
+    text = re.sub(r"^(?:USER|ASSISTANT|SYSTEM|TOOL RESULT|HUMAN|AI)\s*:\s*(?:TOOL RESULT:\s*)?\[?[^\]\n]*\]?[^\n]*\n*", "", text, flags=re.IGNORECASE)
+
+    # Strip XML-like tool call tags that some providers emit
     text = strip_tool_markup(text)
     # Strip <think>...</think> from final output if prose follows
     if "<think>" in text and "</think>" in text:
@@ -3001,7 +3415,7 @@ def clean_final_text(text):
             text = post_think
     # Clean up any leftover empty lines from removed tags
     text = re.sub(r"\n{3,}", "\n\n", text).strip()
-    return text
+    return repair_mojibake(text)
 
 
 # Compiled regex patterns for streaming chunk sanitization (shared,
@@ -3187,6 +3601,12 @@ def _check_permission(name, args, permission_callback):
     perm_key = spec.get("perm_key")
     if not perm_key:
         return True, None
+    # Central policy enforcement: check active Kitty's permission constraints (Requirement 11)
+    current_spec = getattr(_CURRENT_AGENT_SPEC, "spec", None)
+    if current_spec and hasattr(current_spec, "permissions") and current_spec.permissions:
+        if current_spec.permissions.get(perm_key) is False:
+            _trace("PERMISSION_RESULT", tool=name, allowed=False, reason="denied by kitty permissions")
+            return False, f"Permission denied: Kitty '{getattr(current_spec, 'name', 'Kitty')}' is restricted from '{perm_key}'."
     _trace("PERMISSION_CHECK", tool=name, key=perm_key,
            mode=perm.manager.mode)
 
@@ -3276,7 +3696,8 @@ def _trace(event, **kw):
 
 def run_agent(user_text, max_steps=MAX_STEPS, verbose=True, on_step=None, mode="agent",
               permission_callback=None, should_cancel=None, on_tool_result=None,
-              fast=False, memory_query=None, turn_id="", history=None):
+              fast=False, memory_query=None, turn_id="", history=None,
+              agent_spec=None):
     """Run the agent loop for one user request.
 
     `mode` selects the persona/voice: "agent" (CCT Agent — long, thorough,
@@ -3308,6 +3729,9 @@ def run_agent(user_text, max_steps=MAX_STEPS, verbose=True, on_step=None, mode="
     global _CURRENT_AGENT_SHOULD_CANCEL
     _CURRENT_AGENT_SHOULD_CANCEL = should_cancel
 
+    _prev_spec = getattr(_CURRENT_AGENT_SPEC, "spec", None)
+    _CURRENT_AGENT_SPEC.spec = agent_spec
+
     def _cancelled():
         try:
             return bool(should_cancel and should_cancel())
@@ -3326,6 +3750,33 @@ def run_agent(user_text, max_steps=MAX_STEPS, verbose=True, on_step=None, mode="
         except Exception:
             pass
 
+    _lifecycle_task = None
+    try:
+        from .agents.lifecycle import lifecycle_manager, LifecycleState
+        _k_id = getattr(agent_spec, "id", None) or mode
+        _lifecycle_task = lifecycle_manager.create_task(
+            agent_id=_k_id,
+            objective=user_text,
+            task_id=turn_id or None
+        )
+        _lifecycle_task.transition(LifecycleState.ANALYZING, detail=f"Analyzing task for {_k_id}")
+    except Exception:
+        pass
+
+    _agent_cfg = None
+    if agent_spec is not None:
+        p_prov = getattr(agent_spec, "provider", "")
+        p_model = getattr(agent_spec, "model", "")
+        if (p_prov and p_prov != "default") or p_model:
+            try:
+                _agent_cfg = aicore.load_config()
+                if p_prov and p_prov != "default":
+                    _agent_cfg["provider"] = p_prov
+                if p_model:
+                    _agent_cfg["model"] = p_model
+            except Exception:
+                pass
+
     if mode == "build":
         system_prompt = BUILD_SYSTEM_PROMPT
     elif mode == "agent":
@@ -3339,6 +3790,37 @@ def run_agent(user_text, max_steps=MAX_STEPS, verbose=True, on_step=None, mode="
     else:
         # Default all modes to high-agency AGENT_SYSTEM_PROMPT for full computer, terminal and file automation
         system_prompt = AGENT_SYSTEM_PROMPT
+    if agent_spec is not None:
+        kitty_name = str(getattr(agent_spec, "name", "Kitty"))
+        kitty_instructions = str(getattr(agent_spec, "system_instructions", "") or "").strip()
+        kitty_personality = str(getattr(agent_spec, "personality", "") or "").strip()
+        if kitty_instructions or kitty_personality:
+            system_prompt += f"\n\n## Active Kitty: {kitty_name}\n"
+            if kitty_instructions:
+                system_prompt += kitty_instructions + "\n"
+            if kitty_personality:
+                system_prompt += "Personality: " + kitty_personality + "\n"
+    _kitty_allowed_tools = set(getattr(agent_spec, "tools", []) or []) if agent_spec is not None else None
+    if agent_spec is not None:
+        try:
+            from .skills.registry import get_skill_registry
+            skill_reg = get_skill_registry()
+            agent_skills = getattr(agent_spec, "skills", []) or []
+            if agent_skills:
+                skill_prompts = []
+                for s_id in agent_skills:
+                    s_def = skill_reg.get(s_id)
+                    if s_def and s_def.is_enabled():
+                        skill_prompts.append(
+                            f"### Skill: {s_def.name} (v{s_def.version})\n{s_def.prompt_instructions}"
+                        )
+                        if _kitty_allowed_tools is not None:
+                            for req_tool in s_def.required_tools:
+                                _kitty_allowed_tools.add(req_tool)
+                if skill_prompts:
+                    system_prompt += "\n\n## Assigned Skills:\n" + "\n\n".join(skill_prompts) + "\n"
+        except Exception:
+            pass
     try:
         # v0.7.8 AI Personalization: the active profile's style
         # directive rides along inside the same system prompt the tool
@@ -3411,6 +3893,11 @@ def run_agent(user_text, max_steps=MAX_STEPS, verbose=True, on_step=None, mode="
                 if hasattr(a, 'path'):
                     _ws_info += f"  - {a.path}\n"
         system_prompt = system_prompt + _ws_info
+        try:
+            from .temporal import get_system_prompt_temporal_block
+            system_prompt += get_system_prompt_temporal_block()
+        except Exception:
+            pass
     except Exception:
         pass
 
@@ -3500,12 +3987,24 @@ def run_agent(user_text, max_steps=MAX_STEPS, verbose=True, on_step=None, mode="
                             _act2.manager.update(_a.id, status=_act2.STATUS_CANCELLED, result="Cancelled")
         except Exception:
             pass
+        if _lifecycle_task:
+            try:
+                from .agents.lifecycle import LifecycleState
+                if _cancelled():
+                    _lifecycle_task.transition(LifecycleState.CANCELLED, detail="Interrupted by user")
+                elif aicore.is_error_response(text):
+                    _lifecycle_task.transition(LifecycleState.FAILED, detail=str(text)[:200])
+                else:
+                    _lifecycle_task.transition(LifecycleState.COMPLETED, detail="Task completed")
+            except Exception:
+                pass
         meta = {
             "mode": mode,
             "suggest_agent": mode == "ai" and _looks_like_long_answer(user_text, text, steps),
             "file_changes": summarize_file_changes(steps),
             "model_calls": (_mreq.model_calls if _mreq else 0),
             "tool_calls_executed": len(steps),
+            "lifecycle_task": _lifecycle_task.to_dict() if _lifecycle_task else None,
         }
         _emit("final_response", mode=mode,
               steps=len(steps), text=text)
@@ -3546,12 +4045,22 @@ def run_agent(user_text, max_steps=MAX_STEPS, verbose=True, on_step=None, mode="
         if not spec:
             _trace("TOOL_FAILED", tool=name, reason="unknown tool")
             return f"Tool '{name}' does not exist. Valid tools: {', '.join(TOOLS)}"
+        if _kitty_allowed_tools and name not in _kitty_allowed_tools:
+            _trace("TOOL_FAILED", tool=name, reason="not allowed for active Kitty")
+            return (f"Tool '{name}' is not enabled for {getattr(agent_spec, 'name', 'this Kitty')}. "
+                    f"Available tools: {', '.join(sorted(_kitty_allowed_tools))}")
         if stall_count >= 1:
             return ("You already ran this exact tool call and got a result — repeating it "
                     "won't help. Use that result and move on to the NEXT step, or if every "
                     "part of the question is now answered, reply with the final JSON action.")
 
         _emit("tool_detected", tool=name, args=args)
+        if _lifecycle_task:
+            try:
+                from .agents.lifecycle import LifecycleState
+                _lifecycle_task.transition(LifecycleState.EXECUTING, detail=f"Executing tool {name}")
+            except Exception:
+                pass
         # ── v0.7.9 Live Activity: create RUNNING activity with real canonical metadata ──
         _act_obj = None
         _act_id = None
@@ -3645,6 +4154,12 @@ def run_agent(user_text, max_steps=MAX_STEPS, verbose=True, on_step=None, mode="
                     permission_req={"key": _pk, "tool": name, "args": args}
                 )
                 _perm_act_id = _perm_act.id
+                if _lifecycle_task:
+                    try:
+                        from .agents.lifecycle import LifecycleState
+                        _lifecycle_task.transition(LifecycleState.AWAITING_APPROVAL, detail=f"Awaiting user approval for {name}")
+                    except Exception:
+                        pass
         except Exception:
             pass
 
@@ -3680,7 +4195,30 @@ def run_agent(user_text, max_steps=MAX_STEPS, verbose=True, on_step=None, mode="
             try:
                 _last_change.clear()
                 _t_tool = time.perf_counter()
-                obs = spec["run"](args)
+                if _cancelled():
+                    return "Tool execution cancelled by user."
+                tool_timeout = 120.0 if name in ("run_terminal", "run_build", "run_tests", "device_action", "cat_browser", "web_search", "deep_research") else 45.0
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="cat-tool-exec") as _texec:
+                    _tfut = _texec.submit(spec["run"], args)
+                    _tstart = time.perf_counter()
+                    while not _tfut.done():
+                        if _cancelled():
+                            try:
+                                kill_active_tool_processes()
+                            except Exception:
+                                pass
+                            return "Tool execution cancelled by user."
+                        time.sleep(0.05)
+                        if time.perf_counter() - _tstart > tool_timeout:
+                            try:
+                                kill_active_tool_processes()
+                            except Exception:
+                                pass
+                            obs = f"Tool '{name}' execution timed out after {int(tool_timeout)}s."
+                            break
+                    else:
+                        obs = _tfut.result()
                 if _mreq is not None:
                     _mreq.count_tool_call()
                     _mreq.mark_stage("tool_execution", _t_tool)
@@ -3719,9 +4257,23 @@ def run_agent(user_text, max_steps=MAX_STEPS, verbose=True, on_step=None, mode="
                             elif "exit code 0" in res.lower() or "success" in res.lower()[:200]:
                                 summary = "Passed" if name == "run_tests" else "Succeeded"
                                 exit_c = 0
+                        elif name in ("web_search", "deep_research"):
+                            if "failed" in res.lower() or "error" in res.lower()[:80]:
+                                summary = "Failed"
+                                exit_c = 1
+                            elif "0 results" in res.lower() or "0 found" in res.lower() or "0 verified" in res.lower():
+                                summary = "0 results"
+                                exit_c = 0
+                            else:
+                                import re as _re
+                                matches = _re.findall(r'\[(\d+)\]', res)
+                                cnt = len(matches) if matches else 1
+                                summary = f"{cnt} results"
+                                exit_c = 0
                         dur_ms = int((time.perf_counter() - _t_tool) * 1000)
+                        tool_status = _act4.STATUS_FAILED if exit_c != 0 else _act4.STATUS_COMPLETED
                         _act4.manager.update(
-                            _act_id, status=_act4.STATUS_COMPLETED, result=summary,
+                            _act_id, status=tool_status, result=summary,
                             details=res[:200], duration_ms=dur_ms,
                             stdout=res[:2000], match_count=match_cnt,
                             line_count=line_cnt, diff_summary=diff_sum,
@@ -3731,14 +4283,15 @@ def run_agent(user_text, max_steps=MAX_STEPS, verbose=True, on_step=None, mode="
                             if line.strip():
                                 _act4.manager.append_output(_act_id, line[:120])
                         try:
-                            from .workflow_engine import event_bus, ExecutionEvent, EVENT_TOOL_COMPLETED, STATE_SUCCEEDED
+                            from .workflow_engine import event_bus, ExecutionEvent, EVENT_TOOL_COMPLETED, STATE_SUCCEEDED, STATE_FAILED
+                            tool_wf_state = STATE_FAILED if exit_c != 0 else STATE_SUCCEEDED
                             dur_ms = int((time.perf_counter() - _t_tool_start) * 1000)
                             event_bus.emit(ExecutionEvent(
                                 event_id=f"evt-{uuid.uuid4().hex[:8]}",
                                 trace_id=turn_id or "",
                                 parent_id="",
                                 event_type=EVENT_TOOL_COMPLETED,
-                                status=STATE_SUCCEEDED,
+                                status=tool_wf_state,
                                 source="agent.tools",
                                 tool=name,
                                 description=f"{name}: {summary}",
@@ -3820,6 +4373,17 @@ def run_agent(user_text, max_steps=MAX_STEPS, verbose=True, on_step=None, mode="
                 _agent_state.record_step(name, args, obs, change)
             except Exception:
                 pass
+        if _lifecycle_task:
+            try:
+                from .agents.lifecycle import LifecycleState
+                _lifecycle_task.transition(LifecycleState.OBSERVING_RESULTS, detail=f"Observed result from {name}")
+                _lifecycle_task.add_step(name, args, str(obs), verified=bool(proceed and not ("failed with a real error" in str(obs).lower())))
+                if name in ("run_tests", "run_build", "qala_solve_math", "qala_notebook_ops"):
+                    low_obs = str(obs).lower()
+                    if "passed" in low_obs or "success" in low_obs or "exit code 0" in low_obs or "result:" in low_obs:
+                        _lifecycle_task.record_verification(f"Verified via {name}: {str(obs)[:120]}")
+            except Exception:
+                pass
         return obs
 
     for i in range(max_steps):
@@ -3830,14 +4394,9 @@ def run_agent(user_text, max_steps=MAX_STEPS, verbose=True, on_step=None, mode="
                    if steps else "No tools had run yet."))
         _emit("agent_thinking", step=i + 1, tools_so_far=len(steps))
         prompt = _build_prompt(convo)
-        raw = aicore.query_ai(prompt, system_prompt=system_prompt, size_class="large", requirements=_task_req)
+        raw = aicore.query_ai(prompt, system_prompt=system_prompt, config=_agent_cfg, size_class="large", requirements=_task_req)
         if (not raw or not raw.strip()) and not aicore.is_error_response(raw):
-            # A blank response is almost always a transient hiccup, not a
-            # real "the model has nothing to say" — retry once before
-            # treating it as a hard failure. v0.7.9.0: an ERROR SIGNATURE
-            # ("AI not configured", quota exhausted, ...) is NOT transient —
-            # retrying it just duplicated a doomed network round trip.
-            raw = aicore.query_ai(prompt, system_prompt=system_prompt, size_class="large", requirements=_task_req)
+            raw = aicore.query_ai(prompt, system_prompt=system_prompt, config=_agent_cfg, size_class="large", requirements=_task_req)
         if not raw or not raw.strip():
             # Still blank after retry — if we have tool steps, summarize
             # them. Otherwise report the failure honestly.
@@ -3880,7 +4439,9 @@ def run_agent(user_text, max_steps=MAX_STEPS, verbose=True, on_step=None, mode="
                         _trace("TOOL_DETECTED", tool=tc.name, fmt=tc.source_format,
                                args=json.dumps(tc.arguments, default=str)[:160])
                         try:
-                            obs = fut.result()
+                            obs = fut.result(timeout=60.0)
+                        except concurrent.futures.TimeoutError:
+                            obs = f"Tool '{tc.name}' timed out after 60s."
                         except Exception as e:
                             obs = f"Error: {e}"
                         observations.append(f"[{tc.name}] {obs}")
@@ -3952,7 +4513,7 @@ def run_agent(user_text, max_steps=MAX_STEPS, verbose=True, on_step=None, mode="
         "best complete numeric answer to the ORIGINAL question now — reply with the final "
         'JSON action: {"action": "final", "text": "<complete answer, every part labeled>"}.'
     )})
-    raw = aicore.query_ai(_build_prompt(convo), system_prompt=system_prompt, size_class="large", requirements=_task_req)
+    raw = aicore.query_ai(_build_prompt(convo), system_prompt=system_prompt, config=_agent_cfg, size_class="large", requirements=_task_req)
     action = _normalize_action(_extract_json(raw))
     if action and action.get("action") == "final" and action.get("text"):
         return _finish(action["text"])
@@ -4201,4 +4762,5 @@ def run_multi_agent(user_text, max_steps=MAX_STEPS, on_agent=None, mode="agent")
     meta["debug_note"] = debug_note
     meta["tester_ok"] = ok
     meta["tester_note"] = note
+    _CURRENT_AGENT_SPEC.spec = _prev_spec
     return final_text, steps, meta

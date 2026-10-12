@@ -48,6 +48,7 @@ CATEGORY_MAP = {
     "/help": "general", "/about": "general", "/shortcuts": "general", "/settings": "general",
     "/history": "general", "/memory": "general", "/upload": "general", "/voice": "general",
     "/permissions": "general", "/browser": "general", "/browse": "general", "/cat": "general",
+    "/mascot": "general", "/mascots": "general",
     "/calculator": "calculation", "/solve": "calculation", "/formulas": "calculation",
     "/kinetics": "calculation", "/electrochemistry": "calculation", "/random": "calculation",
     "/derive": "calculation",
@@ -204,6 +205,18 @@ RICH_METADATA = {
         examples=["/cat", "/cat https://example.com", "/cat search cats on mars"],
         autocomplete_keywords=["cat", "browser", "browse", "web", "chromium", "qt webengine"],
     ),
+    "/mascot": dict(
+        icon="🐾", aliases=["/mascots"], permissions=[],
+        ai_modes=["notebook", "agent", "build", "plan"],
+        examples=["/mascot", "/mascot otter", "/mascot cat", "/mascot riso"],
+        autocomplete_keywords=["mascot", "mascots", "otter", "cat", "fattycat", "chibi", "riso", "cursor", "boop"],
+    ),
+    "/mascots": dict(
+        icon="🐾", aliases=[], permissions=[],
+        ai_modes=["notebook", "agent", "build", "plan"],
+        examples=["/mascots"],
+        autocomplete_keywords=["mascot", "mascots", "otter", "cat"],
+    ),
 }
 
 
@@ -307,6 +320,8 @@ ARG_STYLE_MAP = {
     "/browser": "split_optional",
     "/browse": "split_optional",
     "/cat": "split_optional",
+    "/mascot": "split_optional",
+    "/mascots": "split_optional",
     "/vision": "split_optional",
     "/vscode": "split_optional",
 }

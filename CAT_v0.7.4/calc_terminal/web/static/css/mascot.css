@@ -1,0 +1,77 @@
+/* ==========================================================================
+   FATTY CAT — Page Mascot Styles
+   ========================================================================== */
+
+.cct-mascot-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  -webkit-user-select: none;
+  z-index: 40;
+}
+
+.cct-mascot-btn,
+#app .cct-mascot-btn,
+button.cct-mascot-btn {
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  width: var(--mascot-size, 40px) !important;
+  height: var(--mascot-size, 40px) !important;
+  min-width: var(--mascot-size, 40px) !important;
+  max-width: var(--mascot-size, 40px) !important;
+  min-height: var(--mascot-size, 40px) !important;
+  max-height: var(--mascot-size, 40px) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  appearance: none !important;
+  cursor: pointer !important;
+  outline: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  transition: transform 0.15s ease, filter 0.15s ease, border-color 0.15s ease !important;
+}
+
+.cct-mascot-btn:hover,
+#app .cct-mascot-btn:hover,
+button.cct-mascot-btn:hover {
+  transform: translateY(-1px) scale(1.08) !important;
+  filter: drop-shadow(0 2px 6px rgba(250, 179, 135, 0.3));
+}
+
+.cct-mascot-squash {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 0 !important;
+  overflow: visible !important;
+  transform-origin: 50% 82% !important;
+  will-change: transform !important;
+}
+
+.cct-mascot-layer {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  background-size: 300% 300% !important;
+  background-repeat: no-repeat !important;
+  image-rendering: auto !important;
+  pointer-events: none !important;
+  border-radius: 0 !important;
+  transition: opacity 0.12s ease !important;
+}
+
+.cct-mascot-btn:focus,
+.cct-mascot-btn:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+}

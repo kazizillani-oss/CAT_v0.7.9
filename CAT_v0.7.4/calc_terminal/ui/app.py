@@ -4941,13 +4941,13 @@ if TEXTUAL_AVAILABLE:
         def _preview_target_path(self):
             """Best candidate to preview right now: the active editor
             tab's file, else the current workspace root."""
-            shell = self._workspace_shell
+            shell = getattr(self, "_workspace_shell", None)
             editor = shell.editor if shell is not None else None
             area = editor.active_text_area() if editor is not None else None
             path = getattr(area, "path", None)
             if path and os.path.isfile(path):
                 return path
-            root = self._workspace_root or (
+            root = getattr(self, "_workspace_root", None) or (
                 shell.workspace_root if shell is not None else None)
             if root and os.path.isdir(root):
                 return root
@@ -5093,10 +5093,10 @@ if TEXTUAL_AVAILABLE:
                 else:
                     path = self._preview_target_path()
                     if path and os.path.isfile(path) and str(path).lower().endswith((".html", ".htm")):
-                        from .events import PreviewRequested
-                        self.post_message(PreviewRequested(path))
-                        return
-                    target_url = "about:home"
+                        import pathlib
+                        target_url = pathlib.Path(path).resolve().as_uri()
+                    else:
+                        target_url = "about:home"
 
             # Fomoji gate — allow about:home and local workspace file/server previews without auth
             try:
@@ -5997,6 +5997,16 @@ if TEXTUAL_AVAILABLE:
                     _log.info("auto-created chat %s workspace=%s", self._current_chat_id, ws)
                 except Exception:
                     pass
+            clean_text = text.strip()
+            low_text = clean_text.lower()
+            if low_text in ("browser", "browse", "cat browser", "cat browse", "open browser") or low_text.startswith(("/browser", "/browse", "browser ", "browse ", "cat browser ", "cat browse ")):
+                cmd_to_run = clean_text if clean_text.startswith("/") else ("/" + clean_text)
+                self._handle_command(cmd_to_run)
+                return
+            if low_text in ("mascot", "mascots", "cat mascot", "page mascot") or low_text.startswith(("/mascot", "/mascots", "mascot ", "mascots ")):
+                cmd_to_run = clean_text if clean_text.startswith("/") else ("/" + clean_text)
+                self._handle_command(cmd_to_run)
+                return
             if text.startswith("/"):
                 self._handle_command(text)
                 return
@@ -6237,7 +6247,11 @@ if TEXTUAL_AVAILABLE:
                     pass
 
             self.call_from_thread(_mount_card)
-            waiter.wait()
+            while not waiter.wait(timeout=0.25):
+                worker = getattr(self, "_current_worker", None)
+                if worker is not None and getattr(worker, "is_cancelled", False):
+                    result["decision"] = "cancel"
+                    break
             try:
                 self.composer.resume_streaming_timer()
             except Exception:
@@ -6338,11 +6352,20 @@ if TEXTUAL_AVAILABLE:
                 if tid:
                     _act_cancel.manager.update(f"gen-{tid}", status=_act_cancel.STATUS_CANCELLED, result="Interrupted")
                     _act_cancel.manager.cancel_turn(tid)
-                # also release any pending permission waiters (so blocked tool thread unblocks)
+                # also release any pending permission and question waiters (so blocked tool thread unblocks)
                 for req_id, (waiter, result) in list(getattr(self, "_pending_tool_permissions", {}).items()):
                     try:
                         if not waiter.is_set():
                             result["decision"] = "cancel"
+                            waiter.set()
+                        _act_cancel.manager.cancel_turn(tid or "")
+                    except Exception:
+                        pass
+                for req_id, (waiter, result) in list(getattr(self, "_pending_tool_questions", {}).items()):
+                    try:
+                        if not waiter.is_set():
+                            result["decision"] = "cancel"
+                            result["answer"] = "Cancelled by user"
                             waiter.set()
                         _act_cancel.manager.cancel_turn(tid or "")
                     except Exception:
@@ -7079,14 +7102,26 @@ if TEXTUAL_AVAILABLE:
                         sep = "\n\n" if pieces else ""
                         status_line(sep + final_text.lstrip())
                 # ---------------- AGENT / TOOL PATH ----------------------
-                elif decision.path == "agent" or mode in ("agent", "build", "research") or decision.use_tools:
-                    # Agent, Build, and Research modes route through CCT's actual tool-executing
+                elif decision.path == "agent" or mode in ("agent", "build", "research", "debugger", "plan", "notebook") or decision.use_tools:
+                    # All Kitties (Nova, Aria, Dex, Mira, Sage, Qala) route through CAT's actual tool-executing
                     # loop; Live tool progress streams into the chat and Live Activities as it happens.
                     activity("thinking")
                     if attachments:
                         # The tool loop must see attached files/images.
                         cct_agent.set_attachments(attachments)
-                    agent_persona = mode if mode in ("build", "agent", "research", "debugger", "plan") else "agent"
+                    agent_persona = mode if mode in ("build", "agent", "research", "debugger", "plan", "notebook") else "agent"
+
+                    active_spec = None
+                    try:
+                        from ..agents.registry import get_agent_registry
+                        from .. import ai_modes
+                        act_id = ai_modes.active_agent_id()
+                        if act_id:
+                            active_spec = get_agent_registry().get(act_id)
+                        if not active_spec:
+                            active_spec = get_agent_registry().get(mode)
+                    except Exception:
+                        pass
 
                     _last_step_open = False
 
@@ -7095,7 +7130,7 @@ if TEXTUAL_AVAILABLE:
                         args = args or {}
                         target = (args.get("path") or args.get("command")
                                   or args.get("query") or args.get("packages")
-                                  or args.get("expression") or "").strip()
+                                  or args.get("expression") or args.get("target_kitty") or "").strip()
                         suffix = f"  `{target}`" if target else ""
                         self._activity["last_step"] = f"{name}{target and ' ' + target}"
                         if args.get("path"):
@@ -7119,6 +7154,7 @@ if TEXTUAL_AVAILABLE:
 
                     final_text, _steps, _meta = cct_agent.run_agent(
                         prompt, mode=agent_persona,
+                        agent_spec=active_spec,
                         verbose=False,   # the UI renders its own live activity
                         permission_callback=self._tool_permission_callback,
                         on_step=_on_agent_step,
@@ -7667,9 +7703,15 @@ if TEXTUAL_AVAILABLE:
                 self._system_note("\n".join(lines), role="assistant")
                 return
 
-            if word in ("/browser", "/browse", "/cat"):
+            if word in ("/browser", "/browse", "/cat", "browser", "browse", "cat"):
                 # Graphical browser — never suspend to CLI Links UI
                 start_url = arg.strip() if arg else "about:home"
+                if word in ("/cat", "cat"):
+                    low_arg = arg.strip().lower()
+                    if low_arg in ("browser", "browse"):
+                        start_url = "about:home"
+                    elif low_arg.startswith(("browser ", "browse ")):
+                        start_url = arg.strip().split(None, 1)[1].strip()
                 # Support `search cats` shorthand inside /browser
                 low = start_url.lower()
                 if low.startswith("search ") or low.startswith("s "):
@@ -7694,6 +7736,27 @@ if TEXTUAL_AVAILABLE:
                         qq = _up2.quote_plus(start_url)
                         start_url = f"https://www.google.com/search?q={qq}&hl=en&gbv=1"
                 self.action_toggle_browser(start_url=start_url)
+                return
+            if word in ("/mascot", "/mascots", "mascot", "mascots"):
+                try:
+                    from ..web.server import ensure_fatty_server, is_server_running
+                    if not is_server_running(timeout=0.3):
+                        import threading
+                        threading.Thread(target=ensure_fatty_server, kwargs={"timeout": 6.0, "auto_start": True}, daemon=True).start()
+                except Exception:
+                    pass
+                card = (
+                    "**🐾 Page Mascot Studio**\n\n"
+                    "Interactive cursor-tracking mascots with 9-direction gaze & 9 boop reactions!\n\n"
+                    "- 🦦 **Chibi Otter** (Classic & Risograph)\n"
+                    "- 🐱 **Chibi Fatty Cat** (Classic & Risograph)\n\n"
+                    "Launching interactive mascot in Fatty CAT Web (`http://localhost:8765/`)..."
+                )
+                self._system_note(card, role="assistant")
+                try:
+                    self.action_toggle_browser(start_url="http://localhost:8765/")
+                except Exception:
+                    pass
                 return
             if word in ("/signout", "/sign_out", "/logout", "/sign-out"):
                 self._handle_signout()

@@ -4,10 +4,52 @@ DeepSeek, Together AI, Perplexity, and any other /v1 endpoint."""
 import json
 import time
 from typing import Optional
+from urllib.parse import quote
 
 import requests
 
 from .base_provider import BaseProvider
+
+
+def _nvidia_pending_result(resp, base_url, headers, timeout=300):
+    """Resolve NVIDIA NIM's documented 202 Accepted request lifecycle."""
+    if getattr(resp, "status_code", 0) != 202:
+        return resp.json()
+    pending = resp.json()
+    request_id = (pending.get("requestId") or pending.get("request_id") or pending.get("id")) if isinstance(pending, dict) else None
+    if not request_id:
+        raise RuntimeError("NVIDIA accepted the request but did not return a request ID")
+    deadline = time.monotonic() + timeout
+    status_url = f"{base_url.rstrip('/')}/status/{quote(str(request_id), safe='')}"
+    while time.monotonic() < deadline:
+        time.sleep(min(1.0, max(0.0, deadline - time.monotonic())))
+        status_resp = requests.get(status_url, headers={**headers, "Accept": "application/json"}, timeout=30)
+        if status_resp.status_code == 202:
+            try:
+                pending = status_resp.json()
+            except Exception:
+                pending = {}
+            state = str(pending.get("status", "pending")).lower() if isinstance(pending, dict) else "pending"
+            if state in {"failed", "error", "cancelled", "canceled"}:
+                raise RuntimeError(f"NVIDIA request {state}: {pending.get('message', pending.get('error', ''))}")
+            status_resp.close()
+            continue
+        OpenAIProvider._raise_for_status(status_resp)
+        result = status_resp.json()
+        if isinstance(result, dict) and isinstance(result.get("response"), dict) and not result.get("choices"):
+            result = result["response"]
+        status_resp.close()
+        return result
+    raise requests.exceptions.Timeout("NVIDIA request remained pending beyond 300 seconds")
+
+
+def _nvidia_ultra_payload(payload, model, is_nvidia):
+    if is_nvidia:
+        ultra = "ultra" in (model or "").lower()
+        payload.setdefault("max_tokens", 16384 if ultra else 4096)
+        if ultra:
+            payload.setdefault("reasoning_effort", "medium")
+            payload.setdefault("reasoning_budget", 8192)
 
 
 class OpenAIProvider(BaseProvider):
@@ -129,7 +171,7 @@ class OpenAIProvider(BaseProvider):
                          or (isinstance(self.config, dict) and self.config.get("provider") == "nvidia")
                          or "integrate.api.nvidia.com" in str(base).lower())
             if is_nvidia:
-                payload.setdefault("max_tokens", 4096)
+                _nvidia_ultra_payload(payload, self.get_model(), is_nvidia)
             temp = self.config.get("temperature")
             if temp is not None:
                 payload["temperature"] = temp
@@ -137,9 +179,10 @@ class OpenAIProvider(BaseProvider):
             if top_p is not None:
                 payload["top_p"] = top_p
             resp = requests.post(f"{base}/chat/completions",
-                                 headers=self._headers(), json=payload, timeout=30)
+                                 headers=self._headers(), json=payload,
+                                 timeout=(15, 300 if "ultra" in self.get_model().lower() else 60))
             self._raise_for_status(resp)
-            data = resp.json()
+            data = _nvidia_pending_result(resp, base, self._headers()) if is_nvidia else resp.json()
             msg = data.get("choices", [{}])[0].get("message", {})
             reasoning = msg.get("reasoning_content") or msg.get("reasoning") or msg.get("thought")
             content = msg.get("content") or ""
@@ -169,7 +212,7 @@ class OpenAIProvider(BaseProvider):
                          or (isinstance(self.config, dict) and self.config.get("provider") == "nvidia")
                          or "integrate.api.nvidia.com" in str(base).lower())
             if is_nvidia:
-                payload.setdefault("max_tokens", 4096)
+                _nvidia_ultra_payload(payload, self.get_model(), is_nvidia)
             temp = self.config.get("temperature")
             if temp is not None:
                 payload["temperature"] = temp
@@ -178,8 +221,18 @@ class OpenAIProvider(BaseProvider):
                 payload["top_p"] = top_p
             resp = requests.post(f"{base}/chat/completions",
                                  headers=self._headers(), json=payload,
-                                 timeout=60, stream=True)
+                                 timeout=(15, 150 if "ultra" in self.get_model().lower() else 60), stream=True)
             self._raise_for_status(resp)
+            if is_nvidia and getattr(resp, "status_code", 0) == 202:
+                data = _nvidia_pending_result(resp, base, self._headers())
+                msg = (data.get("choices") or [{}])[0].get("message", {})
+                reasoning = msg.get("reasoning_content") or msg.get("reasoning") or msg.get("thought") or ""
+                content = msg.get("content") or ""
+                if reasoning:
+                    yield "<think>\n" + reasoning + "\n</think>\n\n"
+                if content:
+                    yield content
+                return
             in_reasoning = False
             for line in resp.iter_lines(decode_unicode=True):
                 if not line or not line.startswith("data:"):

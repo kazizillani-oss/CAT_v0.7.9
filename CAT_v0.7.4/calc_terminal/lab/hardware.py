@@ -85,7 +85,14 @@ def detect_cuda_info() -> Dict[str, Any]:
                 smi = candidate
         if smi:
             try:
-                out = subprocess.run([smi], capture_output=True, text=True, timeout=3)
+                run_kwargs = {"capture_output": True, "text": True, "timeout": 3}
+                if sys.platform == "win32":
+                    run_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+                    si = subprocess.STARTUPINFO()
+                    si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                    si.wShowWindow = 0  # SW_HIDE
+                    run_kwargs["startupinfo"] = si
+                out = subprocess.run([smi], **run_kwargs)
                 if out.returncode == 0:
                     info["available"] = True
                     info["runtime"] = "NVIDIA Driver"

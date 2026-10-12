@@ -27,8 +27,15 @@ def get_specs():
     # Try nvidia-smi, torch, or wmic
     try:
         import subprocess as sp
+        sp_kwargs = {"timeout": 3, "text": True}
+        if platform.system() == "Windows":
+            sp_kwargs["creationflags"] = getattr(sp, "CREATE_NO_WINDOW", 0x08000000)
+            si = sp.STARTUPINFO()
+            si.dwFlags |= sp.STARTF_USESHOWWINDOW
+            si.wShowWindow = 0  # SW_HIDE
+            sp_kwargs["startupinfo"] = si
         if shutil.which("nvidia-smi"):
-            out = sp.check_output(["nvidia-smi","--query-gpu=name,memory.total","--format=csv,noheader"], timeout=3, text=True)
+            out = sp.check_output(["nvidia-smi","--query-gpu=name,memory.total","--format=csv,noheader"], **sp_kwargs)
             if out.strip():
                 part = out.splitlines()[0]
                 gpu = part.split(",")[0].strip()
@@ -39,7 +46,7 @@ def get_specs():
                     pass
         elif platform.system() == "Windows":
             try:
-                out = sp.check_output("wmic path win32_VideoController get name", shell=True, timeout=3, text=True)
+                out = sp.check_output(["wmic", "path", "win32_VideoController", "get", "name"], **sp_kwargs)
                 lines = [l.strip() for l in out.splitlines() if l.strip() and "Name" not in l]
                 if lines:
                     gpu = lines[0][:40]

@@ -109,8 +109,13 @@ html.reduce-motion, html[data-motion="reduced"], html[data-motion="none"]{
 
 /* Pointer-tilt variant: fomoji-3d.js sets --tilt-x/--tilt-y (in degrees,
    clamped to ±var(--fx-depth-tilt)) from pointer position while hovering.
-   No-op (falls back to the symmetric hover above) if JS never runs. */
-.card-3d[data-tilt="pointer"][data-fx-state="hover"]{
+   Suppress transform transition during live hover to eliminate jitter fighting RAF. */
+.card-3d[data-tilt="pointer"]:hover,
+.card-3d[data-tilt="pointer"][data-fx-state="hover"],
+[data-fx="card-3d"][data-tilt="pointer"]:hover,
+[data-fx="card-3d"][data-tilt="pointer"][data-fx-state="hover"]{
+  will-change: transform;
+  transition: transform 0s linear, box-shadow var(--fx-duration-slow) var(--fx-ease-decel) !important;
   transform: perspective(var(--fx-depth-perspective))
              translateZ(var(--fx-depth-elevation))
              rotateX(var(--tilt-x, 0deg))

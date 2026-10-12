@@ -375,30 +375,58 @@ def ensure_fomoji_dependencies(server_dir: Path, npm_path: Optional[str] = None)
 # ---------------------------------------------------------------------------
 
 def check_server_reachable(timeout: float = 3.0, base_url: Optional[str] = None) -> bool:
-    """Probe Fomoji server HTTP endpoint to verify it is responsive."""
+    """Probe Fomoji server HTTP endpoint to verify it is responsive and genuinely Fomoji.
+    Tests candidate host URLs (base, localhost, 127.0.0.1) across Windows IPv4/IPv6 dual stack."""
     if not base_url:
         from .fomoji_auth import get_fomoji_url
         base_url = get_fomoji_url()
     base = base_url.rstrip("/")
-    probe_url = f"{base}/api/connector/ping"
 
-    req = urllib.request.Request(probe_url, headers={"User-Agent": "CAT-Fomoji-Probe"})
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return resp.status in (200, 404, 405)
-    except urllib.error.HTTPError as e:
-        # If server answers with 404, 400, 401, or 405, it is actively listening Express app
-        return e.code in (200, 400, 401, 403, 404, 405)
-    except Exception:
-        # Fallback probe to root
+    candidates = [base]
+    if "localhost" in base:
+        candidates.append(base.replace("localhost", "127.0.0.1"))
+    elif "127.0.0.1" in base:
+        candidates.append(base.replace("127.0.0.1", "localhost"))
+
+    probe_timeout = max(0.5, min(timeout, 1.8))
+    for cand_base in candidates:
+        probe_url = f"{cand_base}/api/connector/applications"
+        req = urllib.request.Request(
+            probe_url,
+            headers={"User-Agent": "CAT-Fomoji-Probe", "Accept": "application/json"},
+        )
         try:
-            req_root = urllib.request.Request(f"{base}/", headers={"User-Agent": "CAT-Fomoji-Probe"})
-            with urllib.request.urlopen(req_root, timeout=timeout) as resp:
-                return resp.status < 500
-        except urllib.error.HTTPError as e:
-            return e.code < 500
+            with urllib.request.urlopen(req, timeout=probe_timeout) as resp:
+                if resp.status == 200:
+                    raw = resp.read().decode("utf-8", errors="replace")
+                    if raw and raw.strip():
+                        data = json.loads(raw)
+                        if isinstance(data, dict) and (
+                            "applications" in data or data.get("ok") is True or data.get("service") == "fomoji"
+                        ):
+                            return True
         except Exception:
-            return False
+            pass
+
+        # Fallback check for web static / landing page
+        for fallback_path in ("/index.html", "/"):
+            try:
+                fb_req = urllib.request.Request(
+                    f"{cand_base}{fallback_path}",
+                    headers={"User-Agent": "CAT-Fomoji-Probe"},
+                )
+                with urllib.request.urlopen(fb_req, timeout=probe_timeout) as resp:
+                    if resp.status in (200, 302, 304):
+                        cookie_hdr = resp.headers.get("Set-Cookie", "")
+                        if "fomoji" in cookie_hdr.lower():
+                            return True
+                        content = resp.read(2048).decode("utf-8", errors="replace").lower()
+                        if "fomoji" in content:
+                            return True
+            except Exception:
+                pass
+
+    return False
 
 
 def detect_port_conflict(port: int = 3000, host: str = "127.0.0.1") -> Tuple[bool, str]:
@@ -412,7 +440,10 @@ def detect_port_conflict(port: int = 3000, host: str = "127.0.0.1") -> Tuple[boo
         return False, ""
 
     # Port is in use — check if it's our own Fomoji server
-    if check_server_reachable(timeout=2.0, base_url=f"http://{host}:{port}"):
+    if (
+        check_server_reachable(timeout=2.0, base_url=f"http://{host}:{port}")
+        or check_server_reachable(timeout=2.0, base_url=f"http://localhost:{port}")
+    ):
         return False, "Fomoji server already running"
 
     return True, (
@@ -428,10 +459,13 @@ def detect_port_conflict(port: int = 3000, host: str = "127.0.0.1") -> Tuple[boo
 def start_fomoji_server(
     server_dir: Path,
     node_path: str,
-    timeout: int = 15,
+    timeout: int = 35,
 ) -> Tuple[bool, str]:
     """Spawn the Node.js Fomoji server and verify it becomes reachable.
     Captures stdout/stderr for diagnostics if startup fails."""
+    env_timeout = os.environ.get("FOMOJI_START_TIMEOUT", "").strip()
+    if env_timeout.isdigit():
+        timeout = int(env_timeout)
     # Ensure data directory exists
     try:
         (server_dir / "data").mkdir(parents=True, exist_ok=True)
@@ -493,10 +527,14 @@ def start_fomoji_server(
                 f"Diagnostic:\n{diagnostic or 'No log output captured.'}"
             )
 
-        if check_server_reachable(timeout=1.5):
+        if check_server_reachable(timeout=1.0):
             return True, "Fomoji server ready"
 
-        time.sleep(1)
+        time.sleep(0.35)
+
+    # Final reachability check before declaring timeout
+    if check_server_reachable(timeout=2.5):
+        return True, "Fomoji server ready"
 
     # Timed out
     diagnostic = ""
@@ -601,6 +639,9 @@ def initialize_fomoji_subsystem(interactive: bool = True) -> bool:
             port = parsed.port
 
     has_conflict, conflict_msg = detect_port_conflict(port=port)
+    if not has_conflict and conflict_msg == "Fomoji server already running":
+        ok("Fomoji server ready (already running)")
+        return True
     if has_conflict:
         fail(f"Fomoji port conflict on port {port}: {conflict_msg}")
         warn("Starting CAT in standalone mode (Fomoji offline).")
@@ -616,7 +657,7 @@ def initialize_fomoji_subsystem(interactive: bool = True) -> bool:
     server_started, server_msg = start_fomoji_server(
         server_dir=server_dir,
         node_path=node_env.node_path or "node",
-        timeout=15,
+        timeout=35,
     )
 
     if server_started:

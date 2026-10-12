@@ -160,18 +160,32 @@ class FomojiConnector:
             req.add_header("Authorization", f"Bearer {auth_token}")
         try:
             with urllib.request.urlopen(req, timeout=15) as resp:
-                raw = resp.read().decode("utf-8")
-                return json.loads(raw) if raw else {}
+                raw = resp.read().decode("utf-8", errors="replace")
+                if not raw or not raw.strip():
+                    return {}
+                try:
+                    return json.loads(raw)
+                except (json.JSONDecodeError, ValueError) as jde:
+                    raise FomojiConnectorError(
+                        f"Fomoji connector returned non-JSON response from {url}: {jde}"
+                    ) from None
         except urllib.error.HTTPError as e:
-            raw = e.read().decode("utf-8")
             try:
-                parsed = json.loads(raw)
+                raw = e.read().decode("utf-8", errors="replace")
+            except Exception:
+                raw = ""
+            try:
+                parsed = json.loads(raw) if raw and raw.strip() else {}
                 message = parsed.get("error", raw)
-            except json.JSONDecodeError:
+            except (json.JSONDecodeError, ValueError):
                 message = raw or str(e)
             raise FomojiConnectorError(f"Fomoji connector request failed ({e.code}): {message}") from None
         except urllib.error.URLError as e:
             raise FomojiConnectorError(f"Could not reach Fomoji at {self.fomoji_url}: {e.reason}") from None
+        except FomojiConnectorError:
+            raise
+        except Exception as e:
+            raise FomojiConnectorError(f"Fomoji connector error: {e}") from None
 
     # ---- public API --------------------------------------------------------
 

@@ -109,8 +109,13 @@ html.reduce-motion, html[data-motion="reduced"], html[data-motion="none"]{
 
 /* Pointer-tilt variant: fomoji-3d.js sets --tilt-x/--tilt-y (in degrees,
    clamped to ±var(--fx-depth-tilt)) from pointer position while hovering.
-   No-op (falls back to the symmetric hover above) if JS never runs. */
-.card-3d[data-tilt="pointer"][data-fx-state="hover"]{
+   Suppress transform transition during live hover to eliminate jitter fighting RAF. */
+.card-3d[data-tilt="pointer"]:hover,
+.card-3d[data-tilt="pointer"][data-fx-state="hover"],
+[data-fx="card-3d"][data-tilt="pointer"]:hover,
+[data-fx="card-3d"][data-tilt="pointer"][data-fx-state="hover"]{
+  will-change: transform;
+  transition: transform 0s linear, box-shadow var(--fx-duration-slow) var(--fx-ease-decel) !important;
   transform: perspective(var(--fx-depth-perspective))
              translateZ(var(--fx-depth-elevation))
              rotateX(var(--tilt-x, 0deg))
@@ -260,6 +265,17 @@ html.reduce-motion, html[data-motion="reduced"], html[data-motion="none"]{
    requirement via fomoji-3d.js's IntersectionObserver toggling this class.
    ========================================================================== */
 .fx-3d-paused{ animation-play-state: paused !important; }
+html.cat-browser-renderer .card-3d,
+html.cat-browser-renderer [data-fx="card-3d"],
+html.cat-browser-renderer .btn-3d {
+  transform: none !important;
+  transform-style: flat !important;
+  perspective: none !important;
+  transition: box-shadow 140ms ease, border-color 140ms ease, background-color 140ms ease !important;
+  will-change: auto !important;
+}
+html.cat-browser-renderer .card-3d-layer { transform: none !important; }
+html.cat-browser-renderer .fx-float-el { animation: none !important; }
 html.reduce-motion .card-3d,
 html[data-motion="reduced"] .card-3d,
 html[data-motion="none"] .card-3d{

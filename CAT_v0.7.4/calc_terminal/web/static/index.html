@@ -5,67 +5,40 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#0b1018">
   <meta name="description" content="FATTY CAT — a focused AI, code, and research workspace powered by CAT Core.">
-  <title>FATTY CAT OS — AI Workspace</title>
-  <link rel="stylesheet" href="css/app.css">
+  <title>Fatty CAT — AI Workspace</title>
+  <link rel="stylesheet" href="./css/app.css?v=cat-settings-glass-20261010c">
+  <link rel="stylesheet" href="./css/mascot.css?v=fatty-brand-20261010d">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐱</text></svg>">
 </head>
 <body>
   <div id="app">
-    <!-- FATTY CAT workspace header -->
-    <header id="cct-header">
-      <button type="button" class="cct-header-left" onclick="FATTY.toggleNavMenu()" title="Open FATTY CAT menu" aria-label="Open main menu">
-        <span class="cct-brand-menu">≡</span>
-        <span class="cct-brand-mark" aria-hidden="true"><i></i><i></i></span>
-        <span class="cct-brand-title">FATTY CAT</span>
-        <span class="cct-brand-caption">AI WORKSPACE</span>
-      </button>
-
-      <button type="button" class="cct-mobile-nav-toggle" onclick="FATTY.toggleMobileSidebar()" aria-label="Open workspace navigation" aria-expanded="false">☰</button>
-
-      <div class="cct-header-center">
-        <button class="cct-perm-pill-btn" id="cct-perm-pill-btn" onclick="FATTY.togglePermissionModal()" title="Click to Change Permission Mode">
-          <span id="cct-perm-icon">🔒</span>
-          <span id="cct-perm-text">Ask Every Time</span>
-        </button>
-      </div>
-
-      <div class="cct-header-actions">
-      <button type="button" class="cct-auth-pill" id="cct-auth-pill" onclick="FATTY.openUserProfile()" title="Fomoji identity status">
-        <span class="cct-auth-indicator" id="cct-auth-indicator"></span><span id="cct-auth-label">Checking identity…</span>
-      </button>
-      <button type="button" class="cct-header-right" onclick="FATTY.openFolderDialog()" title="Current Workspace Directory">
-        <span class="cct-ws-icon">▣</span>
-        <span class="cct-ws-name" id="cct-header-ws-name">Workspace</span>
-      </button>
-      </div>
-    </header>
-
-    <!-- Main Menu Popup Dropdown (Attached to ≡ ○ CAT) -->
-    <div id="cct-main-menu-popup" class="cct-menu-dropdown" style="display: none;" onclick="event.stopPropagation()">
-      <div class="cct-menu-scroll" id="cct-main-menu-items">
-        <!-- Injected dynamically from /api/menu -->
-      </div>
-    </div>
-
     <!-- Main Workspace Area -->
     <div id="cct-workspace">
+      <button type="button" class="cct-mobile-nav-toggle" onclick="FATTY.toggleMobileSidebar()" aria-label="Open workspace navigation" aria-expanded="false">☰</button>
       <!-- Left Sidebar: File Explorer -->
       <!-- Left Sidebar: Multi-Section Tabbed Navigation -->
       <aside id="cct-sidebar">
         <!-- Sidebar Navigation Tab Bar -->
         <div class="cct-sidebar-nav" id="cct-sidebar-nav">
-          <button class="cct-sb-tab-btn active" id="cct-sb-tab-explorer" onclick="FATTY.switchSidebarTab('explorer')" title="Files & Projects">📁 Files</button>
-          <button class="cct-sb-tab-btn" id="cct-sb-tab-chats" onclick="FATTY.switchSidebarTab('chats')" title="Chat History & Sessions">💬 Chats</button>
-          <button class="cct-sb-tab-btn" id="cct-sb-tab-activities" onclick="FATTY.switchSidebarTab('activities')" title="Live Activities Stream">⚡ Activity</button>
-          <button class="cct-sb-tab-btn" id="cct-sb-tab-extensions" onclick="FATTY.switchSidebarTab('extensions')" title="Extensions & Plugins">🧩 Ext</button>
-          <button class="cct-sb-tab-btn" id="cct-sb-tab-settings" onclick="FATTY.switchSidebarTab('settings')" title="Quick Settings">⚙</button>
+          <div class="cct-header-left cct-brand-rail" title="Fatty Cat" aria-label="Fatty Cat workspace"><img class="cct-brand-wordmark" src="./icons/fatty-cat-wordmark.png" alt="Fatty Cat"><span class="cct-brand-title">Fatty Cat</span></div>
+          <div id="cct-mascot-container" class="cct-rail-mascot"></div>
+          <button class="cct-sb-tab-btn active" id="cct-sb-tab-explorer" onclick="FATTY.switchSidebarTab('explorer')" title="Files & Projects"><span class="cct-sb-tab-icon">📁</span><span class="cct-sb-tab-label">Files</span></button>
+          <button class="cct-sb-tab-btn" id="cct-sb-tab-chats" onclick="FATTY.switchSidebarTab('chats')" title="Chat History & Sessions"><span class="cct-sb-tab-icon">💬</span><span class="cct-sb-tab-label">Chats</span></button>
+          <button class="cct-sb-tab-btn" id="cct-sb-tab-activities" onclick="FATTY.switchSidebarTab('activities')" title="Live Activities Stream"><span class="cct-sb-tab-icon">⚡</span><span class="cct-sb-tab-label">Activity</span></button>
+          <button class="cct-sb-tab-btn" id="cct-sb-tab-extensions" onclick="FATTY.switchSidebarTab('extensions')" title="Extensions & Plugins"><span class="cct-sb-tab-icon">🧩</span><span class="cct-sb-tab-label">Ext</span></button>
+          <button class="cct-sb-tab-btn" id="cct-sb-tab-agents" onclick="FATTY.switchSidebarTab('agents')" title="CAT agent definitions"><span class="cct-sb-tab-icon">🤖</span><span class="cct-sb-tab-label">Agents</span></button>
+          <div class="cct-sb-nav-spacer"></div>
+          <button class="cct-sb-tab-btn" id="cct-sb-tab-settings" onclick="FATTY.switchSidebarTab('settings')" title="Quick Settings"><span class="cct-sb-tab-icon">⚙</span><span class="cct-sb-tab-label">Settings</span></button>
+          <button type="button" class="cct-sb-tab-btn cct-profile-rail" id="cct-auth-pill" onclick="FATTY.openUserProfile()" title="Fomoji identity status"><span class="cct-auth-indicator" id="cct-auth-indicator"></span><span class="cct-sb-tab-label" id="cct-auth-label">Profile</span></button>
+          <button type="button" class="cct-sb-tab-btn cct-backup-rail" id="cct-backup-rail" onclick="FATTY.openBackupProvidersModal()" title="Backup providers" aria-label="Backup providers"><span class="cct-sb-tab-icon">⇄</span><span class="cct-sb-tab-label">Backup</span></button>
+          <button type="button" class="cct-sb-tab-btn cct-sidebar-collapse" onclick="FATTY.toggleSidebar()" title="Collapse sidebar" aria-label="Collapse sidebar">‹</button>
         </div>
 
         <!-- View 1: File Explorer -->
         <div class="cct-sidebar-view" id="cct-sb-view-explorer">
           <div class="cct-sidebar-scroll">
             <div class="cct-sidebar-top">
-              <div class="cct-explorer-header" onclick="FATTY.toggleSidebar()">
+              <div class="cct-explorer-header">
                 <span class="cct-explorer-title">▸ Explorer</span>
               </div>
               <button class="cct-open-folder-btn" onclick="FATTY.openFolderDialog()">📁 Open Folder</button>
@@ -110,6 +83,7 @@
             <div class="cct-sb-chats-list" id="cct-sidebar-chats-list">
               <!-- Dynamically populated from /api/chats -->
             </div>
+            <div class="cct-session-activity" id="cct-session-activity"></div>
           </div>
         </div>
 
@@ -119,6 +93,13 @@
             <div class="cct-sb-chats-header">
               <span class="cct-sb-view-title">⚡ Live Activities</span>
               <button class="cct-sb-mini-btn" onclick="FATTY.clearActivities()" title="Clear activity log">Clear</button>
+            </div>
+            <div class="cct-activity-controls">
+              <select class="cct-activity-date-range" id="cct-activity-range" aria-label="Activity date range" onchange="FATTY.changeActivityDays(this.value)">
+                <option value="7">7 Days</option>
+                <option value="30" selected>30 Days</option>
+                <option value="90">90 Days</option>
+              </select>
             </div>
             <div class="cct-sb-activities-status">
               <span class="cct-pulse-dot">●</span>
@@ -146,6 +127,21 @@
             <div class="cct-sb-extensions-list" id="cct-sidebar-extensions-list">
               <!-- Extensions loaded from /api/extensions -->
             </div>
+          </div>
+        </div>
+
+        <div class="cct-sidebar-view" id="cct-sb-view-agents" style="display: none;">
+          <div class="cct-sidebar-subpane">
+            <div class="cct-sb-chats-header"><span class="cct-sb-view-title">🤖 CAT Agents</span></div>
+            <p class="cct-agent-registry-note">Definitions from the shared CAT agent registry. Chat modes remain separate.</p>
+            <form class="cct-agent-create-form" onsubmit="FATTY.createAgentDefinition(event)">
+              <input class="cct-form-input" id="cct-agent-id" required minlength="2" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9_.-]{1,63}" placeholder="agent-id">
+              <input class="cct-form-input" id="cct-agent-name" required maxlength="100" placeholder="Agent name">
+              <select class="cct-form-input" id="cct-agent-mode"><option value="build">Build</option><option value="plan">Plan</option><option value="research">Research</option><option value="debugger">Debugger</option><option value="agent">Agent</option><option value="notebook">Notebook</option></select>
+              <textarea class="cct-form-input" id="cct-agent-instructions" maxlength="12000" rows="3" placeholder="System instructions"></textarea>
+              <button class="cct-modal-btn primary" type="submit">Create definition</button>
+            </form>
+            <div class="cct-agent-registry-list" id="cct-agent-registry-list" aria-live="polite"></div>
           </div>
         </div>
 
@@ -194,109 +190,94 @@
         </div>
       </aside>
 
-      <!-- Sidebar Resizer -->
-      <div class="cct-resizer" id="cct-sidebar-resizer"></div>
-
       <!-- Center Main Work / Conversation Column -->
       <main id="cct-main">
-        <div id="cct-conversation">
+        <div id="cct-conversation" class="cct-start-screen">
+          <section class="cct-overview-card" id="cct-overview-card" aria-label="Workspace overview">
+            <div class="cct-overview-toolbar">
+              <div class="cct-overview-tabs" role="tablist" aria-label="Workspace insights">
+                <button type="button" class="active" id="cct-overview-tab" role="tab" aria-selected="true" onclick="FATTY.switchOverviewPanel('overview')">Overview</button>
+                <button type="button" id="cct-models-tab" role="tab" aria-selected="false" onclick="FATTY.switchOverviewPanel('models')">Models</button>
+              </div>
+              <div class="cct-overview-ranges" role="group" aria-label="Activity time range">
+                <button type="button" data-days="0" onclick="FATTY.loadUsageOverview(0)">All</button>
+                <button type="button" data-days="30" class="active" onclick="FATTY.loadUsageOverview(30)">30d</button>
+                <button type="button" data-days="7" onclick="FATTY.loadUsageOverview(7)">7d</button>
+              </div>
+            </div>
+            <div id="cct-overview-panel" role="tabpanel" aria-labelledby="cct-overview-tab">
+              <div class="cct-overview-metrics">
+                <div><span>Sessions</span><strong id="cct-overview-sessions">—</strong></div>
+                <div><span>Messages</span><strong id="cct-overview-messages">—</strong></div>
+                <div><span>Total tokens</span><strong id="cct-overview-tokens">Not reported</strong></div>
+                <div><span>Active days</span><strong id="cct-overview-active-days">—</strong></div>
+                <div><span>Favorite model</span><strong id="cct-overview-favorite-model">—</strong></div>
+                <div><span>Current mode</span><strong id="cct-overview-mode">Build</strong></div>
+              </div>
+              <div class="cct-overview-heatmap-wrap"><div class="cct-overview-heatmap" id="cct-overview-heatmap" aria-label="Daily activity for the last four weeks"></div></div>
+            </div>
+            <div id="cct-models-panel" role="tabpanel" aria-labelledby="cct-models-tab" hidden>
+              <div class="cct-model-overview-current"><span>Active model</span><strong id="cct-model-overview-active">Loading…</strong><button type="button" onclick="FATTY.openProviderCenter()">Change</button></div>
+              <div class="cct-model-overview-providers" id="cct-model-overview-providers"></div>
+            </div>
+          </section>
           <!-- Top Right Folder Tag -->
           <div class="cct-opened-folder-tag" id="cct-opened-folder-tag">Opened folder: C:\Users\ADMIN</div>
 
-          <!-- FATTY CAT home: live workspace actions and real CAT state -->
-          <div id="cct-welcome-view">
-            <div class="cct-home-hero">
-              <div class="cct-home-orb" aria-hidden="true"><span class="cct-cat-ear left"></span><span class="cct-cat-ear right"></span><span class="cct-cat-face"><i></i><i></i><b></b></span><span class="cct-orbit orbit-one"></span><span class="cct-orbit orbit-two"></span></div>
-              <div class="cct-home-copy">
-                <div class="cct-home-eyebrow"><span class="cct-ready-dot"></span> YOUR AI WORKSPACE</div>
-                <div class="cct-version-row">Build something<br><span>remarkable.</span></div>
-                <div class="cct-tagline-row">CAT Core, Kitties and your AI providers in one focused workspace.</div>
-                <div class="cct-home-status"><span class="cct-ready-dot"></span><span id="cct-welcome-model">Connect CAT to see active provider</span><span class="cct-home-status-sep">·</span><span id="cct-home-kitty">Choose a Kitty</span></div>
+          <!-- FATTY CAT Workspace Landing (Exact match to screenshot) -->
+          <div id="cct-welcome-view" class="cct-workspace-start">
+            <div class="cct-welcome-hero"><div id="cct-welcome-mascot-container" aria-label="Fatty Cat mascot"><div class="cct-welcome-fullbody" role="button" tabindex="0" aria-label="Fatty Cat mascot. Click for a reaction"><span class="cct-welcome-sprite is-active" aria-hidden="true"></span><span class="cct-welcome-sprite" aria-hidden="true"></span></div></div><span class="cct-welcome-kicker">YOUR AI DEVELOPMENT WORKSPACE</span><h1 class="cct-welcome-title" aria-label="Welcome to Fatty Cat"><span>Welcome to</span><img class="cct-brand-wordmark cct-welcome-wordmark" src="./icons/fatty-cat-wordmark.png" alt="Fatty Cat"></h1><p>Build with CAT CLI, your workspace, and the models you choose.</p></div>
+            <div class="cct-ws-start-header">
+              <div class="cct-ws-start-info">
+                <div class="cct-ws-start-eyebrow">CAT WORKSPACE</div>
+                <h1 class="cct-ws-start-title" id="cct-start-folder-name">compressed</h1>
+                <div class="cct-ws-start-path" id="cct-start-folder-path">C:\Users\ADMIN\Downloads\compressed</div>
+              </div>
+              <button type="button" class="cct-ws-start-open-btn" onclick="FATTY.openFolderDialog()">Open project ↗</button>
+            </div>
+
+            <div class="cct-ws-start-recents-wrap">
+              <div class="cct-ws-start-subtitle">Recent workspaces</div>
+              <div class="cct-ws-start-recents-grid" id="cct-start-recent-list">
+                <!-- Dynamically rendered recent workspace pills -->
               </div>
             </div>
 
-            <div class="cct-hero-info">
-              <span class="cct-home-label">GET STARTED</span>
-            </div>
+            <div class="cct-ws-start-hint">Open a project to start a CAT session.</div>
 
-            <div class="cct-welcome-actions">
-              <button class="cct-action-btn cct-action-primary" onclick="FATTY.newChat()"><span class="cct-btn-icon">↗</span> Start a chat</button>
-              <button class="cct-action-btn" onclick="FATTY.openFolderDialog()"><span class="cct-btn-icon">⌘</span> Open workspace</button>
-              <button class="cct-action-btn" onclick="FATTY.openProviderCenter()"><span class="cct-btn-icon">◈</span> Choose a model</button>
-            </div>
-
-            <div class="cct-home-section-heading"><span>YOUR WORKSPACE</span><span>Powered by CAT Core</span></div>
-            <div class="cct-welcome-columns">
-              <div class="cct-column cct-card-box">
-                <div class="cct-column-title"><span>Recent Projects</span></div>
-                <div class="cct-card-content-list" id="cct-recent-welcome-list">
-                  <div class="cct-empty-state">Loading recent workspaces…</div>
-                </div>
-              </div>
-
-              <div class="cct-column cct-card-box cct-kitties-card">
-                <div class="cct-column-title"><span>Your Kitties</span><span class="cct-kitties-count">6 Kitties</span></div>
-                <div class="cct-kitty-grid">
-                  <button type="button" data-kitty="notebook" onclick="FATTY.selectMode('notebook')"><span>Notebook</span><small>Think &amp; learn</small></button>
-                  <button type="button" data-kitty="agent" onclick="FATTY.selectMode('agent')"><span>Agent</span><small>Use tools</small></button>
-                  <button type="button" data-kitty="build" aria-pressed="false" onclick="FATTY.selectMode('build')"><span>Build</span><small>Write code</small></button>
-                  <button type="button" data-kitty="plan" onclick="FATTY.selectMode('plan')"><span>Plan</span><small>Map the work</small></button>
-                  <button type="button" data-kitty="debugger" onclick="FATTY.selectMode('debugger')"><span>Debug</span><small>Find causes</small></button>
-                  <button type="button" data-kitty="research" onclick="FATTY.selectMode('research')"><span>Research</span><small>Explore sources</small></button>
-                </div>
-              </div>
-
-              <div class="cct-column cct-card-box">
-                <div class="cct-column-title"><span>Project &amp; Workspace</span></div>
-                <div class="cct-card-content-list cct-ws-stats-box">
-                  <div class="cct-stat-row"><b id="cct-ws-card-user">Workspace</b> <span class="cct-faint cct-path-truncate" id="cct-ws-card-path" title="">No project open</span></div>
-                  <div class="cct-stat-row cct-faint" id="cct-ws-stats-line">Workspace details appear when a project is open.</div>
-                  <div class="cct-stat-row">Git: <span class="cct-cyan" id="cct-ws-git-status">Not loaded</span>  AI: <span class="cct-pink" id="cct-ws-ai-status">Not connected</span></div>
-                  <div class="cct-stat-row cct-faint" id="cct-ws-languages-line">Languages: —</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Live Web Preview Notification (Photo 4) -->
+            <!-- Live Web Preview Notification -->
             <div id="cct-preview-banner" class="cct-preview-banner" style="display: none;">
               <span class="cct-preview-icon">ℹ</span>
               <span class="cct-preview-text">✓ Live Web Preview opened in CAT Browser — <a id="cct-preview-url-link" href="#" target="_blank">http://127.0.0.1:63295/index.html</a></span>
             </div>
-
-            <div class="cct-home-footer-note">Your AI sessions, files and provider settings stay in your CAT workspace.</div>
           </div>
 
-          <!-- State B: Active Chat Messages (Screenshot 2) -->
+          <!-- State B: Active Chat Messages -->
           <div id="cct-chat-turns" style="display: none;">
             <!-- Turns will be appended dynamically by JS -->
           </div>
         </div>
-
-        <!-- Sticky Composer Docked at Bottom of Main Column -->
-        <div id="cct-composer">
+        <span class="cct-kitty-dock" id="cct-composer">
+          <span class="cct-composer-context"><span class="cct-local-indicator"><i></i>Local</span><span id="cct-composer-workspace" role="button" tabindex="0" aria-label="Change workspace" onclick="FATTY.openFolderDialog()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();FATTY.openFolderDialog()}">Workspace</span></span>
+          <span id="cct-composer-mascot" class="cct-composer-mascot" aria-label="Fatty Cat assistant"></span>
           <div class="cct-composer-input-row">
-            <span class="cct-prompt-symbol">&gt;</span>
-            <textarea class="cct-composer-textarea" id="cct-message-input" placeholder="Type a message..." rows="1"></textarea>
+            <textarea class="cct-composer-textarea" id="cct-message-input" placeholder="Ask CAT to build, debug, or explain…" rows="1"></textarea>
+            <button type="button" class="cct-composer-send-btn" onclick="FATTY.sendMessage()" title="Send message (Enter)">↵</button>
           </div>
-          <div class="cct-composer-footer">
-            <div class="cct-footer-left">
-              <span class="cct-mode-blocks">
-                <span class="cct-mode-block b1"></span>
-                <span class="cct-mode-block b2"></span>
-                <span class="cct-mode-block b3"></span>
-                <span class="cct-mode-block b4"></span>
-              </span>
-              <span class="cct-mode-badge" id="cct-mode-badge" onclick="FATTY.openModeSelector()" title="Click to change Kitty (Ctrl+M)">Select a Kitty</span>
-              <span class="cct-badge-sep">·</span>
-              <span class="cct-model-badge" id="cct-model-badge" onclick="FATTY.openModelPicker()" title="Click to select provider & model">Provider not connected</span>
-              <span class="cct-badge-sep">·</span>
-              <span class="cct-workspace-badge" id="cct-ws-badge" onclick="FATTY.openFolderDialog()" title="Current workspace">Workspace</span>
+          <div class="cct-dock-toolbar">
+            <div class="cct-dock-left">
+              <button type="button" class="cct-composer-attach-btn" onclick="FATTY.triggerAttach()" title="Attach file" aria-label="Attach file">+</button>
+              <button type="button" class="cct-mode-current-btn" id="cct-mode-current" onclick="FATTY.openModeSelector()" title="Click to change Kitty">
+                <span id="cct-mode-current-label">Build mode</span> ▾
+              </button>
             </div>
-            <div class="cct-footer-right">
-              <span class="cct-context-indicator" id="cct-context-indicator">Context 0K</span>
-              <button class="cct-footer-btn" onclick="FATTY.openSettings()" title="Settings">⚙</button>
-              <button class="cct-footer-btn" onclick="FATTY.triggerAttach()" title="Attach file">📎</button>
-              <button class="cct-footer-btn cct-send-btn" onclick="FATTY.sendMessage()" title="Send message (Enter)">➤</button>
+            <div class="cct-dock-right">
+              <button type="button" class="cct-dock-provider cct-model-badge" id="cct-model-badge" onclick="FATTY.openProviderCenter()" title="Click to select provider & model">
+                nvidia/nemotron-3-ultra-550b-a55b
+              </button>
+              <button type="button" class="cct-perm-pill-btn" id="cct-perm-pill-btn" onclick="FATTY.togglePermissionModal()" title="Click to Change Permission Mode">
+                <span id="cct-perm-text">Ask Every Time</span> ▾
+              </button>
             </div>
           </div>
         </div>
@@ -321,6 +302,7 @@
           </div>
           <div class="cct-editor-controls">
             <button class="cct-editor-btn cct-btn-format" onclick="FATTY.formatEditorCode()" title="Format Code ({ })">{ }</button>
+            <button class="cct-editor-btn" onclick="FATTY.openMediaViewer()" title="Preview this file in CAT Media Viewer">◫</button>
             <button class="cct-editor-btn cct-btn-save" onclick="FATTY.saveCurrentFile()" title="Save File (Ctrl+S)">💾</button>
             <button class="cct-editor-btn cct-btn-run" onclick="FATTY.runPreview()" title="Run Web Preview (▷)">▷</button>
             <button class="cct-editor-btn cct-btn-split" onclick="FATTY.toggleSplitView()" title="Split Preview View (⿻)">⿻</button>
@@ -376,7 +358,8 @@
         <button class="cct-modal-close-btn" onclick="FATTY.dismissWelcomeModal()">✕</button>
       </div>
       <div class="cct-modal-content cct-welcome-content">
-        <pre class="cct-ascii-welcome">  ██████╗  █████╗ ████████╗
+        <pre class="cct-ascii-welcome">
+  ██████╗  █████╗ ████████╗
  ██╔════╝ ██╔══██╗╚══██╔══╝
  ██║      ███████║   ██║   
  ██║      ██╔══██║   ██║   
@@ -539,6 +522,13 @@
           Automatic Failover Chain: If your primary provider experiences rate limits, timeouts, or downtime, CAT streams uninterrupted by falling back down this ordered chain.
         </div>
         <div class="cct-column-title" style="margin-top: 8px;">Active Failover Chain Order:</div>
+        <div class="cct-backup-add-row">
+          <input class="cct-form-input" id="cct-backup-provider-input" list="cct-backup-provider-options" placeholder="Provider ID (e.g. groq, ollama)" aria-label="Backup provider ID">
+          <datalist id="cct-backup-provider-options"></datalist>
+          <input class="cct-form-input" id="cct-backup-model-input" placeholder="Model ID" aria-label="Backup model ID">
+          <input class="cct-form-input" id="cct-backup-key-input" type="password" autocomplete="off" placeholder="API key (optional if in environment)" aria-label="Backup provider API key">
+          <button type="button" class="cct-modal-btn primary" onclick="FATTY.addBackupProvider()">Add Backup</button>
+        </div>
         <div class="cct-backup-chain-list" id="cct-backup-chain-list">
           <!-- Injected dynamically from /api/backup-providers -->
         </div>
@@ -756,6 +746,11 @@
           </div>
           <div class="cct-form-group">
             <label class="cct-form-label">Appearance &amp; Theme:</label>
+            <div class="cct-appearance-options" role="group" aria-label="Color appearance">
+              <button type="button" data-appearance-choice="system" onclick="FATTY.setAppearance('system')">System</button>
+              <button type="button" data-appearance-choice="light" onclick="FATTY.setAppearance('light')">Light</button>
+              <button type="button" data-appearance-choice="dark" onclick="FATTY.setAppearance('dark')">Dark</button>
+            </div>
             <div style="display: flex; gap: 8px; align-items: center;">
               <span id="cct-cfg-active-theme-name" style="color: var(--accent-build); font-weight: bold;">Tokyo Night</span>
               <button class="cct-modal-btn" onclick="FATTY.openThemes()">Browse 12+ Themes...</button>
@@ -851,7 +846,7 @@
           <div class="cct-shortcuts-table">
             <div class="cct-shortcut-row"><kbd>Enter</kbd> <span>Send message in chat</span></div>
             <div class="cct-shortcut-row"><kbd>Shift + Enter</kbd> <span>New line in input / Run preview in editor</span></div>
-            <div class="cct-shortcut-row"><kbd>Ctrl + K</kbd> or <kbd>/</kbd> <span>Command Palette (86+ commands)</span></div>
+            <div class="cct-shortcut-row"><kbd>Ctrl + K</kbd> or <kbd>/</kbd> <span>Command Palette (103 commands)</span></div>
             <div class="cct-shortcut-row"><kbd>Ctrl + M</kbd> <span>Switch AI Mode (Build, Plan, Research, Debugger, Agent, Notebook)</span></div>
             <div class="cct-shortcut-row"><kbd>Ctrl + S</kbd> <span>Save active file in code editor</span></div>
             <div class="cct-shortcut-row"><kbd>Ctrl + B</kbd> <span>Toggle file explorer sidebar</span></div>
@@ -883,7 +878,7 @@
         <div><b>/clear</b> — Reset conversation to Welcome screen</div>
         <div><b>Keyboard Shortcuts:</b></div>
         <div><code>Enter</code>: Send message | <code>Shift+Enter</code>: New line</div>
-        <div><code>Ctrl+K</code> or <code>/</code>: Command Palette (86 commands)</div>
+        <div><code>Ctrl+K</code> or <code>/</code>: Command Palette (103 commands)</div>
         <div><code>Ctrl+M</code>: Switch AI Mode (Build, Plan, Research, Debugger, Agent, Notebook)</div>
         <div><code>Ctrl+S</code>: Save open file in editor</div>
         <div><code>Ctrl+B</code>: Toggle file explorer sidebar</div>
@@ -899,10 +894,11 @@
     <div class="cct-palette-box" onclick="event.stopPropagation()">
       <div class="cct-palette-input-wrap">
         <span class="cct-palette-prompt">&gt;</span>
-        <input type="text" class="cct-palette-input" id="cct-palette-input" placeholder="Type a command or search (e.g. /solve, /model, /workspace, /atomsim)..." autocomplete="off" spellcheck="false">
+        <input type="text" class="cct-palette-input" id="cct-palette-input" placeholder="Search 103 CAT CLI commands or try a prompt…" autocomplete="off" spellcheck="false" aria-label="Search commands and prompts">
+        <span class="cct-palette-count" id="cct-palette-count" aria-live="polite">Loading commands…</span>
         <button class="cct-modal-close-btn" onclick="FATTY.closeAllModals()">✕</button>
       </div>
-      <div class="cct-palette-list" id="cct-palette-list">
+      <div class="cct-palette-list" id="cct-palette-list" role="listbox" aria-label="CAT CLI commands and useful prompts">
         <!-- Injected dynamically by JS -->
       </div>
     </div>
@@ -1116,7 +1112,124 @@
   <!-- Toast Feedback Notifications Container -->
   <div id="cct-toast-container" class="cct-toast-container"></div>
 
-  <script src="js/app.js"></script>
+  <script src="./js/app.js?v=cat-settings-glass-20261010d"></script>
+  <script src="./js/mascot.js?v=cat-embedded-performance-20261010a"></script>
+  <script>
+    if (window.FattyMascot) {
+      window.fattyMascots = [window.FattyMascot.init('#cct-mascot-container', { character: 'fattycat', size: 42, trackPointer: true }), window.FattyMascot.init('#cct-composer-mascot', { character: 'fattycat', size: 46, trackPointer: true })].filter(Boolean);
+      window.fattyMascot = window.fattyMascots[0];
+    }
+    (() => {
+      const cat = document.querySelector('#cct-welcome-mascot-container');
+      const sprite = cat?.querySelector('.cct-welcome-fullbody');
+      const layers = sprite ? [...sprite.querySelectorAll('.cct-welcome-sprite')] : [];
+      if (!cat || !sprite || layers.length !== 2) return;
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+      const canTrackPointer = true;
+      const directions = './mascots/fattycat-welcome-directions.webp?v=20261010';
+      const reactions = './mascots/fattycat-welcome-reactions.webp?v=20261010';
+      let activeLayer = 0, shownFrame = '', activeReaction = false, reactionTimer = 0;
+      let targetX = 0, targetY = 0, currentX = 0, currentY = 0, frame = 0;
+      let directionRow = 1, directionCol = 1;
+      const framePosition = (row, col) => `${col * 50}% ${row * 50}%`;
+      const renderFrame = (sheet, row, col) => {
+        const key = `${sheet}:${row}:${col}`;
+        if (key === shownFrame) return;
+        shownFrame = key;
+        const next = activeLayer === 0 ? 1 : 0;
+        layers[next].style.backgroundImage = `url("${sheet}")`;
+        layers[next].style.backgroundPosition = framePosition(row, col);
+        layers[next].classList.add('is-active');
+        layers[activeLayer].classList.remove('is-active');
+        activeLayer = next;
+      };
+      layers[0].style.backgroundImage = `url("${directions}")`;
+      layers[0].style.backgroundPosition = framePosition(1, 1);
+      layers[0].classList.add('is-active');
+      shownFrame = `${directions}:1:1`;
+
+      const axisPose = (value, current, threshold = 0.32, release = 0.2) => {
+        if (current === 0 && value < -release) return 0;
+        if (current === 2 && value > release) return 2;
+        if (value < -threshold) return 0;
+        if (value > threshold) return 2;
+        return 1;
+      };
+      const applyPointerPose = (x, y) => {
+        directionCol = axisPose(x, directionCol);
+        directionRow = axisPose(y, directionRow);
+        if (!activeReaction) renderFrame(directions, directionRow, directionCol);
+      };
+      const applyMotion = () => {
+        cat.style.setProperty('--welcome-track-x', `${(currentX * 4).toFixed(2)}px`);
+        cat.style.setProperty('--welcome-track-y', `${(currentY * 3).toFixed(2)}px`);
+        cat.style.setProperty('--welcome-track-rotate-y', `${(currentX * 2.5).toFixed(2)}deg`);
+        cat.style.setProperty('--welcome-track-rotate-x', `${(currentY * -2).toFixed(2)}deg`);
+      };
+      const onPointerMove = (event) => {
+        if (event.pointerType === 'touch') return;
+        const bounds = cat.getBoundingClientRect();
+        const x = (event.clientX - (bounds.left + bounds.width / 2)) / Math.max(bounds.width * 2.5, 1);
+        const y = (event.clientY - (bounds.top + bounds.height / 2)) / Math.max(bounds.height * 2.5, 1);
+        targetX = Math.max(-1, Math.min(1, x));
+        targetY = Math.max(-1, Math.min(1, y));
+        applyPointerPose(targetX, targetY);
+        if (reduceMotion.matches) {
+          currentX = targetX; currentY = targetY; applyMotion();
+        } else if (!frame) frame = requestAnimationFrame(animate);
+      };
+      const animate = () => {
+        currentX += (targetX - currentX) * 0.14;
+        currentY += (targetY - currentY) * 0.14;
+        applyMotion();
+        if (Math.abs(targetX - currentX) + Math.abs(targetY - currentY) > 0.002) {
+          frame = requestAnimationFrame(animate);
+        } else {
+          frame = 0;
+        }
+      };
+      const resetPointer = () => {
+        targetX = targetY = 0;
+        applyPointerPose(0, 0);
+        if (reduceMotion.matches) { currentX = currentY = 0; applyMotion(); }
+        else if (!frame) frame = requestAnimationFrame(animate);
+      };
+      if (canTrackPointer) {
+        window.addEventListener('pointermove', onPointerMove, { passive: true });
+        window.addEventListener('blur', resetPointer);
+      }
+      const react = () => {
+        if (reactionTimer) window.clearTimeout(reactionTimer);
+        activeReaction = true;
+        let row = Math.floor(Math.random() * 3), col = Math.floor(Math.random() * 3);
+        if (shownFrame.startsWith(`${reactions}:`) && shownFrame.endsWith(`:${row}:${col}`)) col = (col + 1) % 3;
+        renderFrame(reactions, row, col);
+        reactionTimer = window.setTimeout(() => {
+          activeReaction = false;
+          reactionTimer = 0;
+          renderFrame(directions, directionRow, directionCol);
+        }, 1450);
+      };
+      sprite.addEventListener('click', react);
+      sprite.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); react(); }
+      });
+      reduceMotion.addEventListener?.('change', (event) => {
+        if (event.matches) {
+          if (frame) cancelAnimationFrame(frame);
+          frame = 0;
+          currentX = targetX; currentY = targetY; applyMotion();
+          sprite.style.animation = 'none';
+          cat.style.removeProperty('--welcome-track-x');
+          cat.style.removeProperty('--welcome-track-y');
+          cat.style.removeProperty('--welcome-track-rotate-x');
+          cat.style.removeProperty('--welcome-track-rotate-y');
+        } else {
+          sprite.style.removeProperty('animation');
+        }
+      });
+    })();
+  </script>
 </body>
 </html>
 

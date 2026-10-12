@@ -53,14 +53,9 @@ def _get_local_appdata_dir() -> str:
 
 def get_icon_path() -> Optional[str]:
     """Return the absolute path to the multi-resolution CAT .ico file,
-    ensuring it exists in a stable location."""
-    # 1. Check local CCT app data
+    refreshing the stable Windows Terminal copy from the installed package."""
     local_dir = _get_local_appdata_dir()
     local_ico = os.path.join(local_dir, "cat.ico")
-    if os.path.isfile(local_ico) and os.path.getsize(local_ico) > 0:
-        return os.path.abspath(local_ico)
-
-    # 2. Check bundled package paths
     pkg_dir = os.path.dirname(os.path.abspath(__file__))
     candidates = [
         os.path.join(pkg_dir, "cat.ico"),
@@ -68,7 +63,7 @@ def get_icon_path() -> Optional[str]:
     ]
     for c in candidates:
         if os.path.isfile(c) and os.path.getsize(c) > 0:
-            # Copy to local appdata for persistent access by external apps (Windows Terminal)
+            # Keep Windows Terminal's stable profile path synchronized after upgrades.
             try:
                 import shutil
                 shutil.copy2(c, local_ico)
@@ -76,8 +71,14 @@ def get_icon_path() -> Optional[str]:
             except Exception:
                 return os.path.abspath(c)
 
-    # 3. Try generating from icon-512.png if PIL is available
-    png_source = os.path.join(pkg_dir, "web", "static", "icons", "icon-512.png")
+    # A previously copied icon remains usable if this is a partial install.
+    if os.path.isfile(local_ico) and os.path.getsize(local_ico) > 0:
+        return os.path.abspath(local_ico)
+
+    # Last-resort generation for partial installs that only contain the PNG.
+    png_source = os.path.join(pkg_dir, "cat.png")
+    if not os.path.isfile(png_source):
+        png_source = os.path.join(pkg_dir, "web", "static", "icons", "icon-512.png")
     if os.path.isfile(png_source):
         try:
             from PIL import Image
@@ -105,12 +106,9 @@ def set_process_app_user_model_id(app_id: str = "kazizillani.cat.cli.v08") -> bo
 
 
 def get_browser_icon_path() -> Optional[str]:
-    """Return the absolute path to the multi-resolution CAT Browser .ico file."""
+    """Return the absolute path to the current multi-resolution CAT Browser icon."""
     local_dir = _get_local_appdata_dir()
     local_ico = os.path.join(local_dir, "cat_browser.ico")
-    if os.path.isfile(local_ico) and os.path.getsize(local_ico) > 0:
-        return os.path.abspath(local_ico)
-
     pkg_dir = os.path.dirname(os.path.abspath(__file__))
     candidates = [
         os.path.join(pkg_dir, "cat_browser.ico"),
@@ -124,6 +122,8 @@ def get_browser_icon_path() -> Optional[str]:
                 return os.path.abspath(local_ico)
             except Exception:
                 return os.path.abspath(c)
+    if os.path.isfile(local_ico) and os.path.getsize(local_ico) > 0:
+        return os.path.abspath(local_ico)
     return None
 
 
@@ -134,8 +134,20 @@ def apply_console_icon(ico_path: Optional[str] = None) -> bool:
     set_process_app_user_model_id("kazizillani.cat.cli.v08")
     try:
         import ctypes
-        kernel32 = ctypes.windll.kernel32
-        user32 = ctypes.windll.user32
+        from ctypes import wintypes
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        user32 = ctypes.WinDLL("user32", use_last_error=True)
+
+        kernel32.GetConsoleWindow.restype = wintypes.HWND
+        user32.LoadImageW.argtypes = (
+            wintypes.HANDLE, wintypes.LPCWSTR, wintypes.UINT,
+            ctypes.c_int, ctypes.c_int, wintypes.UINT,
+        )
+        user32.LoadImageW.restype = wintypes.HANDLE
+        user32.SendMessageW.argtypes = (
+            wintypes.HWND, wintypes.UINT, ctypes.c_size_t, ctypes.c_ssize_t,
+        )
+        user32.SendMessageW.restype = ctypes.c_ssize_t
 
         hwnd = kernel32.GetConsoleWindow()
         if not hwnd:
@@ -152,7 +164,8 @@ def apply_console_icon(ico_path: Optional[str] = None) -> bool:
         ICON_SMALL = 0
         ICON_BIG = 1
 
-        # Load small (16x16) and big (32x32) icons
+        # The multi-size ICO supplies crisp 16px and 32px console/window icons;
+        # Shell and Windows Terminal can select larger embedded sizes as needed.
         hicon_small = user32.LoadImageW(None, ico_path, IMAGE_ICON, 16, 16, LR_LOADFROMFILE)
         hicon_big = user32.LoadImageW(None, ico_path, IMAGE_ICON, 32, 32, LR_LOADFROMFILE)
 
@@ -163,6 +176,75 @@ def apply_console_icon(ico_path: Optional[str] = None) -> bool:
         if hicon_big:
             user32.SendMessageW(hwnd, WM_SETICON, ICON_BIG, hicon_big)
             success = True
+        return success
+    except Exception:
+        return False
+
+
+def apply_browser_taskbar_icon(hwnd: int, ico_path: Optional[str] = None) -> bool:
+    """Set the Windows taskbar and window icon for CAT Browser via Win32 WM_SETICON,
+    class icons, and SetCurrentProcessExplicitAppUserModelID."""
+    if sys.platform != "win32" or hwnd <= 0:
+        return False
+    set_process_app_user_model_id("kazizillani.cat.browser.v08")
+    if not ico_path:
+        ico_path = get_browser_icon_path()
+    if not ico_path or not os.path.isfile(ico_path):
+        return False
+    try:
+        import ctypes
+        from ctypes import wintypes
+        user32 = ctypes.WinDLL("user32", use_last_error=True)
+        user32.LoadImageW.argtypes = (
+            wintypes.HANDLE, wintypes.LPCWSTR, wintypes.UINT,
+            ctypes.c_int, ctypes.c_int, wintypes.UINT,
+        )
+        user32.LoadImageW.restype = wintypes.HANDLE
+        user32.SendMessageW.argtypes = (
+            wintypes.HWND, wintypes.UINT, ctypes.c_size_t, ctypes.c_ssize_t,
+        )
+        user32.SendMessageW.restype = ctypes.c_ssize_t
+
+        IMAGE_ICON = 1
+        LR_LOADFROMFILE = 0x00000010
+        WM_SETICON = 0x0080
+        ICON_SMALL = 0
+        ICON_BIG = 1
+
+        sm_cx_sm = user32.GetSystemMetrics(49) or 16
+        sm_cy_sm = user32.GetSystemMetrics(50) or 16
+        sm_cx_lg = user32.GetSystemMetrics(11) or 32
+        sm_cy_lg = user32.GetSystemMetrics(12) or 32
+
+        hicon_small = user32.LoadImageW(None, str(ico_path), IMAGE_ICON, sm_cx_sm, sm_cy_sm, LR_LOADFROMFILE)
+        hicon_big = user32.LoadImageW(None, str(ico_path), IMAGE_ICON, sm_cx_lg, sm_cy_lg, LR_LOADFROMFILE)
+        hicon_256 = user32.LoadImageW(None, str(ico_path), IMAGE_ICON, 256, 256, LR_LOADFROMFILE)
+
+        success = False
+        if hicon_small:
+            user32.SendMessageW(hwnd, WM_SETICON, ICON_SMALL, hicon_small)
+            success = True
+        target_big = hicon_big or hicon_256
+        if target_big:
+            user32.SendMessageW(hwnd, WM_SETICON, ICON_BIG, target_big)
+            success = True
+
+        GCLP_HICON = -14
+        GCLP_HICONSM = -34
+        set_class = getattr(user32, "SetClassLongPtrW", getattr(user32, "SetClassLongW", None))
+        if set_class:
+            set_class.argtypes = (wintypes.HWND, ctypes.c_int, ctypes.c_ssize_t)
+            set_class.restype = ctypes.c_ssize_t
+            if target_big:
+                try:
+                    set_class(hwnd, GCLP_HICON, target_big)
+                except Exception:
+                    pass
+            if hicon_small:
+                try:
+                    set_class(hwnd, GCLP_HICONSM, hicon_small)
+                except Exception:
+                    pass
         return success
     except Exception:
         return False

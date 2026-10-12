@@ -109,9 +109,8 @@ def launch_browser_gui(start_url: str = "about:home", block: bool = True) -> int
             cmd = [sys.executable, "-m", "calc_terminal.browser_gui", "--url", start_url]
             kwargs = {}
             if os.name == "nt":
-                # DETACHED_PROCESS
                 import subprocess as sp
-                kwargs["creationflags"] = sp.DETACHED_PROCESS | sp.CREATE_NEW_PROCESS_GROUP  # type: ignore
+                kwargs["creationflags"] = sp.CREATE_NEW_PROCESS_GROUP
             else:
                 kwargs["start_new_session"] = True
             subprocess.Popen(cmd, **kwargs, cwd=os.getcwd())

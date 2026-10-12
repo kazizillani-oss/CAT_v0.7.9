@@ -220,6 +220,8 @@ class App:
             "/browser": self.cmd_browser,
             "/browse": self.cmd_browser,
             "/cat": self.cmd_browser,
+            "/mascot": self.cmd_mascot,
+            "/mascots": self.cmd_mascot,
         }
         for name, method in bindings.items():
             spec = reg.get(name)
@@ -633,8 +635,14 @@ class App:
             return
 
         # ---- CAT Browser (full terminal browser, Fomoji-gated) --------------
-        if low in ("/browser", "/browse", "/cat") or low.startswith(("/browser ", "/browse ", "/cat ")):
-            self.cmd_browser(raw.split(" ", 1)[1].strip() if " " in raw else "")
+        if low in ("/browser", "/browse", "/cat", "browser", "browse", "cat browser", "cat browse", "open browser") or low.startswith(("/browser ", "/browse ", "/cat ", "browser ", "browse ", "cat browser ", "cat browse ")):
+            rest = raw.split(" ", 1)[1].strip() if " " in raw else ""
+            if low.startswith(("cat browser", "cat browse")):
+                parts = raw.split(None, 2)
+                rest = parts[2].strip() if len(parts) > 2 else ""
+            elif rest.lower() in ("browser", "browse"):
+                rest = ""
+            self.cmd_browser(rest)
             return
         if low == "/devices" or low.startswith("/devices "):
             self.cmd_devices(raw.split(" ", 1)[1].strip() if " " in raw else "")
@@ -1780,9 +1788,64 @@ class App:
             else:
                 print(theme.dim(f"  (approved before \u2014 remembered choice for {req.label()})"))
 
-            # Installation dashboard + auto verification.
+            # Stream real installer events while it runs. Package managers
+            # often do not expose a reliable total, so show an animated
+            # indeterminate bar unless the manager itself reports a percent.
             events = []
-            result = pkgs.run_install(req, on_event=lambda ev: events.append(ev))
+            import threading
+            import shutil
+            progress_lock = threading.Lock()
+            progress_stop = threading.Event()
+            progress_state = {"message": f"Starting {req.label()}…", "percent": None}
+            tty_progress = bool(getattr(sys.stdout, "isatty", lambda: False)())
+
+            def _install_event(ev):
+                events.append(ev)
+                message = str(ev.get("message", "Installing…")).strip() or "Installing…"
+                match = re.search(r"(?<!\d)(100|\d{1,2})\s*%", message)
+                with progress_lock:
+                    progress_state["message"] = message
+                    if match:
+                        progress_state["percent"] = max(0, min(100, int(match.group(1))))
+                    elif ev.get("stage") in (pkgs.STAGE_VERIFYING, pkgs.STAGE_DONE):
+                        progress_state["percent"] = 100
+
+            def _animate_install():
+                import shutil
+                frame = 0
+                while not progress_stop.wait(0.10):
+                    with progress_lock:
+                        message = progress_state["message"]
+                        percent = progress_state["percent"]
+                    width = max(12, min(26, shutil.get_terminal_size((80, 20)).columns - 56))
+                    if percent is None:
+                        pos = frame % (width + 7) - 7
+                        start = max(0, pos)
+                        end = min(width, pos + 7)
+                        bar = "·" * start + "█" * max(0, end - start) + "·" * (width - end)
+                        suffix = "working"
+                    else:
+                        filled = round(width * percent / 100)
+                        bar = "█" * filled + "·" * (width - filled)
+                        suffix = f"{percent:3d}%"
+                    compact = message.replace("\r", " ").replace("\n", " ")
+                    limit = max(20, shutil.get_terminal_size((80, 20)).columns - width - 22)
+                    sys.stdout.write(f"\r  {theme.cyan('✦')} {compact[:limit]:<{limit}} [{theme.cyan(bar)}] {suffix}  ")
+                    sys.stdout.flush()
+                    frame += 1
+
+            animator = None
+            if tty_progress:
+                animator = threading.Thread(target=_animate_install, name="cat-install-progress", daemon=True)
+                animator.start()
+            try:
+                result = pkgs.run_install(req, on_event=_install_event)
+            finally:
+                progress_stop.set()
+                if animator is not None:
+                    animator.join(timeout=0.5)
+                    sys.stdout.write("\r" + " " * min(120, shutil.get_terminal_size((80, 20)).columns) + "\r\n")
+                    sys.stdout.flush()
             print()
             for line in pkgs.dashboard_lines(events):
                 print(line)
@@ -2120,28 +2183,6 @@ class App:
                 else:
                     start_url = arg
 
-        # In fallback CLI with no Textual, we cannot show the graphical browser.
-        # Show a clear message instead of dumping the old CLI numbered-links UI.
-        try:
-            from .ui.browser_shell import TEXTUAL_AVAILABLE as _HAS_UI
-        except Exception:
-            _HAS_UI = False
-        if not _HAS_UI:
-            print()
-            print(theme.panel([
-                theme.text("CAT Browser — graphical mode required", bold=True),
-                theme.dim("The normal browser is graphical (tab bar + address bar + viewport)."),
-                theme.dim("Textual is not installed in this environment, so the"),
-                theme.dim("text-based Links/numbered navigation is no longer shown in normal use."),
-                theme.dim("Install the UI and use the graphical browser:"),
-                theme.cyan("  pip install textual[syntax]"),
-                theme.cyan("  cat browse https://example.com"),
-                theme.faint("Developer debug CLI is available via `cat --browser --text` (hidden)."),
-            ], title="browser", color=theme.CYAN, width=76))
-            print()
-            self.print_home()
-            return
-
         # Prefer Host embedded browser (correct architecture) — NOT text, NOT external
         try:
             from .host.launcher import can_launch_host, launch_cat_host, get_host_status
@@ -2154,7 +2195,7 @@ class App:
                 print()
                 print(theme.panel([
                     theme.text("CAT Browser — embedded engine required", bold=True),
-                    theme.dim(f"Reason: {st['reason']}"),
+                    theme.dim(f"Reason: {st.get('reason', 'PySide6 not available')}"),
                     theme.dim("Browser INSIDE CAT requires: pip install PySide6"),
                     theme.dim("QWebEngineView child renders Fomoji inside CAT Host window"),
                     theme.cyan("  cat --host-browser http://localhost:3000/connector.html"),
@@ -2167,6 +2208,34 @@ class App:
         finally:
             self.print_home()
 
+    def cmd_mascot(self, arg=""):
+        """Display the interactive Fatty CAT & Chibi Otter mascot or launch in browser."""
+        print()
+        lines = [
+            theme.purple("🐱 FATTY CAT & CHIBI OTTER MASCOT", bold=True),
+            "",
+            "  (\\_/)      (\\_/)     (>•<)     (•ᴥ•)   ",
+            " ( o.o )    ( >.< )    /   \\    ( > < )  ",
+            " > ^ <      (\")(\")     \"   \"     \"   \"   ",
+            theme.cyan(" Fatty Cat   Riso Cat   Otter   Riso Otter"),
+            "",
+            theme.text("Available Page Mascots:"),
+            theme.dim("  1. 🦦 Chibi Otter (Classic)   - /mascots/otter-directions.webp"),
+            theme.dim("  2. 🦦 Chibi Otter (Riso)      - /mascots/otter-riso-directions.webp"),
+            theme.dim("  3. 🐱 Fatty Cat (Classic)     - /mascots/fattycat-directions.webp"),
+            theme.dim("  4. 🐱 Fatty Cat (Riso)        - /mascots/fattycat-riso-directions.webp"),
+            "",
+            theme.faint("In React:"),
+            theme.cyan("  import { Mascot } from 'page-mascot'"),
+            theme.faint("  <Mascot directions=\"/mascots/otter-directions.webp\" reactions=\"/mascots/otter-reactions.webp\" />"),
+            "",
+            theme.green("Opening interactive mascot in Fatty CAT Web..."),
+        ]
+        print(theme.panel(lines, title="mascot", color=theme.PURPLE, width=72))
+        try:
+            self.cmd_browser("http://localhost:8765/")
+        except Exception:
+            pass
 
     def cmd_settings(self):
         while True:

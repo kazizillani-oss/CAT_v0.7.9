@@ -53,32 +53,28 @@ class TestUnifiedStartupAndBrowser(unittest.TestCase):
         self.assertTrue(overlay._is_finishing)
 
     def test_hardware_adaptive_chromium_flags(self):
-        """Verify Chromium flags are hardware-adaptive and strictly eliminate flickering bugs."""
+        """Verify Chromium keeps default GPU recovery and bounds per-device resources."""
         from calc_terminal.host.launcher import get_optimal_chromium_flags
         flags = get_optimal_chromium_flags()
 
-        # CRITICAL Anti-Flicker rules:
-        # Never disable GPU driver bug workarounds (causes Intel HD crash loops and flickering)
-        self.assertNotIn("--disable-gpu-driver-bug-workarounds", flags)
-        # Never force ignoring GPU blocklist (causes black screens on low-end GPUs)
+        # Preserve Chromium watchdog, crash limit, dump reporting, and blocklist behavior.
+        self.assertNotIn("--disable-gpu-watchdog", flags)
+        self.assertNotIn("--disable-gpu-process-crash-limit", flags)
+        self.assertNotIn("--disable-breakpad", flags)
+        self.assertNotIn("--disable-hang-monitor", flags)
         self.assertNotIn("--ignore-gpu-blocklist", flags)
-        # Never include Linux-only Vaapi on Windows
-        if sys.platform == "win32":
-            self.assertNotIn("VaapiVideoDecoder", flags)
-            self.assertIn("--use-angle=d3d11", flags)
 
-        # Essential low-end memory / anti-occlusion safety flags
+        # Small set of stable common flags; let Chromium select its GPU path.
         self.assertIn("--disable-dev-shm-usage", flags)
         self.assertIn("--disable-features=CalculateNativeWinOcclusion", flags)
-        self.assertIn("--enable-zero-copy", flags)
-        self.assertIn("--enable-gpu-rasterization", flags)
+        self.assertNotIn("--enable-gpu-rasterization", flags)
 
         # Process limit must be bounded to avoid overwhelming CPU/RAM
         self.assertTrue(
-            "--renderer-process-limit=2" in flags or "--renderer-process-limit=4" in flags
+            any(f"--renderer-process-limit={n}" in flags for n in (1, 2, 4))
         )
         self.assertTrue(
-            "--num-raster-threads=2" in flags or "--num-raster-threads=3" in flags
+            any(f"--num-raster-threads={n}" in flags for n in (1, 2, 3))
         )
 
     def test_welcome_modal_dismiss_contract(self):

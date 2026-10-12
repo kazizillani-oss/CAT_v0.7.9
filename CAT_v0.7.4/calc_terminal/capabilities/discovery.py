@@ -88,14 +88,20 @@ def _has_command(cmd: str) -> bool:
 def _get_command_output(cmd: List[str], timeout: float = 3.0) -> str:
     """Execute command and return stdout safely."""
     try:
-        res = subprocess.run(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=timeout,
-            shell=False,
-        )
+        run_kwargs: dict = {
+            "stdout": subprocess.PIPE,
+            "stderr": subprocess.PIPE,
+            "text": True,
+            "timeout": timeout,
+            "shell": False,
+        }
+        if sys.platform == "win32":
+            run_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+            si = subprocess.STARTUPINFO()
+            si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            si.wShowWindow = 0  # SW_HIDE
+            run_kwargs["startupinfo"] = si
+        res = subprocess.run(cmd, **run_kwargs)
         return res.stdout.strip()
     except Exception:
         return ""

@@ -13,6 +13,7 @@ import os
 import re
 import json
 import time
+from urllib.parse import quote
 import sys
 import base64
 import zlib
@@ -1137,20 +1138,32 @@ def request_timeouts(config=None, size_class="normal"):
         }
         total = float(totals.get(str(size_class), get("timeout_normal", 60)))
         idle = float(get("model_idle_timeout", 45))
-        # Ollama local needs longer for model load on cold start (especially 7B+ on CPU)
         prov = ""
+        mod = ""
+        if isinstance(cfg, dict):
+            prov = str(cfg.get("provider", "") or cfg.get("default_ai_provider", ""))
+            mod = str(cfg.get("model", "") or cfg.get("default_model", ""))
+        else:
+            prov = str(getattr(cfg, "provider", "") or getattr(cfg, "default_ai_provider", ""))
+            mod = str(getattr(cfg, "model", "") or getattr(cfg, "default_model", ""))
+        if isinstance(config, dict):
+            prov = prov or str(config.get("provider", ""))
+            mod = mod or str(config.get("model", ""))
+        prov = prov.lower()
+        mod = mod.lower()
+        # Ollama local needs longer for model load on cold start (especially 7B+ on CPU)
         try:
-            if isinstance(cfg, dict):
-                prov = cfg.get("provider","") or cfg.get("default_ai_provider","")
-            else:
-                prov = getattr(cfg, "default_ai_provider", "") or getattr(cfg, "provider","")
-            if not prov and isinstance(config, dict):
-                prov = config.get("provider","")
-            if str(prov).lower() == "ollama":
+            if prov == "ollama":
                 total = max(total, 180.0)
                 idle = max(idle, 120.0)
         except Exception:
             pass
+        # Nemotron 3 Ultra defaults to a long reasoning pass and can stay
+        # silent before its first SSE event. Give it room to start while
+        # bounding how long an unresponsive request can hold the chat.
+        if prov in ("nvidia", "nim") and "ultra" in mod:
+            idle = max(idle, 150.0)
+            total = max(total, 300.0)
         # Cloud providers connect timeout should be resilient against latency/proxies
         connect = max(5.0, min(15.0, idle))
         # Ollama connect needs longer on cold start (model load from disk into RAM/VRAM)
@@ -1161,14 +1174,7 @@ def request_timeouts(config=None, size_class="normal"):
             pass
         # Reasoning models (o1, o3, deepseek-r1, Claude thinking) take 30-90s before first token
         try:
-            mod = ""
-            if isinstance(cfg, dict):
-                mod = cfg.get("model", "") or cfg.get("default_model", "")
-            else:
-                mod = getattr(cfg, "model", "") or getattr(cfg, "default_model", "")
-            if not mod and isinstance(config, dict):
-                mod = config.get("model", "")
-            if any(k in str(mod).lower() for k in ("o1", "o3", "r1", "reason", "thinking", "3-7", "3.7")):
+            if any(k in mod for k in ("o1", "o3", "r1", "reason", "thinking", "3-7", "3.7")):
                 idle = max(idle, 120.0)
                 total = max(total, 180.0)
         except Exception:
@@ -1228,7 +1234,11 @@ def _backoff_sleep(attempt_index):
         base = 0.6
     delay = min(4.0, base * (2 ** max(0, attempt_index)))
     try:
-        time.sleep(delay)
+        t_end = time.time() + delay
+        while time.time() < t_end:
+            if _just_cancelled():
+                break
+            time.sleep(min(0.1, max(0.01, t_end - time.time())))
     except Exception:
         pass
 
@@ -1269,7 +1279,12 @@ def _failover_targets(primary_cfg=None, requirements=None):
             requirements=req,
             privacy_policy=pol,
         )
-        if candidates and any(c.is_backup for c in candidates):
+        # Keep Tier 1 same-provider model fallbacks even when the user has
+        # not configured a Tier 2 backup provider.  Without this, a primary
+        # such as NVIDIA Nemotron Ultra would fail outright instead of
+        # falling through to its faster NVIDIA models (for example
+        # Nemotron Lightning).
+        if candidates:
             return [(dict(c.config), c.entry, c.is_backup) for c in candidates]
     except Exception:
         pass
@@ -2028,10 +2043,66 @@ def _stream_ai_once(prompt, system_prompt=DEFAULT_SYSTEM_PROMPT,
             elif temperature is not None:
                 payload["temperature"] = temperature
             if is_nvidia:
-                payload.setdefault("max_tokens", 4096)
+                is_nemotron_ultra = "ultra" in mod_lower and ("nemotron" in mod_lower or is_nvidia)
+                payload.setdefault("max_tokens", 16384 if is_nemotron_ultra else 4096)
+                if is_nemotron_ultra:
+                    payload.setdefault("reasoning_effort", "medium")
+                    payload.setdefault("reasoning_budget", 8192)
             resp = _track(requests.post(url, headers=headers, json=payload,
                                          timeout=t_connect_idle, stream=True))
             _raise_for_status(resp)
+            pending_payload = None
+            if is_nvidia and getattr(resp, "status_code", 0) == 202:
+                try:
+                    pending_payload = resp.json()
+                except Exception as exc:
+                    raise RuntimeError(f"NVIDIA returned HTTP 202 without a readable request ID: {exc}")
+                request_token = (pending_payload.get("requestId")
+                                 or pending_payload.get("request_id")
+                                 or pending_payload.get("id")) if isinstance(pending_payload, dict) else None
+                if not request_token:
+                    raise RuntimeError("NVIDIA accepted the request but did not return a request ID")
+                try:
+                    resp.close()
+                except Exception:
+                    pass
+                status_url = f"{base_url.rstrip('/')}/status/{quote(str(request_token), safe='')}"
+                while True:
+                    _check_deadline()
+                    time.sleep(min(1.0, max(0.0, deadline - time.monotonic())))
+                    _check_deadline()
+                    status_resp = _track(requests.get(
+                        status_url,
+                        headers={**headers, "Accept": "application/json"},
+                        timeout=t_connect_idle,
+                    ))
+                    if getattr(status_resp, "status_code", 0) == 202:
+                        try:
+                            status_payload = status_resp.json()
+                        except Exception:
+                            status_payload = {}
+                        state = str(status_payload.get("status", "pending")).lower() if isinstance(status_payload, dict) else "pending"
+                        if state in {"failed", "error", "cancelled", "canceled"}:
+                            raise RuntimeError(f"NVIDIA request {state}: {status_payload.get('message', status_payload.get('error', ''))}")
+                        try:
+                            status_resp.close()
+                        except Exception:
+                            pass
+                        continue
+                    _raise_for_status(status_resp)
+                    try:
+                        pending_payload = status_resp.json()
+                    except Exception as exc:
+                        raise RuntimeError(f"NVIDIA status response was not valid JSON: {exc}")
+                    if (isinstance(pending_payload, dict)
+                            and isinstance(pending_payload.get("response"), dict)
+                            and not pending_payload.get("choices")):
+                        pending_payload = pending_payload["response"]
+                    try:
+                        status_resp.close()
+                    except Exception:
+                        pass
+                    break
 
             def _create_think_tracker(m_name, p_name):
                 t_act = None
@@ -2106,7 +2177,11 @@ def _stream_ai_once(prompt, system_prompt=DEFAULT_SYSTEM_PROMPT,
             in_reasoning = False
             on_think_chunk, on_think_end = _create_think_tracker(model, provider)
 
-            for line in _lines_with_deadline(resp.iter_lines(decode_unicode=True)):
+            if pending_payload is not None:
+                line_source = ["data: " + json.dumps(pending_payload), "data: [DONE]"]
+            else:
+                line_source = _lines_with_deadline(resp.iter_lines(decode_unicode=True))
+            for line in line_source:
                 if not line or not line.startswith("data:"):
                     continue
                 data_str = line[len("data:"):].strip()
@@ -2528,132 +2603,283 @@ def _unwrap_ddg_url(href):
 _TAG_RE = re.compile(r"<.*?>", re.S)
 
 
-def web_search(query, max_results=5):
-    """Best-effort web search, no API key required. Returns a list of
-    {"title", "url", "snippet"} dicts, or [] if unreachable/blocked —
-    callers should treat an empty list as 'couldn't search right now', not
-    an error. Emits real-time live activity events for search transparency."""
+def is_valid_article_url(url: str) -> bool:
+    """Validates that a destination URL is a legitimate, non-placeholder public HTTP/HTTPS article address."""
+    if not url or not isinstance(url, str):
+        return False
+    u = url.strip()
+    if not u.startswith(("http://", "https://")):
+        return False
+    try:
+        import urllib.parse
+        parsed = urllib.parse.urlparse(u)
+        host = (parsed.netloc or "").lower().split(":")[0]
+        if not host or "." not in host:
+            return False
+        # Localhost/loopback is for local dev, not a public web news article
+        if host in ("localhost", "127.0.0.1", "::1") or host.endswith(".local") or host.endswith(".test"):
+            return False
+        from .browser.browser_state import is_placeholder_url
+        if is_placeholder_url(u):
+            return False
+        return True
+    except Exception:
+        return False
+
+
+def web_search_detailed(query: str, max_results: int = 5) -> dict:
+    """Performs web search across real providers with URL validation,
+    honest failure/rate-limit tracking, and CAT Browser history integration."""
     query = (query or "").strip()
     if not query or not _HAS_REQUESTS:
-        return []
+        return {
+            "ok": False,
+            "query": query,
+            "provider": "none",
+            "results": [],
+            "result_count": 0,
+            "search_url": "",
+            "status": "invalid_query" if not query else "no_network_library",
+            "error_message": "Empty query" if not query else "Requests library not installed",
+        }
+
+    # Dynamically resolve relative temporal queries if applicable
+    search_q = query
+    try:
+        from .temporal import resolve_temporal_query
+        t_res = resolve_temporal_query(query)
+        search_q = t_res.get("refined_query", query)
+    except Exception:
+        pass
 
     try:
         from . import activity as _act
         current_turn = _act.get_current_turn() or ""
         _act.manager.create(
             type=_act.TYPE_TOOL, action="web",
-            title=f"Searching web for \"{query[:40]}\"",
+            title=f'Searching web for "{search_q[:40]}"',
             status=_act.STATUS_RUNNING,
             turn_id=current_turn,
-            details=f"Query: {query}",
+            details=f"Query: {search_q}",
             category=_act.CAT_SEARCH, phase=_act.PHASE_DISCOVERY,
-            query=query
+            query=search_q
         )
     except Exception:
         pass
 
     results = []
+    used_provider = "unknown"
+    search_results_page = ""
+    error_note = ""
+    status = "zero_results"
+
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 CAT-CLI/0.7.9",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
+        "Accept-Language": "en-US,en;q=0.9",
     }
 
-    # Primary: DuckDuckGo HTML
+    import urllib.parse
+    encoded_q = urllib.parse.quote(search_q)
+
+    # 1. Primary: Google News RSS for live factual news and article search
     try:
-        resp = requests.post(
-            "https://html.duckduckgo.com/html/",
-            data={"q": query}, timeout=10,
-            headers=headers,
-        )
-        if resp.status_code == 200:
-            pattern = re.compile(
-                r'result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>.*?'
-                r'result__snippet[^>]*>(.*?)</a>', re.S)
-            for m in pattern.finditer(resp.text):
-                href, title_html, snippet_html = m.groups()
-                title = _html_unescape(_TAG_RE.sub("", title_html)).strip()
-                snippet = _html_unescape(_TAG_RE.sub("", snippet_html)).strip()
-                url = _unwrap_ddg_url(href)
-                if title and url:
-                    results.append({"title": title, "url": url, "snippet": snippet})
+        gnews_url = f"https://news.google.com/rss/search?q={encoded_q}&hl=en-US&gl=US&ceid=US:en"
+        resp = requests.get(gnews_url, headers=headers, timeout=10)
+        if resp.status_code == 200 and resp.content:
+            import xml.etree.ElementTree as ET
+            root = ET.fromstring(resp.content)
+            items = root.findall(".//item")
+            for item in items:
+                title_elem = item.find("title")
+                link_elem = item.find("link")
+                desc_elem = item.find("description")
+                pub_elem = item.find("pubDate")
+                source_elem = item.find("source")
+
+                title = title_elem.text.strip() if (title_elem is not None and title_elem.text) else ""
+                url = link_elem.text.strip() if (link_elem is not None and link_elem.text) else ""
+                desc = desc_elem.text.strip() if (desc_elem is not None and desc_elem.text) else ""
+                source_name = source_elem.text.strip() if (source_elem is not None and source_elem.text) else ""
+                source_url = source_elem.attrib.get("url", "") if source_elem is not None else ""
+                pub_date = pub_elem.text.strip() if (pub_elem is not None and pub_elem.text) else ""
+
+                if desc:
+                    desc_clean = _html_unescape(_TAG_RE.sub(" ", desc)).strip()
+                else:
+                    desc_clean = title
+
+                if is_valid_article_url(url) and title:
+                    results.append({
+                        "title": title,
+                        "url": url,
+                        "snippet": desc_clean,
+                        "source": source_name,
+                        "source_url": source_url,
+                        "date": pub_date,
+                    })
                 if len(results) >= max_results:
                     break
-    except Exception:
-        pass
 
-    # Secondary: DuckDuckGo Lite fallback
+            if results:
+                used_provider = "Google News"
+                search_results_page = f"https://news.google.com/search?q={encoded_q}"
+                status = "success"
+    except Exception as e:
+        error_note = f"Google News: {e}"
+
+    # 2. Secondary: DuckDuckGo HTML / Lite if news returned no items
     if not results:
         try:
             resp = requests.post(
-                "https://lite.duckduckgo.com/lite/",
-                data={"q": query}, timeout=10,
+                "https://html.duckduckgo.com/html/",
+                data={"q": search_q}, timeout=8,
                 headers=headers,
             )
             if resp.status_code == 200:
-                pattern = re.compile(r'class="result-link"[^>]*href="([^"]+)"[^>]*>(.*?)</a>.*?'
-                                     r'class="result-snippet"[^>]*>(.*?)</td>', re.S)
+                pattern = re.compile(
+                    r'result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>.*?'
+                    r'result__snippet[^>]*>(.*?)</a>', re.S)
                 for m in pattern.finditer(resp.text):
                     href, title_html, snippet_html = m.groups()
                     title = _html_unescape(_TAG_RE.sub("", title_html)).strip()
                     snippet = _html_unescape(_TAG_RE.sub("", snippet_html)).strip()
                     url = _unwrap_ddg_url(href)
-                    if title and url:
-                        results.append({"title": title, "url": url, "snippet": snippet})
+                    if title and is_valid_article_url(url):
+                        results.append({"title": title, "url": url, "snippet": snippet, "source": "DuckDuckGo"})
                     if len(results) >= max_results:
                         break
-        except Exception:
-            pass
+                if results:
+                    used_provider = "DuckDuckGo"
+                    search_results_page = f"https://duckduckgo.com/?q={encoded_q}"
+                    status = "success"
+            elif resp.status_code in (202, 429):
+                status = "rate_limited"
+                error_note = "DuckDuckGo bot challenge/rate limit (HTTP 202/429)"
+        except Exception as e:
+            if not error_note:
+                error_note = f"DuckDuckGo: {e}"
 
-    # Tertiary: Wikipedia OpenSearch fallback
+    # 3. Tertiary: Wikipedia OpenSearch fallback
     if not results:
         try:
-            w_url = f"https://en.wikipedia.org/w/api.php?action=opensearch&search={requests.utils.quote(query)}&limit={max_results}&namespace=0&format=json"
-            resp = requests.get(w_url, headers=headers, timeout=8)
+            w_headers = dict(headers)
+            w_headers["User-Agent"] = "CAT-Browser/0.7.9 (Educational AI Project; https://github.com/kazizillani-oss/CAT_v0.7.9; contact: dev@cat.local)"
+            w_url = f"https://en.wikipedia.org/w/api.php?action=opensearch&search={encoded_q}&limit={max_results}&namespace=0&format=json"
+            resp = requests.get(w_url, headers=w_headers, timeout=8)
             if resp.status_code == 200:
                 w_data = resp.json()
                 if len(w_data) >= 4:
                     titles, snippets, urls = w_data[1], w_data[2], w_data[3]
                     for t, s, u in zip(titles, snippets, urls):
-                        results.append({"title": t, "url": u, "snippet": s or t})
+                        if is_valid_article_url(u) and t:
+                            results.append({"title": t, "url": u, "snippet": s or t, "source": "Wikipedia"})
                         if len(results) >= max_results:
                             break
-        except Exception:
-            pass
+                    if results:
+                        used_provider = "Wikipedia"
+                        search_results_page = f"https://en.wikipedia.org/w/index.php?search={encoded_q}"
+                        status = "success"
+            elif resp.status_code in (403, 429):
+                if status != "rate_limited":
+                    status = "rate_limited"
+                error_note = f"Wikipedia API: HTTP {resp.status_code}"
+        except Exception as e:
+            if not error_note:
+                error_note = f"Wikipedia: {e}"
 
+    # Double-check result list against placeholder domains
+    valid_results = [r for r in results if is_valid_article_url(r.get("url", ""))]
+    dest_urls = [r["url"] for r in valid_results]
+
+    final_status = "success" if valid_results else (status if status in ("rate_limited", "failed") else "zero_results")
+    is_ok = bool(valid_results) or (final_status == "zero_results")
+
+    # Record search in CAT Browser shared history
     try:
-        from . import activity as _act
-        current_turn = _act.get_current_turn() or ""
-        _act.manager.create(
-            type=_act.TYPE_TOOL, action="web",
-            title=f"Web search: \"{query[:35]}\" ({len(results)} found)",
-            status=_act.STATUS_COMPLETED if results else _act.STATUS_FAILED,
-            turn_id=current_turn,
-            details=f"Query: {query} \u2014 found {len(results)} items",
-            result=f"{len(results)} results",
-            category=_act.CAT_SEARCH, phase=_act.PHASE_DISCOVERY,
-            query=query
+        from .browser.browser_state import record_ai_search
+        record_ai_search(
+            query=search_q,
+            provider=used_provider if used_provider != "unknown" else "CAT Web Search",
+            search_url=search_results_page,
+            result_count=len(valid_results),
+            destination_urls=dest_urls,
+            status=final_status,
+            search_results=valid_results,
         )
     except Exception:
         pass
 
-    return results
+    # Emit Live Activities transparently
+    try:
+        from . import activity as _act
+        current_turn = _act.get_current_turn() or ""
+        if valid_results:
+            act_status = _act.STATUS_COMPLETED
+            act_title = f'Web search: "{search_q[:35]}" ({len(valid_results)} found)'
+            act_result = f"{len(valid_results)} results"
+            act_details = f"Query: {search_q} — found {len(valid_results)} items via {used_provider}"
+        elif final_status == "zero_results":
+            act_status = _act.STATUS_COMPLETED
+            act_title = f'Web search: "{search_q[:35]}" (0 found)'
+            act_result = "0 results"
+            act_details = f"Query: {search_q} — 0 matching web articles found"
+        else:
+            act_status = _act.STATUS_FAILED
+            act_title = f'Web search failed: "{search_q[:35]}"'
+            act_result = f"Failed ({final_status})"
+            act_details = f"Query: {search_q} — error: {error_note}"
+
+        _act.manager.create(
+            type=_act.TYPE_TOOL, action="web",
+            title=act_title,
+            status=act_status,
+            turn_id=current_turn,
+            details=act_details,
+            result=act_result,
+            category=_act.CAT_SEARCH, phase=_act.PHASE_DISCOVERY,
+            query=search_q
+        )
+    except Exception:
+        pass
+
+    return {
+        "ok": is_ok,
+        "query": search_q,
+        "provider": used_provider,
+        "results": valid_results,
+        "result_count": len(valid_results),
+        "search_url": search_results_page,
+        "status": final_status,
+        "error_message": error_note,
+    }
+
+
+def web_search(query, max_results=5):
+    """Best-effort web search returning a list of {"title", "url", "snippet"}
+    dicts, filtered of placeholder URLs, with honest zero-result/failure reporting."""
+    detailed = web_search_detailed(query, max_results=max_results)
+    return detailed.get("results", [])
 
 
 def fetch_web_page(url, max_chars=8000):
     """Fetch and extract clean readable text content from a web page URL.
-    Returns clean plain text or an explanatory error message, and emits
-    real-time live activity updates."""
+    Returns clean plain text or an explanatory error message, rejecting
+    placeholder documentation domains and recording navigation in history."""
     url = (url or "").strip()
     if not url:
         return "No URL provided."
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
 
+    from .browser.browser_state import is_placeholder_url
+    if is_placeholder_url(url):
+        return f"Error: Cannot fetch documentation placeholder domain '{url}'. This is not an active service or content source."
+
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 CAT-CLI/0.7.9",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
+        "Accept-Language": "en-US,en;q=0.9",
     }
     try:
         from . import activity as _act
@@ -2677,11 +2903,11 @@ def fetch_web_page(url, max_chars=8000):
         if "json" in content_type:
             raw_text = resp.text
         else:
-            html = resp.text
+            html_text = resp.text
             # Remove scripts, styles, metadata
-            html = re.sub(r"(?is)<(script|style|svg|noscript|header|footer|nav).*?>.*?</\1>", " ", html)
+            html_text = re.sub(r"(?is)<(script|style|svg|noscript|header|footer|nav).*?>.*?</>", " ", html_text)
             # Remove html tags
-            text = _TAG_RE.sub(" ", html)
+            text = _TAG_RE.sub(" ", html_text)
             # Unescape entities
             text = _html_unescape(text)
             # Clean excessive whitespace
@@ -2693,6 +2919,15 @@ def fetch_web_page(url, max_chars=8000):
 
         if len(raw_text) > max_chars:
             raw_text = raw_text[:max_chars] + f"\n... [truncated at {max_chars} characters]"
+
+        # Record page visit in CAT Browser shared history
+        try:
+            from .browser.browser_state import record_page_visit
+            title_match = re.search(r"<title>(.*?)</title>", resp.text, re.I | re.S)
+            page_title = title_match.group(1).strip() if title_match else url
+            record_page_visit(url=url, title=page_title)
+        except Exception:
+            pass
 
         try:
             from . import activity as _act
@@ -2727,26 +2962,39 @@ def fetch_web_page(url, max_chars=8000):
         return f"Error fetching web page {url}: {e}"
 
 
-
 def deep_research(topic, num_queries=3, results_per_query=4):
-    """Runs several web searches around different angles of `topic`, then
-    asks the configured AI to synthesize a structured, source-numbered
-    research summary from the actual retrieved snippets (not from the
-    model's own unchecked memory). Returns (summary_text, sources) where
-    sources is a de-duplicated list of {\"title\", \"url\", \"snippet\"} dicts,
-    numbered in the same order referenced as [1], [2]... in the summary."""
+    """Runs several web searches around different angles of `topic`, dynamically
+    anchored to current dates, then synthesizes a structured research summary
+    from the actual retrieved snippets. If 0 sources are retrieved, reports the
+    lack of evidence honestly without hallucinating unverified claims."""
     topic = (topic or "").strip()
     if not topic:
         return "No research topic given.", []
 
-    sub_queries = [topic]
+    # Dynamically resolve relative temporal queries
+    temporal_info = {}
+    try:
+        from .temporal import resolve_temporal_query, get_system_prompt_temporal_block
+        temporal_info = resolve_temporal_query(topic)
+        topic_resolved = temporal_info.get("refined_query", topic)
+    except Exception:
+        topic_resolved = topic
+
+    sub_queries = [topic_resolved]
     config = load_config()
     if config.get("provider"):
+        try:
+            from .temporal import get_system_prompt_temporal_block
+            temporal_prompt = get_system_prompt_temporal_block()
+        except Exception:
+            temporal_prompt = ""
+
         angles_raw = query_ai(
             f"Give exactly {num_queries} short, distinct web-search queries (one per "
             f"line, no numbering, no extra commentary) that together would build a "
-            f"thorough, well-rounded understanding of: {topic}",
-            system_prompt="You output ONLY the search queries, one per line, nothing else.")
+            f"thorough, well-rounded understanding of: {topic_resolved}\n"
+            f"Ensure queries use current dates and never hallucinate outdated years.",
+            system_prompt="You output ONLY the search queries, one per line, nothing else." + temporal_prompt)
         angles = [a.strip("-•*0123456789. ").strip() for a in (angles_raw or "").splitlines() if a.strip()]
         if angles:
             sub_queries = angles[:num_queries]
@@ -2755,14 +3003,13 @@ def deep_research(topic, num_queries=3, results_per_query=4):
     seen_urls = set()
     for q in sub_queries:
         for r in web_search(q, max_results=results_per_query):
-            if r["url"] not in seen_urls:
+            if r["url"] not in seen_urls and is_valid_article_url(r["url"]):
                 seen_urls.add(r["url"])
                 all_results.append(r)
 
     if not all_results:
-        return (f"No web results could be retrieved for '{topic}' — check the "
-                f"internet connection this terminal has, DuckDuckGo may also be "
-                f"rate-limiting/blocking this network."), []
+        return (f"Research completed with 0 verified web sources found for '{topic}'. "
+                f"No factual search results could be retrieved. Cannot synthesize unverified claims without evidence.", [])
 
     evidence = "\n\n".join(
         f"[{i + 1}] {r['title']}\n{r['url']}\n{r['snippet']}"
@@ -2785,12 +3032,19 @@ def deep_research(topic, num_queries=3, results_per_query=4):
     return summary, all_results[:12]
 
 
+
 # ------------------------------------------------------------ file / image import
 # Backs /import (feature 6): local text files get their content read straight
 # into the AI/agent's context; local images get sent to a vision-capable
 # provider (OpenAI/Anthropic/Gemini) so the model can actually "see" them.
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
 TEXT_FILE_MAX_CHARS = 20000
+
+
+AUDIO_EXTS = {".mp3", ".wav", ".ogg", ".flac", ".m4a", ".aac", ".wma", ".opus"}
+VIDEO_EXTS = {".mp4", ".mkv", ".avi", ".mov", ".webm", ".wmv", ".m4v", ".mpg", ".mpeg"}
+_BINARY_EXTS = {".exe", ".dll", ".so", ".dylib", ".bin", ".dat", ".db", ".sqlite",
+                ".sqlite3", ".pyc", ".pdb", ".iso", ".img", ".parquet", ".h5", ".hdf5"}
 
 
 def is_image_file(path):
@@ -2800,6 +3054,16 @@ def is_image_file(path):
 def read_text_file_for_context(path):
     """Returns (content, truncated) or (None, False) on failure."""
     try:
+        if is_image_file(path):
+            return None, False
+        ext = os.path.splitext(str(path))[1].lower()
+        if ext in _BINARY_EXTS or ext in AUDIO_EXTS or ext in VIDEO_EXTS:
+            return None, False
+        # Fast null-byte probe to prevent decoding raw binary files as text
+        with open(path, "rb") as bf:
+            sample = bf.read(1024)
+            if b"\x00" in sample:
+                return None, False
         with open(path, "r", encoding="utf-8", errors="replace") as f:
             content = f.read(TEXT_FILE_MAX_CHARS + 1)
         truncated = len(content) > TEXT_FILE_MAX_CHARS
@@ -2817,10 +3081,6 @@ def read_text_file_for_context(path):
 # metadata + a best-effort text-layer extraction (stdlib-only — no pypdf in
 # this environment); audio/video report what's known (size/ext) and say
 # plainly when a metadata library isn't installed. Never fabricated data.
-AUDIO_EXTS = {".mp3", ".wav", ".ogg", ".flac", ".m4a", ".aac", ".wma", ".opus"}
-VIDEO_EXTS = {".mp4", ".mkv", ".avi", ".mov", ".webm", ".wmv", ".m4v", ".mpg", ".mpeg"}
-_BINARY_EXTS = {".exe", ".dll", ".so", ".dylib", ".bin", ".dat", ".db", ".sqlite",
-                ".sqlite3", ".pyc", ".pdb", ".iso", ".img", ".parquet", ".h5", ".hdf5"}
 
 
 def _human_size(n):

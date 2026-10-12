@@ -1,0 +1,40 @@
+/* Used only when Fomoji is embedded in CAT Browser. Keep useful interaction
+   feedback while preventing decorative effects from consuming frame time. */
+html.cat-browser-renderer *,
+html.cat-browser-renderer *::before,
+html.cat-browser-renderer *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  animation: none !important;
+  animation-duration: 0s !important;
+  transition-duration: 120ms !important;
+  scroll-behavior: auto !important;
+  will-change: auto !important;
+}
+
+html.cat-browser-renderer .toast {
+  animation: toast-in 160ms ease-out both !important;
+}
+
+html.cat-browser-renderer .card { animation: card-in 180ms ease-out both !important; }
+html.cat-browser-renderer .modal-box { animation: sheet-in 160ms ease-out both !important; }
+html.cat-browser-renderer .topbar { animation: fade-down 160ms ease-out both !important; }
+html.cat-browser-renderer .tabbar { animation: tabbar-in 180ms ease-out both !important; }
+html.cat-browser-renderer .tab.is-active { animation: tab-pop 140ms ease-out both !important; }
+html.cat-browser-renderer .dash-grid > *,
+html.cat-browser-renderer .dash-links > *,
+html.cat-browser-renderer .settings-main > .panel,
+html.cat-browser-renderer .about-section,
+html.cat-browser-renderer .flow-step,
+html.cat-browser-renderer .mode-cards > .mode-card {
+  animation: group-in 160ms ease-out both !important;
+  animation-delay: 0ms !important;
+}
+html.cat-browser-renderer .ascii-line { animation: ascii-in 140ms ease-out both !important; }
+
+html.cat-browser-renderer button,
+html.cat-browser-renderer [role="button"],
+html.cat-browser-renderer a {
+  transition-property: color, background-color, border-color, opacity, transform !important;
+  transition-duration: 120ms !important;
+}

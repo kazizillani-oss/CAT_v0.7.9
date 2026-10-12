@@ -15,6 +15,8 @@ aren't available, primary chat UI otherwise.
 
 import argparse
 import os
+import pathlib
+import re
 import sys
 
 if sys.platform == "win32":
@@ -82,6 +84,14 @@ def get_command_safety(argv=None) -> dict:
             "safe_to_automate": True,
             "changes_state": False,
             "reason": "Displays command-line help documentation and exits without modifying state.",
+        }
+
+    if args and args[0] in ("mascot", "--mascot", "mascots", "--mascots"):
+        return {
+            "classification": SAFETY_READ_ONLY,
+            "safe_to_automate": True,
+            "changes_state": False,
+            "reason": "Launches the interactive Page Mascot studio in Fatty CAT.",
         }
 
     # 2. STATE-CHANGING / NOT SAFE FOR UNATTENDED AUTOMATION
@@ -175,8 +185,10 @@ def _usage(prog: str = None) -> str:
         "  publish [msg]   same as push — synchronized GitHub update workflow\n"
         "  update --check  check for newer releases from official GitHub repository\n"
         "  --auth <cmd>    Fomoji auth: status | login | logout | whoami\n"
-        "  browse [url]    open CAT Browser (real HTML/CSS/JS via QWebEngineView)\n"
-        "  --browser [url] same as `browse`\n"
+        "  browse, open, view [target]  open CAT Browser at URL, local file (PDF/image/doc), or page\n"
+        "  terminal, cli   launch native CAT CLI interactive terminal\n"
+        "  fomoji          open Fomoji Identity Portal in CAT Browser\n"
+        "  viewer [file]   open Document & Media Viewer in CAT Browser\n"
         "  fatty, web      launch Fatty CAT in CAT Browser (starts server on :8765)\n"
         "  server          start Fatty CAT server in foreground (:8765)\n"
         "  vision          CAT Vision commands: start | stop | pause | analyze | screenshot | clear\n"
@@ -189,6 +201,9 @@ def _usage(prog: str = None) -> str:
         "  backup, restore local backup & restore of user state\n"
         "  integrations    external platform & tool integrations: list | status | connect\n"
         "  import, export  import/export portable .cat files (agents, missions)\n"
+        "  extensions      manage extensions: list | info | install | uninstall | update | enable | disable\n"
+        "  skills          manage Kitty skills: list | info\n"
+        "  commands        custom CLI commands: list\n"
         "\n"
         "Automation safety:\n"
         "  Read-only (safe to automate):\n"
@@ -223,6 +238,8 @@ def _usage(prog: str = None) -> str:
         f"  {prog} hardware        inspect hardware accelerators, CUDA, PyTorch, and VRAM\n"
         f"  {prog} fatty           launch Fatty CAT (opens browser + starts server)\n"
         f"  {prog} browse https://example.com   open CAT Browser at a URL\n"
+        f"  {prog} terminal                     launch native CAT CLI interactive terminal\n"
+        f"  {prog} fomoji                       launch Fomoji Portal in CAT Browser\n"
     )
 
 
@@ -1143,8 +1160,8 @@ def main(argv=None):
         return 2
 
     # --- Fatty CAT Web / PWA Server & Launcher ---------------------------
-    # `cat fatty` / `cat web` / `cat server` / `cat --fatty` / `cat --web`
-    if argv and argv[0] in ("fatty", "--fatty", "web", "--web", "pwa", "--pwa", "server", "--server"):
+    # `cat fatty` / `cat web` / `cat server` / `cat --fatty` / `cat --web` / `cat mascot`
+    if argv and argv[0] in ("fatty", "--fatty", "web", "--web", "pwa", "--pwa", "server", "--server", "mascot", "--mascot", "mascots", "--mascots"):
         cmd = argv[0].lstrip("-")
         try:
             from .web.server import ensure_fatty_server, is_server_running, main as _server_main
@@ -1165,8 +1182,11 @@ def main(argv=None):
                 print(f"cat server error: {e}", file=sys.stderr)
                 return 1
 
-        # `cat fatty` or `cat web`: ensure server is running, then open browser
-        print("Launching Fatty CAT at http://localhost:8765 ...")
+        # `cat fatty` or `cat web` or `cat mascot`: ensure server is running, then open browser
+        if cmd in ("mascot", "mascots"):
+            print("🐾 Launching Fatty CAT Mascot Studio (Chibi Otter & Fatty Cat) at http://localhost:8765/ ...")
+        else:
+            print("Launching Fatty CAT at http://localhost:8765 ...")
         if not is_server_running():
             print("Starting background Fatty CAT server...")
             if not ensure_fatty_server(timeout=10.0, auto_start=True):
@@ -1198,22 +1218,59 @@ def main(argv=None):
     # --- CAT Browser (real Qt WebEngine / Chromium) ----------------------
     # `cat browse [url]` / `cat --browser [url]` — opens CAT's real browser
     # using QWebEngineView (Chromium via Qt WebEngine). Real HTML/CSS/JS.
-    if argv and argv[0] in ("browse", "--browse", "--browser", "browser", "--host", "--host-browser", "host", "/cat", "cat-browser"):
+    # --- CAT Browser (real Qt WebEngine / Chromium) ----------------------
+    # `cat browse [url]` / `cat open [target]` / `cat view [target]` — opens CAT's real browser
+    # using QWebEngineView (Chromium via Qt WebEngine). Real HTML/CSS/JS.
+    if argv and argv[0] in ("browse", "--browse", "--browser", "browser", "open", "--open", "view", "--view", "preview", "--preview", "viewer", "--viewer", "--host", "--host-browser", "host", "/cat", "cat-browser"):
         _browse_args = argv[1:]
-        url = _browse_args[0] if _browse_args else None
+        if "--status" in _browse_args or "-s" in _browse_args:
+            try:
+                from .host.launcher import get_host_status
+                import json
+                print(json.dumps(get_host_status(), indent=2))
+                return 0
+            except Exception as e:
+                print(f"cat: status error: {e}", file=sys.stderr)
+                return 1
+
+        no_block = "--no-block" in _browse_args
+        clean_args = [a for a in _browse_args if not a.startswith("-")]
+        url = clean_args[0] if clean_args else None
         if url and url.lower() in ("fatty", "--fatty", "web", "--web"):
             url = "http://localhost:8765/"
-        if url and url.startswith("-"):
-            print(_usage())
-            print(f"cat: error: unexpected argument for browse: {url}")
-            return 2
+        elif url and url.lower() in ("terminal", "--terminal", "cli", "--cli", "console", "cat terminal"):
+            url = "about:home"
+        elif url and url.lower() in ("fomoji", "login", "auth", "portal"):
+            url = "http://localhost:3000/home.html"
+        elif url and url.lower() in ("viewer", "docs", "document"):
+            url = "http://localhost:8765/viewer.html"
+        elif url:
+            # Check if it is a local file on disk
+            try:
+                p = pathlib.Path(url).expanduser()
+                if p.is_file():
+                    if argv[0].lstrip("-") == "viewer":
+                        # Keep the document inside CAT's viewer so it receives
+                        # the format-aware PDF/image/table/code preview.
+                        from urllib.parse import quote
+                        from .web.server import ensure_fatty_server, is_server_running
+                        if not is_server_running():
+                            if not ensure_fatty_server(timeout=10.0, auto_start=True):
+                                raise RuntimeError("Fatty CAT's local file viewer could not start")
+                        url = "http://localhost:8765/viewer.html?path=" + quote(str(p.resolve()), safe="")
+                    else:
+                        url = p.resolve().as_uri()
+            except Exception:
+                pass
+
         # Try the real browser first (Qt WebEngine / Chromium)
         try:
             from .host.launcher import launch_cat_host, can_launch_host
             if can_launch_host():
                 return launch_cat_host(
-                    start_browser_url=url,
-                    start_mode="browser" if url else "terminal",
+                    start_browser_url=url or "about:home",
+                    start_mode="browser",
+                    block=not no_block,
                 )
         except SystemExit:
             raise
@@ -1229,6 +1286,49 @@ def main(argv=None):
         print("Install PySide6 for real HTML/CSS/JS rendering in CAT Browser:", file=sys.stderr)
         print("  pip install PySide6", file=sys.stderr)
         return 1
+
+    # --- Fomoji Authentication Portal & Dashboard -----------------------
+    # `cat fomoji` / `cat --fomoji` — opens Fomoji portal in CAT Browser
+    if argv and argv[0] in ("fomoji", "--fomoji"):
+        fomoji_sub = argv[1] if len(argv) > 1 and not argv[1].startswith("-") else "home"
+        fomoji_url = "http://localhost:3000/home.html"
+        if fomoji_sub in ("login", "auth"):
+            fomoji_url = "http://localhost:3000/login.html"
+        elif fomoji_sub in ("settings", "config"):
+            fomoji_url = "http://localhost:3000/settings.html"
+        elif fomoji_sub.startswith("http"):
+            fomoji_url = fomoji_sub
+
+        print("Launching Fomoji Portal in CAT Browser...")
+        try:
+            from .fomoji_manager import check_server_reachable, initialize_fomoji_subsystem
+            if not check_server_reachable(timeout=0.8):
+                print("Starting Fomoji server on port 3000...")
+                initialize_fomoji_subsystem(interactive=False)
+        except Exception:
+            pass
+
+        try:
+            from .host.launcher import launch_cat_host, can_launch_host
+            if can_launch_host():
+                return launch_cat_host(start_browser_url=fomoji_url, start_mode="browser", block=True)
+        except SystemExit:
+            raise
+        except Exception:
+            pass
+        try:
+            from .browser_gui.qt_browser import launch_qt_browser
+            return launch_qt_browser(start_url=fomoji_url)
+        except Exception:
+            pass
+        import webbrowser
+        webbrowser.open(fomoji_url)
+        return 0
+
+    # --- Native CAT CLI Terminal ----------------------------------------
+    # `cat terminal` / `cat cli` / `cat --terminal` / `cat --cli`
+    if argv and argv[0] in ("terminal", "--terminal", "cli", "--cli", "console", "--console"):
+        return _launch_cat_terminal()
 
     # --- Hardware & ML Accelerators Profiler ----------------------------
     if argv and argv[0] in ("hardware", "--hardware"):
@@ -1301,6 +1401,30 @@ def main(argv=None):
         from .cli_commands import cat_file_cli
         return cat_file_cli(argv)
 
+    # --- Extensions, Skills & Custom Commands System --------------------
+    if argv and argv[0] in ("extensions", "--extensions", "extension", "--extension"):
+        from .cli_commands import extensions_cli
+        return extensions_cli(argv)
+
+    if argv and argv[0] in ("skills", "--skills", "skill", "--skill"):
+        from .cli_commands import skills_cli
+        return skills_cli(argv)
+
+    if argv and argv[0] in ("commands", "--commands", "command", "--command"):
+        from .cli_commands import commands_cli
+        return commands_cli(argv)
+
+    # --- Custom Commands Dispatch from Extensions -----------------------
+    if argv and not argv[0].startswith("-"):
+        try:
+            from .commands_registry import get_command_registry
+            cmd_reg = get_command_registry()
+            matched_cmd = cmd_reg.get(argv[0])
+            if matched_cmd:
+                return cmd_reg.dispatch(argv)
+        except Exception:
+            pass
+
     # Optional single positional: the workspace/project directory.
     path = None
     rest = []
@@ -1319,11 +1443,45 @@ def main(argv=None):
         return 2
 
     if path is not None:
-        # `cct .` means "stay in the current directory"; any other path
-        # must exist and be a directory before we change into it, so a
-        # typo fails with a clear message instead of launching CCT in
-        # whatever directory the shell happened to be in.
+        # 1. Direct URL check (http://, https://, file://)
+        if re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", path):
+            print(f"Opening {path} in CAT Browser...")
+            try:
+                from .host.launcher import launch_cat_host, can_launch_host
+                if can_launch_host():
+                    return launch_cat_host(start_browser_url=path, start_mode="browser", block=True)
+            except Exception:
+                pass
+            try:
+                from .browser_gui.qt_browser import launch_qt_browser
+                return launch_qt_browser(start_url=path)
+            except Exception:
+                pass
+            import webbrowser
+            webbrowser.open(path)
+            return 0
+
         expanded = os.path.abspath(os.path.expanduser(path))
+        # 2. Local file on disk (image, PDF, document, code, text, HTML, etc.) -> open in CAT Browser!
+        if os.path.isfile(expanded):
+            file_uri = pathlib.Path(expanded).resolve().as_uri()
+            print(f"Opening file in CAT Browser: {expanded}")
+            try:
+                from .host.launcher import launch_cat_host, can_launch_host
+                if can_launch_host():
+                    return launch_cat_host(start_browser_url=file_uri, start_mode="browser", block=True)
+            except Exception:
+                pass
+            try:
+                from .browser_gui.qt_browser import launch_qt_browser
+                return launch_qt_browser(start_url=file_uri)
+            except Exception:
+                pass
+            import webbrowser
+            webbrowser.open(file_uri)
+            return 0
+
+        # 3. Must be an existing directory to serve as workspace
         if not os.path.isdir(expanded):
             print(f"cat: error: not a directory: {expanded}", file=sys.stderr)
             return 2
@@ -1351,6 +1509,8 @@ def _launch_cat_terminal():
     model.py setup wizard, /ai chat, /agent notebook, etc."""
     from .terminal_host import sanitize_terminal, install_terminal_guard
     install_terminal_guard()
+    boot_stop = None
+    boot_thread = None
     try:
         try:
             from .terminal_identity import init_terminal_identity
@@ -1369,7 +1529,25 @@ def _launch_cat_terminal():
         try:
             if sys.stdout.isatty():
                 sys.stdout.write("\033[?25l")  # hide cursor
-                sys.stdout.write("\r\033[K \033[38;2;137;180;250m⠋\033[0m \033[1;38;2;203;166;247mCAT CLI\033[0m \033[38;2;147;154;183mv0.8.0\033[0m \033[2m— Initializing Terminal OS & AI Engine...\033[0m\r")
+                import threading
+                boot_stop = threading.Event()
+
+                def _animate_boot():
+                    width, block, frame = 22, 6, 0
+                    while not boot_stop.wait(0.09):
+                        pos = frame % (width - block + 1)
+                        bar = "·" * pos + "━" * block + "·" * (width - pos - block)
+                        sys.stdout.write(
+                            "\r\033[K  \033[38;2;137;180;250m✦\033[0m "
+                            "\033[1;38;2;203;166;247mCAT CLI\033[0m "
+                            "\033[2mStarting workspace and AI runtime\033[0m  "
+                            f"\033[38;2;137;180;250m[{bar}]\033[0m"
+                        )
+                        sys.stdout.flush()
+                        frame += 1
+
+                boot_thread = threading.Thread(target=_animate_boot, name="cat-cli-boot", daemon=True)
+                boot_thread.start()
                 sys.stdout.flush()
         except Exception:
             pass
@@ -1388,6 +1566,12 @@ def _launch_cat_terminal():
             "provider": config.get("provider") or "none",
             "model": config.get("model") or "none",
         }
+        if boot_stop is not None:
+            boot_stop.set()
+            if boot_thread is not None:
+                boot_thread.join(timeout=0.3)
+            sys.stdout.write("\r\033[K\033[?25h")
+            sys.stdout.flush()
         ok, msg = launch_chat_app(repl, repl.history, stats)
         if not ok:
             try:
@@ -1400,6 +1584,10 @@ def _launch_cat_terminal():
             repl.run()
         return 0
     finally:
+        if boot_stop is not None:
+            boot_stop.set()
+            if boot_thread is not None and boot_thread.is_alive():
+                boot_thread.join(timeout=0.3)
         sanitize_terminal()
 
 
@@ -1441,7 +1629,10 @@ def bootstrap():
         return _launch_cat_terminal()
 
     # Check if user is already authenticated
-    auth_status = status()
+    try:
+        auth_status = status()
+    except Exception:
+        auth_status = "server_unreachable"
 
     if auth_status == "connected":
         # Already authenticated - launch CAT terminal directly
@@ -1467,6 +1658,18 @@ def bootstrap():
             print()
         except Exception:
             print("\n  Already authenticated. Launching CAT CLI...\n")
+        return _launch_cat_terminal()
+
+    if auth_status == "server_unreachable":
+        os.environ["CAT_ALLOW_NO_AUTH"] = "1"
+        try:
+            from . import theme
+            theme.enable_windows_ansi()
+            print(theme.orange("  ⚠ Fomoji identity server is unreachable."))
+            print(theme.dim("    Launching CAT CLI in standalone offline mode...\n"))
+        except Exception:
+            print("  ⚠ Fomoji identity server is unreachable.")
+            print("    Launching CAT CLI in standalone offline mode...\n")
         return _launch_cat_terminal()
 
     if auth_status == "expired":
@@ -1536,11 +1739,11 @@ def bootstrap():
         auth_result["error"] = "Timed out waiting for approval."
         auth_result["done"] = True
 
-    # Ask user if they want to open the browser
+    # Ask user if they want to open the CAT browser
     open_browser = True
     if sys.stdin.isatty() and sys.stdout.isatty():
         try:
-            answer = input("\n  Open browser now? (y/n): ").strip().lower()
+            answer = input("\n  Open CAT browser now? (y/n): ").strip().lower()
         except (EOFError, KeyboardInterrupt):
             answer = "n"
         if answer != "y":
@@ -1548,71 +1751,31 @@ def bootstrap():
             fomoji_base = get_fomoji_url()
             sign_in_url = f"{fomoji_base}/index.html?redirect_uri=/connector.html&code={user_code}"
             sign_up_url = f"{fomoji_base}/signup.html?redirect_uri=/connector.html&code={user_code}"
-            print("\n  Skipping browser. You can open it manually in any browser:")
+            print("\n  Skipping CAT browser launch.")
+            print("  Fomoji is accessible exclusively via CAT Browser.")
+            print("  To open in CAT browser later, run: cat browse")
             print(f"  Sign In: {sign_in_url}")
             print(f"  Sign Up: {sign_up_url}")
             print(f"  Your code: {user_code}\n")
 
-    if not open_browser:
-        # Poll without a browser window
-        poll_thread = threading.Thread(target=_poll_for_approval, daemon=True)
-        poll_thread.start()
+    if open_browser:
         try:
-            while not auth_result["done"]:
-                _time.sleep(1)
-        except KeyboardInterrupt:
-            print("\n  Login cancelled.\n")
-            return 1
-        if auth_result["identity"]:
-            name = auth_result["identity"].get("name", "?")
-            print(f"\n  ✓ Authenticated as {name}")
-            return _launch_cat_terminal()
-        elif auth_result["error"]:
-            print(f"\n  {auth_result['error']}\n")
-            return 1
-        return 1
+            from .host.launcher import launch_cat_host
+            print("\n  Opening CAT browser...")
+            launch_cat_host(start_browser_url=verification_url, start_mode="browser", block=False)
+        except Exception as e:
+            print(f"\n  [CAT Browser] Launch note: {e}")
 
-    # Open browser for verification
-    from .host.launcher import create_browser_window
-    _time.sleep(1.5)
-
-    app, window, _ = create_browser_window(
-        start_browser_url=verification_url,
-        start_mode="browser",
-    )
-
-    def _close_browser():
-        try:
-            for w in app.topLevelWidgets():
-                if hasattr(w, 'close'):
-                    w.close()
-                    return
-        except Exception:
-            pass
-
-    # Timer on the main thread that polls the flag and closes when set
-    try:
-        from PySide6.QtCore import QTimer as _QTimer
-        _close_timer = _QTimer()
-        _close_timer.setInterval(200)
-        _close_timer.timeout.connect(lambda: _close_browser() if _close_requested.is_set() else None)
-        _close_timer.start()
-    except Exception:
-        try:
-            from PyQt6.QtCore import QTimer as _QTimer
-            _close_timer = _QTimer()
-            _close_timer.setInterval(200)
-            _close_timer.timeout.connect(lambda: _close_browser() if _close_requested.is_set() else None)
-            _close_timer.start()
-        except Exception:
-            pass
-
-    # Poll in background thread
+    # Poll in background thread while CLI terminal waits cleanly
     poll_thread = threading.Thread(target=_poll_for_approval, daemon=True)
     poll_thread.start()
 
-    # Start Qt event loop - BLOCKS until browser window closed (after approval)
-    app.exec()  # type: ignore
+    try:
+        while not auth_result["done"]:
+            _time.sleep(0.5)
+    except KeyboardInterrupt:
+        print("\n  Login cancelled.\n")
+        return 1
 
     # After authentication, verify session and launch CAT terminal
     if auth_result["identity"]:

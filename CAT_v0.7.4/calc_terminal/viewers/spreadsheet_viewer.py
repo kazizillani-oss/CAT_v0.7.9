@@ -62,10 +62,10 @@ class SpreadsheetViewer(Vertical):
             return
 
         ext = os.path.splitext(self.path)[1].lower()
-        if ext == ".csv":
+        if ext in (".csv", ".tsv"):
             try:
                 with open(self.path, "r", encoding="utf-8", errors="replace", newline="") as f:
-                    reader = csv.reader(f)
+                    reader = csv.reader(f, delimiter="\t" if ext == ".tsv" else ",")
                     rows = [r for r in list(reader)[:500]]
                 self._sheets["Sheet1"] = rows
                 self._sheet_names = ["Sheet1"]

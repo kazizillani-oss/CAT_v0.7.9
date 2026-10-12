@@ -63,6 +63,7 @@ class AgentSpec:
     backup_provider: str = "automatic"       # "automatic" | "none" | specific provider id
     workspace_scope: Optional[str] = None    # optional path binding
     tags: List[str] = field(default_factory=list)
+    skills: List[str] = field(default_factory=list)
     category: str = "custom"                 # "core" | "coding" | "research" | "system" | "custom"
     enabled: bool = True
     builtin: bool = False

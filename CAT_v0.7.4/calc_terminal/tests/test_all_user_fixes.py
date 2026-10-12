@@ -530,6 +530,11 @@ def test_fomoji_auth_cli_signup_routing(monkeypatch):
     monkeypatch.setattr(fomoji_auth, "_device_start", lambda perms: mock_start)
     opened_urls = []
     monkeypatch.setattr("webbrowser.open", lambda u: opened_urls.append(u))
+    try:
+        from calc_terminal.host import launcher
+        monkeypatch.setattr(launcher, "launch_cat_host", lambda start_browser_url=None, **kw: opened_urls.append(start_browser_url) or 0)
+    except Exception:
+        pass
     monkeypatch.setattr(fomoji_auth, "_print_device_prompt", lambda code, url: None)
 
     # Immediately report local credential sync

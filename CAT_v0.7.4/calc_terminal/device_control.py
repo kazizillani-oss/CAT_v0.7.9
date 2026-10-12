@@ -184,10 +184,18 @@ class DesktopProvider(DeviceProvider):
             effect = f"Sends keyboard keystrokes to active window: '{target}'"
         elif act in ("click", "mouse"):
             effect = f"Performs mouse interaction: {target}"
-        elif act in ("clipboard", "clip"):
+        elif act in ("clipboard", "clip", "get_clipboard", "read_clipboard", "set_clipboard", "write_clipboard"):
             effect = f"Interacts with system clipboard: {target}"
-        elif act in ("system_info", "sysinfo", "info"):
-            effect = "Inspects host computer hardware, OS, and process status"
+        elif act in ("system_info", "sysinfo", "info", "system_status", "status"):
+            effect = "Inspects host computer hardware, OS, CPU/RAM, and system status"
+        elif act in ("list_processes", "ps", "processes"):
+            effect = "Lists top running host processes by CPU and memory consumption"
+        elif act in ("kill_process", "kill", "stop_process"):
+            effect = f"Terminates host process: {target}"
+        elif act in ("reveal_file", "explore", "show_file"):
+            effect = f"Reveals path in system file explorer: {target}"
+        elif act in ("window_action", "window"):
+            effect = f"Performs window management action: {target}"
         else:
             effect = f"Executes desktop automation '{action}' on target '{target}'"
         return {
@@ -201,16 +209,102 @@ class DesktopProvider(DeviceProvider):
         action = plan.get("action", "").lower()
         target = plan.get("target", "") or plan.get("command", "")
 
-        # System info inspection
-        if action in ("system_info", "sysinfo", "info"):
+        # System info & status inspection
+        if action in ("system_info", "sysinfo", "info", "system_status", "status"):
             try:
                 import platform
                 os_str = f"{platform.system()} {platform.release()} ({platform.version()})"
                 cpu = platform.processor() or platform.machine()
-                info = f"OS: {os_str}\nProcessor: {cpu}\nPython: {sys.version.split()[0]}"
-                return {"ok": True, "output": info, "note": "System info retrieved"}
+                lines = [f"OS: {os_str}", f"Processor: {cpu}", f"Python: {sys.version.split()[0]}"]
+                try:
+                    import psutil
+                    vm = psutil.virtual_memory()
+                    lines.append(f"Memory: {vm.percent}% used ({vm.used // (1024**2)} MB / {vm.total // (1024**2)} MB)")
+                    lines.append(f"CPU Usage: {psutil.cpu_percent(interval=0.1)}%")
+                    disk = psutil.disk_usage(os.getcwd())
+                    lines.append(f"Disk: {disk.percent}% used ({disk.free // (1024**3)} GB free)")
+                except Exception:
+                    pass
+                return {"ok": True, "output": "\n".join(lines), "note": "System status retrieved"}
             except Exception as e:
                 return {"ok": True, "output": f"OS: {sys.platform}", "note": str(e)}
+
+        # Process listing
+        if action in ("list_processes", "ps", "processes"):
+            try:
+                if sys.platform == "win32":
+                    ps_cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+                              "Get-Process | Sort-Object -Property CPU -Descending | Select-Object -First 25 -Property Id, ProcessName, CPU, @{Name='MemoryMB';Expression={[math]::Round($_.WorkingSet64 / 1MB, 1)}} | Format-Table -AutoSize | Out-String -Width 120"]
+                    proc = subprocess.run(ps_cmd, capture_output=True, text=True, timeout=20, encoding="utf-8", errors="replace")
+                    out = proc.stdout.strip() or "No processes found."
+                else:
+                    proc = subprocess.run(["ps", "aux", "--sort=-%cpu"], capture_output=True, text=True, timeout=10, encoding="utf-8", errors="replace")
+                    lines = (proc.stdout or "").splitlines()[:26]
+                    out = "\n".join(lines) or "No processes found."
+                return {"ok": True, "output": out, "note": "Process list retrieved"}
+            except Exception as e:
+                return {"ok": False, "note": f"Failed to list processes: {e}"}
+
+        # Kill process
+        if action in ("kill_process", "kill", "stop_process"):
+            try:
+                if not target:
+                    return {"ok": False, "note": "No PID or process name specified to kill"}
+                target_str = str(target).strip()
+                if sys.platform == "win32":
+                    if target_str.isdigit():
+                        cmd = f"taskkill /F /PID {target_str}"
+                    else:
+                        img = target_str if target_str.lower().endswith(".exe") else f"{target_str}.exe"
+                        cmd = f"taskkill /F /IM {img}"
+                else:
+                    cmd = f"kill -9 {target_str}" if target_str.isdigit() else f"pkill -f {target_str}"
+                proc = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=15, encoding="utf-8", errors="replace")
+                out = ((proc.stdout or "") + (proc.stderr or "")).strip()
+                return {"ok": proc.returncode == 0, "output": out or "Process terminated", "note": f"Terminated {target}"}
+            except Exception as e:
+                return {"ok": False, "note": f"Failed to kill process: {e}"}
+
+        # Reveal file in OS file explorer
+        if action in ("reveal_file", "explore", "show_file"):
+            try:
+                target_path = os.path.abspath(target or ".")
+                if sys.platform == "win32":
+                    if os.path.isfile(target_path):
+                        subprocess.Popen(f'explorer /select,"{target_path}"', shell=True)
+                    else:
+                        os.startfile(target_path)
+                elif sys.platform == "darwin":
+                    subprocess.Popen(["open", "-R", target_path])
+                else:
+                    subprocess.Popen(["xdg-open", os.path.dirname(target_path) if os.path.isfile(target_path) else target_path])
+                return {"ok": True, "note": f"Revealed '{target_path}' in system file explorer"}
+            except Exception as e:
+                return {"ok": False, "note": f"Failed to reveal file: {e}"}
+
+        # Clipboard operations
+        if action in ("clipboard", "clip", "get_clipboard", "read_clipboard", "set_clipboard", "write_clipboard"):
+            try:
+                is_set = action in ("set_clipboard", "write_clipboard") or (bool(target) and action in ("clipboard", "clip") and not target.lower() in ("get", "read"))
+                if is_set:
+                    if sys.platform == "win32":
+                        escaped_val = str(target).replace("'", "''")
+                        ps_script = f"Set-Clipboard -Value '{escaped_val}'"
+                        subprocess.run(["powershell", "-NoProfile", "-Command", ps_script], timeout=10)
+                    else:
+                        p = subprocess.Popen(["pbcopy" if sys.platform == "darwin" else "xclip", "-selection", "clipboard"], stdin=subprocess.PIPE)
+                        p.communicate(input=target.encode("utf-8"))
+                    return {"ok": True, "note": "Copied text to clipboard"}
+                else:
+                    if sys.platform == "win32":
+                        proc = subprocess.run(["powershell", "-NoProfile", "-Command", "Get-Clipboard"], capture_output=True, text=True, timeout=10)
+                        clip_val = proc.stdout.strip()
+                    else:
+                        proc = subprocess.run(["pbpaste" if sys.platform == "darwin" else "xclip", "-o"], capture_output=True, text=True, timeout=10)
+                        clip_val = proc.stdout.strip()
+                    return {"ok": True, "output": clip_val, "note": "Read clipboard content"}
+            except Exception as e:
+                return {"ok": False, "note": f"Clipboard operation failed: {e}"}
 
         # Launch desktop applications
         if action in ("launch_app", "open_app", "launch", "open"):
@@ -280,10 +374,10 @@ class DesktopProvider(DeviceProvider):
 
 
 class AndroidProvider(DeviceProvider):
-    """Android Device & Emulator Automation via adb (devices, shell, input, install, push/pull)."""
+    """Android Device & Emulator Automation via adb (devices, shell, input, install, push/pull, UI dump)."""
     key = "android"
     label = "Android Device Automation"
-    description = "Android automation via adb (devices, shell, tap, swipe, keyevent, install, file transfer)."
+    description = "Android automation via adb (devices, shell, tap, swipe, keyevent, install, UI hierarchy inspection)."
 
     def _find_adb(self):
         adb = shutil.which("adb")
@@ -311,6 +405,18 @@ class AndroidProvider(DeviceProvider):
         if act in ("devices", "list"):
             cmd = "adb devices -l"
             effect = "Lists all connected Android devices, phones, and emulators"
+        elif act in ("dump_ui", "hierarchy", "inspect_ui", "ui_dump"):
+            cmd = "adb exec-out uiautomator dump /dev/tty"
+            effect = "Inspects Android screen UI element hierarchy, IDs, and coordinates"
+        elif act in ("launch_app", "start_app", "open_app"):
+            cmd = f"adb shell monkey -p {target} -c android.intent.category.LAUNCHER 1"
+            effect = f"Launches Android application package: {target}"
+        elif act in ("current_app", "focused_app", "active_app"):
+            cmd = 'adb shell dumpsys window'
+            effect = "Inspects currently focused Android app package and activity"
+        elif act in ("uninstall",):
+            cmd = f"adb uninstall {target}"
+            effect = f"Uninstalls package '{target}' from Android device"
         elif act in ("shell", "cmd"):
             cmd = f"adb shell {target}"
             effect = f"Runs shell command on Android device: {target}"
@@ -344,7 +450,43 @@ class AndroidProvider(DeviceProvider):
 
     def execute(self, plan):
         adb = self._find_adb()
+        action = plan.get("action", "").lower()
+        target = plan.get("target", "")
         cmd = plan.get("command", "")
+
+        # Intelligent UI hierarchy dump for autonomous screen element targeting
+        if action in ("dump_ui", "hierarchy", "inspect_ui", "ui_dump"):
+            try:
+                proc = subprocess.run(f'"{adb}" exec-out uiautomator dump /dev/tty', shell=True, capture_output=True, text=True, timeout=30, encoding="utf-8", errors="replace")
+                out = proc.stdout.strip()
+                if not out or "<hierarchy" not in out:
+                    # Fallback method: dump to device storage then read
+                    subprocess.run(f'"{adb}" shell uiautomator dump /sdcard/window_dump.xml', shell=True, timeout=15)
+                    cat_proc = subprocess.run(f'"{adb}" shell cat /sdcard/window_dump.xml', shell=True, capture_output=True, text=True, timeout=15, encoding="utf-8", errors="replace")
+                    out = cat_proc.stdout.strip()
+                if out:
+                    # Extract concise element list for easy agent consumption
+                    elements = re.findall(r'<node[^>]*text="([^"]*)"[^>]*resource-id="([^"]*)"[^>]*bounds="([^"]*)"', out)
+                    summary = [f"Found {len(elements)} interactive UI elements:"]
+                    for text_val, res_id, bounds in elements[:40]:
+                        if text_val or res_id:
+                            summary.append(f"  - text='{text_val}' id='{res_id}' bounds={bounds}")
+                    return {"ok": True, "output": "\n".join(summary), "note": "UI hierarchy analyzed"}
+                return {"ok": False, "note": "Could not dump UI hierarchy (ensure device screen is awake)"}
+            except Exception as e:
+                return {"ok": False, "note": f"UI dump failed: {e}"}
+
+        # Focused application query
+        if action in ("current_app", "focused_app", "active_app"):
+            try:
+                proc = subprocess.run(f'"{adb}" shell dumpsys window', shell=True, capture_output=True, text=True, timeout=20, encoding="utf-8", errors="replace")
+                matches = re.findall(r'(?:mCurrentFocus|mFocusedApp).*?([a-zA-Z0-9_\.]+\/[a-zA-Z0-9_\.]+)', proc.stdout)
+                if matches:
+                    return {"ok": True, "output": f"Current focused app/activity: {matches[0]}", "note": matches[0]}
+                return {"ok": True, "output": proc.stdout[:500], "note": "Focused app inspected"}
+            except Exception as e:
+                return {"ok": False, "note": f"Focus query failed: {e}"}
+
         if cmd.startswith("adb "):
             exec_cmd = f'"{adb}" ' + cmd[4:]
         else:
@@ -368,10 +510,10 @@ class _IOS(_ScaffoldedProvider):
 
 
 class BrowserProvider(DeviceProvider):
-    """Web Browser Automation (open URLs, web navigation, web scraping)."""
+    """CAT Web Browser & Agentic Multitask Automation (tabs, navigation, scripts, scraping, links)."""
     key = "browser"
-    label = "Web Browser Automation"
-    description = "Browser automation (open URLs, web navigation, web scraping, search)."
+    label = "CAT Browser Automation"
+    description = "CAT Browser Agentic AI automation (multiple tabs, multi-tasking, navigation, JavaScript, web scraping, search)."
 
     def available(self):
         return True
@@ -380,28 +522,136 @@ class BrowserProvider(DeviceProvider):
         target = str(params.get("target") or params.get("url") or params.get("command") or "").strip()
         act = action.lower()
         if act in ("open", "open_url", "navigate", "browse"):
-            effect = f"Opens web page in system browser: {target}"
+            effect = f"Navigates to URL in CAT Browser: {target}"
+        elif act in ("new_tab", "tab_new"):
+            effect = f"Opens new tab in CAT Browser: {target or 'about:home'}"
+        elif act in ("close_tab", "tab_close"):
+            effect = f"Closes tab index in CAT Browser: {target}"
+        elif act in ("switch_tab", "tab_switch"):
+            effect = f"Switches active tab in CAT Browser to index: {target}"
+        elif act in ("list_tabs", "tabs"):
+            effect = "Lists all open tabs in CAT Browser"
+        elif act in ("eval_js", "script", "js"):
+            effect = f"Executes JavaScript in CAT Browser: {target[:60]}"
         elif act in ("search", "google"):
-            effect = f"Performs web search in browser: '{target}'"
-        elif act in ("fetch", "scrape", "extract"):
-            effect = f"Fetches and extracts readable content from: {target}"
+            effect = f"Performs web search in CAT Browser: '{target}'"
+        elif act in ("fetch", "scrape", "extract", "scrape_page", "get_page_text"):
+            effect = f"Fetches and extracts readable content/markdown from: {target}"
+        elif act in ("extract_links", "links"):
+            effect = f"Extracts all hyperlinks from web page: {target}"
         else:
-            effect = f"Browser action '{action}' on '{target}'"
+            effect = f"CAT Browser action '{action}' on '{target}'"
         return {"action": action, "target": target, "effect": effect, "command": target}
 
-    def execute(self, plan):
+    def execute(self, plan, params=None):
+        if isinstance(plan, str):
+            p = params or {}
+            plan = {"action": plan, "target": p.get("target", "") or p.get("command", "") or p.get("url", "")}
         act = plan.get("action", "").lower()
         target = plan.get("target", "")
+        import urllib.parse
+        active_win = None
+        try:
+            from .browser_gui.qt_browser import get_active_browser_window
+            active_win = get_active_browser_window()
+        except Exception:
+            pass
+
+        if act in ("list_tabs", "tabs"):
+            if active_win and hasattr(active_win, "agent_list_tabs"):
+                tabs = active_win.agent_list_tabs()
+                summary_lines = [f"Open tabs ({len(tabs)}):"]
+                for t in tabs:
+                    marker = "*" if t.get("active") else " "
+                    summary_lines.append(f"  [{t['index']}] {marker} {t.get('title', 'Untitled')} - {t.get('url', '')}")
+                return {"ok": True, "output": "\n".join(summary_lines), "note": f"{len(tabs)} tabs open"}
+            return {"ok": False, "note": "CAT Browser is not currently open"}
+
+        if act in ("new_tab", "tab_new"):
+            url = target or "about:home"
+            if active_win and hasattr(active_win, "agent_new_tab"):
+                idx = active_win.agent_new_tab(url)
+                return {"ok": True, "note": f"Opened new tab #{idx} for {url}"}
+            try:
+                from .browser_gui.qt_browser import launch_qt_browser
+                import threading
+                t = threading.Thread(target=launch_qt_browser, args=(url,), daemon=True)
+                t.start()
+                return {"ok": True, "note": f"Launched CAT Browser with {url}"}
+            except Exception:
+                webbrowser.open(url)
+                return {"ok": True, "note": f"Opened {url} in browser"}
+
+        if act in ("close_tab", "tab_close"):
+            if active_win and hasattr(active_win, "agent_close_tab"):
+                try:
+                    idx = int(target)
+                    ok = active_win.agent_close_tab(idx)
+                    return {"ok": ok, "note": f"Closed tab #{idx}"}
+                except ValueError:
+                    return {"ok": False, "note": "Invalid tab index"}
+            return {"ok": False, "note": "CAT Browser is not currently open"}
+
+        if act in ("switch_tab", "tab_switch"):
+            if active_win and hasattr(active_win, "agent_switch_tab"):
+                try:
+                    idx = int(target)
+                    ok = active_win.agent_switch_tab(idx)
+                    return {"ok": ok, "note": f"Switched to tab #{idx}"}
+                except ValueError:
+                    return {"ok": False, "note": "Invalid tab index"}
+            return {"ok": False, "note": "CAT Browser is not currently open"}
+
+        if act in ("eval_js", "script", "js"):
+            if active_win and hasattr(active_win, "agent_eval_js"):
+                ok = active_win.agent_eval_js(target)
+                return {"ok": ok, "note": "Executed JavaScript in CAT Browser"}
+            return {"ok": False, "note": "CAT Browser is not currently open"}
+
         if act in ("open", "open_url", "navigate", "browse"):
-            url = target if target.startswith(("http://", "https://")) else "https://" + target
-            webbrowser.open(url)
-            return {"ok": True, "note": f"Opened {url} in browser"}
+            url = target if target.startswith(("http://", "https://", "about:")) else ("https://" + target if "." in target else target)
+            if active_win and hasattr(active_win, "agent_navigate"):
+                active_win.agent_navigate(url)
+                return {"ok": True, "note": f"Navigated CAT Browser to {url}"}
+            try:
+                from .browser_gui.qt_browser import launch_qt_browser
+                import threading
+                t = threading.Thread(target=launch_qt_browser, args=(url,), daemon=True)
+                t.start()
+                return {"ok": True, "note": f"Launched CAT Browser with {url}"}
+            except Exception:
+                webbrowser.open(url)
+                return {"ok": True, "note": f"Opened {url} in browser"}
+
         elif act in ("search", "google"):
-            import urllib.parse
             url = f"https://www.google.com/search?q={urllib.parse.quote(target)}"
+            if active_win and hasattr(active_win, "agent_navigate"):
+                active_win.agent_new_tab(url)
+                return {"ok": True, "note": f"Searched '{target}' in CAT Browser"}
             webbrowser.open(url)
             return {"ok": True, "note": f"Searched '{target}' in browser"}
-        elif act in ("fetch", "scrape", "extract"):
+
+        elif act in ("extract_links", "links"):
+            if active_win and hasattr(active_win, "agent_eval_js"):
+                links_text = active_win.agent_eval_js(
+                    "Array.from(document.querySelectorAll('a[href]')).map(a => a.href).slice(0, 50).join('\\n')"
+                )
+                if links_text:
+                    return {"ok": True, "output": str(links_text), "note": "Extracted links from active tab"}
+            try:
+                from .agent import _tool_fetch_web_page
+                content = _tool_fetch_web_page({"url": target, "max_chars": 8000})
+                links = re.findall(r'href=[\'"]([^\'"]+)[\'"]', content)
+                return {"ok": True, "output": "\n".join(links[:40]) if links else "No links found", "note": f"Found {len(links)} links"}
+            except Exception as e:
+                return {"ok": False, "note": f"Link extraction failed: {e}"}
+
+        elif act in ("fetch", "scrape", "extract", "scrape_page", "get_page_text"):
+            # If browser is open and no URL given, scrape current page directly
+            if (not target or target == "active") and active_win and hasattr(active_win, "agent_eval_js"):
+                page_text = active_win.agent_eval_js("document.body.innerText")
+                if page_text:
+                    return {"ok": True, "output": str(page_text)[:8000], "note": "Scraped active browser tab text"}
             try:
                 from .agent import _tool_fetch_web_page
                 content = _tool_fetch_web_page({"url": target, "max_chars": 8000})

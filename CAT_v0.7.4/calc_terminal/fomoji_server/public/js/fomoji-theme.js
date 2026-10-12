@@ -16,6 +16,12 @@
 (function () {
   'use strict';
 
+  // Apply the embedded-browser performance profile before stylesheets and
+  // page components start their decorative effects.
+  if (/CATBrowser/i.test(navigator.userAgent || '')) {
+    document.documentElement.classList.add('cat-browser-renderer');
+  }
+
   var KEY = 'fomoji_appearance_v1';
 
   /* ------------------------------------------------------------------
