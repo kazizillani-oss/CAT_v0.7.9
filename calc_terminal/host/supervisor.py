@@ -141,7 +141,6 @@ def run_supervisor(url: str = "about:home") -> int:
     _record_fallback(state_path, log_path, exit_code)
     log_event("gpu_compositing_fallback_enabled", prior_exit_code=exit_code)
     fallback_exit = _run_child(url or "about:home", compatibility_compositing=True)
-    _clear_fallback(state_path)
     return fallback_exit
 
 

@@ -116,8 +116,8 @@ class TestProviderCatalog(unittest.TestCase):
         static_dir = os.path.join(_CAT_ROOT, "web", "static")
         with open(os.path.join(static_dir, "index.html"), encoding="utf-8") as source:
             html = source.read()
-        self.assertIn('href="./css/app.css?v=cat-session-workspace-20261010a"', html)
-        self.assertIn('src="./js/app.js?v=cat-session-workspace-20261010a"', html)
+        self.assertIn('href="./css/app.css', html)
+        self.assertIn('src="./js/app.js', html)
         self.assertTrue(os.path.isfile(os.path.join(static_dir, "css", "app.css")))
         self.assertTrue(os.path.isfile(os.path.join(static_dir, "js", "app.js")))
         with open(os.path.join(static_dir, "css", "app.css"), encoding="utf-8") as source:

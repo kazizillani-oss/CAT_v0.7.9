@@ -299,7 +299,14 @@ def get_cat_routine_display(
             m = ai_modes.meta(mode_key)
             if m:
                 m_icon = m.get("icon", "⚡")
-                m_lbl = m.get("label", mode_key.capitalize())
+                m_lbl = {
+                    "build": "Build",
+                    "agent": "Agent",
+                    "notebook": "Notebook",
+                    "plan": "Plan",
+                    "research": "Research",
+                    "debugger": "Debugger",
+                }.get(mode_key.lower(), m.get("label", mode_key.capitalize()))
                 mode_prefix = f"  [{accent_hex} b]{m_icon} {m_lbl} Mode[/] \u00b7 "
         except Exception:
             pass

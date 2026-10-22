@@ -85,17 +85,37 @@ def _store_pending_verification(url: str):
 
 def get_optimal_chromium_flags() -> str:
     """Keep Chromium's normal GPU, process isolation, and raster heuristics."""
-    # Forced renderer/raster limits made unrelated tabs share a renderer and
-    # let one renderer fault take down several sites. Chromium already adapts
-    # these choices to the active GPU, RAM, and platform; keep its defaults.
-    # In particular, do not disable GPU acceleration or its crash protections.
-    flags = ["--no-default-browser-check"]
-    if sys.platform.startswith("linux"):
-        flags.append("--disable-dev-shm-usage")
+    flags = [
+        "--no-default-browser-check",
+        "--disable-dev-shm-usage",
+        "--disable-features=CalculateNativeWinOcclusion",
+    ]
     if os.environ.get("CAT_BROWSER_GPU_COMPOSITING", "").lower() == "compat":
         # Used only after the supervised GPU-composited browser process faults.
         # Chromium keeps other GPU APIs available while using software compositing.
         flags.append("--disable-gpu-compositing")
+
+    try:
+        from ..hardware_analyzer import HardwareAnalyzer
+        prof = HardwareAnalyzer.analyze()
+        is_low_end = (
+            not getattr(prof, "has_gpu", True)
+            or (getattr(prof, "ram_total_gb", 8.0) is not None and getattr(prof, "ram_total_gb", 8.0) < 4.0)
+            or (getattr(prof, "cpu_threads", 4) is not None and getattr(prof, "cpu_threads", 4) <= 2)
+            or getattr(prof, "ai_capability", "") == "LIMITED"
+            or getattr(getattr(prof, "local_ai_tier", None), "value", str(getattr(prof, "local_ai_tier", ""))) == "LIMITED"
+        )
+    except Exception:
+        is_low_end = False
+
+    if is_low_end:
+        flags.append("--enable-low-end-device-mode")
+        flags.append("--renderer-process-limit=1")
+        flags.append("--num-raster-threads=1")
+    else:
+        flags.append("--renderer-process-limit=4")
+        flags.append("--num-raster-threads=2")
+
     return " ".join(flags)
 
 

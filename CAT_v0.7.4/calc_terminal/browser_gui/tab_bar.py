@@ -261,10 +261,10 @@ class CATBrowserTabs(QWidget):
         super().__init__(parent)
         self.colors = dict(colors or _default_colors())
         self._position = "top"
-        self._sidebar_width: int = 224
+        self._sidebar_width: int = 240
         self._is_resizing_sidebar: bool = False
         self._drag_start_x: int = 0
-        self._initial_w: int = 224
+        self._initial_w: int = 240
         self.setMouseTracking(True)
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self._tabs: list[dict[str, str]] = []  # list of {"text": ..., "fav": ..., "title": ...}
@@ -425,9 +425,8 @@ class CATBrowserTabs(QWidget):
     def set_sidebar_width(self, width: int):
         self._sidebar_width = max(140, min(480, int(width)))
         if self.is_vertical:
-            # Keep the width flexible so the enclosing QSplitter can drag it.
-            self.setMinimumWidth(140)
-            self.setMaximumWidth(480)
+            self.setMinimumWidth(self._sidebar_width)
+            self.setMaximumWidth(self._sidebar_width)
             self.update()
 
     def setPosition(self, pos: str):
@@ -537,7 +536,7 @@ class CATBrowserTabs(QWidget):
             except Exception:
                 lx = event.x()
             if self._is_on_resize_handle(lx):
-                self._sidebar_width = 150 if self.width() > 190 else 224
+                self._sidebar_width = 150 if self.width() > 190 else 240
                 self.set_sidebar_width(self._sidebar_width)
                 self.sidebarResized.emit(self._sidebar_width)
                 self.update()
@@ -575,10 +574,8 @@ class CATBrowserTabs(QWidget):
         if is_vert:
             self._h_tab_bar.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
             self._v_widget.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
-            # A fixed width disables QSplitter's native resize handle.
-            # The sidebar width is instead bounded and initialized by the host.
-            self.setMinimumWidth(140)
-            self.setMaximumWidth(480)
+            self.setMinimumWidth(self._sidebar_width)
+            self.setMaximumWidth(self._sidebar_width)
             self.setMinimumHeight(0)
             self.setMaximumHeight(16777215)
             self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)

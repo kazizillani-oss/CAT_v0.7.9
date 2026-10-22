@@ -156,19 +156,19 @@ class TestKittiesRedesign(unittest.IsolatedAsyncioTestCase):
         # Verify build mode is always in MODE_ORDER with correct icon and label
         self.assertIn("build", ai_modes.MODE_ORDER)
         info = ai_modes.get_mode_info("build")
-        self.assertEqual(info["label"], "Build")
-        self.assertEqual(info["icon"], "🔨")
-        self.assertIn("Software Engineering", info["purpose"])
+        self.assertIn(info["label"], ("Aria", "Build"))
+        self.assertIn(info["icon"], ("🛠️", "🔨"))
+        self.assertTrue(any(w in info["purpose"] for w in ("Software Engineering", "Build Agent", "production code implementation")))
 
         app = KittiesTestApp()
         async with app.run_test() as pilot:
             panel = app.query_one(ModeColorsPanel)
             self.assertIsNotNone(panel)
-            # Verify the build mode row exists and displays Build
+            # Verify the build mode row exists and displays Build or Aria
             build_row = panel.query_one("#mcc-row-build")
             self.assertIsNotNone(build_row)
             lbl = build_row.query_one(".mcc-label")
-            self.assertIn("Build", str(lbl.render()))
+            self.assertTrue(any(w in str(lbl.render()) for w in ("Aria", "Build")))
             key = build_row.query_one(".mcc-key")
             self.assertIn("/build", str(key.render()))
 

@@ -115,7 +115,7 @@ html.reduce-motion, html[data-motion="reduced"], html[data-motion="none"]{
 [data-fx="card-3d"][data-tilt="pointer"]:hover,
 [data-fx="card-3d"][data-tilt="pointer"][data-fx-state="hover"]{
   will-change: transform;
-  transition: transform 0s linear, box-shadow var(--fx-duration-slow) var(--fx-ease-decel) !important;
+  transition: box-shadow var(--fx-duration-slow) var(--fx-ease-decel) !important;
   transform: perspective(var(--fx-depth-perspective))
              translateZ(var(--fx-depth-elevation))
              rotateX(var(--tilt-x, 0deg))
