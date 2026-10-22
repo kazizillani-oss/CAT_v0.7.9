@@ -1,0 +1,16 @@
+.venv*
+venv/
+env/
+*.vsix
+dist/
+release/
+.pytest_cache/
+.git/
+.vscode/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.coverage
+htmlcov/
+*.log
