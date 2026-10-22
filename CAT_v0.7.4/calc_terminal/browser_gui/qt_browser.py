@@ -30,7 +30,6 @@ from ..host.lifecycle import current_index_after_tab_close, find_tab_owner, tab_
 _ACTIVE_BROWSER_WINDOW = None
 
 def get_active_browser_window():
-    global _ACTIVE_BROWSER_WINDOW
     return _ACTIVE_BROWSER_WINDOW
 
 def set_active_browser_window(win):

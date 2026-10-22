@@ -25,16 +25,27 @@ _LOG = logging.getLogger("cct.auto_update")
 
 # Configuration
 UPDATE_INTERVAL_HOURS = 24  # Check for updates every 24 hours
-CACHE_DIR = os.path.join(os.path.expanduser("~"), ".cct", "cache", "providers")
+def _init_provider_cache_dir() -> str:
+    import tempfile
+    candidate = os.path.join(os.path.expanduser("~"), ".cct", "cache", "providers")
+    try:
+        os.makedirs(candidate, exist_ok=True)
+        return candidate
+    except OSError:
+        fallback = os.path.join(tempfile.gettempdir(), "cat_home", ".cct", "cache", "providers")
+        try:
+            os.makedirs(fallback, exist_ok=True)
+        except OSError:
+            pass
+        return fallback
+
+CACHE_DIR = _init_provider_cache_dir()
 PROVIDERS_CACHE_FILE = os.path.join(CACHE_DIR, "providers_cache.json")
 LAST_UPDATE_FILE = os.path.join(CACHE_DIR, "last_update.json")
-CUSTOM_PROVIDERS_FILE = os.path.join(os.path.expanduser("~"), ".cct", "custom_providers.json")
+CUSTOM_PROVIDERS_FILE = os.path.join(os.path.dirname(os.path.dirname(CACHE_DIR)), "custom_providers.json")
 
 # Central registry URL (could be a GitHub raw URL or custom server)
 CENTRAL_REGISTRY_URL = "https://raw.githubusercontent.com/cct-ai/providers/main/providers.json"
-
-# Ensure cache directory exists
-os.makedirs(CACHE_DIR, exist_ok=True)
 
 
 class ProviderAutoUpdater:

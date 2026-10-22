@@ -77,6 +77,13 @@ def get_storage_dir() -> str:
         else:
             path = os.path.join(os.path.expanduser("~"), ".cat")
 
+    try:
+        os.makedirs(path, exist_ok=True)
+        if not os.access(path, os.W_OK):
+            raise PermissionError("Storage path not writable")
+    except OSError:
+        import tempfile
+        path = os.path.join(tempfile.gettempdir(), "cat_home", ".cat")
     _ensure_subdirs(path)
     return path
 

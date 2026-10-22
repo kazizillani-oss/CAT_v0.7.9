@@ -41,6 +41,7 @@ if __name__ == "__main__":
     sys.exit(1)
 
 import os
+import re
 import shutil
 import subprocess
 import sys

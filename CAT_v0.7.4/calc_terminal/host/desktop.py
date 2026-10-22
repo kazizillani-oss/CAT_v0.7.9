@@ -86,7 +86,7 @@ try:
         QSplitter
     )
     from PySide6.QtCore import Qt, QUrl, Signal, QTimer, QSize, QPoint, QCoreApplication
-    from PySide6.QtGui import QAction, QKeySequence, QShortcut, QPixmap, QPainter
+    from PySide6.QtGui import QAction, QKeySequence, QShortcut, QPixmap, QPainter, QColor
     from PySide6.QtWebEngineWidgets import QWebEngineView
     from PySide6.QtWebEngineCore import (
         QWebEngineProfile, QWebEnginePage, QWebEngineDownloadRequest
@@ -103,7 +103,7 @@ except ImportError:
             QSplitter
         )
         from PyQt6.QtCore import Qt, QUrl, pyqtSignal as Signal, QTimer, QSize, QPoint, QCoreApplication
-        from PyQt6.QtGui import QAction, QKeySequence, QShortcut, QPixmap, QPainter
+        from PyQt6.QtGui import QAction, QKeySequence, QShortcut, QPixmap, QPainter, QColor
         from PyQt6.QtWebEngineWidgets import QWebEngineView
         from PyQt6.QtWebEngineCore import (
             QWebEngineProfile, QWebEnginePage, QWebEngineDownloadRequest
@@ -113,6 +113,7 @@ except ImportError:
     except ImportError:
         _QT_AVAILABLE = False
         _QT_BINDING = None
+        QColor = None
 
 
 if _QT_AVAILABLE:

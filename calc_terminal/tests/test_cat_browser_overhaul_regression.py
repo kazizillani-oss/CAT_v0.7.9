@@ -14,13 +14,17 @@ import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+pytest.importorskip("PySide6")
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QUrl
 
 # Ensure QApplication exists for Qt widget tests
 app = QApplication.instance()
 if not app:
-    app = QApplication(["--platform", "offscreen"])
+    try:
+        app = QApplication(["--platform", "offscreen"])
+    except Exception:
+        pass
 
 from calc_terminal.browser.browser_state import BrowserState, TabInfo
 from calc_terminal.browser_gui.qt_browser import (

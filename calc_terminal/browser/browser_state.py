@@ -97,6 +97,9 @@ class BrowserTab:
         return self.title[:24] or "Untitled"
 
 
+TabInfo = BrowserTab
+
+
 @dataclass
 class HistoryEntry:
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])

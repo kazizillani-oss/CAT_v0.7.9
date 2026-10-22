@@ -4686,6 +4686,7 @@ def run_multi_agent(user_text, max_steps=MAX_STEPS, on_agent=None, mode="agent")
     message in that case instead of raising).
     """
     system_prompt = BUILD_SYSTEM_PROMPT if mode == "build" else (RESEARCH_SYSTEM_PROMPT if mode == "research" else AGENT_SYSTEM_PROMPT)
+    _prev_spec = getattr(_CURRENT_AGENT_SPEC, "spec", None)
     wants_code = bool(_CODE_HINTS.search(user_text))
     active_roles = ["planner", "specialist"] + (["programmer", "debugger"] if wants_code else []) + ["tester"]
 

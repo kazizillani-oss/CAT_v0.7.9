@@ -91,3 +91,9 @@ playwright>=1.40
 
 # Desktop notifications for connector code (CAT CLI auth flow):
 plyer>=2.1
+
+# --- Fatty CAT Web Server & Cloud IDE (FastAPI) ---
+fastapi>=0.100.0
+uvicorn>=0.20.0
+pydantic>=2.0
+python-multipart>=0.0.6
