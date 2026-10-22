@@ -1,0 +1,28 @@
+{
+  "name": "fomoji-server",
+  "version": "1.0.0",
+  "description": "Fomoji Identity & Authentication Server with WebAuthn, Passkey, and OAuth support",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js"
+  },
+  "keywords": [
+    "fomoji",
+    "authentication",
+    "webauthn",
+    "passkey",
+    "identity",
+    "cat"
+  ],
+  "author": "Kazi Zillani",
+  "license": "ISC",
+  "dependencies": {
+    "@simplewebauthn/browser": "^13.3.0",
+    "@simplewebauthn/server": "^13.3.3",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-session": "^1.19.0"
+  }
+}

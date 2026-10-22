@@ -22,7 +22,7 @@ from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
 try:
     import calc_terminal as _ct_check  # noqa: F401
 except Exception:
-    _CAT_ROOT = Path(__file__).parent.parent
+    _CAT_ROOT = Path(__file__).resolve().parent.parent.parent
     if str(_CAT_ROOT) not in sys.path:
         sys.path.insert(0, str(_CAT_ROOT))
 

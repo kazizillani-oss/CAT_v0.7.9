@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>CAT · File Preview</title>
+  <link rel="icon" type="image/png" href="/icons/cat_browser.png">
+  <style>
+    :root { color-scheme:dark; --bg:#10131b; --panel:#191e29; --panel2:#202735; --line:#30394a; --text:#e8edf7; --muted:#9aa8bd; --blue:#82aaff; --cyan:#80d6e8; --mono:"Cascadia Code","Fira Code",Consolas,monospace; --sans:Inter,"Segoe UI",system-ui,sans-serif; }
+    * { box-sizing:border-box } html,body { height:100%; margin:0 } body { display:flex; flex-direction:column; overflow:hidden; background:radial-gradient(ellipse at 50% -25%,#202b42 0,#10131b 62%); color:var(--text); font:14px var(--sans) }
+    header { height:58px; flex:none; display:flex; align-items:center; gap:14px; padding:0 18px; border-bottom:1px solid var(--line); background:rgba(18,22,31,.94) }
+    .brand { display:flex; align-items:center; gap:10px; min-width:0; flex:1 } .brand-icon { display:grid; place-items:center; width:32px;height:32px;border:1px solid #405171;border-radius:10px;background:#202a3b;color:var(--blue) }
+    .title-wrap { min-width:0 } .title { font-weight:700; font-size:13px } .file-name { color:var(--muted);font:12px var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:min(46vw,650px);margin-top:2px }
+    .actions { display:flex;gap:7px;align-items:center } button,.button { border:1px solid var(--line); background:#202633; color:var(--text); border-radius:8px; padding:8px 11px; font:600 12px var(--sans); cursor:pointer;text-decoration:none;white-space:nowrap } button:hover,.button:hover { border-color:#607da9;background:#293449 } .primary { color:#0e1723;background:var(--blue);border-color:var(--blue) } .primary:hover { background:#a0beff }
+    main { min-height:0;flex:1;overflow:auto;padding:22px;display:flex;justify-content:center;align-items:flex-start } .surface { width:min(1180px,100%);min-height:min(700px,100%);border:1px solid var(--line);border-radius:14px;background:rgba(22,27,37,.88);box-shadow:0 18px 60px #0005;overflow:hidden }
+    .surface-head { display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);color:var(--muted);font-size:12px }.type-chip { color:var(--cyan);border:1px solid #31515c;background:#172b32;border-radius:20px;padding:4px 9px;font:11px var(--mono) }
+    .content { padding:18px;min-height:450px;overflow:auto } .empty,.error { margin:auto;text-align:center;max-width:500px;padding:66px 24px;color:var(--muted) }.empty h1 { color:var(--text);font-size:20px;margin:0 0 9px }.empty p { line-height:1.6 }
+    .image-wrap { display:grid;place-items:center;min-height:60vh;background:linear-gradient(45deg,#171c26 25%,transparent 25%),linear-gradient(-45deg,#171c26 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#171c26 75%),linear-gradient(-45deg,transparent 75%,#171c26 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0 }
+    .preview-image { display:block;max-width:100%;max-height:calc(100vh - 210px);object-fit:contain;transform-origin:center;user-select:none }
+    .pdf-preview { width:100%;min-height:calc(100vh - 190px);display:flex;flex-direction:column;align-items:center;gap:12px;padding:12px;background:#10141d }
+    .pdf-toolbar { width:100%;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap }
+    .pdf-toolbar span { min-width:110px;text-align:center;color:var(--muted);font:12px var(--mono) }
+    .pdf-page { display:block;max-width:100%;height:auto;box-shadow:0 12px 38px #0007;background:white }
+    pre { margin:0;white-space:pre;overflow:auto;color:#d8e0ef;font:13px/1.65 var(--mono);tab-size:2 } .code-line { display:block;min-height:1.65em } .tok-key {color:#c792ea}.tok-str{color:#c3e88d}.tok-num{color:#f78c6c}.tok-comment{color:#718096;font-style:italic}.tok-fn{color:#82aaff}.tok-tag{color:#f07178}.tok-attr{color:#ffcb6b}.tok-punc{color:#89ddff}
+    .table-wrap { overflow:auto;max-height:calc(100vh - 190px) } table { border-collapse:collapse;min-width:100%;font:12px var(--mono) } th,td { border:1px solid var(--line);padding:8px 10px;text-align:left;white-space:pre-wrap;max-width:420px } th { position:sticky;top:0;background:#252e3c;color:#b9cced } tr:nth-child(even) td { background:#ffffff06 }
+    .sheet-tabs { display:flex;gap:7px;flex-wrap:wrap;margin-bottom:13px }.sheet-tabs button.active{background:#34445e;border-color:var(--blue);color:#fff}.office-page{max-width:900px;margin:0 auto;padding:30px 38px;background:#f5f6f8;color:#202634;border-radius:6px;box-shadow:0 12px 34px #0005;font:15px/1.75 Georgia,serif}.office-page h2{font:700 20px var(--sans);color:#263750;border-bottom:1px solid #d4d9e2;padding-bottom:7px}.office-page table{font:13px var(--sans);background:white}.office-page th{position:static;background:#e8edf4;color:#28364a}.deck-toolbar{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:center;gap:9px;padding:10px;margin:-18px -18px 18px;background:#191e29ed;border-bottom:1px solid var(--line);backdrop-filter:blur(10px)}.deck-toolbar span{min-width:95px;text-align:center;color:var(--muted);font:12px var(--mono)}.slide-card{max-width:900px;min-height:420px;margin:0 auto 18px;padding:42px;background:linear-gradient(140deg,#1d2940,#151b29);border:1px solid #37445b;border-radius:14px;box-shadow:0 12px 35px #0004;animation:slide-enter .24s ease-out both}.slide-card h2{color:#b9d0ff;margin:0 0 20px;font-size:22px}.slide-card p{font-size:18px;line-height:1.65}@keyframes slide-enter{from{opacity:0;transform:translateY(8px) scale(.995)}to{opacity:1;transform:translateY(0) scale(1)}}
+    .chart { width:100%;height:240px;margin:0 0 16px;border:1px solid var(--line);border-radius:10px;background:#121722;padding:10px } .chart svg{width:100%;height:100%}.chart text{fill:var(--muted);font:11px var(--sans)}
+    .markdown { max-width:850px;margin:0 auto;font:15px/1.75 var(--sans);white-space:normal;color:#d7deea }.markdown h1,.markdown h2,.markdown h3{color:#f3f6fb;border-bottom:1px solid var(--line);padding-bottom:7px}.markdown pre{background:#111722;border:1px solid var(--line);border-radius:9px;padding:14px;margin:12px 0}.markdown code{font:13px var(--mono);color:#c3e88d;background:#ffffff0b;padding:2px 4px;border-radius:4px}.markdown blockquote{border-left:3px solid var(--blue);padding-left:14px;color:var(--muted)}.markdown a{color:var(--blue)}
+    .zoom-controls { position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:7px;padding:7px;border:1px solid var(--line);border-radius:13px;background:#161b26ed;box-shadow:0 8px 28px #0006 }
+    @media(max-width:650px){header{padding:0 10px;height:54px}.brand-icon{display:none}.actions{gap:4px}.actions button,.actions .button{padding:7px}.hide-small{display:none}main{padding:10px}.surface{min-height:100%}.content{padding:12px}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand"><div class="brand-icon">CAT</div><div class="title-wrap"><div class="title">File Preview</div><div class="file-name" id="fileName">Choose a file to start</div></div></div>
+    <div class="actions"><button id="openCode" class="hide-small" hidden>Open in VS Code</button><a class="button hide-small" href="/">Fatty CAT</a><button class="primary" id="chooseFile">Open file</button></div>
+  </header>
+  <main id="root"><div class="empty"><h1>Your files, clearly previewed</h1><p>Open images, SVG, PDF, CSV, JSON, Markdown, source code, logs, and text files. Office files can be opened in CAT CLI’s document viewers.</p><button class="primary" id="chooseEmpty">Choose a file</button></div></main>
+  <input id="picker" type="file" hidden>
+  <script>
+    const root=document.getElementById('root'), nameEl=document.getElementById('fileName'), picker=document.getElementById('picker'), codeBtn=document.getElementById('openCode');
+    let blobUrl='',pdfPageUrl='',zoom=1,rotation=0;
+    const extOf=n=>{const m=String(n).toLowerCase().match(/\.([a-z0-9]+)$/);return m?m[1]:''};
+    const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    document.getElementById('chooseFile').onclick=document.getElementById('chooseEmpty').onclick=()=>picker.click();
+    function sourceFor(target){ if(/^https?:|^blob:|^data:|^file:/i.test(target))return target; return '/api/file/view?path='+encodeURIComponent(target); }
+    function startPreview(fileName,src,rawFile=null){
+      nameEl.textContent=fileName;nameEl.title=fileName; const ext=extOf(fileName), label=ext?ext.toUpperCase():'FILE'; codeBtn.hidden=true;
+      const nextBlob=src.startsWith('blob:')?src:'';
+      if(blobUrl&&blobUrl!==nextBlob)URL.revokeObjectURL(blobUrl);
+      blobUrl=nextBlob;
+      if(pdfPageUrl){URL.revokeObjectURL(pdfPageUrl);pdfPageUrl='';}
+      const set=(body,content='')=>{root.innerHTML=`<section class="surface"><div class="surface-head"><span class="type-chip">${esc(label)}</span><span>${esc(content)}</span></div><div class="content">${body}</div></section>`;};
+      if(['png','jpg','jpeg','webp','gif','svg','bmp','ico','tif','tiff'].includes(ext)){
+        zoom=1;rotation=0;set(`<div class="image-wrap"><img id="img" class="preview-image" src="${esc(src)}" alt="${esc(fileName)}"></div>`,'Image preview');
+        root.insertAdjacentHTML('beforeend',`<div class="zoom-controls"><button onclick="changeZoom(-.15)">−</button><span id="zoomLabel">100%</span><button onclick="changeZoom(.15)">+</button><button onclick="resetImage()">Reset</button><button onclick="rotateImage()">Rotate</button></div>`);return;
+      }
+      if(ext==='pdf'){renderPdf(src,rawFile);return;}
+      if(['docx','pptx','xlsx','xlsm'].includes(ext)){renderOffice(src,rawFile,ext);return;}
+      if(['xls','doc','ppt'].includes(ext)){set(`<div class="empty"><h1>${esc(fileName)}</h1><p>This legacy Office format is not supported by the in-app preview. Open it in your Office application or save it as DOCX, XLSX, or PPTX.</p></div>`,'Legacy Office file');return;}
+      const read=rawFile?rawFile.text():fetch(src).then(r=>{if(!r.ok)throw Error(`File request failed (${r.status})`);return r.text();});
+      read.then(text=>renderText(ext,text,set)).catch(err=>set(`<div class="error">${esc(err.message||'Could not open this file.')}</div>`,'Unable to preview'));
+      if(['py','js','ts','tsx','jsx','html','css','json','xml','yaml','yml','toml','sh','ps1','bat','cmd','c','h','cpp','java','go','rs','sql','log'].includes(ext) && (getParam('path')||getParam('file'))){
+        codeBtn.hidden=false; codeBtn.onclick=()=>openVsCode(getParam('path')||getParam('file'));
+      }
+    }
+    function getParam(k){return new URLSearchParams(location.search).get(k)||''}
+    async function renderOffice(src,localFile,ext){
+      const set=(body,label)=>{root.innerHTML=`<section class="surface"><div class="surface-head"><span class="type-chip">${esc(ext.toUpperCase())}</span><span>${esc(label)}</span></div><div class="content">${body}</div></section>`};
+      set('<div class="empty">Reading Office document…</div>','Loading preview');
+      try{let response;if(localFile){const form=new FormData();form.append('file',localFile,localFile.name);response=await fetch('/api/file/office-preview',{method:'POST',body:form})}else{const path=getParam('path')||getParam('file');response=await fetch('/api/file/office-preview?path='+encodeURIComponent(path))}if(!response.ok){const error=await response.json().catch(()=>({}));const detail=error.detail||'';throw Error(response.status===404&&(!detail||detail==='Not Found')?'This CAT server is outdated. Restart Fatty CAT, then reopen this file.':detail||`Preview failed (${response.status})`)}const data=await response.json();if(data.kind==='spreadsheet')renderWorkbook(data,set);else if(data.kind==='document')renderWordDocument(data,set);else if(data.kind==='presentation')renderSlides(data,set);else throw Error('Unrecognized Office document type')}catch(error){set(`<div class="error"><h1>Office preview unavailable</h1><p>${esc(error.message)}</p></div>`,'Preview error')}
+    }
+    function renderWorkbook(book,set){const sheets=book.sheets||[];if(!sheets.length)return set('<div class="empty">This workbook has no readable sheets.</div>','Spreadsheet');let active=0;const draw=()=>{const sheet=sheets[active],rows=sheet.rows||[],heads=rows[0]||[],data=rows.slice(1);const tabs=`<div class="sheet-tabs">${sheets.map((s,i)=>`<button data-sheet="${i}" class="${i===active?'active':''}">${esc(s.name)}</button>`).join('')}</div>`;const table=rows.length?`<div class="table-wrap"><table><thead><tr>${heads.map((v,i)=>`<th>${esc(v||`Column ${i+1}`)}</th>`).join('')}</tr></thead><tbody>${data.map(row=>`<tr>${heads.map((_,i)=>`<td>${esc(row[i]||'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:'<p>This sheet is empty.</p>';set(tabs+table,`${sheets.length} sheet${sheets.length===1?'':'s'} · ${esc(sheet.name)}`);root.querySelectorAll('[data-sheet]').forEach(button=>button.onclick=()=>{active=Number(button.dataset.sheet)||0;draw()})};draw()}
+    function renderWordDocument(doc,set){const blocks=(doc.blocks||[]).map(b=>b.type==='table'?`<table><tbody>${(b.rows||[]).map((row,i)=>`<tr>${row.map(cell=>i===0?`<th>${esc(cell)}</th>`:`<td>${esc(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table><br>`:b.type==='heading'?`<h2>${esc(b.text)}</h2>`:`<p>${esc(b.text)}</p>`).join('');set(`<article class="office-page">${blocks||'No readable document text found.'}</article>`,'Word document')}
+    function renderSlides(deck,set){const slides=deck.slides||[];if(!slides.length)return set('<div class="empty">This presentation has no readable text.</div>','Presentation');let active=0,timer=null;const draw=()=>{const lines=slides[active]||[];const toolbar=`<div class="deck-toolbar"><button id="slidePrev" ${active===0?'disabled':''}>‹ Previous</button><span>Slide ${active+1} of ${slides.length}</span><button id="slideNext" ${active===slides.length-1?'disabled':''}>Next ›</button><button id="slidePlay">${timer?'Pause':'▶ Play'}</button></div>`;const content=`<article class="slide-card" key="slide-${active}"><h2>Slide ${active+1}</h2>${lines.map(line=>`<p>${esc(line)}</p>`).join('')||'<p>No readable text on this slide.</p>'}</article>`;set(toolbar+content,`${slides.length} slides · animated preview`);const prev=document.getElementById('slidePrev'),next=document.getElementById('slideNext'),play=document.getElementById('slidePlay');prev.onclick=()=>{active=Math.max(0,active-1);draw()};next.onclick=()=>{active=Math.min(slides.length-1,active+1);draw()};play.onclick=()=>{if(timer){clearInterval(timer);timer=null}else{if(active===slides.length-1)active=0;timer=setInterval(()=>{if(active>=slides.length-1){clearInterval(timer);timer=null;draw();return}active++;draw()},3000)}draw()}};draw()}
+    async function renderPdf(src,localFile){
+      let page=0,pages=1,scale=1.2;
+      const set=(body,content='')=>{root.innerHTML=`<section class="surface"><div class="surface-head"><span class="type-chip">PDF</span><span>${esc(content)}</span></div><div class="content">${body}</div></section>`};
+      set(`<div class="pdf-preview"><div class="pdf-toolbar"><button id="pdfPrev">‹ Previous</button><span id="pdfPageLabel">Loading page…</span><button id="pdfNext">Next ›</button><button id="pdfZoomOut">−</button><button id="pdfZoomIn">+</button><button id="pdfFit">Fit</button></div><img id="pdfPageImage" class="pdf-page" alt="PDF page preview"></div>`,'Rendering PDF page');
+      const load=async()=>{
+        const label=document.getElementById('pdfPageLabel'),image=document.getElementById('pdfPageImage');if(!image)return;
+        label.textContent=`Loading page ${page+1}…`;
+        try{
+          let response;
+          if(localFile){const form=new FormData();form.append('file',localFile,localFile.name);response=await fetch(`/api/file/pdf-page-upload?page=${page}&scale=${scale}`,{method:'POST',body:form})}
+          else {const path=getParam('path')||getParam('file');response=await fetch(`/api/file/pdf-page?path=${encodeURIComponent(path)}&page=${page}&scale=${scale}`)}
+          if(!response.ok){let detail=`PDF renderer returned ${response.status}`;try{const body=await response.json();detail=body.detail||detail}catch{}if(response.status===404&&detail==='Not Found')detail='This CAT server is outdated. Restart Fatty CAT, then reopen this file.';throw Error(detail)}
+          pages=Number(response.headers.get('X-CAT-PDF-Pages'))||1;const png=await response.blob();if(pdfPageUrl)URL.revokeObjectURL(pdfPageUrl);pdfPageUrl=URL.createObjectURL(png);image.src=pdfPageUrl;label.textContent=`Page ${page+1} of ${pages}`;
+          document.getElementById('pdfPrev').disabled=page<=0;document.getElementById('pdfNext').disabled=page>=pages-1;
+        }catch(error){set(`<div class="error"><h1>PDF preview unavailable</h1><p>${esc(error.message)}</p>${/PyMuPDF/.test(error.message)?'<p>Install CAT’s web extra with PyMuPDF, then reopen the viewer.</p>':''}</div>`,'Could not render PDF')}
+      };
+      document.getElementById('pdfPrev').onclick=()=>{if(page>0){page--;load()}};
+      document.getElementById('pdfNext').onclick=()=>{if(page<pages-1){page++;load()}};
+      document.getElementById('pdfZoomIn').onclick=()=>{scale=Math.min(2.5,scale+.25);load()};
+      document.getElementById('pdfZoomOut').onclick=()=>{scale=Math.max(.5,scale-.25);load()};
+      document.getElementById('pdfFit').onclick=()=>{scale=1.2;load()};
+      await load();
+    }
+    function renderText(ext,text,set){
+      if(ext==='csv'||ext==='tsv')return renderTable(text,ext==='tsv'?'\t':',',set);
+      if(ext==='json'){try{text=JSON.stringify(JSON.parse(text),null,2)}catch{}}
+      if(ext==='md'||ext==='markdown'){set(`<article class="markdown">${renderMarkdown(text)}</article>`,'Markdown');return}
+      const code=['py','js','ts','tsx','jsx','html','css','json','xml','yaml','yml','toml','sh','ps1','bat','cmd','c','h','cpp','java','go','rs','sql'].includes(ext);
+      const lines=esc(text).split('\n').map((line,i)=>`<span class="code-line">${code?highlight(line,ext):line||' '}</span>`).join('');
+      set(`<pre>${lines}</pre>`,code?'Syntax highlighted source':'Text document');
+    }
+    function highlight(line,ext){
+      // Lightweight, dependency-free coloring that keeps source text escaped.
+      const safe=line; let out=safe;
+      if(['html','xml','svg'].includes(ext))return out.replace(/(&lt;\/?)([\w:-]+)/g,'$1<span class="tok-tag">$2</span>').replace(/([\w:-]+)(=)/g,'<span class="tok-attr">$1</span>$2').replace(/(&quot;.*?&quot;|&#39;.*?&#39;)/g,'<span class="tok-str">$1</span>');
+      out=out.replace(/(\/\/.*|#.*)$/,'<span class="tok-comment">$1</span>');
+      out=out.replace(/(&quot;.*?&quot;|&#39;.*?&#39;|`.*?`)/g,'<span class="tok-str">$1</span>');
+      out=out.replace(/\b(true|false|null|None|True|False|return|def|class|function|const|let|var|import|from|async|await|if|else|for|while|try|except|new|export|default|public|private|static|void|int|str)\b/g,'<span class="tok-key">$1</span>');
+      out=out.replace(/\b\d+(?:\.\d+)?\b/g,'<span class="tok-num">$&</span>').replace(/\b([A-Za-z_$][\w$]*)(?=\s*\()/g,'<span class="tok-fn">$1</span>');return out;
+    }
+    function renderTable(text,delimiter,set){
+      const rows=[];let row=[],cell='',quoted=false;for(let i=0;i<text.length;i++){const c=text[i];if(c==='"'&&quoted&&text[i+1]==='"'){cell+='"';i++}else if(c==='"'){quoted=!quoted}else if(c===delimiter&&!quoted){row.push(cell);cell=''}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cell);if(row.some(x=>x!==''))rows.push(row);row=[];cell=''}else cell+=c}row.push(cell);if(row.some(x=>x!==''))rows.push(row);
+      if(!rows.length)return set('<div class="empty">This table is empty.</div>','Spreadsheet'); const cols=Math.max(...rows.map(r=>r.length)), head=rows[0]; const data=rows.slice(1,2001);let html=`<div class="table-wrap"><table><thead><tr>${Array.from({length:cols},(_,i)=>`<th>${esc(head[i]||`Column ${i+1}`)}</th>`).join('')}</tr></thead><tbody>${data.map(r=>`<tr>${Array.from({length:cols},(_,i)=>`<td>${esc(r[i]||'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+      const ncols=cols>1?Array.from({length:cols},(_,i)=>i).filter(i=>data.some(r=>r[i]!==''&&Number.isFinite(Number(r[i])))).slice(0,4):[];if(ncols.length&&data.length)html=`<div class="chart">${chartSvg(data,ncols,head)}</div>`+html;set(html,`${rows.length-1} rows · ${cols} columns`);
+    }
+    function chartSvg(rows,cols,heads){const W=900,H=210,p=28,vals=cols.map(c=>rows.map(r=>Number(r[c])).filter(Number.isFinite));const all=vals.flat(),min=Math.min(...all),max=Math.max(...all),range=max-min||1;return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><line x1="${p}" y1="${H-p}" x2="${W-p}" y2="${H-p}" stroke="#465268"/><line x1="${p}" y1="${p}" x2="${p}" y2="${H-p}" stroke="#465268"/><text x="${p}" y="${p-8}">${min}</text><text x="${W-p-35}" y="${H-4}">${max}</text>${vals.map((series,j)=>{const pts=series.map((v,i)=>`${p+i*(W-2*p)/Math.max(1,series.length-1)},${H-p-(v-min)*(H-2*p)/range}`).join(' ');return `<polyline fill="none" stroke="${['#82aaff','#80d6e8','#c792ea','#ffcb6b'][j]}" stroke-width="2.5" points="${pts}"/><text x="${p+j*120}" y="16">${esc(heads[cols[j]]||`Series ${j+1}`)}</text>`}).join('')}</svg>`}
+    function renderMarkdown(src){let html='',inCode=false,code=[];for(const raw of src.split('\n')){if(raw.trim().startsWith('```')){if(inCode){html+=`<pre><code>${code.join('\n')}</code></pre>`;code=[]}inCode=!inCode;continue}if(inCode){code.push(esc(raw));continue}const line=esc(raw);if(/^#{1,6}\s/.test(raw)){const n=Math.min(6,(raw.match(/^#+/)[0]||'').length);html+=`<h${n}>${line.replace(/^#+\s*/,'')}</h${n}>`}else if(line.startsWith('&gt; ')){html+=`<blockquote>${line.slice(5)}</blockquote>`}else if(!raw.trim()){html+='<br>'}else{html+=`<p>${line.replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')}</p>`}}if(code.length)html+=`<pre><code>${code.join('\n')}</code></pre>`;return html}
+    function openVsCode(path){if(!path)return;const normalized=path.replace(/\\/g,'/');location.href='vscode://file/'+encodeURI(normalized)}
+    function changeZoom(d){zoom=Math.max(.2,Math.min(4,zoom+d));applyImage()}function resetImage(){zoom=1;rotation=0;applyImage()}function rotateImage(){rotation=(rotation+90)%360;applyImage()}function applyImage(){const im=document.getElementById('img'),lab=document.getElementById('zoomLabel');if(im)im.style.transform=`scale(${zoom}) rotate(${rotation}deg)`;if(lab)lab.textContent=Math.round(zoom*100)+'%'}
+    picker.onchange=()=>{const f=picker.files&&picker.files[0];if(!f)return;const objUrl=URL.createObjectURL(f);startPreview(f.name,objUrl,f)};
+    const localPath=getParam('file')||getParam('path'),remoteUrl=getParam('url'),target=localPath||remoteUrl;
+    if(target){const src=remoteUrl&&!localPath?sourceFor(remoteUrl):'/api/file/view?path='+encodeURIComponent(localPath);startPreview(target.split(/[\\/]/).pop()||target,src)}
+  </script>
+</body>
+</html>

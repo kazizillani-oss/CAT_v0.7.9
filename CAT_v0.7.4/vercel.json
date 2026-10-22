@@ -4,7 +4,10 @@
     "api/index.py": {
       "maxDuration": 60,
       "memory": 1024,
-      "includeFiles": "calc_terminal/**"
+      "includeFiles": [
+        "calc_terminal/**",
+        "public/**"
+      ]
     }
   },
   "rewrites": [

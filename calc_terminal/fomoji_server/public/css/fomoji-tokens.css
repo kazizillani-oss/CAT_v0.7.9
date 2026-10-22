@@ -1,0 +1,168 @@
+/* ==========================================================================
+   FOMOJI — TOKEN ARCHITECTURE  (UI Engine 2.0, Phase 1: Foundation)
+
+   This is the root of the token tree the spec asks for:
+
+     Theme
+      ├── Colors        (already lives in fomoji-theme.js / :root of fomoji.css
+      │                   — --void/--panel/--sage/--ink/etc, per active theme.
+      │                   Not duplicated here on purpose: one source of truth.)
+      ├── Typography     --fx-text-*, --fx-weight-*, --fx-tracking-*
+      ├── Surfaces       (owned by fomoji-fx.css's [data-texture] system —
+      │                   Phase 3 "Surface Studio" expands this to 15+.)
+      ├── Borders        --fx-border-*
+      ├── Shadows        --fx-shadow-*
+      ├── Glow           --fx-glow-*  (consumed by fomoji-fx.css's glow rules;
+      │                   the actual Glow Engine build-out is a later phase —
+      │                   this just gives it token plumbing to hook into)
+      ├── Motion         --fx-ease-*, --fx-duration-*
+      ├── Radius         --fx-radius-*  (wraps fomoji.css's --radius-s/m/l so
+      │                   every future component reads one radius scale)
+      └── Spacing        --fx-space-*
+
+     Interaction
+      ├── Hover / Focus / Press / Active   → data-fx-state attribute contract
+      ├── Bounce / Stretch                 → strength tokens, wired up by
+      │                                       the Liquid Glass phase
+      ├── Glow trigger                     → data-fx-glow attribute contract
+      └── Transition                       → --fx-duration-* / --fx-ease-*
+
+   Load order: after fomoji-theme.js has run (so per-theme color vars exist
+   on :root) and BEFORE fomoji.css / fomoji-fx.css, so those files can start
+   consuming these tokens incrementally. Nothing here redefines a selector
+   fomoji.css or fomoji-fx.css already owns — additive only, same rule the
+   fx layer already follows. Existing hardcoded values in those files are
+   left as-is; they get migrated onto these tokens component-by-component
+   in later phases, not rewritten wholesale here.
+   ========================================================================== */
+
+:root{
+  /* ---- typography scale ---- */
+  --fx-text-xs: 11px;
+  --fx-text-sm: 13px;
+  --fx-text-md: 14.5px;
+  --fx-text-lg: 17px;
+  --fx-text-xl: 22px;
+  --fx-weight-regular: 400;
+  --fx-weight-medium: 500;
+  --fx-weight-semibold: 600;
+  --fx-weight-bold: 700;
+  --fx-tracking-tight: -0.01em;
+  --fx-tracking-normal: 0em;
+  --fx-tracking-wide: 0.02em;
+
+  /* ---- spacing scale ---- */
+  --fx-space-1: 4px;
+  --fx-space-2: 8px;
+  --fx-space-3: 12px;
+  --fx-space-4: 16px;
+  --fx-space-5: 20px;
+  --fx-space-6: 28px;
+  --fx-space-7: 40px;
+
+  /* ---- radius scale — wraps the existing tokens, adds pill + xs ---- */
+  --fx-radius-xs:   6px;
+  --fx-radius-sm:   var(--radius-s, 8px);
+  --fx-radius-md:   var(--radius-m, 14px);
+  --fx-radius-lg:   var(--radius-l, 22px);
+  --fx-radius-pill: 999px;
+
+  /* ---- border weights ---- */
+  --fx-border-none:   0px;
+  --fx-border-thin:   1px;
+  --fx-border-medium: 1.5px;
+  --fx-border-thick:  2.5px;
+
+  /* ---- shadow presets — components pick one instead of inventing a shadow ---- */
+  --fx-shadow-none:    none;
+  --fx-shadow-soft:    0 4px 14px rgba(0,0,0,0.18);
+  --fx-shadow-deep:    0 14px 34px rgba(0,0,0,0.4);
+  --fx-shadow-ambient: 0 1px 0 rgba(255,255,255,0.08) inset, 0 18px 40px -14px rgba(0,0,0,0.5);
+
+  /* ---- glow — feeds fomoji-fx.css's existing --glow-strength math.
+     --fx-accent-rgb is now set per-theme by fomoji-theme.js (see fix note
+     below); glow color follows whichever theme is active instead of a
+     hardcoded default. ---- */
+  --fx-glow-radius: 7px;
+  --fx-glow-spread: 0px;
+  --fx-glow-duration: 1.6s;
+
+  /* ---- motion — every transition should reference these, not a bespoke ms value ---- */
+  --fx-ease-standard: cubic-bezier(.4,0,.2,1);
+  --fx-ease-spring:   cubic-bezier(.34,1.4,.4,1);
+  --fx-ease-decel:    cubic-bezier(0,0,.2,1);
+  --fx-duration-instant: 80ms;
+  --fx-duration-fast:    120ms;
+  --fx-duration-base:    180ms;
+  --fx-duration-slow:    320ms;
+
+  /* ---- interaction — press/hover feel, plus strength dials the Liquid
+     Glass phase will read for bounce/stretch. 0 = off, so components
+     that opt in early get no behavior change until that phase sets them. ---- */
+  --fx-press-scale: 0.985;
+  --fx-hover-lift: -1px;
+  --fx-bounce-strength: 0;
+  --fx-stretch-strength: 0;
+}
+
+/* Reduced-motion / performance tiers collapse to ~0 in one place, so any
+   component built on these tokens is motion-safe for free — it doesn't
+   need its own @media query. */
+html.reduce-motion,
+html[data-motion="reduced"],
+html[data-motion="none"]{
+  --fx-duration-instant: 0ms;
+  --fx-duration-fast: 0ms;
+  --fx-duration-base: 0ms;
+  --fx-duration-slow: 0ms;
+  --fx-bounce-strength: 0;
+  --fx-stretch-strength: 0;
+}
+
+/* ==========================================================================
+   Interaction state contract
+   fomoji-components.js writes data-fx-state to any element it wires (button,
+   tab, card, input) instead of relying on the browser's native :hover only.
+   That gives keyboard/touch/mouse the same state machine, and gives later
+   phases (Glow Engine, Liquid Glass) ONE attribute to target across every
+   component kind instead of duplicating rules per component. Native
+   :hover/:active rules already in fomoji.css are untouched and keep working
+   alongside this — this is a second, richer layer, not a replacement.
+   ========================================================================== */
+[data-fx-state]{
+  transition:
+    transform var(--fx-duration-fast) var(--fx-ease-decel),
+    box-shadow var(--fx-duration-fast) var(--fx-ease-decel);
+}
+[data-fx-state="press"]{ transition-duration: var(--fx-duration-instant); }
+[data-fx-state="loading"]{ cursor: progress; }
+[data-fx-disabled="true"]{ pointer-events: none; opacity: 0.55; }
+
+/* ---- universal press-scale + release bounce ----
+   Previously the only place a satisfying press/bounce existed at all was
+   the Liquid Glass texture's own CSS, and even there it only ever targeted
+   .btn — .tab (the actual tab bar links) was never included, so the tab
+   bar had literally no bounce in any texture, and buttons on every OTHER
+   texture (Flat, Glass, Neu, Skeu — i.e. most of what people actually use)
+   had nothing beyond a barely-visible 1.5% native :active scale. That combo
+   reads as "unresponsive." This applies a real, fast press-scale + spring
+   release to .btn and .tab regardless of active texture, using the same
+   --fx-press-scale / --fx-bounce-strength tokens the Liquid Glass phase
+   already wired up (so per-user bounce-strength / reduced-motion settings
+   still apply). js/fomoji-components.js adds/removes the .fx-press and
+   .fx-bounce classes; Liquid Glass's own .lg-press/.lg-bounce classes on
+   .btn have two-class specificity and simply take over there, so this
+   doesn't fight that texture's stronger squish+refraction effect — it's
+   the baseline every other texture was missing. */
+.fx-press{ transform: scale(var(--fx-press-scale)); }
+.fx-bounce{
+  animation: fx-bounce-kf calc(220ms + 200ms * var(--fx-bounce-strength, 0.3)) var(--fx-ease-spring) both;
+}
+@keyframes fx-bounce-kf{
+  0%   { transform: scale(var(--fx-press-scale)); }
+  55%  { transform: scale(calc(1 + 0.035 * var(--fx-bounce-strength, 0.3))); }
+  100% { transform: scale(1); }
+}
+html.reduce-motion .fx-bounce,
+html[data-motion="reduced"] .fx-bounce,
+html[data-motion="none"] .fx-bounce{ animation: none; }

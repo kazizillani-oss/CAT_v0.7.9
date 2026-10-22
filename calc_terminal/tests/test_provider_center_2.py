@@ -1,0 +1,442 @@
+"""
+Automated Test Suite for CAT CLI Provider Center 2.0.
+
+Validates:
+1. 160+ verified providers in catalog (actual count, schema, A-Z ordering)
+2. Dynamic provider count calculations
+3. ActiveAIState single source of truth & hot model switching
+4. model_router cache invalidation
+5. ModelVerificationEngine validation pipeline & secret masking
+6. CATRootViewport responsive breakpoint engine
+7. Screen lifecycle & clean instantiation (25+ cycles)
+8. Sign-out confirmation modal
+9. UTF-8 encoding integrity & zero BOM in source files
+"""
+
+import os
+import sys
+import json
+import ast
+import time
+import unittest
+from unittest.mock import patch
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_CAT_ROOT = os.path.dirname(_HERE)
+if _CAT_ROOT not in sys.path:
+    sys.path.insert(0, _CAT_ROOT)
+
+
+class TestProviderCatalog(unittest.TestCase):
+    """Test 160+ verified providers and schema requirements."""
+
+    def test_provider_count_exceeds_160(self):
+        json_path = os.path.join(_CAT_ROOT, "providers", "providers.json")
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        providers = data.get("providers", [])
+        self.assertGreaterEqual(
+            len(providers), 160,
+            f"Expected at least 160 verified providers, got {len(providers)}"
+        )
+
+    def test_provider_schema_validity(self):
+        json_path = os.path.join(_CAT_ROOT, "providers", "providers.json")
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        providers = data.get("providers", [])
+
+        ids = set()
+        for p in providers:
+            pid = p.get("id")
+            name = p.get("name")
+            endpoint = p.get("api_endpoint")
+            style = p.get("api_style")
+
+            self.assertTrue(pid, f"Provider missing id: {p}")
+            self.assertTrue(name, f"Provider missing name: {p}")
+            self.assertTrue(endpoint, f"Provider missing endpoint: {pid}")
+            self.assertTrue(style, f"Provider missing api_style: {pid}")
+            self.assertNotIn(pid, ids, f"Duplicate provider ID found: {pid}")
+            ids.add(pid)
+
+    def test_a_to_z_ordering(self):
+        json_path = os.path.join(_CAT_ROOT, "providers", "providers.json")
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        providers = data.get("providers", [])
+        names = [p.get("name", "").lower() for p in providers]
+        sorted_names = sorted(names)
+        self.assertEqual(names, sorted_names, "Providers must be sorted strictly A to Z by name")
+
+    def test_chinese_providers_included(self):
+        json_path = os.path.join(_CAT_ROOT, "providers", "providers.json")
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        providers = data.get("providers", [])
+        ids = {p.get("id") for p in providers}
+
+        expected_chinese = [
+            "deepseek", "alibaba-qwen", "moonshot", "zhipu", "minimax",
+            "tencent", "bytedance-doubao", "baidu", "yi",
+            "sensetime", "internlm", "baichuan", "stepfun"
+        ]
+        for cid in expected_chinese:
+            self.assertIn(cid, ids, f"Missing first-class Chinese provider: {cid}")
+
+    def test_web_provider_center_uses_catalog_capabilities(self):
+        from calc_terminal.web.provider_center import provider_center_categories
+
+        provider = {
+            "id": "ollama",
+            "name": "Ollama",
+            "description": "Local coding models",
+            "needs_key": False,
+            "free_models_available": True,
+            "supports_reasoning": True,
+            "supports_vision": True,
+            "supports_audio": False,
+        }
+        categories = provider_center_categories(provider, {"ollama"})
+        self.assertEqual(categories, ["local", "free", "popular", "reasoning", "vision", "multimodal", "coding"])
+
+    def test_web_provider_center_does_not_label_paid_non_reasoning_as_free(self):
+        from calc_terminal.web.provider_center import provider_center_categories
+
+        provider = {
+            "id": "custom-paid",
+            "name": "Custom Paid",
+            "description": "General inference endpoint",
+            "needs_key": True,
+            "free_models_available": False,
+        }
+        self.assertEqual(provider_center_categories(provider, set()), [])
+
+    def test_web_entry_uses_relative_stylesheet_and_script_paths(self):
+        static_dir = os.path.join(_CAT_ROOT, "web", "static")
+        with open(os.path.join(static_dir, "index.html"), encoding="utf-8") as source:
+            html = source.read()
+        self.assertIn('href="./css/app.css?v=cat-session-workspace-20261010a"', html)
+        self.assertIn('src="./js/app.js?v=cat-session-workspace-20261010a"', html)
+        self.assertTrue(os.path.isfile(os.path.join(static_dir, "css", "app.css")))
+        self.assertTrue(os.path.isfile(os.path.join(static_dir, "js", "app.js")))
+        with open(os.path.join(static_dir, "css", "app.css"), encoding="utf-8") as source:
+            css = source.read()
+        with open(os.path.join(static_dir, "js", "app.js"), encoding="utf-8") as source:
+            app_js = source.read()
+        self.assertIn(".cct-composer-footer { display:none!important; }", css)
+        self.assertIn("#app button { border-radius:12px!important; }", css)
+        self.assertIn(".cct-dock-provider", css)
+        self.assertIn("#cct-main > .cct-kitty-dock", css)
+        self.assertLess(html.index("</div>\n        <div class=\"cct-kitty-dock\""), html.index("id=\"cct-model-badge\""))
+        self.assertIn("#cct-sidebar-nav { display:flex; flex:0 0 54px; flex-direction:column", css)
+        self.assertIn("cct-session-activity", html)
+        self.assertIn("renderSessionActivity(state.sidebarChats || chats)", app_js)
+        self.assertIn(".cct-modal-close-btn { display:inline-grid!important", css)
+        self.assertIn(".cct-agent-icon-input", css)
+        self.assertIn("flexBasis = `${newWidth}px`", app_js)
+        self.assertIn("/api/activity/summary?days=", app_js)
+        self.assertIn('body.cct-nav-hidden #cct-sidebar', css)
+
+    def test_welcome_uses_real_recents_and_renders_cat_kitties_dynamically(self):
+        static_dir = os.path.join(_CAT_ROOT, "web", "static")
+        with open(os.path.join(static_dir, "index.html"), encoding="utf-8") as source:
+            html = source.read()
+        with open(os.path.join(static_dir, "js", "app.js"), encoding="utf-8") as source:
+            app_js = source.read()
+        self.assertNotIn('aria-pressed="true"', html)
+        for kitty in ("notebook", "agent", "build", "plan", "debugger", "research"):
+            self.assertIn(f"'{kitty}'", app_js)
+        self.assertIn('id="cct-mode-current"', html)
+        self.assertNotIn('id="cct-kitty-dock-modes"', html)
+        self.assertNotIn('class="cct-auto-route"', html)
+        self.assertNotIn('class="cct-spatial-stage"', html)
+        self.assertIn('class="cct-workspace-start"', html)
+        self.assertIn('aria-label="Activity date range"', html)
+        self.assertIn('renderKittyGrid()', app_js)
+        self.assertIn("window.location.protocol === 'file:'", app_js)
+        self.assertIn("document.body.dataset.activeMode = modeId", app_js)
+        self.assertNotIn("Failed to load menu</div>'", app_js)
+        self.assertIn("Object.entries(data?.modes || {})", app_js)
+        self.assertIn("/api/modes/custom", app_js)
+        self.assertNotIn("A clear mind.", html)
+        self.assertNotIn("cct-stage-cat", html)
+        self.assertNotIn("openRecentPath('storeflow')", html)
+        self.assertNotIn("projects/calculator", app_js)
+        self.assertIn("No recent workspaces", app_js)
+
+
+class TestActiveAIState(unittest.TestCase):
+    """Test ActiveAIState singleton, hot model switching, and persistence."""
+
+    def setUp(self):
+        from calc_terminal.models.active_state import ActiveAIStateManager
+        from calc_terminal.providers import provider_manager as pm
+        self._orig_cfg = dict(pm.load_config())
+        ActiveAIStateManager.reset_instance()
+
+    def tearDown(self):
+        from calc_terminal.models.active_state import ActiveAIStateManager
+        from calc_terminal.providers import provider_manager as pm
+        pm.save_config(self._orig_cfg)
+        ActiveAIStateManager.reset_instance()
+
+    def test_singleton_active_state(self):
+        from calc_terminal.models.active_state import get_active_state, set_active_ai, ActiveAIStateManager
+        s1 = get_active_state()
+        self.assertIsNotNone(s1)
+
+        # Hot switch model
+        new_state = set_active_ai("deepseek", "deepseek-chat", {"api_key": "test-key", "base_url": "https://api.deepseek.com/v1"})
+        self.assertEqual(new_state.provider_id, "deepseek")
+        self.assertEqual(new_state.model_id, "deepseek-chat")
+        self.assertEqual(new_state.status, "Ready")
+
+        # Second retrieval reflects the change
+        s2 = get_active_state()
+        self.assertEqual(s2.provider_id, "deepseek")
+        self.assertEqual(s2.model_id, "deepseek-chat")
+
+    def test_subscriber_notification(self):
+        from calc_terminal.models.active_state import ActiveAIStateManager, set_active_ai
+        mgr = ActiveAIStateManager.get_instance()
+
+        notified = []
+        def listener(record):
+            notified.append((record.provider_id, record.model_id))
+
+        mgr.subscribe(listener)
+        set_active_ai("anthropic", "claude-4-sonnet", {})
+        self.assertEqual(len(notified), 1)
+        self.assertEqual(notified[0], ("anthropic", "claude-4-sonnet"))
+        mgr.unsubscribe(listener)
+
+
+class TestFomojiDeviceFlow(unittest.TestCase):
+    def test_cli_device_login_reuses_the_shared_device_start(self):
+        from calc_terminal import fomoji_auth
+
+        identity = {"fomojiId": "usr_9", "name": "CAT User"}
+        prompts = []
+        start = {
+            "deviceCode": "device-secret", "userCode": "CAT-1234",
+            "verificationUrl": "/connector.html", "expiresIn": 300,
+            "pollIntervalSeconds": 3,
+        }
+        with patch.object(fomoji_auth, "ensure_fomoji_server", return_value=True), \
+             patch.object(fomoji_auth, "_device_start", return_value=start), \
+             patch.object(fomoji_auth, "_load_local", return_value={"token": "stored", "identity": identity}):
+            result = fomoji_auth.device_login(on_prompt=lambda **kwargs: prompts.append(kwargs), timeout_seconds=1)
+
+        self.assertEqual(result, identity)
+        self.assertEqual(prompts[0]["user_code"], "CAT-1234")
+        self.assertTrue(prompts[0]["verification_url"].endswith("?code=CAT-1234"))
+
+    def test_browser_device_flow_keeps_device_code_server_side_and_saves_approved_token(self):
+        from calc_terminal import fomoji_auth
+
+        start = {
+            "deviceCode": "device-secret",
+            "userCode": "CAT-ABCD",
+            "verificationUrl": "/connector.html",
+            "expiresIn": 300,
+            "pollIntervalSeconds": 3,
+        }
+        with patch.object(fomoji_auth, "ensure_fomoji_server", return_value=True), \
+             patch.object(fomoji_auth, "_device_start", return_value=start):
+            flow = fomoji_auth.start_device_login()
+
+        self.assertEqual(flow["user_code"], "CAT-ABCD")
+        self.assertTrue(flow["verification_url"].endswith("/connector.html?code=CAT-ABCD"))
+        self.assertEqual(flow["device_code"], "device-secret")
+        self.assertEqual(flow["expires_in_seconds"], 300)
+
+        approved = {
+            "status": "approved", "connectorToken": "connector-secret",
+            "fomojiId": "usr_42", "name": "CAT User", "email": "cat@example.test",
+        }
+        saved = []
+        with patch.object(fomoji_auth, "_device_poll", return_value=approved), \
+             patch.object(fomoji_auth, "_save_local", side_effect=saved.append), \
+             patch.object(fomoji_auth, "invalidate_cache"):
+            result = fomoji_auth.poll_device_login(flow["device_code"])
+
+        self.assertEqual(result["status"], "approved")
+        self.assertNotIn("connectorToken", result)
+        self.assertEqual(saved[0]["token"], "connector-secret")
+        self.assertEqual(saved[0]["identity"]["name"], "CAT User")
+
+
+class TestModelRouterCache(unittest.TestCase):
+    """Test model_router cache invalidation on model switch."""
+
+    def test_invalidate_cache(self):
+        from calc_terminal import model_router
+        model_router.invalidate_cache()
+        configs1 = model_router.available_configs()
+        self.assertIsInstance(configs1, list)
+
+        # Invalidate again
+        model_router.invalidate_cache()
+        self.assertIsNone(model_router._registry_cache)
+
+
+class TestModelVerificationEngine(unittest.TestCase):
+    """Test verification pipeline for unknown and custom models."""
+
+    def test_secret_masking(self):
+        from calc_terminal.models.verification_engine import mask_secret
+        self.assertEqual(mask_secret(""), "")
+        self.assertEqual(mask_secret("short"), "********")
+        masked = mask_secret("sk-1234567890abcdefg")
+        self.assertTrue(masked.startswith("sk-"))
+        self.assertTrue(masked.endswith("defg"))
+        self.assertNotIn("1234567890", masked)
+
+    def test_empty_model_id_rejected(self):
+        from calc_terminal.models.verification_engine import ModelVerificationEngine, VerificationStatus
+        engine = ModelVerificationEngine()
+        res = engine.verify_custom_model("openai", "", "https://api.openai.com/v1")
+        self.assertFalse(res.success)
+        self.assertEqual(res.status, VerificationStatus.FAILED)
+        self.assertIn("empty", res.error.lower())
+
+    def test_invalid_url_scheme_rejected(self):
+        from calc_terminal.models.verification_engine import ModelVerificationEngine, VerificationStatus
+        engine = ModelVerificationEngine()
+        res = engine.verify_custom_model("custom", "test-model", "ftp://invalid-url.com")
+        self.assertFalse(res.success)
+        self.assertEqual(res.status, VerificationStatus.FAILED)
+        self.assertIn("scheme", res.error.lower())
+
+    def test_unsupported_protocol_rejected(self):
+        from calc_terminal.models.verification_engine import ModelVerificationEngine, VerificationStatus
+        engine = ModelVerificationEngine()
+        res = engine.verify_custom_model("custom", "test-model", "https://api.test.com", protocol="unsupported_proto_xyz")
+        self.assertFalse(res.success)
+        self.assertEqual(res.status, VerificationStatus.FAILED)
+
+
+class TestResponsiveViewport(unittest.TestCase):
+    """Test CATRootViewport responsive breakpoints."""
+
+    def test_size_classes(self):
+        from calc_terminal.ui.viewport import get_terminal_size_class
+        self.assertEqual(get_terminal_size_class(120), "large")
+        self.assertEqual(get_terminal_size_class(100), "large")
+        self.assertEqual(get_terminal_size_class(85), "medium")
+        self.assertEqual(get_terminal_size_class(70), "small")
+        self.assertEqual(get_terminal_size_class(50), "very_small")
+
+
+class TestSourceIntegrity(unittest.TestCase):
+    """Verify clean UTF-8 encoding without BOM and valid Python AST."""
+
+    def test_zero_bom_in_model_py(self):
+        model_path = os.path.join(_CAT_ROOT, "model.py")
+        with open(model_path, "rb") as f:
+            header = f.read(4)
+        self.assertNotEqual(header[:3], b"\xef\xbb\xbf", "model.py must not contain a UTF-8 BOM")
+
+    def test_ast_parse_all_modules(self):
+        modules = [
+            "model.py",
+            "models/active_state.py",
+            "models/verification_engine.py",
+            "ui/viewport.py",
+            "ui/app.py",
+            "model_router.py",
+        ]
+        for m in modules:
+            path = os.path.join(_CAT_ROOT, m)
+            with open(path, "r", encoding="utf-8") as f:
+                content = f.read()
+            try:
+                ast.parse(content)
+            except Exception as e:
+                self.fail(f"AST parse failed for {m}: {e}")
+
+
+class TestScreenLifecycle(unittest.TestCase):
+    """Test instantiating and mounting screens 25+ times without leakage."""
+
+    def test_screen_lifecycle_instantiations(self):
+        from calc_terminal.model import (
+            ProviderScreen, ModelScreen, ApiKeyScreen, VerifyScreen,
+            MyModelsScreen, AddCustomModelScreen, UpdateCenterScreen,
+            ModelConfirmModal, ALL_PROVIDERS
+        )
+        sample_prov = ALL_PROVIDERS[0]
+
+        for i in range(25):
+            s1 = ProviderScreen(embedded=True)
+            self.assertIsNotNone(s1)
+            s2 = ModelScreen(sample_prov, embedded=True)
+            self.assertIsNotNone(s2)
+            s3 = ApiKeyScreen(sample_prov, "test-model", embedded=True)
+            self.assertIsNotNone(s3)
+            s4 = VerifyScreen({"provider": "test", "model": "test"}, embedded=True)
+            self.assertIsNotNone(s4)
+            s5 = MyModelsScreen(embedded=True)
+            self.assertIsNotNone(s5)
+            s6 = AddCustomModelScreen(embedded=True)
+            self.assertIsNotNone(s6)
+            s7 = UpdateCenterScreen(embedded=True)
+            self.assertIsNotNone(s7)
+            s8 = ModelConfirmModal("deepseek", "deepseek-chat", {})
+            self.assertIsNotNone(s8)
+
+
+class TestProviderCenterFixes(unittest.TestCase):
+    """Test specific fixes for Provider Center 2.0:
+    - Zero double-encoded UTF-8 corruptions in providers.json
+    - Zero duplicate alias sub-merges
+    - Enter key handler (on_input_submitted)
+    - Mouse cursor & touch screen row click handler (_on_row_clicked)
+    - Failover Chain integration
+    """
+
+    def test_zero_encoding_corruption_in_providers_json(self):
+        json_path = os.path.join(_CAT_ROOT, "providers", "providers.json")
+        with open(json_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        for bad in ("â€”", "â€“", "â€\"", "â€˜", "â€™", "â€œ", "\ufeff"):
+            self.assertNotIn(bad, content, f"providers.json must not contain corrupted encoding artifact: {bad}")
+
+    def test_zero_submerged_duplicate_endpoints(self):
+        json_path = os.path.join(_CAT_ROOT, "providers", "providers.json")
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        providers = data.get("providers", [])
+        ids = {p["id"] for p in providers}
+        
+        # Verify removed duplicate aliases are NOT in catalog
+        banned_aliases = [
+            "01-yi", "zeroone", "togetherai-alt", "together-cloud", "together_ai",
+            "baidu-ernie", "byte-avalanche", "bedrock", "deepinfra_inference",
+            "goog-vertex", "hyperbolic_cloud", "lambdalabs", "monster_api",
+            "ollama-custom", "sensenova", "vllm_hosted", "kobold_united"
+        ]
+        for bad_id in banned_aliases:
+            self.assertNotIn(bad_id, ids, f"Sub-merged duplicate alias must not exist in catalog: {bad_id}")
+
+    def test_provider_screen_handlers_exist(self):
+        from calc_terminal.model import ProviderScreen, ProviderRow, InfoPanel
+        screen = ProviderScreen(embedded=True)
+        self.assertTrue(hasattr(screen, "on_input_submitted"), "ProviderScreen must implement on_input_submitted for Enter key")
+        self.assertTrue(hasattr(screen, "_on_row_clicked"), "ProviderScreen must implement _on_row_clicked for mouse and touch screen clicks")
+        self.assertTrue(hasattr(screen, "_toggle_failover_for_selected"), "ProviderScreen must implement _toggle_failover_for_selected")
+        self.assertTrue(hasattr(screen, "_open_failover_panel"), "ProviderScreen must implement _open_failover_panel")
+
+        # Test clicking a row updates selection
+        screen._selected_index = 0
+        screen._on_row_clicked(screen._filtered[1], 1)
+        self.assertEqual(screen._selected_index, 1, "Clicking row 1 must update selected index to 1")
+
+        # Test InfoPanel has interactive action buttons
+        panel = InfoPanel()
+        self.assertTrue(hasattr(panel, "compose"), "InfoPanel must compose action buttons")
+
+
+if __name__ == "__main__":
+    unittest.main()

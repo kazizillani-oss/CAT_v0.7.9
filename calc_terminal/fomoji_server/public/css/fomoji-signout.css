@@ -1,0 +1,134 @@
+/* ==========================================================================
+   FOMOJI — sign-out modal + CAT Shutdown Protocol game
+   Reads existing theme tokens (--panel/--ink/--sage/--f-mono/--radius-*)
+   so it automatically matches whatever theme + texture is active. Adds no
+   new selectors that fomoji.css / fomoji-fx.css already own.
+   ========================================================================== */
+
+.fomoji-so-overlay{
+  position:fixed; inset:0; z-index:200;
+  display:flex; align-items:center; justify-content:center;
+  padding:20px;
+  background:rgba(0,0,0,0.55);
+  opacity:0; pointer-events:none;
+  transition:opacity var(--fx-duration-base, 180ms) var(--fx-ease-standard, ease);
+}
+.fomoji-so-overlay.is-open{ opacity:1; pointer-events:auto; }
+
+.fomoji-so-panel{
+  position:relative;
+  width:100%; max-width:340px;
+  background:var(--panel); color:var(--ink);
+  border:1px solid var(--line);
+  border-radius:var(--radius-l, 22px);
+  box-shadow:0 24px 60px -18px rgba(0,0,0,0.6);
+  padding:24px 20px 20px;
+  transform:translateY(10px) scale(0.98);
+  transition:transform var(--fx-duration-base, 180ms) var(--fx-ease-spring, ease);
+}
+.fomoji-so-overlay.is-open .fomoji-so-panel{ transform:translateY(0) scale(1); }
+html.reduce-motion .fomoji-so-panel,
+html[data-motion="reduced"] .fomoji-so-panel,
+html[data-motion="none"] .fomoji-so-panel{ transition:none; transform:none; }
+
+.fomoji-so-close{
+  position:absolute; top:10px; right:10px;
+  width:28px; height:28px; border-radius:999px;
+  border:1px solid var(--line); background:var(--panel-2);
+  color:var(--ink-faint); font-size:13px; line-height:1;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+}
+.fomoji-so-close:hover{ color:var(--ink); border-color:var(--sage-deep); }
+
+.fomoji-so-title{
+  font-family:var(--f-display); font-size:19px; font-weight:600;
+  margin-bottom:4px;
+}
+.fomoji-so-sub{
+  font-size:13px; color:var(--ink-dim); line-height:1.5; margin-bottom:16px;
+}
+.fomoji-so-actions{
+  display:flex; gap:8px; flex-wrap:wrap;
+}
+.fomoji-so-actions .btn{ flex:1 1 auto; }
+
+.fomoji-so-skip{
+  display:block; width:100%; margin-top:10px;
+  background:none; border:none; cursor:pointer;
+  font-size:12px; color:var(--ink-faint); text-align:center;
+  padding:6px; min-height:32px;
+}
+.fomoji-so-skip:hover, .fomoji-so-skip:focus-visible{ color:var(--ink-dim); }
+
+/* ---- game view: CAT Shutdown Protocol ---- */
+.fomoji-so-hud{
+  display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;
+  font-family:var(--f-mono); font-size:12px; color:var(--ink-dim);
+  margin:6px 0 10px;
+}
+.fomoji-so-hud-item{
+  padding:3px 9px; border-radius:999px; border:1px solid var(--line);
+  background:var(--panel-2);
+}
+
+.fomoji-so-systems{
+  display:flex; align-items:center; justify-content:space-between;
+  font-family:var(--f-mono); font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase;
+  color:var(--ink-faint); margin-bottom:8px;
+}
+.fomoji-so-dots{ display:flex; gap:6px; }
+.fomoji-so-dot{
+  width:9px; height:9px; border-radius:999px;
+  background:var(--sage); box-shadow:0 0 8px -1px rgba(var(--fx-accent-rgb,154,160,133),0.7);
+  transition:background var(--fx-duration-base,180ms) ease, box-shadow var(--fx-duration-base,180ms) ease;
+}
+.fomoji-so-dot.is-off{ background:var(--panel-2); box-shadow:none; border:1px solid var(--line); }
+html.reduce-motion .fomoji-so-dot,
+html[data-motion="reduced"] .fomoji-so-dot,
+html[data-motion="none"] .fomoji-so-dot{ transition:none; }
+
+.fomoji-so-arena{
+  display:grid; grid-template-columns:repeat(2, 1fr); gap:10px;
+  width:100%; min-height:140px;
+  border-radius:var(--radius-m, 14px);
+  border:1px solid var(--line);
+  background:var(--void);
+  padding:14px;
+  touch-action:manipulation;
+}
+
+.fomoji-so-node{
+  width:100%; min-height:52px;
+  border-radius:var(--radius-s, 10px);
+  border:1px solid var(--sage-deep);
+  background:radial-gradient(circle at 35% 30%, rgba(var(--fx-accent-rgb,154,160,133),0.9), var(--panel-2) 70%);
+  color:var(--sage);
+  font-family:var(--f-mono); font-weight:600; font-size:18px;
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer;
+  box-shadow:0 0 14px -2px rgba(var(--fx-accent-rgb,154,160,133),0.6);
+  transition:transform 140ms var(--fx-ease-spring, ease), opacity 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+.fomoji-so-node:hover:not(:disabled), .fomoji-so-node:focus-visible{ transform:scale(1.04); }
+.fomoji-so-node.no-motion{ transition:none; }
+.fomoji-so-node.is-off{
+  background:var(--panel-2); color:var(--ink-faint); box-shadow:none; opacity:0.55; cursor:default;
+}
+.fomoji-so-node.is-error{
+  background:rgba(200,90,80,0.22); border-color:rgba(200,90,80,0.6); color:#e0a39a; box-shadow:0 0 14px -2px rgba(200,90,80,0.5);
+}
+.fomoji-so-node:disabled{ cursor:default; }
+
+.fomoji-so-view .fomoji-so-actions{ margin-top:14px; }
+
+/* ---- mobile: bottom sheet ---- */
+@media (max-width:520px){
+  .fomoji-so-overlay{ align-items:flex-end; padding:0; }
+  .fomoji-so-panel{
+    max-width:none;
+    border-radius:var(--radius-l, 22px) var(--radius-l, 22px) 0 0;
+    padding-bottom:calc(20px + var(--safe-b, 0px));
+  }
+  .fomoji-so-overlay.is-open .fomoji-so-panel{ transform:translateY(0); }
+  .fomoji-so-panel{ transform:translateY(100%); }
+}
