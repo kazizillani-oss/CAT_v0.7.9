@@ -555,7 +555,7 @@ if TEXTUAL_AVAILABLE:
                 self.app.call_from_thread(
                     lambda: status.update(
                         f"[{theme_css.current_hex('success' if ok else 'error')}]"
-                        f"{'\u2713' if ok else '\u2717'} {msg}[/]"))
+                        f"{'✓' if ok else '✗'} {msg}[/]"))
 
             threading.Thread(target=_run, daemon=True).start()
 

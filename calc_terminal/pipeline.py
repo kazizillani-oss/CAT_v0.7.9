@@ -160,8 +160,9 @@ def render_task_graph(current_stage, term_width=78):
             prefix = "  "
         indent = " " * 2
         if current:
+            current_tag = theme.orange('● CURRENT', bold=True)
             lines.append(f"{indent}{theme.cyan(arrow if stage != 'planner' else ' ')} "
-                         f"{theme.cyan('>', bold=True)} {theme.cyan(label, bold=True)}  {theme.orange('\u25cf CURRENT', bold=True)}")
+                         f"{theme.cyan('>', bold=True)} {theme.cyan(label, bold=True)}  {current_tag}")
         else:
             lines.append(f"{indent}{theme.faint(arrow if stage != 'planner' else ' ')}  {theme.faint(label)}")
     return lines

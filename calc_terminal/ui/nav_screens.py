@@ -537,8 +537,8 @@ if TEXTUAL_AVAILABLE:
                     pass
 
             _set("#user-name", f"  Name:  [b]{name}[/b]")
-            _set("#user-email", f"  Email:  {email_display}")
-            _set("#user-status", f"  Status:  {'[b]\u2713 Signed In[/b]' if authenticated else '[dim]Signed Out[/dim]'}")
+            status_text = "[b]✓ Signed In[/b]" if authenticated else "[dim]Signed Out[/dim]"
+            _set("#user-status", f"  Status:  {status_text}")
             _set("#user-model", f"  Active:  [b]{model}[/b]")
             _set("#user-provider", f"  Provider:  {provider}")
             # Mode colors preview: show current mode's accent + small palette

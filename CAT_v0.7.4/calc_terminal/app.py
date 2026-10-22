@@ -1481,7 +1481,8 @@ class App:
         lines.append("")
         lines.append(theme.cyan("Quick command aliases (type instead of the full command):", bold=True))
         for short, full in self.SHORT_ALIASES.items():
-            lines.append(f"  {theme.badge(short, theme.BG_OK)}  {theme.dim('\u2192 ' + full)}")
+            arrow_full = "→ " + full
+            lines.append(f"  {theme.badge(short, theme.BG_OK)}  {theme.dim(arrow_full)}")
         lines.append("")
         lines.append(theme.cyan("Anywhere in the terminal:", bold=True))
         lines.append(f"  {theme.badge('/back', theme.BG_INFO)}  {theme.dim('return to the previous menu')}")
@@ -1911,8 +1912,9 @@ class App:
                     extra = ""
                     if r.get("updated_at") and r.get("updated_at") != r.get("installed_at"):
                         extra = theme.faint(" \u00b7 updated")
+                    desc_str = r.get('manager', '') + ' · ' + when + ' · ' + str(r.get('env', ''))
                     lines.append(f"  {status} {theme.cyan(r.get('name', '?'))} "
-                                 f"{theme.faint(version)}  {theme.dim(r.get('manager', '') + ' \u00b7 ' + when + ' \u00b7 ' + str(r.get('env', '')))}{extra}")
+                                 f"{theme.faint(version)}  {theme.dim(desc_str)}{extra}")
                     if not r.get("ok"):
                         lines.append(theme.faint(f"      failed \u2014 exit {r.get('exit_code', '?')}"))
             lines.append("")
@@ -1949,7 +1951,8 @@ class App:
             lines.append(theme.dim("Remembered install decisions (forget with /packages forget <pkg>):"))
             for manager, name, decision in remembered:
                 mark = theme.green("allow") if decision == "allow" else theme.red("deny")
-                lines.append(f"  {theme.faint(manager + ' / ' + name + ' \u2014 ')}{mark}")
+                prefix_str = manager + ' / ' + name + ' — '
+                lines.append(f"  {theme.faint(prefix_str)}{mark}")
         lines.append("")
         lines.append(theme.faint("Ask CAT 'install <package>' from any mode \u2014 installs are Build-mode work."))
         print(theme.panel(lines, title="packages", color=theme.PURPLE, width=WIDTH))
@@ -2003,7 +2006,8 @@ class App:
             print()
             for key, label, current in _p.task_graph(stage):
                 if current:
-                    print(theme.cyan(f"    \u25b8 {label}  {theme.orange('\u25cf CURRENT', bold=True)}"))
+                    current_tag = theme.orange('● CURRENT', bold=True)
+                    print(theme.cyan(f"    ▸ {label}  {current_tag}"))
                 else:
                     print(theme.faint(f"      {label}"))
             print()

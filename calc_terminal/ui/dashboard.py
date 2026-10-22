@@ -310,9 +310,10 @@ if TEXTUAL_AVAILABLE:
 
             folder_name = os.path.basename(root.rstrip(os.sep)) or root
             short_root = _truncate_path(root, 22)
+            files_str = str(stats['total_files']) if stats['total_files'] is not None else "—"
             lines = [
                 f"  \U0001f4c1 [b]{folder_name}[/]  [{faint}]({short_root})[/]",
-                f"  {project_stats.human_size(stats['total_size'])}{'+' if stats['truncated'] else ''}  \u00b7  {stats['total_files'] if stats['total_files'] is not None else '\u2014'} files",
+                f"  {project_stats.human_size(stats['total_size'])}{'+' if stats['truncated'] else ''}  \u00b7  {files_str} files",
             ]
             if stats.get("languages"):
                 top_langs = list(stats["languages"].items())[:2]
@@ -320,7 +321,8 @@ if TEXTUAL_AVAILABLE:
                 if len(stats["languages"]) > 2:
                     langs += f" +{len(stats['languages']) - 2}"
                 lines.append(f"  [{faint}]Lang:[/] {langs}")
-            lines.append(f"  [{faint}]Git:[/] {branch or '\u2014'}  \u00b7  [{faint}]Mod:[/] {project_stats.human_age(stats['last_modified'])}")
+            git_str = branch or "—"
+            lines.append(f"  [{faint}]Git:[/] {git_str}  \u00b7  [{faint}]Mod:[/] {project_stats.human_age(stats['last_modified'])}")
             provider = config.get('provider', '\u2014')
             model = config.get('model', '\u2014')
             lines.append(f"  [{faint}]AI:[/] {provider} ({model})")
