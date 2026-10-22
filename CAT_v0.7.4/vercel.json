@@ -1,15 +1,5 @@
 {
   "version": 2,
-  "functions": {
-    "api/index.py": {
-      "maxDuration": 60,
-      "memory": 1024,
-      "includeFiles": [
-        "calc_terminal/**",
-        "public/**"
-      ]
-    }
-  },
   "rewrites": [
     {
       "source": "/(.*)",
