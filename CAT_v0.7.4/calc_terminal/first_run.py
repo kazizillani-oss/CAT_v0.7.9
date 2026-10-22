@@ -71,7 +71,11 @@ def data_dir():
     # Linux / BSD / other Unix
     xdg = os.environ.get("XDG_CONFIG_HOME", "").strip()
     base = xdg or os.path.join(os.path.expanduser("~"), ".config")
-    return os.path.join(base, "cct")
+    candidate = os.path.join(base, "cct")
+    if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+        import tempfile
+        candidate = os.path.join(tempfile.gettempdir(), "cat_home", ".config", "cct")
+    return candidate
 
 
 def initialized_path():
@@ -259,4 +263,4 @@ def ensure_first_run():
         print(f"Application data directory: {data_dir()}")
         return 1
     print("✓ CAT core initialized\n")
-    return 0
+    return 0

@@ -2075,7 +2075,7 @@
     switchSidebarTab(tabName) {
       state.activeSidebarTab = tabName;
 
-      ['explorer', 'chats', 'activities', 'extensions', 'agents', 'settings'].forEach(t => {
+      ['explorer', 'chats', 'activities', 'extensions', 'agents', 'missions', 'lab', 'settings'].forEach(t => {
         const btn = document.getElementById(`cct-sb-tab-${t}`);
         const view = document.getElementById(`cct-sb-view-${t}`);
         if (btn) {
@@ -2095,6 +2095,10 @@
         this.loadSidebarExtensions();
       } else if (tabName === 'agents') {
         this.loadAgentDefinitions();
+      } else if (tabName === 'missions') {
+        this.loadSidebarMissions();
+      } else if (tabName === 'lab') {
+        this.loadSidebarLabSummary();
       } else if (tabName === 'settings') {
         this.syncSidebarSettings();
       }
@@ -2114,12 +2118,13 @@
       }
     },
 
-    async loadAgentDefinitions() {
+    async loadAgentDefinitions(query = '') {
       const list = document.getElementById('cct-agent-registry-list');
       if (!list) return;
       list.textContent = 'Loading CAT agent definitions…';
       try {
-        const response = await api.get('/api/agents');
+        const url = query ? `/api/agents/search?q=${encodeURIComponent(query)}` : '/api/agents';
+        const response = await api.get(url);
         const agents = response.agents || [];
         list.replaceChildren();
         agents.forEach(agent => {
@@ -2127,18 +2132,41 @@
           card.className = 'cct-agent-definition-card';
           const heading = document.createElement('div');
           heading.className = 'cct-agent-definition-heading';
-          heading.textContent = `${agent.icon || '🤖'} ${agent.name}`;
+          heading.textContent = `${agent.icon || '🤖'} ${agent.name} ${agent.enabled === false ? '(Disabled)' : ''}`;
           const detail = document.createElement('p');
           detail.textContent = `${agent.id} · ${agent.primary_mode}${agent.builtin ? ' · built-in' : ' · custom'}`;
           const description = document.createElement('p');
           description.textContent = agent.description || agent.system_instructions || 'No description';
-          card.append(heading, detail, description);
+
+          const actions = document.createElement('div');
+          actions.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;';
+
+          const runBtn = document.createElement('button');
+          runBtn.type = 'button'; runBtn.className = 'cct-sb-mini-btn primary'; runBtn.textContent = '▶ Run';
+          runBtn.addEventListener('click', () => this.promptRunAgent(agent.id, agent.name));
+
+          const statusBtn = document.createElement('button');
+          statusBtn.type = 'button'; statusBtn.className = 'cct-sb-mini-btn'; statusBtn.textContent = 'ℹ Status';
+          statusBtn.addEventListener('click', () => this.inspectAgentStatus(agent.id));
+
+          const toggleBtn = document.createElement('button');
+          toggleBtn.type = 'button'; toggleBtn.className = 'cct-sb-mini-btn';
+          toggleBtn.textContent = agent.enabled === false ? 'Enable' : 'Disable';
+          toggleBtn.addEventListener('click', () => this.toggleAgentEnabled(agent.id, agent.enabled === false));
+
+          const expBtn = document.createElement('button');
+          expBtn.type = 'button'; expBtn.className = 'cct-sb-mini-btn'; expBtn.textContent = '⤓ .cat';
+          expBtn.addEventListener('click', () => this.exportAgentDefinition(agent.id));
+
+          actions.append(runBtn, statusBtn, toggleBtn, expBtn);
+
           if (!agent.builtin) {
             const remove = document.createElement('button');
             remove.type = 'button'; remove.className = 'cct-sb-mini-btn'; remove.textContent = 'Delete';
             remove.addEventListener('click', () => this.deleteAgentDefinition(agent.id));
-            card.appendChild(remove);
+            actions.appendChild(remove);
           }
+          card.append(heading, detail, description, actions);
           list.appendChild(card);
         });
       } catch (error) { list.textContent = `Could not load agents: ${error.message}`; }
@@ -4588,6 +4616,699 @@
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
+    },
+
+    // ─────────────────────────────────────────────────────────────────────
+    // INTEGRATED CAT CLI, IDE TERMINAL, MISSIONS & CAT LAB STUDIO
+    // ─────────────────────────────────────────────────────────────────────
+    searchAgentDefinitions(q) {
+      clearTimeout(this._agentSearchTimer);
+      this._agentSearchTimer = setTimeout(() => this.loadAgentDefinitions(q), 200);
+    },
+
+    async toggleAgentEnabled(agentId, enable) {
+      try {
+        await api.post(`/api/agents/${encodeURIComponent(agentId)}/${enable ? 'enable' : 'disable'}`, {});
+        this.showToast(`Agent ${agentId} ${enable ? 'enabled' : 'disabled'} ✓`, 'info');
+        await this.loadAgentDefinitions(document.getElementById('cct-agent-search-input')?.value || '');
+      } catch (e) {
+        this.showToast(`Agent toggle failed: ${e.message}`, 'error');
+      }
+    },
+
+    async inspectAgentStatus(agentId) {
+      try {
+        const res = await api.get(`/api/agents/${encodeURIComponent(agentId)}/status`);
+        const st = res.status || {};
+        const ag = res.agent || {};
+        const p = st.provider_info || {};
+        alert(
+          `CAT Agent Status: ${ag.icon || '🤖'} ${ag.name || agentId}\n` +
+          `State: ${st.status || 'idle'} (${st.enabled ? 'Enabled' : 'Disabled'})\n` +
+          `Primary Mode: ${st.primary_mode || ag.primary_mode}\n` +
+          `Provider: ${p.provider || 'default'} (${p.status_label || 'Healthy'})\n` +
+          `Memory Scope: ${ag.memory_scope || 'project'}\n` +
+          `Tools (${(ag.tools || []).length}): ${(ag.tools || []).slice(0, 8).join(', ') || 'Inherited'}`
+        );
+      } catch (e) {
+        this.showToast(`Status error: ${e.message}`, 'error');
+      }
+    },
+
+    async exportAgentDefinition(agentId) {
+      try {
+        const data = await api.get(`/api/agents/${encodeURIComponent(agentId)}/export`);
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${agentId}.catagent`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        this.showToast(`Exported ${agentId}.catagent ⤓`, 'success');
+      } catch (e) {
+        this.showToast(`Export error: ${e.message}`, 'error');
+      }
+    },
+
+    async promptRunAgent(agentId, agentName) {
+      const promptText = prompt(`Enter task or prompt for ${agentName || agentId}:`, 'Inspect the active workspace and summarize key files.');
+      if (!promptText || !promptText.trim()) return;
+      const welcome = document.getElementById('cct-welcome-view');
+      const turnsBox = document.getElementById('cct-chat-turns');
+      if (welcome) welcome.style.display = 'none';
+      document.getElementById('cct-conversation')?.classList.remove('cct-start-screen');
+      if (turnsBox) turnsBox.style.display = 'flex';
+      this.appendUserMessage(`[@${agentId}] ${promptText.trim()}`);
+      const cardEl = this.appendAssistantLoading();
+      try {
+        const res = await api.post(`/api/agents/${encodeURIComponent(agentId)}/run`, {
+          prompt: promptText.trim(),
+          project_path: state.workspaceRoot
+        });
+        this.updateAssistantCard(cardEl, {
+          text: res.response || '(Completed agent turn)',
+          steps: res.steps || [],
+          provider: state.provider || 'CAT',
+          model: `${res.agent_name || agentId}`,
+          timeStr: '0:02',
+          tokens: Math.max(12, Math.round((res.response || '').length / 3)),
+          timings: { ttfb_ms: 120, memory_ms: 15, loop_ms: 450 },
+          calls: Math.max(1, (res.steps || []).length)
+        });
+      } catch (e) {
+        this.updateAssistantCard(cardEl, {
+          text: `Agent execution error: ${e.message}`,
+          provider: state.provider,
+          model: agentId,
+          timeStr: '0:01',
+          tokens: 0,
+          timings: { ttfb_ms: 10, memory_ms: 5, loop_ms: 15 },
+          calls: 1
+        });
+      }
+    },
+
+    async promptMultiAgentOrchestration() {
+      const obj = prompt('Enter objective for Multi-Agent Team Workflow (Planner -> Coder -> Tester -> Reviewer):', 'Audit workspace architecture and propose verification tests.');
+      if (!obj || !obj.trim()) return;
+      const welcome = document.getElementById('cct-welcome-view');
+      const turnsBox = document.getElementById('cct-chat-turns');
+      if (welcome) welcome.style.display = 'none';
+      document.getElementById('cct-conversation')?.classList.remove('cct-start-screen');
+      if (turnsBox) turnsBox.style.display = 'flex';
+      this.appendUserMessage(`[Multi-Agent Team] ${obj.trim()}`);
+      const cardEl = this.appendAssistantLoading();
+      try {
+        const res = await api.post('/api/agents/orchestrate', {
+          objective: obj.trim(),
+          agent_ids: ['cat-planner', 'cat-coder', 'cat-tester', 'cat-reviewer']
+        });
+        const stepsSummary = (res.results || []).map((r, i) => `**Step ${i + 1} (${r.agent_id})** [${r.status}]:\n${r.summary}`).join('\n\n');
+        this.updateAssistantCard(cardEl, {
+          text: stepsSummary || 'Multi-agent team orchestration completed.',
+          provider: state.provider || 'CAT-TEAM',
+          model: 'Multi-Agent Orchestrator',
+          timeStr: '0:03',
+          tokens: Math.max(20, Math.round(stepsSummary.length / 3)),
+          timings: { ttfb_ms: 150, memory_ms: 25, loop_ms: 900 },
+          calls: (res.results || []).length || 1
+        });
+      } catch (e) {
+        this.updateAssistantCard(cardEl, {
+          text: `Orchestration error: ${e.message}`,
+          provider: state.provider,
+          model: 'Multi-Agent',
+          timeStr: '0:01',
+          tokens: 0,
+          timings: { ttfb_ms: 10, memory_ms: 5, loop_ms: 15 },
+          calls: 1
+        });
+      }
+    },
+
+    async loadSidebarMissions() {
+      const mList = document.getElementById('cct-missions-list');
+      const sList = document.getElementById('cct-scheduled-tasks-list');
+      if (mList) mList.textContent = 'Loading missions…';
+      try {
+        const [mRes, sRes] = await Promise.all([
+          api.get('/api/missions'),
+          api.get('/api/schedule').catch(() => ({ tasks: [] }))
+        ]);
+        const missions = mRes.missions || [];
+        if (mList) {
+          mList.replaceChildren();
+          if (!missions.length) {
+            mList.innerHTML = '<div style="padding:8px;font-size:11px;color:var(--term-text-muted);">No missions yet. Click <b>+ Mission</b> to create one.</div>';
+          } else {
+            missions.forEach(m => {
+              const card = document.createElement('article');
+              card.className = 'cct-agent-definition-card';
+              card.innerHTML = `
+                <div class="cct-agent-definition-heading">🎯 ${this.escapeHtml(m.title)}</div>
+                <p>${this.escapeHtml(m.id)} · <b>${this.escapeHtml((m.status || 'pending').toUpperCase())}</b> · ${(m.checkpoints || []).length} checkpoints</p>
+                <p>${this.escapeHtml(m.objective || '')}</p>
+                <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">
+                  <button type="button" class="cct-sb-mini-btn" onclick="FATTY.missionAction('${this.escapeHtml(m.id)}', '${m.status === 'paused' ? 'resume' : 'pause'}')">${m.status === 'paused' ? '▶ Resume' : '⏸ Pause'}</button>
+                  <button type="button" class="cct-sb-mini-btn primary" onclick="FATTY.missionAction('${this.escapeHtml(m.id)}', 'complete')">✓ Complete</button>
+                  <button type="button" class="cct-sb-mini-btn" onclick="FATTY.exportMission('${this.escapeHtml(m.id)}')">⤓ .cat</button>
+                  <button type="button" class="cct-sb-mini-btn" onclick="FATTY.missionAction('${this.escapeHtml(m.id)}', 'delete')">🗑</button>
+                </div>
+              `;
+              mList.appendChild(card);
+            });
+          }
+        }
+        const tasks = sRes.tasks || [];
+        if (sList) {
+          sList.replaceChildren();
+          if (!tasks.length) {
+            sList.innerHTML = '<div style="padding:8px;font-size:11px;color:var(--term-text-muted);">No scheduled background tasks.</div>';
+          } else {
+            tasks.forEach(t => {
+              const card = document.createElement('article');
+              card.className = 'cct-agent-definition-card';
+              card.innerHTML = `
+                <div class="cct-agent-definition-heading">⏰ ${this.escapeHtml(t.name)}</div>
+                <p>${this.escapeHtml(t.task_id)} · Agent: ${this.escapeHtml(t.agent_id)} · ${this.escapeHtml(t.status)}</p>
+                <div style="display:flex;gap:4px;margin-top:6px;">
+                  <button type="button" class="cct-sb-mini-btn primary" onclick="FATTY.scheduleTaskAction('${this.escapeHtml(t.task_id)}', 'run')">▶ Run Now</button>
+                  <button type="button" class="cct-sb-mini-btn" onclick="FATTY.scheduleTaskAction('${this.escapeHtml(t.task_id)}', 'cancel')">✕ Cancel</button>
+                </div>
+              `;
+              sList.appendChild(card);
+            });
+          }
+        }
+      } catch (e) {
+        if (mList) mList.textContent = `Error loading missions: ${e.message}`;
+      }
+    },
+
+    async promptCreateMission() {
+      const title = prompt('Enter Mission Title:', 'Deploy & Verify Fatty CAT on Vercel');
+      if (!title || !title.trim()) return;
+      const objective = prompt('Enter Mission Objective:', title.trim()) || title.trim();
+      try {
+        await api.post('/api/missions', { title: title.trim(), objective: objective.trim() });
+        this.showToast('Mission created ✓', 'success');
+        await this.loadSidebarMissions();
+      } catch (e) {
+        this.showToast(`Create mission failed: ${e.message}`, 'error');
+      }
+    },
+
+    async missionAction(missionId, action) {
+      try {
+        if (action === 'delete') {
+          await api.del(`/api/missions/${encodeURIComponent(missionId)}`);
+        } else {
+          await api.post(`/api/missions/${encodeURIComponent(missionId)}/${action}`, {});
+        }
+        this.showToast(`Mission ${action}d ✓`, 'info');
+        await this.loadSidebarMissions();
+      } catch (e) {
+        this.showToast(`Mission error: ${e.message}`, 'error');
+      }
+    },
+
+    async exportMission(missionId) {
+      try {
+        const data = await api.get(`/api/missions/${encodeURIComponent(missionId)}/export`);
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${missionId}.mission.cat`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        this.showToast(`Exported ${missionId}.mission.cat ⤓`, 'success');
+      } catch (e) {
+        this.showToast(`Export error: ${e.message}`, 'error');
+      }
+    },
+
+    async promptScheduleTask() {
+      const name = prompt('Task Name:', 'Hourly Workspace Health Audit');
+      if (!name || !name.trim()) return;
+      const objective = prompt('Task Objective:', 'Run diagnostics and check repository status') || name.trim();
+      try {
+        await api.post('/api/schedule', { name: name.trim(), agent_id: 'cat-coder', objective: objective.trim(), interval_seconds: 3600 });
+        this.showToast('Scheduled task added ✓', 'success');
+        await this.loadSidebarMissions();
+      } catch (e) {
+        this.showToast(`Schedule error: ${e.message}`, 'error');
+      }
+    },
+
+    async scheduleTaskAction(taskId, action) {
+      try {
+        await api.post(`/api/schedule/${encodeURIComponent(taskId)}/${action}`, {});
+        this.showToast(`Task ${action} executed ✓`, 'info');
+        await this.loadSidebarMissions();
+      } catch (e) {
+        this.showToast(`Task error: ${e.message}`, 'error');
+      }
+    },
+
+    async loadSidebarLabSummary() {
+      const box = document.getElementById('cct-sidebar-lab-summary');
+      if (!box) return;
+      box.textContent = 'Loading CAT Lab & CLI status…';
+      try {
+        const [lab, cli] = await Promise.all([
+          api.get('/api/lab/overview'),
+          api.get('/api/cat-cli/status')
+        ]);
+        const hw = lab.hardware || {};
+        box.innerHTML = `
+          <article class="cct-agent-definition-card">
+            <div class="cct-agent-definition-heading">⚡ CAT CLI v${this.escapeHtml(cli.cli_version || '0.8.0b1')}</div>
+            <p>Device: ${this.escapeHtml(hw.primary_device || 'CPU')} · OS: ${this.escapeHtml(hw.os_name || 'Linux')}</p>
+            <p>${(lab.benchmarks || []).length} Benchmarks · ${(lab.models || []).length} Lab Models · ${(lab.datasets || []).length} Datasets · ${(lab.experiments || []).length} Experiments</p>
+            <p>VS Code Extension: v${this.escapeHtml(cli.vscode_extension?.version || '0.8.6')} (${cli.vscode_extension?.vsix_available ? 'VSIX Ready' : 'Bundled'})</p>
+          </article>
+        `;
+      } catch (e) {
+        box.textContent = `CAT Lab summary unavailable: ${e.message}`;
+      }
+    },
+
+    async openCatLabModal(tab = 'benchmarks') {
+      const modal = document.getElementById('cct-lab-modal');
+      if (modal) modal.style.display = 'flex';
+      await this.switchCatLabTab(tab);
+    },
+
+    async switchCatLabTab(tab = 'benchmarks') {
+      ['benchmarks', 'models', 'hardware', 'datasets', 'integrations', 'storage'].forEach(t => {
+        const btn = document.getElementById(`tab-lab-${t}`);
+        if (btn) btn.classList.toggle('active', t === tab);
+      });
+      const body = document.getElementById('cct-lab-modal-body');
+      if (!body) return;
+      body.innerHTML = '<div style="padding:12px;color:var(--term-text-muted);">Loading CAT Lab data…</div>';
+
+      try {
+        if (tab === 'benchmarks') {
+          const data = await api.get('/api/lab/benchmarks');
+          const bms = data.benchmarks || [];
+          body.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <div class="cct-column-title">CAT Benchmark Studio (${bms.length} Suites)</div>
+              <button type="button" class="cct-modal-btn primary" onclick="FATTY.promptCreateBenchmark()">+ New Benchmark</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+              ${bms.map(b => `
+                <div class="cct-card-row" style="display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid var(--term-border);border-radius:8px;">
+                  <div>
+                    <div style="font-weight:700;font-size:12.5px;">🏆 ${this.escapeHtml(b.name)}</div>
+                    <div style="font-size:11px;color:var(--term-text-muted);">${this.escapeHtml(b.id)} · ${this.escapeHtml(b.benchmark_type)} · ${(b.tasks || []).length} tasks</div>
+                  </div>
+                  <button type="button" class="cct-sb-mini-btn primary" onclick="FATTY.runLabBenchmark('${this.escapeHtml(b.id)}')">▶ Run</button>
+                </div>
+              `).join('')}
+            </div>
+            <div class="cct-column-title">Standard Benchmark Leaderboard:</div>
+            <pre style="background:#0d1117;padding:12px;border-radius:8px;font-size:11.5px;overflow-x:auto;color:#7dcfff;">${this.escapeHtml(data.leaderboard || '')}</pre>
+          `;
+        } else if (tab === 'models') {
+          const data = await api.get('/api/lab/models');
+          const models = data.models || [];
+          body.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <div class="cct-column-title">CAT Model Lab (${models.length} Registered Specs)</div>
+              <button type="button" class="cct-modal-btn primary" onclick="FATTY.promptAddLabModel()">+ Register Model Spec</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              ${models.map(m => `
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid var(--term-border);border-radius:8px;">
+                  <div>
+                    <div style="font-weight:700;font-size:13px;">🧬 ${this.escapeHtml(m.name)} <span style="font-size:11px;color:var(--color-green);">[${this.escapeHtml(m.compatibility?.status || m.status || 'ready')}]</span></div>
+                    <div style="font-size:11px;color:var(--term-text-muted);">${this.escapeHtml(m.id)} · Framework: ${this.escapeHtml(m.framework)} · Precision: ${this.escapeHtml(m.precision)} · Context: ${m.context_size}</div>
+                  </div>
+                  <div style="display:flex;gap:6px;">
+                    <button type="button" class="cct-sb-mini-btn primary" onclick="FATTY.testLabModel('${this.escapeHtml(m.id)}')">⚡ Probe Test</button>
+                    <button type="button" class="cct-sb-mini-btn" onclick="FATTY.capacityTestLabModel('${this.escapeHtml(m.id)}')">📏 Capacity</button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        } else if (tab === 'hardware') {
+          const data = await api.get('/api/lab/hardware');
+          const recs = data.recommendations || {};
+          const recHtml = Object.entries(recs).map(([k, list]) => `
+            <div style="margin-bottom:8px;">
+              <div style="font-weight:700;font-size:12px;color:var(--accent-build);margin-bottom:4px;">${this.escapeHtml(k.replace('_', ' ').toUpperCase())}</div>
+              ${(list || []).map(r => `<div style="font-size:11.5px;padding:3px 0;">• <b>${this.escapeHtml(r.name)}</b> (${this.escapeHtml(r.params || '?')}, ${r.size_gb || 0} GB) — <span style="color:var(--color-green);">${this.escapeHtml(r.tier)}</span> · ${this.escapeHtml(r.desc || '')}</div>`).join('')}
+            </div>
+          `).join('');
+          body.innerHTML = `
+            <div class="cct-column-title">Hardware &amp; ML Accelerator Profile:</div>
+            <pre style="background:#0d1117;padding:12px;border-radius:8px;font-size:11.5px;overflow-x:auto;color:#73daca;margin-bottom:12px;">${this.escapeHtml(data.status_text || '')}</pre>
+            <div class="cct-column-title">Hardware-Tailored Model Recommendations (cat models recommend):</div>
+            <div style="padding:10px;border:1px solid var(--term-border);border-radius:8px;">${recHtml || 'No recommendations available.'}</div>
+          `;
+        } else if (tab === 'datasets') {
+          const [dRes, eRes] = await Promise.all([api.get('/api/lab/datasets'), api.get('/api/lab/experiments')]);
+          const datasets = dRes.datasets || [];
+          const exps = eRes.experiments || [];
+          body.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <div class="cct-column-title">Registered Datasets (${datasets.length})</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+              ${datasets.map(d => `
+                <div style="padding:10px;border:1px solid var(--term-border);border-radius:8px;">
+                  <div style="font-weight:700;font-size:12.5px;">📊 ${this.escapeHtml(d.name)}</div>
+                  <div style="font-size:11px;color:var(--term-text-muted);">ID: ${this.escapeHtml(d.id)} · ${d.num_samples} samples · ${d.num_features} features · ${this.escapeHtml(d.format)}</div>
+                </div>
+              `).join('')}
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <div class="cct-column-title">Reproducible ML Experiments (${exps.length})</div>
+              <button type="button" class="cct-modal-btn primary" onclick="FATTY.promptCreateExperiment()">+ New Experiment</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              ${exps.map(e => `
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid var(--term-border);border-radius:8px;">
+                  <div>
+                    <div style="font-weight:700;font-size:12.5px;">🧪 ${this.escapeHtml(e.name)} [${this.escapeHtml(e.status)}]</div>
+                    <div style="font-size:11px;color:var(--term-text-muted);">${this.escapeHtml(e.id)} · Model: ${this.escapeHtml(e.model_id)} · ${(e.checkpoints || []).length} checkpoints</div>
+                  </div>
+                  <button type="button" class="cct-sb-mini-btn primary" onclick="FATTY.runLabExperiment('${this.escapeHtml(e.id)}')">▶ Train (5 Epochs)</button>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        } else if (tab === 'integrations') {
+          const [iRes, sRes, cRes] = await Promise.all([
+            api.get('/api/integrations'),
+            api.get('/api/skills'),
+            api.get('/api/extensions/catalogue')
+          ]);
+          const ints = iRes.integrations || [];
+          const skills = sRes.skills || [];
+          const cat = cRes.catalogue || [];
+          body.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <div class="cct-column-title">CAT Integration Center (${ints.length} Platforms)</div>
+              <button type="button" class="cct-sb-mini-btn" onclick="api.post('/api/integrations/refresh',{}).then(()=>FATTY.switchCatLabTab('integrations'))">⟳ Re-probe All</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+              ${ints.map(i => `
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border:1px solid var(--term-border);border-radius:8px;">
+                  <div>
+                    <div style="font-weight:700;font-size:12px;">${this.escapeHtml(i.icon || '🔗')} ${this.escapeHtml(i.name)}</div>
+                    <div style="font-size:10.5px;color:var(--term-text-muted);">${this.escapeHtml(i.status)} · ${this.escapeHtml((i.details || '').slice(0, 42))}</div>
+                  </div>
+                  <button type="button" class="cct-sb-mini-btn" onclick="FATTY.connectIntegration('${this.escapeHtml(i.id)}')">Connect</button>
+                </div>
+              `).join('')}
+            </div>
+            <div class="cct-column-title" style="margin-bottom:8px;">Kitty Skills Registry (${skills.length} Built-in &amp; Custom Skills):</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+              ${skills.map(s => `
+                <div style="padding:8px 10px;border:1px solid var(--term-border);border-radius:8px;">
+                  <div style="font-weight:700;font-size:12px;">✦ ${this.escapeHtml(s.name)} <span style="font-size:10px;color:var(--color-blue);">[${this.escapeHtml(s.category)}]</span></div>
+                  <div style="font-size:11px;color:var(--term-text-muted);margin-top:2px;">${this.escapeHtml(s.description || '')}</div>
+                  <div style="font-size:10px;color:var(--term-text-faint);margin-top:4px;">Tools: ${(s.required_tools || []).join(', ') || 'None'}</div>
+                </div>
+              `).join('')}
+            </div>
+            <div class="cct-column-title" style="margin-bottom:8px;">Curated CAT Extension Catalogue (${cat.length}):</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              ${cat.map(c => `
+                <div style="padding:8px 10px;border:1px solid var(--term-border);border-radius:8px;">
+                  <div style="font-weight:700;font-size:12px;">🧩 ${this.escapeHtml(c.id)} (v${this.escapeHtml(c.version)})</div>
+                  <div style="font-size:11px;color:var(--term-text-muted);">${this.escapeHtml(c.description || '')}</div>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        } else if (tab === 'storage') {
+          const [st, cli] = await Promise.all([api.get('/api/storage/status'), api.get('/api/cat-cli/status')]);
+          const bd = st.breakdown || {};
+          body.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <div>
+                <div class="cct-column-title">CAT User Storage (${this.escapeHtml(st.readable_total || '0 B')} · ${st.total_files || 0} files)</div>
+                <div style="font-size:11px;color:var(--term-text-muted);">Path: ${this.escapeHtml(st.base_path || '')}</div>
+              </div>
+              <div style="display:flex;gap:6px;">
+                <button type="button" class="cct-sb-mini-btn" onclick="FATTY.cleanStorageCache()">🧹 Clean Cache</button>
+                <button type="button" class="cct-modal-btn primary" onclick="FATTY.downloadBackupZip()">⤓ Download Backup (.zip)</button>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:16px;">
+              ${Object.entries(bd).map(([k, v]) => `
+                <div style="padding:8px;border:1px solid var(--term-border);border-radius:6px;">
+                  <div style="font-weight:700;font-size:11.5px;text-transform:capitalize;">${this.escapeHtml(k)}</div>
+                  <div style="font-size:11px;color:var(--term-text-muted);">${v.count} files · ${this.escapeHtml(v.readable_size)}</div>
+                </div>
+              `).join('')}
+            </div>
+            <div class="cct-column-title" style="margin-bottom:8px;">Integrated CAT CLI &amp; VS Code Extension Bridge (cat-cli v${this.escapeHtml(cli.vscode_extension?.version || '0.8.6')}):</div>
+            <div style="padding:12px;border:1px solid var(--term-border);border-radius:8px;margin-bottom:12px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                  <div style="font-weight:700;font-size:13px;">📦 ${this.escapeHtml(cli.vscode_extension?.display_name || 'CAT — Coding Agent Terminal')}</div>
+                  <div style="font-size:11.5px;color:var(--term-text-muted);margin-top:2px;">CLI Version: v${this.escapeHtml(cli.cli_version)} · Python: ${this.escapeHtml(cli.python_version)} · Module: <code>${this.escapeHtml(cli.entrypoints?.module || 'python -m calc_terminal')}</code></div>
+                </div>
+                ${cli.vscode_extension?.vsix_available ? `<a href="/api/cat-cli/vsix" class="cct-modal-btn primary" style="text-decoration:none;">⤓ Download ${this.escapeHtml(cli.vscode_extension.vsix_filename)}</a>` : ''}
+              </div>
+              <div style="margin-top:10px;font-size:11.5px;color:var(--term-text-muted);">Click any CAT CLI subcommand below to run it directly in the Integrated Terminal:</div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
+                ${(cli.subcommands || []).map(sc => `
+                  <button type="button" class="cct-sb-mini-btn" onclick="FATTY.closeAllModals();FATTY.openIdeWithTerminal('${this.escapeHtml(sc.command)}')" title="${this.escapeHtml(sc.description)}"><code>${this.escapeHtml(sc.command)}</code></button>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        body.innerHTML = `<div style="padding:12px;color:var(--color-red);">Error loading CAT Lab tab: ${this.escapeHtml(e.message)}</div>`;
+      }
+    },
+
+    async promptCreateBenchmark() {
+      const id = prompt('Benchmark ID (slug):', 'custom-coding-bench');
+      if (!id || !id.trim()) return;
+      const name = prompt('Benchmark Name:', 'Custom Coding Benchmark') || id.trim();
+      await api.post('/api/lab/benchmarks', { id: id.trim(), name: name.trim(), benchmark_type: 'coding' });
+      this.showToast('Benchmark created ✓', 'success');
+      await this.switchCatLabTab('benchmarks');
+    },
+
+    async runLabBenchmark(benchmarkId) {
+      this.showToast(`Running benchmark ${benchmarkId}…`, 'info');
+      try {
+        const res = await api.post(`/api/lab/benchmarks/${encodeURIComponent(benchmarkId)}/run`, {});
+        alert(res.report_card || `Benchmark ${benchmarkId} complete!`);
+      } catch (e) {
+        this.showToast(`Benchmark error: ${e.message}`, 'error');
+      }
+    },
+
+    async promptAddLabModel() {
+      const id = prompt('Model ID:', 'qwen2.5-coder-7b');
+      if (!id || !id.trim()) return;
+      const name = prompt('Model Display Name:', 'Qwen 2.5 Coder 7B') || id.trim();
+      await api.post('/api/lab/models', { id: id.trim(), name: name.trim(), framework: 'ollama' });
+      this.showToast('Model registered in Model Lab ✓', 'success');
+      await this.switchCatLabTab('models');
+    },
+
+    async testLabModel(modelId) {
+      try {
+        const res = await api.post(`/api/lab/models/${encodeURIComponent(modelId)}/test`, {});
+        const inf = res.inference || {};
+        alert(`Model Probe Test (${modelId}):\nSuccess: ${inf.success}\nLatency: ${(inf.latency_sec || 0).toFixed(2)}s (${(inf.tokens_per_second || 0).toFixed(1)} tok/s)\nOutput: ${inf.output || inf.error || 'OK'}`);
+      } catch (e) {
+        this.showToast(`Model probe error: ${e.message}`, 'error');
+      }
+    },
+
+    async capacityTestLabModel(modelId) {
+      try {
+        const res = await api.post(`/api/lab/models/${encodeURIComponent(modelId)}/capacity`, {});
+        const lines = (res.tier_results || []).map(t => `${t.tier}: ${t.success ? 'PASS' : 'FAIL'} (${t.latency_sec.toFixed(2)}s, ${t.tokens_per_sec.toFixed(1)} tok/s)`).join('\n');
+        alert(`Capacity Test (${modelId}):\n${lines}\nFailure Point: ${res.failure_point}`);
+      } catch (e) {
+        this.showToast(`Capacity test error: ${e.message}`, 'error');
+      }
+    },
+
+    async promptCreateExperiment() {
+      const name = prompt('Experiment Name:', 'MLP Classifier Run');
+      if (!name || !name.trim()) return;
+      await api.post('/api/lab/experiments', { name: name.trim() });
+      this.showToast('Experiment initialized ✓', 'success');
+      await this.switchCatLabTab('datasets');
+    },
+
+    async runLabExperiment(expId) {
+      this.showToast(`Running 5-epoch training for ${expId}…`, 'info');
+      try {
+        const res = await api.post(`/api/lab/experiments/${encodeURIComponent(expId)}/run`, { epochs: 5 });
+        const epLines = (res.epochs || []).map(e => `Epoch ${e.epoch}: Loss=${e.loss.toFixed(4)}, Acc=${e.accuracy.toFixed(2)}`).join('\n');
+        alert(`Experiment Training Complete (${expId}):\n${epLines}`);
+        await this.switchCatLabTab('datasets');
+      } catch (e) {
+        this.showToast(`Experiment error: ${e.message}`, 'error');
+      }
+    },
+
+    async connectIntegration(intId) {
+      try {
+        const res = await api.post(`/api/integrations/${encodeURIComponent(intId)}/connect`, {});
+        this.showToast(res.message || `Probed ${intId}`, res.success ? 'success' : 'info');
+        await this.switchCatLabTab('integrations');
+      } catch (e) {
+        this.showToast(`Integration error: ${e.message}`, 'error');
+      }
+    },
+
+    async cleanStorageCache() {
+      try {
+        const res = await api.post('/api/storage/clean', {});
+        this.showToast(`Cleaned ${res.removed_files || 0} cache files ✓`, 'success');
+        await this.switchCatLabTab('storage');
+      } catch (e) {
+        this.showToast(`Clean error: ${e.message}`, 'error');
+      }
+    },
+
+    downloadBackupZip() {
+      window.open('/api/backup/download', '_blank', 'noopener');
+    },
+
+    downloadWorkspaceZip() {
+      window.open(`/api/workspace/${encodeURIComponent(state.workspaceId || 'current')}/download-zip`, '_blank', 'noopener');
+    },
+
+    async promptCreateWorkspaceItem(isDir = false) {
+      const label = isDir ? 'folder' : 'file';
+      const name = prompt(`Enter new ${label} path (relative to workspace):`, isDir ? 'src' : 'script.py');
+      if (!name || !name.trim()) return;
+      try {
+        const clean = name.trim();
+        await api.post('/api/file', {
+          action: 'create',
+          path: clean,
+          is_dir: Boolean(isDir),
+          content: isDir ? '' : (clean.endsWith('.py') ? '# New Python file\nprint("Hello from Fatty CAT IDE!")\n' : '')
+        });
+        this.showToast(`Created ${clean} ✓`, 'success');
+        await this.loadWorkspace();
+        if (!isDir) {
+          await this.openFile(clean, clean.split('/').pop());
+        }
+      } catch (e) {
+        this.showToast(`Could not create ${label}: ${e.message}`, 'error');
+      }
+    },
+
+    openIdeWithTerminal(initialCommand = '') {
+      const editorPane = document.getElementById('cct-editor-pane');
+      const resizer = document.getElementById('cct-editor-resizer');
+      const drawer = document.getElementById('cct-ide-terminal-drawer');
+      if (editorPane) editorPane.classList.add('open');
+      if (resizer) resizer.style.display = 'block';
+      state.editorOpen = true;
+      if (drawer) drawer.style.display = 'flex';
+      if (!state.openFiles.length) {
+        this.openFile('index.html', 'index.html').catch(() => {});
+      }
+      if (initialCommand) {
+        this.runIdeCliCommand(initialCommand);
+      } else {
+        document.getElementById('cct-ide-term-input')?.focus();
+      }
+    },
+
+    toggleIdeTerminal() {
+      const editorPane = document.getElementById('cct-editor-pane');
+      const resizer = document.getElementById('cct-editor-resizer');
+      const drawer = document.getElementById('cct-ide-terminal-drawer');
+      if (!drawer) return;
+      if (!state.editorOpen) {
+        if (editorPane) editorPane.classList.add('open');
+        if (resizer) resizer.style.display = 'block';
+        state.editorOpen = true;
+      }
+      const isHidden = drawer.style.display === 'none';
+      drawer.style.display = isHidden ? 'flex' : 'none';
+      if (isHidden) {
+        document.getElementById('cct-ide-term-input')?.focus();
+      }
+    },
+
+    clearIdeTerminal() {
+      const out = document.getElementById('cct-ide-term-output');
+      if (out) out.textContent = '';
+    },
+
+    async submitIdeTerminalInput() {
+      const inp = document.getElementById('cct-ide-term-input');
+      if (!inp) return;
+      const cmd = inp.value.trim();
+      if (!cmd) return;
+      inp.value = '';
+      await this.runIdeCliCommand(cmd);
+    },
+
+    async runIdeCliCommand(cmd) {
+      const out = document.getElementById('cct-ide-term-output');
+      const drawer = document.getElementById('cct-ide-terminal-drawer');
+      if (drawer && drawer.style.display === 'none') drawer.style.display = 'flex';
+      if (out) {
+        out.textContent += `\n\n$ ${cmd}\nRunning…`;
+        out.scrollTop = out.scrollHeight;
+      }
+      try {
+        const trimmed = cmd.trim();
+        const isCatCmd = /^(cat|catx|cct)\b/i.test(trimmed) || trimmed.startsWith('/');
+        let res;
+        if (isCatCmd) {
+          res = await api.post('/api/cli/exec', { command: trimmed.replace(/^\//, ''), cwd: state.workspaceRoot });
+        } else {
+          res = await api.post('/api/command', { cmd: trimmed, cwd: state.workspaceRoot || undefined });
+        }
+        const text = res.output || res.stdout || res.stderr || `(exit code ${res.returncode ?? 0})`;
+        if (out) {
+          out.textContent = out.textContent.replace(/\nRunning…$/, '') + `\n${text}`;
+          out.scrollTop = out.scrollHeight;
+        }
+      } catch (e) {
+        if (out) {
+          out.textContent = out.textContent.replace(/\nRunning…$/, '') + `\nError: ${e.message}`;
+          out.scrollTop = out.scrollHeight;
+        }
+      }
+    },
+
+    async runCurrentFileInCli() {
+      await this.saveCurrentFile();
+      const file = state.currentFile;
+      if (!file || !file.path) {
+        this.openIdeWithTerminal('cat --version');
+        return;
+      }
+      if (file.name.endsWith('.html') || file.name.endsWith('.htm')) {
+        await this.runPreview();
+        return;
+      }
+      let cmd = `python3 "${file.path}"`;
+      if (file.name.endsWith('.js')) cmd = `node "${file.path}"`;
+      else if (file.name.endsWith('.sh')) cmd = `sh "${file.path}"`;
+      this.openIdeWithTerminal(cmd);
     },
 
     formatContent(str) {

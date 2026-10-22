@@ -299,6 +299,101 @@ class AuthDevicePollRequest(BaseModel):
 
 # --- Global State ---
 
+def _ensure_writable_ide_workspace() -> str:
+    """Create and seed a writable workspace in /tmp when running on Vercel or read-only filesystem."""
+    import tempfile
+    ws_dir = os.path.join(tempfile.gettempdir(), "cat_workspace")
+    try:
+        os.makedirs(ws_dir, exist_ok=True)
+        index_html = os.path.join(ws_dir, "index.html")
+        if not os.path.exists(index_html):
+            with open(index_html, "w", encoding="utf-8") as f:
+                f.write("""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Fatty CAT IDE — Live Workspace Preview</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="card">
+    <div class="badge">🐾 FATTY CAT IDE · VERCEL READY</div>
+    <h1>Welcome to Fatty CAT Cloud IDE</h1>
+    <p>Edit <code>index.html</code>, <code>style.css</code>, <code>app.js</code>, or <code>main.py</code> in the editor and click <b>▷ Run Preview</b>!</p>
+    <button id="action-btn" onclick="runDemo()">Run Interactive Demo ⚡</button>
+    <pre id="output">Ready for CAT CLI &amp; AI Agent commands...</pre>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
+""")
+            with open(os.path.join(ws_dir, "style.css"), "w", encoding="utf-8") as f:
+                f.write("""body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at top, #1f2937, #0b1018);
+  color: #e5e9f0;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+.card {
+  background: rgba(26, 27, 38, 0.9);
+  border: 1px solid rgba(122, 162, 247, 0.35);
+  border-radius: 14px;
+  padding: 28px 32px;
+  max-width: 520px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+}
+.badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #7dcfff;
+  background: rgba(125, 207, 255, 0.12);
+  border: 1px solid rgba(125, 207, 255, 0.35);
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-bottom: 12px;
+}
+h1 { margin: 0 0 10px; font-size: 24px; color: #bb9af7; }
+p { line-height: 1.55; color: #a9b1d6; font-size: 14px; }
+button {
+  background: linear-gradient(135deg, #7aa2f7, #bb9af7);
+  color: #0b1018;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 8px;
+}
+pre {
+  margin-top: 16px;
+  padding: 12px;
+  background: #0d1117;
+  border-radius: 8px;
+  color: #73daca;
+  font-size: 12.5px;
+  overflow-x: auto;
+}
+""")
+            with open(os.path.join(ws_dir, "app.js"), "w", encoding="utf-8") as f:
+                f.write("""function runDemo() {
+  const out = document.getElementById('output');
+  const now = new Date().toLocaleTimeString();
+  out.textContent = `[${now}] ✓ Fatty CAT IDE Live Preview active!\nCAT CLI v0.8.0b1 integrated & running.`;
+}
+""")
+            with open(os.path.join(ws_dir, "main.py"), "w", encoding="utf-8") as f:
+                f.write("# Sample Python script in Fatty CAT IDE workspace\nimport math\n\ndef solve_arrhenius(A: float, Ea: float, T: float) -> float:\n    R = 8.314\n    return A * math.exp(-Ea / (R * T))\n\nif __name__ == '__main__':\n    k = solve_arrhenius(1e11, 50000, 300)\n    print(f'Arrhenius rate constant k at 300K = {k:.4e} s^-1')\n")
+            with open(os.path.join(ws_dir, "README.md"), "w", encoding="utf-8") as f:
+                f.write("# Fatty CAT Workspace\n\nThis workspace is ready for coding, live preview, science notebooks, and CAT CLI commands.\n")
+    except Exception:
+        pass
+    return ws_dir
+
+
 class ServerStateManager:
     def __init__(self):
         self.preview_controllers: Dict[str, PreviewController] = {}
@@ -317,8 +412,19 @@ class ServerStateManager:
             return self.workspace_roots[workspace_id]
         if workspace_id in ("current", "default", "", None):
             active = ws_paths.active_project()
-            if active and os.path.isdir(active):
+            if active and os.path.isdir(active) and os.access(active, os.W_OK):
                 return active
+            is_serverless = bool(
+                os.environ.get("VERCEL")
+                or os.environ.get("VERCEL_ENV")
+                or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
+            )
+            if is_serverless or not os.access(os.getcwd(), os.W_OK):
+                ws_dir = _ensure_writable_ide_workspace()
+                self.workspace_roots["default"] = ws_dir
+                self.workspace_roots["current"] = ws_dir
+                ws_paths.set_active_project(ws_dir)
+                return ws_dir
             candidate = os.path.abspath(os.path.expanduser(r"c:\Users\ADMIN\Downloads\compressed"))
             if os.path.isdir(candidate):
                 return candidate
@@ -328,6 +434,8 @@ class ServerStateManager:
                     return recent[0]
             except Exception:
                 pass
+            if active and os.path.isdir(active):
+                return active
             return os.getcwd()
         return None
 
@@ -397,7 +505,7 @@ if _extra_cors:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|[a-zA-Z0-9-]+\.vercel\.app)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -441,11 +549,12 @@ def _preview_workspaces_dir() -> Path:
     except Exception:
         pass
     try:
-        legacy = Path(__file__).parent.parent.parent / "workspaces"
-        legacy.mkdir(exist_ok=True)
-        return legacy
+        import tempfile
+        tmp_ws = Path(tempfile.gettempdir()) / "cat_home" / "workspaces"
+        tmp_ws.mkdir(parents=True, exist_ok=True)
+        return tmp_ws
     except Exception:
-        return Path.cwd() / "workspaces"
+        return Path(tempfile.gettempdir())
 
 
 workspaces_dir = _preview_workspaces_dir()
@@ -1562,6 +1671,11 @@ async def write_workspace_file(workspace_id: str, request: FileWriteRequest):
     root = state_manager.get_workspace_root(workspace_id)
     if not root:
         raise HTTPException(status_code=404, detail="Workspace not found")
+    if not os.access(root, os.W_OK):
+        root = _ensure_writable_ide_workspace()
+        state_manager.set_workspace_root(workspace_id, root)
+        state_manager.set_workspace_root("current", root)
+        ws_paths.set_active_project(root)
     
     file_path = Path(root) / request.path
     try:
@@ -1653,6 +1767,31 @@ def _run_command_sync(cmd: str, cwd: str, env: dict, timeout: float) -> CommandR
 
 # --- Preview / Live Server ---
 
+@app.get("/api/preview/serve/{workspace_id}/{file_path:path}")
+async def serve_workspace_preview_file(workspace_id: str, file_path: str = "index.html"):
+    """Serve workspace files directly over HTTP so Fatty CAT IDE Live Preview works on Vercel and remote browsers."""
+    import mimetypes
+    root = state_manager.get_workspace_root(workspace_id or "current")
+    if not root or not os.path.isdir(root):
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    clean_rel = (file_path or "index.html").lstrip("/")
+    target = (Path(root) / clean_rel).resolve()
+    try:
+        target.relative_to(Path(root).resolve())
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access denied")
+    if target.is_dir():
+        target = target / "index.html"
+    if not target.exists() or not target.is_file():
+        raise HTTPException(status_code=404, detail=f"Preview file not found: {clean_rel}")
+    media_type, _ = mimetypes.guess_type(str(target))
+    return FileResponse(
+        str(target),
+        media_type=media_type or "text/html",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 @app.post("/api/preview/start")
 async def start_preview(request: PreviewStartRequest, workspace_id: Optional[str] = "current"):
     ws_id = workspace_id or "current"
@@ -1660,33 +1799,63 @@ async def start_preview(request: PreviewStartRequest, workspace_id: Optional[str
     if not root:
         raise HTTPException(status_code=404, detail="Workspace not found")
     
-    file_path = os.path.join(root, request.file_path)
+    file_path = os.path.join(root, request.file_path) if request.file_path else os.path.join(root, "index.html")
     if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File not found")
-    
-    # Determine effective project root for preview server
+        alt_entry = find_entry_file(root)
+        if alt_entry and os.path.exists(alt_entry):
+            file_path = alt_entry
+        else:
+            raise HTTPException(status_code=404, detail="File not found")
+
+    rel_entry = os.path.relpath(file_path, root).replace("\\", "/")
+    if os.path.isdir(file_path):
+        found = find_entry_file(file_path) or os.path.join(file_path, "index.html")
+        rel_entry = os.path.relpath(found, root).replace("\\", "/")
+    serve_url = f"/api/preview/serve/{ws_id}/{rel_entry}"
+
+    is_serverless = bool(
+        os.environ.get("VERCEL")
+        or os.environ.get("VERCEL_ENV")
+        or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
+    )
+    if is_serverless:
+        return {
+            "url": serve_url,
+            "serve_url": serve_url,
+            "base_url": f"/api/preview/serve/{ws_id}",
+            "entry_url": serve_url,
+            "serverless": True,
+        }
+
+    # Determine effective project root for local preview server
     project_dir = os.path.dirname(file_path) if os.path.isfile(file_path) else root
     ctrl_key = f"{ws_id}_{project_dir}"
     
-    # Create or get preview controller
-    if ctrl_key not in state_manager.preview_controllers:
-        state_manager.preview_controllers[ctrl_key] = PreviewController(
-            root=project_dir,
-            on_event=lambda kind, **info: asyncio.create_task(
-                _broadcast_preview_event(ws_id, kind, info)
-            ),
-        )
-    
-    ctrl = state_manager.preview_controllers[ctrl_key]
-    success = ctrl.start_for_file(file_path)
-    
-    if not success:
-        raise HTTPException(status_code=500, detail=f"Preview failed: {ctrl.last_error}")
-    
+    try:
+        if ctrl_key not in state_manager.preview_controllers:
+            state_manager.preview_controllers[ctrl_key] = PreviewController(
+                root=project_dir,
+                on_event=lambda kind, **info: asyncio.create_task(
+                    _broadcast_preview_event(ws_id, kind, info)
+                ),
+            )
+        ctrl = state_manager.preview_controllers[ctrl_key]
+        success = ctrl.start_for_file(file_path)
+        if success and ctrl.url:
+            return {
+                "url": ctrl.url,
+                "serve_url": serve_url,
+                "base_url": ctrl.base_url,
+                "entry_url": ctrl.entry_url,
+            }
+    except Exception:
+        pass
+
     return {
-        "url": ctrl.url,
-        "base_url": ctrl.base_url,
-        "entry_url": ctrl.entry_url,
+        "url": serve_url,
+        "serve_url": serve_url,
+        "base_url": f"/api/preview/serve/{ws_id}",
+        "entry_url": serve_url,
     }
 
 
@@ -1759,8 +1928,8 @@ async def chat(request: ChatRequest):
                 pass
         return result
     except Exception as e:
-        prov = config.get("provider", "ollama").upper()
-        mod = config.get("model", "deepseek-r1")
+        prov = (config.get("provider") or "ollama").upper()
+        mod = config.get("model") or "deepseek-r1"
         err_res = {
             "response": f"Error communicating with AI: {e}",
             "provider": prov,
@@ -1999,9 +2168,13 @@ class FileCRUDRequest(BaseModel):
 @app.post("/api/file")
 async def file_crud(request: FileCRUDRequest):
     """Create, rename, or delete files/folders."""
-    root = ws_paths.active_project()
+    root = state_manager.get_workspace_root("current") or ws_paths.active_project()
     if not root:
         raise HTTPException(status_code=400, detail="No workspace open")
+    if not os.access(root, os.W_OK):
+        root = _ensure_writable_ide_workspace()
+        state_manager.set_workspace_root("current", root)
+        ws_paths.set_active_project(root)
 
     target = Path(root) / request.path
     try:
@@ -3075,8 +3248,8 @@ def _process_chat_message(message: str, mode: str, config: dict) -> dict:
     diagnostics to the user.
     """
     t0 = time.time()
-    prov = config.get("provider", "ollama") if config else "ollama"
-    mod = config.get("model", "deepseek-r1") if config else "deepseek-r1"
+    prov = (config.get("provider") or "ollama") if config else "ollama"
+    mod = (config.get("model") or "deepseek-r1") if config else "deepseek-r1"
     # Only invoke multi-turn agent when explicitly in 'agent' mode, or when explicit file/workspace mutation is commanded
     is_explicit_agent_task = mode == "agent" or (mode in ("build", "plan") and bool(re.search(r"^\s*(?:create|write|delete|edit|refactor|generate)\s+(?:file|folder|dir|component|app|project)\b", message, re.I)))
     if is_explicit_agent_task:
@@ -3115,8 +3288,8 @@ def _process_chat_message(message: str, mode: str, config: dict) -> dict:
             if attempt > 0:
                 try:
                     config = _aicore.load_config()
-                    prov = config.get("provider", prov)
-                    mod = config.get("model", mod)
+                    prov = config.get("provider") or prov or "ollama"
+                    mod = config.get("model") or mod or "deepseek-r1"
                 except Exception:
                     pass
             
@@ -3221,6 +3394,889 @@ async def _handle_websocket_message(websocket: WebSocket, workspace_id: str, mes
         if ctrl:
             paths = message.get("paths", [])
             ctrl.on_files_changed(paths)
+
+
+# ============================================================
+# Full CAT CLI & Subsystems Integration (v0.8.0 Parity)
+# ============================================================
+
+class CliExecRequest(BaseModel):
+    command: Any
+    cwd: Optional[str] = None
+
+
+class AgentRunByIdRequest(BaseModel):
+    prompt: str
+    max_steps: Optional[int] = 10
+    project_path: Optional[str] = None
+
+
+class AgentDuplicateRequest(BaseModel):
+    new_id: str
+    new_name: Optional[str] = None
+
+
+class AgentImportRequest(BaseModel):
+    data: Dict[str, Any]
+    force: Optional[bool] = False
+
+
+class MultiAgentOrchestrateRequest(BaseModel):
+    objective: str
+    agent_ids: Optional[List[str]] = None
+    mission_id: Optional[str] = None
+
+
+class MissionCreateRequest(BaseModel):
+    title: str
+    objective: Optional[str] = ""
+    agents: Optional[List[str]] = None
+    plan: Optional[List[str]] = None
+
+
+class MissionCompleteRequest(BaseModel):
+    result: Optional[str] = "Mission completed."
+
+
+class MissionCheckpointRequest(BaseModel):
+    name: str
+    snapshot: Optional[Dict[str, Any]] = None
+
+
+class ScheduleTaskCreateRequest(BaseModel):
+    name: str
+    agent_id: Optional[str] = "cat-coder"
+    objective: str
+    schedule_type: Optional[str] = "interval"
+    interval_seconds: Optional[int] = 3600
+
+
+class LabBenchmarkCreateRequest(BaseModel):
+    id: str
+    name: str
+    benchmark_type: Optional[str] = "coding"
+    description: Optional[str] = ""
+
+
+class LabBenchmarkRunRequest(BaseModel):
+    model_id: Optional[str] = "deepseek-r1-local"
+
+
+class LabModelAddRequest(BaseModel):
+    id: str
+    name: str
+    framework: Optional[str] = "ollama"
+    model_type: Optional[str] = "llm"
+    precision: Optional[str] = "fp16"
+    context_size: Optional[int] = 8192
+
+
+class LabModelTestRequest(BaseModel):
+    prompt: Optional[str] = "Explain what makes CAT CLI unique in one sentence."
+
+
+class LabDatasetAddRequest(BaseModel):
+    file_path: str
+
+
+class LabExperimentCreateRequest(BaseModel):
+    name: str
+    model_id: Optional[str] = "pytorch-mlp-classifier"
+    dataset_id: Optional[str] = "synthetic-classification"
+
+
+class LabExperimentRunRequest(BaseModel):
+    epochs: Optional[int] = 5
+
+
+class CatFileImportRequest(BaseModel):
+    envelope: Dict[str, Any]
+
+
+@app.post("/api/cli/exec")
+async def execute_cat_cli_endpoint(req: CliExecRequest):
+    """Execute any CAT CLI command or subcommand directly from Fatty CAT Web / IDE."""
+    cwd = req.cwd or state_manager.get_workspace_root("current")
+    res = await asyncio.to_thread(runtime.execute_cat_cli, req.command, cwd)
+    return res
+
+
+@app.get("/api/cat-cli/status")
+async def get_cat_cli_status():
+    """Return status, entrypoints, subcommands, and VS Code extension info for CAT CLI."""
+    return await asyncio.to_thread(runtime.get_cat_cli_extension_info)
+
+
+@app.get("/api/cat-cli/vsix")
+async def download_cat_cli_vsix():
+    """Download the bundled VS Code CAT CLI extension (.vsix) if present."""
+    repo_root = Path(__file__).resolve().parents[3]
+    candidates = list(repo_root.glob("*.vsix")) + list((repo_root / "cat-cli").glob("*.vsix"))
+    if not candidates:
+        raise HTTPException(status_code=404, detail="VSIX package not found")
+    vsix = candidates[0]
+    return FileResponse(
+        str(vsix),
+        media_type="application/octet-stream",
+        filename=vsix.name,
+    )
+
+
+# --- Workspace Upload & ZIP Export for Fatty CAT Cloud IDE ---
+
+@app.get("/api/workspace/{workspace_id}/download-zip")
+async def download_workspace_zip(workspace_id: str):
+    """Export the active workspace as a downloadable ZIP archive."""
+    root = state_manager.get_workspace_root(workspace_id or "current")
+    if not root or not os.path.isdir(root):
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    skip_dirs = {".git", "node_modules", "__pycache__", ".venv", "venv", ".pytest_cache"}
+    buf = BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for dp, dn, fn in os.walk(root):
+            dn[:] = [d for d in dn if d not in skip_dirs]
+            for f in fn:
+                full = os.path.join(dp, f)
+                rel = os.path.relpath(full, root)
+                try:
+                    if os.path.getsize(full) <= 25 * 1024 * 1024:
+                        zf.write(full, rel)
+                except OSError:
+                    continue
+    buf.seek(0)
+    ws_name = os.path.basename(root.rstrip("/\\")) or "workspace"
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{ws_name}.zip"'},
+    )
+
+
+@app.post("/api/workspace/{workspace_id}/upload")
+async def upload_workspace_file(workspace_id: str, file: UploadFile = File(...), path: Optional[str] = Form(None)):
+    """Upload a file into the active Fatty CAT IDE workspace."""
+    root = state_manager.get_workspace_root(workspace_id or "current")
+    if not root:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    if not os.access(root, os.W_OK):
+        root = _ensure_writable_ide_workspace()
+        state_manager.set_workspace_root(workspace_id, root)
+        state_manager.set_workspace_root("current", root)
+        ws_paths.set_active_project(root)
+    rel_dest = (path or file.filename or "uploaded_file").lstrip("/\\")
+    target = (Path(root) / rel_dest).resolve()
+    try:
+        target.relative_to(Path(root).resolve())
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access denied")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    data = await file.read()
+    target.write_bytes(data)
+    return {"success": True, "path": str(target.relative_to(root)), "size": len(data)}
+
+
+# --- Extended Agent Registry & Multi-Agent Orchestration ---
+
+@app.get("/api/agents/search")
+async def search_agent_definitions(q: str = ""):
+    registry = get_agent_registry()
+    results = registry.search(q) if q.strip() else registry.list(include_disabled=True)
+    return {"agents": [a.to_dict() for a in results]}
+
+
+@app.get("/api/agents/{agent_id}/status")
+async def get_agent_definition_status(agent_id: str):
+    registry = get_agent_registry()
+    st = registry.get_agent_status(agent_id)
+    if "error" in st:
+        raise HTTPException(status_code=404, detail=st["error"])
+    ag = registry.get(agent_id)
+    return {"status": st, "agent": ag.to_dict() if ag else None}
+
+
+@app.post("/api/agents/{agent_id}/enable")
+async def enable_agent_definition(agent_id: str):
+    registry = get_agent_registry()
+    if not registry.enable(agent_id):
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return {"success": True, "id": agent_id, "enabled": True}
+
+
+@app.post("/api/agents/{agent_id}/disable")
+async def disable_agent_definition(agent_id: str):
+    registry = get_agent_registry()
+    if not registry.disable(agent_id):
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return {"success": True, "id": agent_id, "enabled": False}
+
+
+@app.post("/api/agents/{agent_id}/duplicate")
+async def duplicate_agent_definition(agent_id: str, req: AgentDuplicateRequest):
+    registry = get_agent_registry()
+    try:
+        dup = registry.duplicate(agent_id, req.new_id, req.new_name or req.new_id.replace("-", " ").title())
+        return {"success": True, "agent": dup.to_dict()}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/agents/{agent_id}/run")
+async def run_specific_agent(agent_id: str, req: AgentRunByIdRequest):
+    registry = get_agent_registry()
+    ag = registry.get(agent_id)
+    if not ag:
+        raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
+    if req.project_path:
+        ws_paths.set_active_project(req.project_path)
+
+    def _exec():
+        from calc_terminal import ai_modes, agent as agent_runner
+        ai_modes.set_active_agent(agent_id)
+        txt, steps, meta = agent_runner.run_agent(
+            req.prompt,
+            max_steps=req.max_steps or 10,
+            mode=ag.primary_mode,
+            verbose=False,
+            agent_spec=ag,
+        )
+        step_list = [
+            {"tool": s[0], "args": s[1] if isinstance(s[1], dict) else {}, "result": str(s[2])[:500]}
+            for s in (steps or []) if len(s) >= 3
+        ]
+        return {
+            "success": True,
+            "agent_id": ag.id,
+            "agent_name": ag.name,
+            "mode": ag.primary_mode,
+            "response": txt or "",
+            "steps": step_list,
+            "meta": meta or {},
+        }
+
+    return await asyncio.to_thread(_exec)
+
+
+@app.get("/api/agents/{agent_id}/export")
+async def export_agent_definition(agent_id: str):
+    registry = get_agent_registry()
+    ag = registry.get(agent_id)
+    if not ag:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return {
+        "format": "cat",
+        "version": "1.0",
+        "type": "agent",
+        "id": ag.id,
+        "metadata": {"name": ag.name, "description": ag.description},
+        "data": ag.to_dict(),
+    }
+
+
+@app.post("/api/agents/import")
+async def import_agent_definition(req: AgentImportRequest):
+    registry = get_agent_registry()
+    try:
+        ag = registry.import_agent(req.data, force=bool(req.force))
+        return {"success": True, "agent": ag.to_dict()}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/agents/{agent_id}/memory")
+async def get_agent_memory_endpoint(agent_id: str):
+    registry = get_agent_registry()
+    return {"agent_id": agent_id, "memory": registry.get_agent_memory(agent_id)}
+
+
+@app.delete("/api/agents/{agent_id}/memory")
+async def clear_agent_memory_endpoint(agent_id: str):
+    registry = get_agent_registry()
+    cleared = registry.clear_agent_memory(agent_id)
+    return {"success": True, "agent_id": agent_id, "cleared": cleared}
+
+
+@app.post("/api/agents/orchestrate")
+async def orchestrate_multi_agent_team(req: MultiAgentOrchestrateRequest):
+    """Run multi-agent sequential orchestration with permission boundary awareness."""
+    from calc_terminal.agents.orchestration import AgentOrchestrationEngine
+    engine = AgentOrchestrationEngine(mission_id=req.mission_id)
+    results = await asyncio.to_thread(engine.run_team, req.agent_ids or [], req.objective)
+    return {
+        "success": True,
+        "mission_id": engine.mission_id,
+        "objective": req.objective,
+        "results": [r.to_dict() for r in results],
+    }
+
+
+# --- Missions & Checkpoints System (calc_terminal.missions) ---
+
+@app.get("/api/missions")
+async def list_missions_endpoint(status: Optional[str] = None):
+    from calc_terminal.missions import get_mission_manager
+    mm = get_mission_manager()
+    return {"missions": [m.to_dict() for m in mm.list(status=status)]}
+
+
+@app.post("/api/missions")
+async def create_mission_endpoint(req: MissionCreateRequest):
+    from calc_terminal.missions import get_mission_manager
+    mm = get_mission_manager()
+    m = mm.create(
+        title=req.title,
+        objective=req.objective or req.title,
+        agents=req.agents,
+        workspace_path=state_manager.get_workspace_root("current"),
+        plan=req.plan,
+    )
+    return {"success": True, "mission": m.to_dict()}
+
+
+@app.get("/api/missions/{mission_id}")
+async def get_mission_endpoint(mission_id: str):
+    from calc_terminal.missions import get_mission_manager
+    mm = get_mission_manager()
+    m = mm.get(mission_id)
+    if not m:
+        raise HTTPException(status_code=404, detail="Mission not found")
+    return {"mission": m.to_dict()}
+
+
+@app.post("/api/missions/{mission_id}/pause")
+async def pause_mission_endpoint(mission_id: str):
+    from calc_terminal.missions import get_mission_manager
+    mm = get_mission_manager()
+    if not mm.pause(mission_id):
+        raise HTTPException(status_code=404, detail="Mission not found")
+    return {"success": True, "mission": mm.get(mission_id).to_dict()}
+
+
+@app.post("/api/missions/{mission_id}/resume")
+async def resume_mission_endpoint(mission_id: str):
+    from calc_terminal.missions import get_mission_manager
+    mm = get_mission_manager()
+    if not mm.resume(mission_id):
+        raise HTTPException(status_code=404, detail="Mission not found")
+    return {"success": True, "mission": mm.get(mission_id).to_dict()}
+
+
+@app.post("/api/missions/{mission_id}/complete")
+async def complete_mission_endpoint(mission_id: str, req: MissionCompleteRequest):
+    from calc_terminal.missions import get_mission_manager
+    mm = get_mission_manager()
+    if not mm.complete(mission_id, req.result or "Mission completed."):
+        raise HTTPException(status_code=404, detail="Mission not found")
+    return {"success": True, "mission": mm.get(mission_id).to_dict()}
+
+
+@app.post("/api/missions/{mission_id}/checkpoint")
+async def add_mission_checkpoint_endpoint(mission_id: str, req: MissionCheckpointRequest):
+    from calc_terminal.missions import get_mission_manager
+    mm = get_mission_manager()
+    cp = mm.add_checkpoint(mission_id, req.name, req.snapshot)
+    if not cp:
+        raise HTTPException(status_code=404, detail="Mission not found")
+    return {"success": True, "checkpoint": cp.to_dict(), "mission": mm.get(mission_id).to_dict()}
+
+
+@app.delete("/api/missions/{mission_id}")
+async def delete_mission_endpoint(mission_id: str):
+    from calc_terminal.missions import get_mission_manager
+    mm = get_mission_manager()
+    ok = mm.delete(mission_id)
+    return {"success": ok}
+
+
+@app.get("/api/missions/{mission_id}/export")
+async def export_mission_endpoint(mission_id: str):
+    from calc_terminal.missions import get_mission_manager
+    mm = get_mission_manager()
+    m = mm.get(mission_id)
+    if not m:
+        raise HTTPException(status_code=404, detail="Mission not found")
+    return {
+        "format": "cat",
+        "version": "1.0",
+        "type": "mission",
+        "id": m.id,
+        "metadata": {"name": m.title, "description": m.objective},
+        "data": m.to_dict(),
+    }
+
+
+@app.post("/api/missions/import")
+async def import_mission_endpoint(req: AgentImportRequest):
+    from calc_terminal.missions import get_mission_manager
+    mm = get_mission_manager()
+    try:
+        m = mm.import_mission(req.data, force=bool(req.force))
+        return {"success": True, "mission": m.to_dict()}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# --- Scheduled & Background Tasks (calc_terminal.tasks.scheduler) ---
+
+@app.get("/api/schedule")
+async def list_scheduled_tasks():
+    from calc_terminal.tasks.scheduler import task_scheduler
+    tasks = task_scheduler.list_tasks()
+    return {
+        "tasks": [
+            t.to_dict() if hasattr(t, "to_dict") else {
+                "task_id": t.task_id,
+                "name": t.name,
+                "agent_id": t.agent_id,
+                "objective": getattr(t, "objective", ""),
+                "schedule_type": t.schedule_type,
+                "interval_seconds": getattr(t, "interval_seconds", 0),
+                "status": t.status.value if hasattr(t.status, "value") else str(t.status),
+            }
+            for t in tasks
+        ]
+    }
+
+
+@app.post("/api/schedule")
+async def create_scheduled_task(req: ScheduleTaskCreateRequest):
+    from calc_terminal.tasks.scheduler import task_scheduler
+    if hasattr(task_scheduler, "schedule_task"):
+        t = task_scheduler.schedule_task(
+            name=req.name,
+            agent_id=req.agent_id or "cat-coder",
+            objective=req.objective,
+            schedule_type=req.schedule_type or "interval",
+            interval_seconds=req.interval_seconds or 3600,
+        )
+    elif hasattr(task_scheduler, "add_task"):
+        t = task_scheduler.add_task(
+            name=req.name,
+            agent_id=req.agent_id or "cat-coder",
+            objective=req.objective,
+            interval_seconds=req.interval_seconds or 3600,
+        )
+    else:
+        raise HTTPException(status_code=400, detail="Scheduler creation unavailable")
+    tid = getattr(t, "task_id", str(t))
+    return {"success": True, "task_id": tid}
+
+
+@app.post("/api/schedule/{task_id}/run")
+async def run_scheduled_task_now(task_id: str):
+    from calc_terminal.tasks.scheduler import task_scheduler
+    res = await asyncio.to_thread(task_scheduler.execute_task_now, task_id)
+    return {"success": True, "result": res}
+
+
+@app.post("/api/schedule/{task_id}/pause")
+async def pause_scheduled_task(task_id: str):
+    from calc_terminal.tasks.scheduler import task_scheduler
+    ok = task_scheduler.pause_task(task_id)
+    return {"success": ok}
+
+
+@app.post("/api/schedule/{task_id}/resume")
+async def resume_scheduled_task(task_id: str):
+    from calc_terminal.tasks.scheduler import task_scheduler
+    ok = task_scheduler.resume_task(task_id)
+    return {"success": ok}
+
+
+@app.post("/api/schedule/{task_id}/cancel")
+async def cancel_scheduled_task(task_id: str):
+    from calc_terminal.tasks.scheduler import task_scheduler
+    ok = task_scheduler.cancel_task(task_id)
+    return {"success": ok}
+
+
+# --- CAT Lab: AI Experimentation Studio, Benchmarks, Models, Datasets, Experiments & Hardware ---
+
+@app.get("/api/lab/overview")
+async def get_cat_lab_overview():
+    def _load():
+        from calc_terminal.lab import (
+            get_model_registry,
+            get_benchmark_registry,
+            get_dataset_registry,
+            get_experiment_tracker,
+            get_hardware_profile,
+        )
+        m_reg = get_model_registry()
+        b_reg = get_benchmark_registry()
+        d_reg = get_dataset_registry()
+        e_trk = get_experiment_tracker()
+        hw = get_hardware_profile()
+        return {
+            "hardware": hw,
+            "benchmarks": [b.to_dict() for b in b_reg.list()],
+            "models": [m.to_dict() for m in m_reg.list()],
+            "datasets": [d.to_dict() for d in d_reg.list()],
+            "experiments": [e.to_dict() for e in e_trk.list()],
+        }
+    return await asyncio.to_thread(_load)
+
+
+@app.get("/api/lab/hardware")
+async def get_cat_lab_hardware():
+    def _load():
+        from calc_terminal.lab import (
+            get_hardware_profile,
+            get_hardware_status_text,
+            get_gpu_status_text,
+            get_cpu_status_text,
+            get_memory_status_text,
+        )
+        recs = {}
+        try:
+            from calc_terminal.compatibility_engine import ModelCompatibilityEngine
+            from calc_terminal import ollama_catalog
+            eng = ModelCompatibilityEngine()
+            raw_recs = eng.recommend_models(ollama_catalog.all_models(include_dynamic=True))
+            for k, items in raw_recs.items():
+                recs[k] = [
+                    {
+                        "name": it["model"].get("name"),
+                        "params": it["model"].get("params"),
+                        "size_gb": it["model"].get("size_gb"),
+                        "desc": it["model"].get("desc"),
+                        "tier": getattr(it["compat"], "tier_label_ascii", ""),
+                        "estimated_tps": getattr(it["compat"], "estimated_tps", 0),
+                    }
+                    for it in items[:4]
+                ]
+        except Exception:
+            pass
+        return {
+            "profile": get_hardware_profile(),
+            "status_text": get_hardware_status_text(),
+            "gpu_text": get_gpu_status_text(),
+            "cpu_text": get_cpu_status_text(),
+            "memory_text": get_memory_status_text(),
+            "recommendations": recs,
+        }
+    return await asyncio.to_thread(_load)
+
+
+@app.get("/api/lab/benchmarks")
+async def list_lab_benchmarks():
+    from calc_terminal.lab import get_benchmark_registry
+    from calc_terminal.benchmark_system import CATBenchmarkSystem
+    b_reg = get_benchmark_registry()
+    sys_bench = CATBenchmarkSystem()
+    return {
+        "benchmarks": [b.to_dict() for b in b_reg.list()],
+        "leaderboard": sys_bench.format_leaderboard(),
+    }
+
+
+@app.post("/api/lab/benchmarks")
+async def create_lab_benchmark(req: LabBenchmarkCreateRequest):
+    from calc_terminal.lab import get_benchmark_registry, BenchmarkSpec, BenchmarkTask
+    b_reg = get_benchmark_registry()
+    spec = BenchmarkSpec(
+        id=req.id,
+        name=req.name,
+        benchmark_type=req.benchmark_type or "coding",
+        description=req.description or f"Custom benchmark {req.name}",
+        tasks=[BenchmarkTask(id="task-01", prompt="Write a pure function that reverses words in a sentence.", expected_output="def ")],
+    )
+    b_reg.register(spec, persist=True)
+    return {"success": True, "benchmark": spec.to_dict()}
+
+
+@app.post("/api/lab/benchmarks/{benchmark_id}/run")
+async def run_lab_benchmark(benchmark_id: str, req: LabBenchmarkRunRequest):
+    def _exec():
+        from calc_terminal.lab import (
+            get_benchmark_registry,
+            get_model_registry,
+            BenchmarkRunner,
+            render_benchmark_report_card,
+        )
+        b_reg = get_benchmark_registry()
+        m_reg = get_model_registry()
+        b = b_reg.get(benchmark_id)
+        if not b:
+            raise HTTPException(status_code=404, detail=f"Benchmark '{benchmark_id}' not found")
+        model = m_reg.get(req.model_id or "deepseek-r1-local") or m_reg.list()[0]
+        res = BenchmarkRunner.run(b, model)
+        return {
+            "success": True,
+            "result": res.to_dict(),
+            "report_card": render_benchmark_report_card(res),
+        }
+    return await asyncio.to_thread(_exec)
+
+
+@app.get("/api/lab/models")
+async def list_lab_models():
+    from calc_terminal.lab import get_model_registry, check_compatibility
+    reg = get_model_registry()
+    items = []
+    for m in reg.list():
+        d = m.to_dict()
+        try:
+            compat = check_compatibility(m)
+            d["compatibility"] = {"status": compat.status, "details": compat.details}
+        except Exception:
+            pass
+        items.append(d)
+    return {"models": items}
+
+
+@app.post("/api/lab/models")
+async def add_lab_model(req: LabModelAddRequest):
+    from calc_terminal.lab import get_model_registry, ModelSpec
+    reg = get_model_registry()
+    spec = ModelSpec(
+        id=req.id,
+        name=req.name,
+        framework=req.framework or "ollama",
+        model_type=req.model_type or "llm",
+        precision=req.precision or "fp16",
+        context_size=req.context_size or 8192,
+    )
+    reg.register(spec, persist=True)
+    return {"success": True, "model": spec.to_dict()}
+
+
+@app.post("/api/lab/models/{model_id}/test")
+async def test_lab_model_endpoint(model_id: str, req: LabModelTestRequest):
+    def _exec():
+        from calc_terminal.lab import get_model_registry, ModelRunner, check_compatibility
+        reg = get_model_registry()
+        m = reg.get(model_id)
+        if not m:
+            raise HTTPException(status_code=404, detail="Model not found")
+        res = ModelRunner.run_inference(m, prompt=req.prompt or "Hello from CAT Lab")
+        compat = check_compatibility(m)
+        return {"success": True, "inference": res, "compatibility": {"status": compat.status, "details": compat.details}}
+    return await asyncio.to_thread(_exec)
+
+
+@app.post("/api/lab/models/{model_id}/capacity")
+async def capacity_test_lab_model_endpoint(model_id: str):
+    def _exec():
+        from calc_terminal.lab import get_model_registry, ModelRunner
+        reg = get_model_registry()
+        m = reg.get(model_id)
+        if not m:
+            raise HTTPException(status_code=404, detail="Model not found")
+        return ModelRunner.run_capacity_test(m)
+    return await asyncio.to_thread(_exec)
+
+
+@app.delete("/api/lab/models/{model_id}")
+async def delete_lab_model_endpoint(model_id: str):
+    from calc_terminal.lab import get_model_registry
+    reg = get_model_registry()
+    ok = reg.unregister(model_id)
+    return {"success": ok}
+
+
+@app.get("/api/lab/datasets")
+async def list_lab_datasets():
+    from calc_terminal.lab import get_dataset_registry
+    reg = get_dataset_registry()
+    return {"datasets": [d.to_dict() for d in reg.list()]}
+
+
+@app.post("/api/lab/datasets")
+async def add_lab_dataset(req: LabDatasetAddRequest):
+    from calc_terminal.lab import get_dataset_registry
+    reg = get_dataset_registry()
+    try:
+        fpath = req.file_path
+        if not os.path.isabs(fpath):
+            ws = state_manager.get_workspace_root("current") or os.getcwd()
+            fpath = os.path.join(ws, fpath)
+        spec = reg.inspect_file(fpath)
+        reg.add(spec, persist=True)
+        return {"success": True, "dataset": spec.to_dict()}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/lab/experiments")
+async def list_lab_experiments():
+    from calc_terminal.lab import get_experiment_tracker
+    trk = get_experiment_tracker()
+    return {"experiments": [e.to_dict() for e in trk.list()]}
+
+
+@app.post("/api/lab/experiments")
+async def create_lab_experiment(req: LabExperimentCreateRequest):
+    from calc_terminal.lab import get_experiment_tracker
+    trk = get_experiment_tracker()
+    exp = trk.create(name=req.name, model_id=req.model_id or "pytorch-mlp-classifier")
+    return {"success": True, "experiment": exp.to_dict()}
+
+
+@app.post("/api/lab/experiments/{experiment_id}/run")
+async def run_lab_experiment(experiment_id: str, req: LabExperimentRunRequest):
+    def _exec():
+        from calc_terminal.lab import get_experiment_tracker, PyTorchTrainer
+        trk = get_experiment_tracker()
+        exp = trk.get(experiment_id)
+        if not exp:
+            raise HTTPException(status_code=404, detail="Experiment not found")
+        trainer = PyTorchTrainer()
+        epochs_log = []
+        res = trainer.run_training_experiment(
+            exp,
+            epochs=max(1, min(int(req.epochs or 5), 25)),
+            on_epoch=lambda p: epochs_log.append({"epoch": p.epoch, "loss": p.loss, "accuracy": p.accuracy}),
+        )
+        if res.get("success"):
+            trk.set_status(exp.id, "completed")
+            trk.add_checkpoint(exp.id, name="Final Model", metrics={"accuracy": res.get("final_accuracy"), "loss": res.get("final_loss")})
+        return {"result": res, "epochs": epochs_log, "experiment": trk.get(experiment_id).to_dict()}
+    return await asyncio.to_thread(_exec)
+
+
+# --- Storage, Backup/Restore, Integrations, Skills & Custom Commands ---
+
+@app.get("/api/storage/status")
+async def get_storage_status_endpoint():
+    from calc_terminal import storage
+    return await asyncio.to_thread(storage.get_storage_status)
+
+
+@app.post("/api/storage/clean")
+async def clean_storage_cache_endpoint():
+    from calc_terminal import storage
+    removed = await asyncio.to_thread(storage.clear_cache)
+    return {"success": True, "removed_files": removed}
+
+
+@app.post("/api/backup/create")
+async def create_backup_endpoint():
+    from calc_terminal import storage
+    archive_path = await asyncio.to_thread(storage.create_backup)
+    size = os.path.getsize(archive_path) if os.path.exists(archive_path) else 0
+    return {
+        "success": True,
+        "path": archive_path,
+        "filename": os.path.basename(archive_path),
+        "size": size,
+        "readable_size": storage.format_bytes(size),
+    }
+
+
+@app.get("/api/backup/download")
+async def download_backup_endpoint():
+    from calc_terminal import storage
+    archive_path = await asyncio.to_thread(storage.create_backup)
+    return FileResponse(
+        archive_path,
+        media_type="application/zip",
+        filename=os.path.basename(archive_path),
+    )
+
+
+@app.post("/api/cat-file/import")
+async def import_cat_file_endpoint(req: CatFileImportRequest):
+    from calc_terminal import storage
+    env = req.envelope
+    obj_type = env.get("type")
+    data = env.get("data") or env.get("payload") or env
+    if obj_type == "agent":
+        ag = get_agent_registry().import_agent(env, force=True)
+        return {"success": True, "type": "agent", "item": ag.to_dict()}
+    elif obj_type == "mission":
+        from calc_terminal.missions import get_mission_manager
+        m = get_mission_manager().import_mission(env, force=True)
+        return {"success": True, "type": "mission", "item": m.to_dict()}
+    elif obj_type == "chat":
+        chat = chat_store.create_chat(name=data.get("name", "Imported Chat"))
+        for t in data.get("turns", data.get("messages", [])):
+            chat_store.add_turn(chat["id"], t.get("role", "user"), t.get("content", ""))
+        return {"success": True, "type": "chat", "item": chat_store.get_chat(chat["id"])}
+    return {"success": True, "type": obj_type or "generic", "envelope": storage.sanitize_secrets(env)}
+
+
+@app.post("/api/chats/import")
+async def import_chat_session_endpoint(req: Dict[str, Any]):
+    name = req.get("name") or req.get("title") or "Imported Chat"
+    turns = req.get("turns") or req.get("messages") or []
+    chat = chat_store.create_chat(
+        name=name,
+        workspace_root=req.get("workspace_root") or state_manager.get_workspace_root("current") or "",
+        current_mode=req.get("current_mode") or "build",
+        provider=req.get("provider") or "",
+        model=req.get("model") or "",
+    )
+    for t in turns:
+        if isinstance(t, dict) and t.get("content"):
+            chat_store.add_turn(chat["id"], t.get("role", "user"), t.get("content", ""), mode=t.get("mode", "build"))
+    return {"success": True, "chat": chat_store.get_chat(chat["id"])}
+
+
+@app.get("/api/integrations")
+async def list_integrations_endpoint(category: Optional[str] = None):
+    from calc_terminal.integrations import get_integration_registry
+    reg = get_integration_registry()
+    return {"integrations": [i.to_dict() for i in reg.list(category=category)]}
+
+
+@app.post("/api/integrations/refresh")
+async def refresh_integrations_endpoint():
+    from calc_terminal.integrations import get_integration_registry
+    reg = get_integration_registry()
+    await asyncio.to_thread(reg.refresh_statuses)
+    return {"success": True, "integrations": [i.to_dict() for i in reg.list()]}
+
+
+@app.post("/api/integrations/{integration_id}/connect")
+async def connect_integration_endpoint(integration_id: str):
+    from calc_terminal.integrations import get_integration_registry
+    reg = get_integration_registry()
+    ok, msg = await asyncio.to_thread(reg.connect, integration_id)
+    return {"success": ok, "message": msg, "integration": reg.status(integration_id)}
+
+
+@app.post("/api/integrations/{integration_id}/disconnect")
+async def disconnect_integration_endpoint(integration_id: str):
+    from calc_terminal.integrations import get_integration_registry
+    reg = get_integration_registry()
+    ok = reg.disconnect(integration_id)
+    return {"success": ok, "integration": reg.status(integration_id)}
+
+
+@app.get("/api/skills")
+async def list_skills_endpoint():
+    from calc_terminal.skills.registry import get_skill_registry
+    reg = get_skill_registry()
+    return {"skills": [s.to_dict() for s in reg.list_skills()]}
+
+
+@app.get("/api/skills/{skill_id}")
+async def get_skill_info_endpoint(skill_id: str):
+    from calc_terminal.skills.registry import get_skill_registry
+    reg = get_skill_registry()
+    s = reg.get(skill_id)
+    if not s:
+        raise HTTPException(status_code=404, detail="Skill not found")
+    return {"skill": s.to_dict()}
+
+
+@app.get("/api/custom-commands")
+async def list_custom_commands_endpoint():
+    from calc_terminal.commands_registry import get_command_registry
+    reg = get_command_registry()
+    return {"commands": [c.to_dict() for c in reg.list_commands(include_disabled=True)]}
+
+
+@app.get("/api/extensions/catalogue")
+async def get_extensions_catalogue_endpoint():
+    from calc_terminal.extension_installer import CURATED_CATALOGUE
+    items = []
+    for c in CURATED_CATALOGUE:
+        rec = dict(c)
+        rec["installed"] = cct_ext.is_installed(c["id"])
+        rec["enabled"] = cct_ext.is_enabled(c["id"])
+        items.append(rec)
+    return {"catalogue": items}
 
 
 # ============================================================

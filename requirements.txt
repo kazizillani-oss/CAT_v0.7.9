@@ -1,0 +1,12 @@
+# Fatty CAT Web Server & Cloud IDE requirements for Vercel Serverless
+fastapi>=0.100.0
+uvicorn>=0.20.0
+pydantic>=2.0
+python-multipart>=0.0.6
+requests>=2.31.0
+rich>=13.0
+watchdog>=4.0
+plyer>=2.1
+colorama>=0.4.6; sys_platform == 'win32'
+sympy>=1.12
+httpx>=0.24.0

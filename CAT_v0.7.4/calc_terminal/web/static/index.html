@@ -26,7 +26,9 @@
           <button class="cct-sb-tab-btn" id="cct-sb-tab-chats" onclick="FATTY.switchSidebarTab('chats')" title="Chat History & Sessions"><span class="cct-sb-tab-icon">💬</span><span class="cct-sb-tab-label">Chats</span></button>
           <button class="cct-sb-tab-btn" id="cct-sb-tab-activities" onclick="FATTY.switchSidebarTab('activities')" title="Live Activities Stream"><span class="cct-sb-tab-icon">⚡</span><span class="cct-sb-tab-label">Activity</span></button>
           <button class="cct-sb-tab-btn" id="cct-sb-tab-extensions" onclick="FATTY.switchSidebarTab('extensions')" title="Extensions & Plugins"><span class="cct-sb-tab-icon">🧩</span><span class="cct-sb-tab-label">Ext</span></button>
-          <button class="cct-sb-tab-btn" id="cct-sb-tab-agents" onclick="FATTY.switchSidebarTab('agents')" title="CAT agent definitions"><span class="cct-sb-tab-icon">🤖</span><span class="cct-sb-tab-label">Agents</span></button>
+          <button class="cct-sb-tab-btn" id="cct-sb-tab-agents" onclick="FATTY.switchSidebarTab('agents')" title="CAT agent definitions & multi-agent orchestration"><span class="cct-sb-tab-icon">🤖</span><span class="cct-sb-tab-label">Agents</span></button>
+          <button class="cct-sb-tab-btn" id="cct-sb-tab-missions" onclick="FATTY.switchSidebarTab('missions')" title="CAT Missions & Task Scheduler"><span class="cct-sb-tab-icon">🎯</span><span class="cct-sb-tab-label">Missions</span></button>
+          <button class="cct-sb-tab-btn" id="cct-sb-tab-lab" onclick="FATTY.switchSidebarTab('lab')" title="CAT Lab, Benchmarks, Hardware, Skills, Integrations & CLI"><span class="cct-sb-tab-icon">🧪</span><span class="cct-sb-tab-label">CAT Lab</span></button>
           <div class="cct-sb-nav-spacer"></div>
           <button class="cct-sb-tab-btn" id="cct-sb-tab-settings" onclick="FATTY.switchSidebarTab('settings')" title="Quick Settings"><span class="cct-sb-tab-icon">⚙</span><span class="cct-sb-tab-label">Settings</span></button>
           <button type="button" class="cct-sb-tab-btn cct-profile-rail" id="cct-auth-pill" onclick="FATTY.openUserProfile()" title="Fomoji identity status"><span class="cct-auth-indicator" id="cct-auth-indicator"></span><span class="cct-sb-tab-label" id="cct-auth-label">Profile</span></button>
@@ -42,6 +44,13 @@
                 <span class="cct-explorer-title">▸ Explorer</span>
               </div>
               <button class="cct-open-folder-btn" onclick="FATTY.openFolderDialog()">📁 Open Folder</button>
+              <div class="cct-ide-quick-bar" id="cct-ide-quick-bar">
+                <button type="button" class="cct-sb-mini-btn" onclick="FATTY.promptCreateWorkspaceItem(false)" title="Create New File">+ File</button>
+                <button type="button" class="cct-sb-mini-btn" onclick="FATTY.promptCreateWorkspaceItem(true)" title="Create New Folder">+ Folder</button>
+                <button type="button" class="cct-sb-mini-btn" onclick="FATTY.loadWorkspace()" title="Refresh File Tree">⟳</button>
+                <button type="button" class="cct-sb-mini-btn" onclick="FATTY.downloadWorkspaceZip()" title="Download Workspace as ZIP">⤓ ZIP</button>
+                <button type="button" class="cct-sb-mini-btn primary" onclick="FATTY.openIdeWithTerminal()" title="Open Fatty CAT IDE & Integrated CAT CLI Terminal">&gt;_ IDE</button>
+              </div>
             </div>
 
             <!-- Active Workspace Info -->
@@ -132,8 +141,14 @@
 
         <div class="cct-sidebar-view" id="cct-sb-view-agents" style="display: none;">
           <div class="cct-sidebar-subpane">
-            <div class="cct-sb-chats-header"><span class="cct-sb-view-title">🤖 CAT Agents</span></div>
+            <div class="cct-sb-chats-header">
+              <span class="cct-sb-view-title">🤖 CAT Agents</span>
+              <button type="button" class="cct-sb-mini-btn primary" onclick="FATTY.promptMultiAgentOrchestration()" title="Run Multi-Agent Team Workflow">🤝 Team Run</button>
+            </div>
             <p class="cct-agent-registry-note">Definitions from the shared CAT agent registry. Chat modes remain separate.</p>
+            <div class="cct-sb-search-box" style="margin-bottom: 6px;">
+              <input type="text" class="cct-sb-search-input" id="cct-agent-search-input" placeholder="Search 13+ agents by name, mode, or tool..." oninput="FATTY.searchAgentDefinitions(this.value)">
+            </div>
             <form class="cct-agent-create-form" onsubmit="FATTY.createAgentDefinition(event)">
               <input class="cct-form-input" id="cct-agent-id" required minlength="2" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9_.-]{1,63}" placeholder="agent-id">
               <input class="cct-form-input" id="cct-agent-name" required maxlength="100" placeholder="Agent name">
@@ -142,6 +157,47 @@
               <button class="cct-modal-btn primary" type="submit">Create definition</button>
             </form>
             <div class="cct-agent-registry-list" id="cct-agent-registry-list" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <!-- View: CAT Missions & Task Scheduler -->
+        <div class="cct-sidebar-view" id="cct-sb-view-missions" style="display: none;">
+          <div class="cct-sidebar-subpane">
+            <div class="cct-sb-chats-header">
+              <span class="cct-sb-view-title">🎯 Missions &amp; Tasks</span>
+              <button type="button" class="cct-sb-mini-btn primary" onclick="FATTY.promptCreateMission()">+ Mission</button>
+            </div>
+            <p class="cct-agent-registry-note">Persistent multi-agent missions with checkpoints &amp; background task scheduler.</p>
+            <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+              <button type="button" class="cct-sb-mini-btn" onclick="FATTY.promptScheduleTask()">⏰ + Schedule Task</button>
+              <button type="button" class="cct-sb-mini-btn" onclick="FATTY.loadSidebarMissions()">⟳ Refresh</button>
+            </div>
+            <div class="cct-agent-registry-list" id="cct-missions-list" aria-live="polite"></div>
+            <div class="cct-sb-chats-header" style="margin-top: 10px;">
+              <span class="cct-sb-view-title" style="font-size: 11.5px;">⏰ Scheduled Tasks</span>
+            </div>
+            <div class="cct-agent-registry-list" id="cct-scheduled-tasks-list" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <!-- View: CAT Lab, Hardware, Benchmarks, Skills, Integrations & CLI -->
+        <div class="cct-sidebar-view" id="cct-sb-view-lab" style="display: none;">
+          <div class="cct-sidebar-subpane">
+            <div class="cct-sb-chats-header">
+              <span class="cct-sb-view-title">🧪 CAT Lab &amp; CLI Hub</span>
+              <button type="button" class="cct-sb-mini-btn primary" onclick="FATTY.openCatLabModal()">Open Studio ↗</button>
+            </div>
+            <p class="cct-agent-registry-note">All CAT CLI subsystems: Benchmarks, Model Lab, Datasets, Experiments, Hardware, Skills, Integrations, Storage &amp; VS Code Extension.</p>
+            <div class="cct-sb-setting-actions" style="margin-bottom: 10px;">
+              <button type="button" class="cct-action-btn-block" onclick="FATTY.openCatLabModal('benchmarks')">🏆 Benchmark Studio &amp; Leaderboard</button>
+              <button type="button" class="cct-action-btn-block" onclick="FATTY.openCatLabModal('models')">🧬 Model Lab &amp; Compatibility Audit</button>
+              <button type="button" class="cct-action-btn-block" onclick="FATTY.openCatLabModal('hardware')">🖥 Hardware Profiler &amp; Recommendations</button>
+              <button type="button" class="cct-action-btn-block" onclick="FATTY.openCatLabModal('datasets')">📊 Datasets &amp; ML Experiments</button>
+              <button type="button" class="cct-action-btn-block" onclick="FATTY.openCatLabModal('integrations')">🔗 Integrations &amp; Kitty Skills</button>
+              <button type="button" class="cct-action-btn-block" onclick="FATTY.openCatLabModal('storage')">💾 Storage, Backup &amp; VS Code Extension</button>
+              <button type="button" class="cct-action-btn-block" onclick="FATTY.openIdeWithTerminal()">&gt;_ Open Integrated CAT CLI Terminal</button>
+            </div>
+            <div class="cct-agent-registry-list" id="cct-sidebar-lab-summary"></div>
           </div>
         </div>
 
@@ -257,7 +313,7 @@
             <!-- Turns will be appended dynamically by JS -->
           </div>
         </div>
-        <span class="cct-kitty-dock" id="cct-composer">
+        <div class="cct-kitty-dock" id="cct-composer">
           <span class="cct-composer-context"><span class="cct-local-indicator"><i></i>Local</span><span id="cct-composer-workspace" role="button" tabindex="0" aria-label="Change workspace" onclick="FATTY.openFolderDialog()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();FATTY.openFolderDialog()}">Workspace</span></span>
           <span id="cct-composer-mascot" class="cct-composer-mascot" aria-label="Fatty Cat assistant"></span>
           <div class="cct-composer-input-row">
@@ -301,6 +357,8 @@
             <span class="cct-editor-lang-badge" id="cct-editor-lang-badge">HTML</span>
           </div>
           <div class="cct-editor-controls">
+            <button class="cct-editor-btn" onclick="FATTY.runCurrentFileInCli()" title="Execute File in CAT CLI Runtime (▶)">▶ Run</button>
+            <button class="cct-editor-btn" onclick="FATTY.toggleIdeTerminal()" title="Toggle Integrated CAT CLI Terminal (>_)">&gt;_ CLI</button>
             <button class="cct-editor-btn cct-btn-format" onclick="FATTY.formatEditorCode()" title="Format Code ({ })">{ }</button>
             <button class="cct-editor-btn" onclick="FATTY.openMediaViewer()" title="Preview this file in CAT Media Viewer">◫</button>
             <button class="cct-editor-btn cct-btn-save" onclick="FATTY.saveCurrentFile()" title="Save File (Ctrl+S)">💾</button>
@@ -318,6 +376,30 @@
             <textarea class="cct-code-textarea" id="cct-code-editor" spellcheck="false"></textarea>
           </div>
           <iframe id="cct-web-preview" title="Web Preview Frame"></iframe>
+        </div>
+        <!-- Integrated CAT CLI & Shell Terminal Drawer inside Fatty CAT IDE -->
+        <div class="cct-ide-terminal-drawer" id="cct-ide-terminal-drawer" style="display: none;">
+          <div class="cct-ide-term-header">
+            <span>&gt;_ CAT CLI Integrated Terminal · v0.8.0b1</span>
+            <div class="cct-ide-term-chips">
+              <button type="button" onclick="FATTY.runIdeCliCommand('cat --version')">--version</button>
+              <button type="button" onclick="FATTY.runIdeCliCommand('cat --debug')">--debug</button>
+              <button type="button" onclick="FATTY.runIdeCliCommand('cat agent list')">agents</button>
+              <button type="button" onclick="FATTY.runIdeCliCommand('cat mission list')">missions</button>
+              <button type="button" onclick="FATTY.runIdeCliCommand('cat lab')">lab</button>
+              <button type="button" onclick="FATTY.runIdeCliCommand('cat hardware status')">hardware</button>
+              <button type="button" onclick="FATTY.runIdeCliCommand('cat storage status')">storage</button>
+              <button type="button" onclick="FATTY.runIdeCliCommand('cat skills list')">skills</button>
+              <button type="button" onclick="FATTY.clearIdeTerminal()">Clear</button>
+              <button type="button" onclick="FATTY.toggleIdeTerminal()">✕</button>
+            </div>
+          </div>
+          <pre class="cct-ide-term-output" id="cct-ide-term-output">CAT CLI v0.8.0b1 Integrated Terminal Ready. Type any `cat ...` command or shell command below.</pre>
+          <div class="cct-ide-term-input-row">
+            <span class="cct-ide-term-prompt">cat $</span>
+            <input type="text" id="cct-ide-term-input" class="cct-form-input" placeholder="e.g. cat agent list, cat lab, cat benchmark list, python3 main.py..." onkeydown="if(event.key==='Enter'){event.preventDefault();FATTY.submitIdeTerminalInput();}">
+            <button type="button" class="cct-modal-btn primary" onclick="FATTY.submitIdeTerminalInput()">Run</button>
+          </div>
         </div>
       </aside>
     </div>
@@ -1105,6 +1187,31 @@
       <div class="cct-modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
         <button class="cct-modal-btn" onclick="FATTY.closeCreateExtensionModal()">Cancel</button>
         <button class="cct-modal-btn primary" id="cct-create-ext-submit" onclick="FATTY.submitCreateExtension()">Create & Install</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CAT Lab, Benchmarks, Hardware, Skills, Integrations, Storage & CAT CLI Studio -->
+  <div class="cct-modal-backdrop" id="cct-lab-modal" style="display: none;" onclick="FATTY.closeAllModals(event)">
+    <div class="cct-modal-box" style="width: 820px; max-width: 95vw; max-height: 88vh; display: flex; flex-direction: column;" onclick="event.stopPropagation()">
+      <div class="cct-modal-titlebar">
+        <span>🧪 CAT Lab — AI Experimentation Studio &amp; CAT CLI Hub</span>
+        <button class="cct-modal-close-btn" onclick="FATTY.closeAllModals()">✕</button>
+      </div>
+      <div class="cct-tabs-header" id="cct-lab-tabs-header">
+        <button type="button" class="cct-tab-btn active" id="tab-lab-benchmarks" onclick="FATTY.switchCatLabTab('benchmarks')">🏆 Benchmarks</button>
+        <button type="button" class="cct-tab-btn" id="tab-lab-models" onclick="FATTY.switchCatLabTab('models')">🧬 Model Lab</button>
+        <button type="button" class="cct-tab-btn" id="tab-lab-hardware" onclick="FATTY.switchCatLabTab('hardware')">🖥 Hardware &amp; Recs</button>
+        <button type="button" class="cct-tab-btn" id="tab-lab-datasets" onclick="FATTY.switchCatLabTab('datasets')">📊 Datasets &amp; Exps</button>
+        <button type="button" class="cct-tab-btn" id="tab-lab-integrations" onclick="FATTY.switchCatLabTab('integrations')">🔗 Integrations &amp; Skills</button>
+        <button type="button" class="cct-tab-btn" id="tab-lab-storage" onclick="FATTY.switchCatLabTab('storage')">💾 Storage &amp; VS Code CLI</button>
+      </div>
+      <div class="cct-modal-content" id="cct-lab-modal-body" style="overflow-y: auto; flex: 1; padding: 14px;">
+        Loading CAT Lab Studio…
+      </div>
+      <div class="cct-modal-footer">
+        <button type="button" class="cct-modal-btn" onclick="FATTY.openIdeWithTerminal()">&gt;_ Open CLI Terminal</button>
+        <button type="button" class="cct-modal-btn primary" onclick="FATTY.closeAllModals()">Done</button>
       </div>
     </div>
   </div>

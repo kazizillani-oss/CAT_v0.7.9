@@ -53,6 +53,10 @@ dependencies = [
     # Import is guarded (degrades without it), but provider/model
     # functionality is core, so this stays required.
     "requests>=2.31.0",
+    "fastapi>=0.100.0",
+    "uvicorn>=0.20.0",
+    "pydantic>=2.0",
+    "python-multipart>=0.0.6",
     # Legacy Windows cmd.exe background-highlight fallback (theme.py, guarded
     # import — no-op elsewhere).
     "colorama>=0.4.6; sys_platform == 'win32'",

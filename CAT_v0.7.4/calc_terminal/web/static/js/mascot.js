@@ -61,8 +61,24 @@
       name: 'Fatty Cat (Chubby & Cute)',
       directions: assetPath('fattycat-directions.webp?v=cat-aligned-20261010f'),
       reactions: assetPath('fattycat-reactions.webp?v=cat-aligned-20261010f')
+    },
+    'fattycat-riso': {
+      name: 'Fatty Cat (Riso Style)',
+      directions: assetPath('fattycat-riso-directions.webp'),
+      reactions: assetPath('fattycat-riso-reactions.webp')
+    },
+    'otter': {
+      name: 'Chibi Otter',
+      directions: assetPath('otter-directions.webp'),
+      reactions: assetPath('otter-reactions.webp')
+    },
+    'otter-riso': {
+      name: 'Chibi Otter (Riso Style)',
+      directions: assetPath('otter-riso-directions.webp'),
+      reactions: assetPath('otter-riso-reactions.webp')
     }
   };
+
 
   function cellPos(index) {
     var x = (index % 3) * 50;

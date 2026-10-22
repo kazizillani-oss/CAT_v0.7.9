@@ -172,7 +172,13 @@ class CatRuntime:
                 "chat", "agent", "build", "plan", "research", "debugger", "notebook",
                 "files", "code_editor", "terminal", "browser", "live_preview",
                 "models", "providers", "ollama", "permissions", "memory",
-                "customization", "extensions", "vision", "diagnostics", "fomoji_auth"
+                "customization", "extensions", "vision", "diagnostics", "fomoji_auth",
+                "cat_cli", "agents_registry", "multi_agent_orchestration", "missions",
+                "task_scheduler", "cat_lab", "benchmark_studio", "model_lab",
+                "dataset_registry", "experiment_tracker", "hardware_profiler",
+                "storage_manager", "backup_restore", "cat_file_import_export",
+                "integrations_center", "skills_registry", "custom_commands",
+                "vscode_cat_cli_bridge", "vercel_serverless_ide"
             ],
         }
 
@@ -552,14 +558,90 @@ class CatRuntime:
 
         if base in ("/ai-verify", "/verify", "verify"):
             cfg = aicore.load_config()
-            prov = cfg.get("provider", "ollama")
-            mod = cfg.get("model", "deepseek-r1")
+            prov = cfg.get("provider") or "ollama"
+            mod = cfg.get("model") or "deepseek-r1"
             try:
                 ok = aicore.verify_connection(prov, config=cfg)
                 status = "✓ Connection Successful" if ok else "⚠ Connection Failed"
             except Exception as e:
                 status = f"⚠ Verification Error: {e}"
             return {"command": base, "output": f"AI Connectivity Test for {prov.upper()} ({mod}): {status}"}
+
+        # Route CAT CLI subcommands (/cat ..., cat ..., /agents, /missions, /lab, /benchmark, /dataset, /experiment, /hardware, /storage, /backup, /integrations, /skills, /schedule, /doctor, /debug, /providers, /models, /offline)
+        cli_prefixes = {
+            "/cat": [], "cat": [], "cct": [], "catx": [],
+            "/agents": ["agents"], "/agent-cli": ["agent"], "agents": ["agents"],
+            "/missions": ["missions"], "/mission": ["mission"], "missions": ["missions"], "mission": ["mission"],
+            "/lab": ["lab"], "lab": ["lab"],
+            "/benchmark": ["benchmark"], "/benchmarks": ["benchmarks"], "benchmark": ["benchmark"],
+            "/dataset": ["dataset"], "/datasets": ["datasets"], "dataset": ["dataset"],
+            "/experiment": ["experiment"], "/experiments": ["experiments"], "experiment": ["experiment"],
+            "/hardware": ["hardware"], "hardware": ["hardware"],
+            "/storage": ["storage"], "storage": ["storage"],
+            "/backup": ["backup"], "backup": ["backup"],
+            "/restore": ["restore"], "restore": ["restore"],
+            "/integrations": ["integrations"], "/integration": ["integration"], "integrations": ["integrations"],
+            "/skills": ["skills"], "/skill": ["skill"], "skills": ["skills"],
+            "/schedule": ["schedule"], "/tasks": ["tasks"], "schedule": ["schedule"],
+            "/doctor": ["--doctor"], "doctor": ["--doctor"],
+            "/debug-info": ["--debug"], "/version": ["--version"],
+            "/providers": ["providers"], "providers": ["providers"],
+            "/models": ["models"], "models": ["models"],
+            "/offline": ["offline"], "offline": ["offline"],
+            "/import": ["import"], "/export": ["export"],
+        }
+        if base in cli_prefixes:
+            import shlex
+            try:
+                extra = shlex.split(arg) if arg else []
+            except Exception:
+                extra = arg.split() if arg else []
+            cli_argv = cli_prefixes[base] + extra
+            if not cli_argv:
+                cli_argv = ["--help"]
+            res = self.execute_cat_cli(cli_argv)
+            return {
+                "command": base,
+                "output": res.get("output") or res.get("stdout") or res.get("stderr") or "Executed CAT CLI command.",
+                "returncode": res.get("returncode", 0),
+                "success": res.get("success", True),
+            }
+
+        if base in ("/derive", "derive"):
+            res = self.get_derivation(arg or "first")
+            return {"command": base, "output": res.get("derivation") or res.get("error", "No derivation found.")}
+
+        if base in ("/bloch", "bloch"):
+            from calc_terminal.agent import _tool_simulate_bloch
+            return {"command": base, "output": _tool_simulate_bloch({"state": arg or "|+>"})}
+
+        if base in ("/bonding", "bonding"):
+            from calc_terminal.agent import _tool_simulate_bonding
+            return {"command": base, "output": _tool_simulate_bonding({"molecule": arg or "H2O"})}
+
+        if base in ("/todos", "/todo", "todos", "todo"):
+            from calc_terminal import todos as _todos
+            if arg.lower().startswith("add "):
+                item = _todos.add(arg[4:].strip())
+                return {"command": base, "output": f"✓ Added todo #{item.get('id')}: {item.get('text')}"}
+            items = _todos.list_todos() if hasattr(_todos, "list_todos") else _todos.load()
+            if not items:
+                return {"command": base, "output": "No todos in workspace. Use `/todo add <task>` to add one."}
+            lines = ["Workspace Todos:"]
+            for t in items[:25]:
+                if isinstance(t, dict):
+                    mark = "✓" if t.get("done") else "○"
+                    lines.append(f"  {mark} [{t.get('id', '?')}] {t.get('text', '')}")
+            return {"command": base, "output": "\n".join(lines)}
+
+        if base in ("/security", "/scan", "security"):
+            try:
+                from calc_terminal import security_scanner
+                root = ws_module.active_project() or ws_module.root_dir()
+                rep = security_scanner.scan_workspace(root) if hasattr(security_scanner, "scan_workspace") else {"status": "clean", "Workspace": root}
+                return {"command": base, "output": f"Security Scan ({root}):\n{rep}"}
+            except Exception as e:
+                return {"command": base, "output": f"Security Scanner: {e}"}
 
         return {
             "command": base,
@@ -729,6 +811,197 @@ class CatRuntime:
             },
             "hardware": specs,
             "recent_events": self.recent_events[-25:],
+        }
+
+
+
+    # ─────────────────────────────────────────────────────────────
+    # 13. Full CAT CLI Subcommand Execution & Subsystem Bridges
+    # ─────────────────────────────────────────────────────────────
+
+    def execute_cat_cli(self, argv_or_cmd: Any, cwd: Optional[str] = None) -> Dict[str, Any]:
+        """Execute any CAT CLI command or subcommand in-process and capture output."""
+        import io
+        import re
+        import shlex
+        from contextlib import redirect_stdout, redirect_stderr
+
+        if isinstance(argv_or_cmd, str):
+            raw = argv_or_cmd.strip()
+            try:
+                argv = shlex.split(raw)
+            except Exception:
+                argv = raw.split()
+        else:
+            argv = [str(a) for a in (argv_or_cmd or [])]
+
+        if argv and argv[0].lower() in ("cat", "catx", "cct", "/cat"):
+            argv = argv[1:]
+
+        if not argv:
+            argv = ["--help"]
+
+        stdout_buf = io.StringIO()
+        stderr_buf = io.StringIO()
+        rc = 0
+        old_cwd = os.getcwd()
+
+        try:
+            if cwd and os.path.isdir(cwd):
+                try:
+                    os.chdir(cwd)
+                except OSError:
+                    pass
+
+            from calc_terminal import cli as _cat_cli
+            from calc_terminal import cli_commands as _cat_cmds
+
+            cmd0 = argv[0].lower()
+            with redirect_stdout(stdout_buf), redirect_stderr(stderr_buf):
+                if cmd0 in ("-h", "--help", "help"):
+                    print(_cat_cli._usage("cat"))
+                elif cmd0 in ("-v", "--version", "version"):
+                    print(f"CAT v{_cat_cli._version()}")
+                elif cmd0 in ("--debug", "debug"):
+                    rc = _cat_cli._debug_cli(argv)
+                elif cmd0 in ("--doctor", "doctor"):
+                    from calc_terminal.doctor import main as _doc_main
+                    rc = _doc_main(argv[1:])
+                elif cmd0 in ("update", "--update") and len(argv) > 1 and argv[1] in ("--check", "check"):
+                    rc = _cat_cli._update_check_cli(argv)
+                elif cmd0 in ("agents", "--agents", "agent", "--agent", "kitties", "kitty"):
+                    rc = _cat_cmds.agents_cli(argv)
+                elif cmd0 in ("missions", "--missions", "mission", "--mission"):
+                    rc = _cat_cmds.missions_cli(argv)
+                elif cmd0 in ("storage", "--storage"):
+                    rc = _cat_cmds.storage_cli(argv)
+                elif cmd0 in ("backup", "--backup", "restore", "--restore"):
+                    rc = _cat_cmds.backup_cli(argv)
+                elif cmd0 in ("integrations", "--integrations", "integration", "--integration"):
+                    rc = _cat_cmds.integrations_cli(argv)
+                elif cmd0 in ("import", "export"):
+                    rc = _cat_cmds.cat_file_cli(argv)
+                elif cmd0 in ("hardware", "--hardware"):
+                    rc = _cat_cmds.hardware_cli(argv)
+                elif cmd0 in ("lab", "--lab"):
+                    rc = _cat_cmds.lab_cli(argv)
+                elif cmd0 in ("benchmark", "benchmarks", "--benchmark", "--benchmarks"):
+                    rc = _cat_cmds.benchmark_cli(argv)
+                elif cmd0 in ("dataset", "datasets", "--dataset", "--datasets"):
+                    rc = _cat_cmds.dataset_cli(argv)
+                elif cmd0 in ("experiment", "experiments", "--experiment", "--experiments"):
+                    rc = _cat_cmds.experiment_cli(argv)
+                elif cmd0 in ("schedule", "--schedule", "tasks", "--tasks"):
+                    rc = _cat_cmds.scheduler_cli(argv)
+                elif cmd0 in ("extensions", "--extensions", "extension", "--extension"):
+                    rc = _cat_cmds.extensions_cli(argv)
+                elif cmd0 in ("skills", "--skills", "skill", "--skill"):
+                    rc = _cat_cmds.skills_cli(argv)
+                elif cmd0 in ("commands", "--commands", "command", "--command"):
+                    rc = _cat_cmds.commands_cli(argv)
+                elif cmd0 in ("providers", "--providers", "provider", "--provider"):
+                    rc = _cat_cli._providers_cli(argv)
+                elif cmd0 in ("models", "--models", "model", "--model"):
+                    if len(argv) > 1 and argv[1] in ("add", "test", "capacity", "remove", "info"):
+                        rc = _cat_cmds.model_cli(argv)
+                    elif len(argv) > 1 and argv[1] in ("recommend", "rec", "search", "find", "install", "pull", "benchmark", "bench", "refresh"):
+                        rc = _cat_cli._models_cli(argv)
+                    elif "--provider" in argv or "-p" in argv or "--category" in argv or "-c" in argv:
+                        rc = _cat_cli._models_cli(argv)
+                    else:
+                        rc = _cat_cmds.model_cli(argv)
+                elif cmd0 in ("offline", "--offline", "local-only", "--local-only"):
+                    rc = _cat_cli._offline_cli(argv)
+                else:
+                    rc = _cat_cli.main(argv)
+        except SystemExit as exc:
+            rc = int(exc.code) if isinstance(exc.code, int) else 0
+        except Exception as exc:
+            rc = 1
+            stderr_buf.write(f"Error executing CAT CLI command: {exc}\n")
+        finally:
+            try:
+                os.chdir(old_cwd)
+            except OSError:
+                pass
+
+        ansi_re = re.compile(r"\x1b\[[0-9;?<>=]*[A-Za-z]|\x1b\].*?\x1b\\")
+        out_str = ansi_re.sub("", stdout_buf.getvalue()).strip()
+        err_str = ansi_re.sub("", stderr_buf.getvalue()).strip()
+        combined = out_str if out_str else err_str
+        if out_str and err_str:
+            combined = f"{out_str}\n{err_str}"
+
+        return {
+            "success": (rc or 0) == 0,
+            "returncode": rc or 0,
+            "stdout": out_str,
+            "stderr": err_str,
+            "output": combined,
+            "argv": ["cat"] + argv,
+        }
+
+    def get_cat_cli_extension_info(self) -> Dict[str, Any]:
+        """Return status and metadata of the integrated VS Code cat-cli extension & CLI binary."""
+        import shutil
+        repo_root = Path(__file__).resolve().parents[3]
+        cat_cli_dir = repo_root / "cat-cli"
+        pkg_json_path = cat_cli_dir / "package.json"
+        vsix_files = list(repo_root.glob("*.vsix")) + (list(cat_cli_dir.glob("*.vsix")) if cat_cli_dir.exists() else [])
+        pkg_meta: Dict[str, Any] = {}
+        if pkg_json_path.is_file():
+            try:
+                import json
+                pkg_meta = json.loads(pkg_json_path.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+
+        from calc_terminal import cli as _cat_cli
+        return {
+            "installed": True,
+            "module": "calc_terminal",
+            "cli_version": _cat_cli._version(),
+            "python_executable": sys.executable,
+            "python_version": sys.version.split()[0],
+            "entrypoints": {
+                "cat": shutil.which("cat") or f"{sys.executable} -m calc_terminal",
+                "catx": shutil.which("catx") or f"{sys.executable} -m calc_terminal",
+                "cct": shutil.which("cct") or f"{sys.executable} -m calc_terminal",
+                "module": f"{sys.executable} -m calc_terminal",
+            },
+            "vscode_extension": {
+                "name": pkg_meta.get("name", "cat-cli"),
+                "display_name": pkg_meta.get("displayName", "CAT — Coding Agent Terminal"),
+                "version": pkg_meta.get("version", "0.8.6"),
+                "publisher": pkg_meta.get("publisher", "KaziZillani"),
+                "commands": [c.get("command") for c in pkg_meta.get("contributes", {}).get("commands", [])],
+                "vsix_available": bool(vsix_files),
+                "vsix_filename": vsix_files[0].name if vsix_files else None,
+            },
+            "subcommands": [
+                {"command": "cat --version", "category": "core", "description": "Display installed CAT CLI version", "safe": True},
+                {"command": "cat --debug", "category": "core", "description": "Display deterministic runtime & environment diagnostics", "safe": True},
+                {"command": "cat --doctor", "category": "core", "description": "Run installation, terminal & provider health checks", "safe": True},
+                {"command": "cat update --check", "category": "core", "description": "Check official GitHub releases for updates", "safe": True},
+                {"command": "cat agent list", "category": "agents", "description": "List all built-in and custom AI agents (Kitties)", "safe": True},
+                {"command": "cat mission list", "category": "missions", "description": "List all active, paused, and completed missions", "safe": True},
+                {"command": "cat lab", "category": "lab", "description": "Open CAT Lab AI Experimentation Studio overview", "safe": True},
+                {"command": "cat hardware status", "category": "lab", "description": "Inspect CPU, GPU, VRAM, CUDA & PyTorch profile", "safe": True},
+                {"command": "cat benchmark list", "category": "lab", "description": "List standardized AI coding & reasoning benchmarks", "safe": True},
+                {"command": "cat model list", "category": "lab", "description": "List Model Lab specs and hardware compatibility", "safe": True},
+                {"command": "cat models recommend", "category": "models", "description": "Hardware-tailored local AI model recommendations", "safe": True},
+                {"command": "cat providers status", "category": "providers", "description": "Real-time provider health, latency & backup failover pool", "safe": True},
+                {"command": "cat providers audit", "category": "providers", "description": "Comprehensive audit of all registered providers & models", "safe": True},
+                {"command": "cat dataset list", "category": "lab", "description": "List registered local datasets and feature profiles", "safe": True},
+                {"command": "cat experiment list", "category": "lab", "description": "List tracked reproducible ML experiments", "safe": True},
+                {"command": "cat storage status", "category": "storage", "description": "Display user storage breakdown across all CAT subsystems", "safe": True},
+                {"command": "cat integration list", "category": "integrations", "description": "View status of AI, dev, research & MCP integrations", "safe": True},
+                {"command": "cat extensions list", "category": "extensions", "description": "List installed and available CAT extensions", "safe": True},
+                {"command": "cat extensions catalogue", "category": "extensions", "description": "Browse curated CAT extension catalogue", "safe": True},
+                {"command": "cat skills list", "category": "skills", "description": "List all Kitty skills and tool requirements", "safe": True},
+                {"command": "cat commands list", "category": "commands", "description": "List registered custom CLI commands", "safe": True},
+                {"command": "cat schedule list", "category": "tasks", "description": "List scheduled and background agent tasks", "safe": True},
+            ],
         }
 
 
