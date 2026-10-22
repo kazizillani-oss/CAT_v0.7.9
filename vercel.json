@@ -3,7 +3,8 @@
   "functions": {
     "api/index.py": {
       "maxDuration": 60,
-      "memory": 1024
+      "memory": 1024,
+      "includeFiles": "{CAT_v0.7.4/**,public/**}"
     }
   },
   "rewrites": [

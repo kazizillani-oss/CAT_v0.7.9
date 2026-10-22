@@ -477,15 +477,30 @@ _is_prod = (
     or os.environ.get("FATTY_DISABLE_DOCS", "").lower() in ("1", "true")
 )
 
+_is_serverless = bool(
+    os.environ.get("VERCEL")
+    or os.environ.get("VERCEL_ENV")
+    or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
+)
+
 app = FastAPI(
     title="FATTY CAT",
     description="Mobile PWA for CAT - Coding Agent Terminal",
     version="0.7.9.0",
-    lifespan=lifespan,
+    lifespan=None if _is_serverless else lifespan,
     docs_url=None if _is_prod else "/docs",
     redoc_url=None if _is_prod else "/redoc",
     openapi_url=None if _is_prod else "/openapi.json",
 )
+
+if _is_serverless:
+    try:
+        _sws = _ensure_writable_ide_workspace()
+        state_manager.set_workspace_root("default", _sws)
+        state_manager.set_workspace_root("current", _sws)
+        ws_paths.set_active_project(_sws)
+    except Exception:
+        pass
 
 # Keep device codes server-side; the browser only sees the human approval code.
 _pending_auth_devices: Dict[str, Dict[str, Any]] = {}
