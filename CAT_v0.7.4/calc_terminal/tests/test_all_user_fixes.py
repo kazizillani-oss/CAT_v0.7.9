@@ -66,7 +66,7 @@ def test_fetch_web_page_execution_and_activity():
     mock_resp.text = sample_html
 
     with patch("requests.get", return_value=mock_resp):
-        res = aicore.fetch_web_page("https://example.com/test", max_chars=500)
+        res = aicore.fetch_web_page("https://realnews.org/test", max_chars=500)
         assert "CAT News" in res
         assert "Active web research." in res
         assert "<script>" not in res
