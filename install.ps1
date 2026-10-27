@@ -1,12 +1,14 @@
 <#
 .SYNOPSIS
-    CAT — Coding Agent Terminal Universal Windows Installer.
+    CAT -- Coding Agent Terminal Universal Windows Installer.
 .DESCRIPTION
     Installs, updates, checks, or uninstalls CAT CLI on Windows.
+    Provides ASCII art banner, device hardware inspection, and local AI model
+    compatibility recommendations (Ollama & Hugging Face GGUF).
     Compatible with:
       - Direct execution: powershell -ExecutionPolicy Bypass -File install.ps1 -Install
       - Web one-liner: irm https://raw.githubusercontent.com/kazizillani-oss/CAT_v0.7.9/main/install.ps1 | iex
-      - Curl: curl.exe -fsSL https://.../install.ps1 -o install.ps1; powershell -ExecutionPolicy Bypass -File .\install.ps1 -Install
+      - Curl: curl.exe -fsSL https://.../install.ps1 -o "$env:TEMP\cat_install.ps1"; powershell -ExecutionPolicy Bypass -File "$env:TEMP\cat_install.ps1" -Install
 .PARAMETER Install
     Perform full installation.
 .PARAMETER Uninstall
@@ -14,7 +16,7 @@
 .PARAMETER Update
     Update CAT CLI to latest version.
 .PARAMETER Check
-    Perform environment and installation health check.
+    Perform environment, hardware, and installation health check.
 .PARAMETER InstallDir
     Target installation directory (default: %LOCALAPPDATA%\Programs\CAT).
 .PARAMETER Force
@@ -49,13 +51,172 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+try {
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    $OutputEncoding = [System.Text.Encoding]::UTF8
+} catch { }
+
 function Write-CatHeader {
     if ($Quiet) { return }
     Write-Host ''
+    Write-Host '        /\_/\     ' -ForegroundColor Magenta -NoNewline
+    Write-Host '  ____    _  _____ ' -ForegroundColor Cyan
+    Write-Host '       ( o.o )    ' -ForegroundColor Magenta -NoNewline
+    Write-Host ' / ___|  / \|_   _|' -ForegroundColor Cyan
+    Write-Host '        > ^ <     ' -ForegroundColor Magenta -NoNewline
+    Write-Host '| |     / _ \ | |  ' -ForegroundColor Cyan
+    Write-Host '                  ' -ForegroundColor Magenta -NoNewline
+    Write-Host '| |___ / ___ \| |  ' -ForegroundColor Cyan
+    Write-Host '                  ' -ForegroundColor Magenta -NoNewline
+    Write-Host ' \____/_/   \_\_|  ' -ForegroundColor Cyan
+    Write-Host ''
     Write-Host '  ================================================================' -ForegroundColor Cyan
-    Write-Host '     CAT — Coding Agent Terminal (Windows Installer)              ' -ForegroundColor Magenta
-    Write-Host '     Version: 0.8.0b1 | Tokyo Night Edition                       ' -ForegroundColor DarkCyan
+    Write-Host '     C A T  --  CODING AGENT TERMINAL (Windows Installer)         ' -ForegroundColor White
+    Write-Host '     Autonomous AI Terminal  |  Tokyo Night Edition  |  v0.8.0b1  ' -ForegroundColor Magenta
     Write-Host '  ================================================================' -ForegroundColor Cyan
+    Write-Host ''
+}
+
+function Show-DeviceAndModelCompatibility {
+    if ($Quiet) { return }
+
+    Write-Host '  ----------------------------------------------------------------' -ForegroundColor DarkCyan
+    Write-Host '  [DEVICE HARDWARE & LOCAL AI MODEL COMPATIBILITY ANALYSIS]' -ForegroundColor Yellow
+    Write-Host '  ----------------------------------------------------------------' -ForegroundColor DarkCyan
+
+    $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
+    $os = Get-CimInstance Win32_OperatingSystem
+    $ramTotal = [math]::Round($os.TotalVisibleMemorySize / 1MB, 1)
+    $ramFree = [math]::Round($os.FreePhysicalMemory / 1MB, 1)
+
+    $gpuName = "Unknown"
+    $gpuVram = 0.0
+
+    if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) {
+        try {
+            $smi = nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits 2>$null
+            if ($smi) {
+                $parts = ($smi -split "`n")[0] -split ','
+                $gpuName = $parts[0].Trim()
+                $gpuVram = [math]::Round([double]$parts[1].Trim() / 1024, 1)
+            }
+        } catch { }
+    }
+
+    if ($gpuName -eq "Unknown") {
+        $videoControllers = Get-CimInstance Win32_VideoController
+        if ($videoControllers) {
+            $names = @($videoControllers | ForEach-Object { $_.Name })
+            $gpuName = $names -join ", "
+        }
+    }
+
+    $ollamaCmd = Get-Command ollama -ErrorAction SilentlyContinue
+    $ollamaVer = "Not Detected"
+    if ($ollamaCmd) {
+        try {
+            $rawVer = (& ollama --version 2>&1).Trim()
+            $ollamaVer = if ($rawVer -match '(\d+\.\d+\.\d+)') { "v$($Matches[1]) (Installed)" } else { "Installed" }
+        } catch {
+            $ollamaVer = "Installed"
+        }
+    }
+
+    # Determine Hardware Tier based on RAM and GPU VRAM
+    $tierName = ""
+    $tierDesc = ""
+    if ($ramTotal -ge 28 -or $gpuVram -ge 16) {
+        $tierName = "Tier 3: Heavy Workstation ($ramTotal GB RAM Detected)"
+        $tierDesc = "Runs up to 14B-32B models effortlessly with hybrid GPU/CPU acceleration!"
+    } elseif ($ramTotal -ge 14 -or $gpuVram -ge 8) {
+        $tierName = "Tier 2: Advanced Developer ($ramTotal GB RAM Detected)"
+        $tierDesc = "Optimal for 7B-14B models with fast inference!"
+    } elseif ($ramTotal -ge 7 -or $gpuVram -ge 4) {
+        $tierName = "Tier 1: Standard System ($ramTotal GB RAM Detected)"
+        $tierDesc = "Ideal for 1B-8B models (e.g. Qwen 2.5 Coder 7B, Llama 3.2 3B)!"
+    } else {
+        $tierName = "Tier 0: Compact / Edge ($ramTotal GB RAM Detected)"
+        $tierDesc = "Optimized for lightweight 1B-3B models with low RAM consumption."
+    }
+
+    Write-Host "    CPU    : " -NoNewline -ForegroundColor DarkGray
+    Write-Host "$($cpu.Name) ($($cpu.NumberOfCores)C / $($cpu.NumberOfLogicalProcessors)T)" -ForegroundColor White
+    Write-Host "    RAM    : " -NoNewline -ForegroundColor DarkGray
+    Write-Host "$ramTotal GB Total ($ramFree GB Free Available)" -ForegroundColor White
+    Write-Host "    GPU    : " -NoNewline -ForegroundColor DarkGray
+    Write-Host "$gpuName" -NoNewline -ForegroundColor White
+    if ($gpuVram -gt 0) {
+        Write-Host " ($gpuVram GB Dedicated VRAM)" -ForegroundColor Green
+    } else {
+        Write-Host ""
+    }
+    Write-Host "    AI Hub : " -NoNewline -ForegroundColor DarkGray
+    Write-Host "Ollama $ollamaVer | Hugging Face GGUF / llama.cpp Ready" -ForegroundColor White
+    Write-Host "    Tier   : " -NoNewline -ForegroundColor DarkGray
+    Write-Host "$tierName" -ForegroundColor Cyan
+    Write-Host "             $tierDesc" -ForegroundColor DarkCyan
+    Write-Host ''
+
+    Write-Host '    Recommended Latest Ollama & Local Models for Your System:' -ForegroundColor Yellow
+    Write-Host '    --------------------------------------------------------------------------------' -ForegroundColor DarkGray
+    Write-Host '    Model Identifier       Size    Category    Hardware Status' -ForegroundColor DarkCyan
+    Write-Host '    --------------------------------------------------------------------------------' -ForegroundColor DarkGray
+
+    $models = @(
+        @{ Name = "qwen2.5-coder:7b";    Size = 4.7; Cat = "Coding";    Rec = "Top Pick"; Desc = "Premier open-source code generation model" },
+        @{ Name = "deepseek-r1:7b";      Size = 4.7; Cat = "Reasoning"; Rec = "Top Pick"; Desc = "DeepSeek R1 distilled chain-of-thought" },
+        @{ Name = "qwen2.5-coder:14b";   Size = 9.0; Cat = "Coding";    Rec = "Workstation"; Desc = "Advanced architectural coding & refactoring" },
+        @{ Name = "deepseek-r1:14b";     Size = 9.0; Cat = "Reasoning"; Rec = "Workstation"; Desc = "High-intelligence math & complex deduction" },
+        @{ Name = "phi4:14b";            Size = 9.1; Cat = "Reasoning"; Rec = "Balanced"; Desc = "Microsoft Phi-4 cutting-edge reasoning" },
+        @{ Name = "llama3.2:3b";         Size = 2.0; Cat = "Fast/Chat"; Rec = "GPU Fast"; Desc = "Ultra-fast compact conversational model" },
+        @{ Name = "qwen2.5-coder:1.5b";  Size = 1.0; Cat = "Autocomplete"; Rec = "GPU Fast"; Desc = "Ultra-low latency code completion" }
+    )
+
+    if ($ramTotal -ge 28) {
+        $models += @{ Name = "qwen2.5-coder:32b"; Size = 19.0; Cat = "Coding"; Rec = "Power User"; Desc = "Enterprise-grade code intelligence" }
+        $models += @{ Name = "deepseek-r1:32b";   Size = 19.0; Cat = "Reasoning"; Rec = "Power User"; Desc = "Frontier reasoning & deep problem solving" }
+    }
+
+    foreach ($m in $models) {
+        $status = ""
+        $statusColor = "Green"
+        if ($gpuVram -gt 0 -and $m.Size -le $gpuVram) {
+            $status = "[100% GPU VRAM - Blazing Fast]"
+            $statusColor = "Green"
+        } elseif ($m.Size -le $ramFree) {
+            $status = "[100% Compatible - Optimal]"
+            $statusColor = "Green"
+        } elseif ($m.Size -le ($ramTotal * 0.75)) {
+            $status = "[Compatible - RAM Cached]"
+            $statusColor = "Cyan"
+        } else {
+            $status = "[Requires High Memory Load]"
+            $statusColor = "DarkYellow"
+        }
+
+        $paddedName = $m.Name.PadRight(22)
+        $paddedSize = "$($m.Size) GB".PadRight(8)
+        $paddedCat  = $m.Cat.PadRight(12)
+
+        Write-Host "    $paddedName $paddedSize $paddedCat" -NoNewline -ForegroundColor White
+        Write-Host "$status" -ForegroundColor $statusColor
+    }
+
+    Write-Host '    --------------------------------------------------------------------------------' -ForegroundColor DarkGray
+    Write-Host ''
+    Write-Host '    Top Hugging Face GGUF Model Matches:' -ForegroundColor Yellow
+    Write-Host '      - Qwen/Qwen2.5-Coder-7B-Instruct-GGUF        (Q4_K_M ~4.7 GB) -> Fast Coding' -ForegroundColor DarkCyan
+    Write-Host '      - deepseek-ai/DeepSeek-R1-Distill-Qwen-7B-GGUF (Q4_K_M ~4.7 GB) -> Reasoning' -ForegroundColor DarkCyan
+    if ($ramTotal -ge 14) {
+        Write-Host '      - Qwen/Qwen2.5-Coder-14B-Instruct-GGUF       (Q4_K_M ~9.0 GB) -> Heavy Coding' -ForegroundColor DarkCyan
+        Write-Host '      - microsoft/phi-4-GGUF                       (Q4_K_M ~9.1 GB) -> Math & Logic' -ForegroundColor DarkCyan
+    }
+    Write-Host ''
+    Write-Host '    Quick-Start Local AI Command (Run in any terminal):' -ForegroundColor Yellow
+    Write-Host '      ollama run qwen2.5-coder:7b     # Launch recommended coding model' -ForegroundColor Cyan
+    Write-Host '      ollama run deepseek-r1:7b       # Launch recommended reasoning model' -ForegroundColor Cyan
+    Write-Host '      cat model list                  # Inspect active models inside CAT' -ForegroundColor Cyan
+    Write-Host '  ----------------------------------------------------------------' -ForegroundColor DarkCyan
     Write-Host ''
 }
 
@@ -83,9 +244,7 @@ function Find-Python {
                     }
                 }
             }
-        } catch {
-            # Continue checking next candidate
-        }
+        } catch { }
     }
     return $null
 }
@@ -127,8 +286,9 @@ function Get-ShimCmd([string]$module, [string]$pythonExe) {
 
 function Install-Cat {
     Write-CatHeader
-    Write-Host '[1/5] Detecting Python runtime...' -ForegroundColor Yellow
 
+    # Step 1: Detect Python runtime
+    Write-Host '[1/6] Detecting Python runtime...' -ForegroundColor Yellow
     $py = Find-Python
     if (-not $py) {
         Write-Error 'Python 3.10 or higher was not found in PATH. Please install Python from https://www.python.org/downloads/ or run: winget install Python.Python.3.12'
@@ -136,19 +296,22 @@ function Install-Cat {
     }
     Write-Host ('      Found Python ' + $py.Version + ' at: ' + $py.Executable) -ForegroundColor Green
 
-    # Setup directories
-    Write-Host '[2/5] Creating directory layout...' -ForegroundColor Yellow
+    # Step 2: Device & Local AI Model Compatibility
+    Write-Host '[2/6] Inspecting device hardware & AI acceleration capabilities...' -ForegroundColor Yellow
+    Show-DeviceAndModelCompatibility
+
+    # Step 3: Setup directories
+    Write-Host '[3/6] Creating directory layout...' -ForegroundColor Yellow
     $binDir = Join-Path $InstallDir 'bin'
     $libDir = Join-Path $InstallDir 'lib'
     New-Item -ItemType Directory -Path $binDir -Force | Out-Null
     New-Item -ItemType Directory -Path $libDir -Force | Out-Null
     Write-Host ('      Install directory: ' + $InstallDir) -ForegroundColor Green
 
-    # Locate source repository safely (handles irm | iex where $PSScriptRoot is null/empty)
-    Write-Host '[3/5] Installing CAT core and dependencies...' -ForegroundColor Yellow
+    # Step 4: Locate source repository & install runtime
+    Write-Host '[4/6] Installing CAT core and dependencies...' -ForegroundColor Yellow
     $repoRoot = $null
 
-    # Check potential repository directories
     $possibleDirs = @()
     if ($PSScriptRoot -and (Test-Path $PSScriptRoot)) {
         $possibleDirs += $PSScriptRoot
@@ -217,8 +380,8 @@ function Install-Cat {
         }
     }
 
-    # Generate Launcher Shims in $binDir
-    Write-Host '[4/5] Creating command launchers and shims...' -ForegroundColor Yellow
+    # Step 5: Generate Launcher Shims in $binDir
+    Write-Host '[5/6] Creating command launchers and shims...' -ForegroundColor Yellow
 
     # cat.cmd
     Set-Content -Path (Join-Path $binDir 'cat.cmd') -Value (Get-ShimCmd 'calc_terminal.cli' $py.Executable) -Encoding ASCII
@@ -258,8 +421,8 @@ function Install-Cat {
     Write-Host '        - cat-brew.cmd            (Universal package bridge)' -ForegroundColor DarkCyan
     Write-Host '        - cat-sudo.cmd            (Universal privilege elevation)' -ForegroundColor DarkCyan
 
-    # Update User Environment PATH
-    Write-Host '[5/5] Configuring environment and PowerShell profile...' -ForegroundColor Yellow
+    # Step 6: Update User Environment PATH & PowerShell Profile
+    Write-Host '[6/6] Configuring environment and PowerShell profile...' -ForegroundColor Yellow
     $userPath = [Environment]::GetEnvironmentVariable('Path', [EnvironmentVariableTarget]::User)
     if ($userPath -notlike ('*' + $binDir + '*')) {
         $newUserPath = if ([string]::IsNullOrWhiteSpace($userPath)) { $binDir } else { $userPath.TrimEnd(';') + ';' + $binDir }
@@ -310,11 +473,14 @@ function Install-Cat {
     Write-Host '  ================================================================' -ForegroundColor Green
     Write-Host ''
     Write-Host '  Try running in any terminal:' -ForegroundColor Yellow
-    Write-Host '    cat --version        # Check installed version' -ForegroundColor Cyan
-    Write-Host '    cat curl --version   # Test built-in curl HTTP client' -ForegroundColor Cyan
-    Write-Host '    cat brew doctor      # Check package system health' -ForegroundColor Cyan
-    Write-Host '    cat sudo --status    # Check administrative elevation privileges' -ForegroundColor Cyan
-    Write-Host '    cat                  # Launch interactive Tokyo Night terminal' -ForegroundColor Cyan
+    Write-Host '    cat --version             # Check installed CAT version' -ForegroundColor Cyan
+    Write-Host '    cat model list            # Inspect available local models' -ForegroundColor Cyan
+    Write-Host '    ollama run qwen2.5-coder:7b # Run recommended local coding model' -ForegroundColor Cyan
+    Write-Host '    ollama run deepseek-r1:7b   # Run recommended local reasoning model' -ForegroundColor Cyan
+    Write-Host '    cat curl --version        # Test built-in curl HTTP client' -ForegroundColor Cyan
+    Write-Host '    cat brew doctor           # Check package system health' -ForegroundColor Cyan
+    Write-Host '    cat sudo --status         # Check administrative elevation privileges' -ForegroundColor Cyan
+    Write-Host '    cat                       # Launch interactive Tokyo Night terminal' -ForegroundColor Cyan
     Write-Host ''
 }
 
@@ -348,6 +514,8 @@ function Check-Cat {
     } else {
         Write-Host ' [FAIL] Python 3.10+ not found in PATH' -ForegroundColor Red
     }
+
+    Show-DeviceAndModelCompatibility
 
     $binDir = Join-Path $InstallDir 'bin'
     $catShim = Join-Path $binDir 'cat.cmd'

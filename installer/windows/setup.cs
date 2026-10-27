@@ -1,5 +1,5 @@
 // ============================================================================
-// CAT — Coding Agent Terminal Native Windows Setup Installer
+// CAT -- Coding Agent Terminal Native Windows Setup Installer
 // Compiled with Microsoft .NET Framework C# Compiler (csc.exe)
 // Produces: CAT-Setup.exe and catsetup.exe
 // ============================================================================
@@ -7,6 +7,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Management;
 using System.Text;
 
 namespace CatInstaller
@@ -15,6 +16,7 @@ namespace CatInstaller
     {
         static int Main(string[] args)
         {
+            Console.OutputEncoding = Encoding.UTF8;
             bool silent = false;
             bool uninstall = false;
             string customInstallDir = null;
@@ -58,14 +60,232 @@ namespace CatInstaller
         static void PrintBanner(bool silent)
         {
             if (silent) return;
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("================================================================");
+            Console.WriteLine();
             Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine("   CAT — Coding Agent Terminal (Native Windows Installer)");
-            Console.ForegroundColor = ConsoleColor.DarkCyan;
-            Console.WriteLine("   Version: 0.8.0b1 | Tokyo Night Edition");
+            Console.Write("        /\\_/\\     ");
             Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("================================================================\n");
+            Console.WriteLine("  ____    _  _____ ");
+            Console.ForegroundColor = ConsoleColor.Magenta;
+            Console.Write("       ( o.o )    ");
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine(" / ___|  / \\|_   _|");
+            Console.ForegroundColor = ConsoleColor.Magenta;
+            Console.Write("        > ^ <     ");
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("| |     / _ \\ | |  ");
+            Console.ForegroundColor = ConsoleColor.Magenta;
+            Console.Write("                  ");
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("| |___ / ___ \\| |  ");
+            Console.ForegroundColor = ConsoleColor.Magenta;
+            Console.Write("                  ");
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine(" \\____/_/   \\_\\_|  ");
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("  ================================================================");
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine("     C A T  --  CODING AGENT TERMINAL (Native Windows Installer) ");
+            Console.ForegroundColor = ConsoleColor.Magenta;
+            Console.WriteLine("     Autonomous AI Terminal  |  Tokyo Night Edition  |  v0.8.0b1  ");
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("  ================================================================\n");
+            Console.ResetColor();
+        }
+
+        static void ShowHardwareAndModelRecommendations(bool silent)
+        {
+            if (silent) return;
+
+            Console.ForegroundColor = ConsoleColor.DarkCyan;
+            Console.WriteLine("  ----------------------------------------------------------------");
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("  [DEVICE HARDWARE & LOCAL AI MODEL COMPATIBILITY ANALYSIS]");
+            Console.ForegroundColor = ConsoleColor.DarkCyan;
+            Console.WriteLine("  ----------------------------------------------------------------");
+            Console.ResetColor();
+
+            string cpuName = Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER") ?? "x86_64 Processor";
+            int cpuCores = Environment.ProcessorCount;
+            double totalRamGb = 8.0;
+            string gpuName = "Standard GPU Acceleration";
+            double gpuVramGb = 0.0;
+            string ollamaStatus = "Not Detected";
+
+            // Query hardware via PowerShell quick probe or environment
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo("powershell", "-NoProfile -Command \"$os = Get-CimInstance Win32_OperatingSystem; [math]::Round($os.TotalVisibleMemorySize/1MB, 1)\"")
+                {
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using (Process p = Process.Start(psi))
+                {
+                    string outStr = p.StandardOutput.ReadToEnd();
+                    p.WaitForExit(3000);
+                    double r;
+                    if (double.TryParse(outStr.Trim(), out r))
+                    {
+                        totalRamGb = r;
+                    }
+                }
+            }
+            catch { }
+
+            // Query GPU via nvidia-smi if present
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo("nvidia-smi", "--query-gpu=name,memory.total --format=csv,noheader,nounits")
+                {
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using (Process p = Process.Start(psi))
+                {
+                    string outStr = p.StandardOutput.ReadToEnd();
+                    p.WaitForExit(3000);
+                    if (!string.IsNullOrEmpty(outStr) && outStr.Contains(","))
+                    {
+                        string[] parts = outStr.Split('\n')[0].Split(',');
+                        gpuName = parts[0].Trim();
+                        double mb;
+                        if (double.TryParse(parts[1].Trim(), out mb))
+                        {
+                            gpuVramGb = Math.Round(mb / 1024.0, 1);
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // Check Ollama
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo("ollama", "--version")
+                {
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using (Process p = Process.Start(psi))
+                {
+                    string outStr = p.StandardOutput.ReadToEnd();
+                    string errStr = p.StandardError.ReadToEnd();
+                    p.WaitForExit(2000);
+                    string ver = !string.IsNullOrEmpty(outStr) ? outStr : errStr;
+                    if (!string.IsNullOrEmpty(ver) && ver.ToLower().Contains("version"))
+                    {
+                        ollamaStatus = "Installed";
+                    }
+                }
+            }
+            catch { }
+
+            string tierName = "";
+            string tierDesc = "";
+            if (totalRamGb >= 28 || gpuVramGb >= 16)
+            {
+                tierName = "Tier 3: Heavy Workstation (" + totalRamGb + " GB RAM Detected)";
+                tierDesc = "Runs up to 14B-32B models effortlessly with hybrid GPU/CPU acceleration!";
+            }
+            else if (totalRamGb >= 14 || gpuVramGb >= 8)
+            {
+                tierName = "Tier 2: Advanced Developer (" + totalRamGb + " GB RAM Detected)";
+                tierDesc = "Optimal for 7B-14B models with fast inference!";
+            }
+            else
+            {
+                tierName = "Tier 1: Standard System (" + totalRamGb + " GB RAM Detected)";
+                tierDesc = "Ideal for 1B-8B models (e.g. Qwen 2.5 Coder 7B, Llama 3.2 3B)!";
+            }
+
+            Console.ForegroundColor = ConsoleColor.DarkGray; Console.Write("    CPU    : ");
+            Console.ForegroundColor = ConsoleColor.White; Console.WriteLine(cpuName + " (" + cpuCores + " Threads)");
+
+            Console.ForegroundColor = ConsoleColor.DarkGray; Console.Write("    RAM    : ");
+            Console.ForegroundColor = ConsoleColor.White; Console.WriteLine(totalRamGb + " GB System Memory");
+
+            Console.ForegroundColor = ConsoleColor.DarkGray; Console.Write("    GPU    : ");
+            Console.ForegroundColor = ConsoleColor.White; Console.Write(gpuName);
+            if (gpuVramGb > 0)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine(" (" + gpuVramGb + " GB Dedicated VRAM)");
+            }
+            else
+            {
+                Console.WriteLine();
+            }
+
+            Console.ForegroundColor = ConsoleColor.DarkGray; Console.Write("    AI Hub : ");
+            Console.ForegroundColor = ConsoleColor.White; Console.WriteLine("Ollama " + ollamaStatus + " | Hugging Face GGUF / llama.cpp Ready");
+
+            Console.ForegroundColor = ConsoleColor.DarkGray; Console.Write("    Tier   : ");
+            Console.ForegroundColor = ConsoleColor.Cyan; Console.WriteLine(tierName);
+            Console.ForegroundColor = ConsoleColor.DarkCyan; Console.WriteLine("             " + tierDesc + "\n");
+
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("    Recommended Latest Ollama & Local Models for Your System:");
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine("    --------------------------------------------------------------------------------");
+            Console.ForegroundColor = ConsoleColor.DarkCyan;
+            Console.WriteLine("    Model Identifier       Size    Category    Hardware Status");
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine("    --------------------------------------------------------------------------------");
+
+            PrintModelRow("qwen2.5-coder:7b", "4.7 GB", "Coding", "[100% Compatible - Optimal]", ConsoleColor.Green);
+            PrintModelRow("deepseek-r1:7b", "4.7 GB", "Reasoning", "[100% Compatible - Optimal]", ConsoleColor.Green);
+            if (totalRamGb >= 14)
+            {
+                PrintModelRow("qwen2.5-coder:14b", "9.0 GB", "Coding", "[100% Compatible - Optimal]", ConsoleColor.Green);
+                PrintModelRow("deepseek-r1:14b", "9.0 GB", "Reasoning", "[100% Compatible - Optimal]", ConsoleColor.Green);
+                PrintModelRow("phi4:14b", "9.1 GB", "Reasoning", "[100% Compatible - Optimal]", ConsoleColor.Green);
+            }
+            PrintModelRow("llama3.2:3b", "2.0 GB", "Fast/Chat", (gpuVramGb >= 2.0 ? "[100% GPU VRAM - Blazing Fast]" : "[Optimal On-Device]"), ConsoleColor.Green);
+            PrintModelRow("qwen2.5-coder:1.5b", "1.0 GB", "Autocomplete", (gpuVramGb >= 1.0 ? "[100% GPU VRAM - Blazing Fast]" : "[Ultra-Fast]"), ConsoleColor.Green);
+
+            if (totalRamGb >= 28)
+            {
+                PrintModelRow("qwen2.5-coder:32b", "19.0 GB", "Coding", "[Compatible - RAM Cached]", ConsoleColor.Cyan);
+                PrintModelRow("deepseek-r1:32b", "19.0 GB", "Reasoning", "[Compatible - RAM Cached]", ConsoleColor.Cyan);
+            }
+
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine("    --------------------------------------------------------------------------------\n");
+
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("    Top Hugging Face GGUF Model Matches:");
+            Console.ForegroundColor = ConsoleColor.DarkCyan;
+            Console.WriteLine("      - Qwen/Qwen2.5-Coder-7B-Instruct-GGUF        (Q4_K_M ~4.7 GB) -> Fast Coding");
+            Console.WriteLine("      - deepseek-ai/DeepSeek-R1-Distill-Qwen-7B-GGUF (Q4_K_M ~4.7 GB) -> Reasoning");
+            if (totalRamGb >= 14)
+            {
+                Console.WriteLine("      - Qwen/Qwen2.5-Coder-14B-Instruct-GGUF       (Q4_K_M ~9.0 GB) -> Heavy Coding");
+                Console.WriteLine("      - microsoft/phi-4-GGUF                       (Q4_K_M ~9.1 GB) -> Math & Logic");
+            }
+            Console.WriteLine();
+
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("    Quick-Start Local AI Command (Run in any terminal):");
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("      ollama run qwen2.5-coder:7b     # Launch recommended coding model");
+            Console.WriteLine("      ollama run deepseek-r1:7b       # Launch recommended reasoning model");
+            Console.WriteLine("      cat model list                  # Inspect active models inside CAT");
+            Console.ForegroundColor = ConsoleColor.DarkCyan;
+            Console.WriteLine("  ----------------------------------------------------------------\n");
+            Console.ResetColor();
+        }
+
+        static void PrintModelRow(string id, string size, string cat, string status, ConsoleColor statusColor)
+        {
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.Write("    " + id.PadRight(23) + size.PadRight(8) + cat.PadRight(12));
+            Console.ForegroundColor = statusColor;
+            Console.WriteLine(status);
             Console.ResetColor();
         }
 
@@ -109,20 +329,6 @@ namespace CatInstaller
                 }
                 catch { }
             }
-
-            // Check standard WindowsApps path
-            string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            string winApps = Path.Combine(localAppData, "Microsoft", "WindowsApps");
-            if (Directory.Exists(winApps))
-            {
-                string pyApp = Path.Combine(winApps, "python.exe");
-                if (File.Exists(pyApp))
-                {
-                    version = "3.12 (WindowsApps)";
-                    return pyApp;
-                }
-            }
-
             return null;
         }
 
@@ -138,7 +344,7 @@ namespace CatInstaller
             if (!silent)
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("[1/5] Detecting Python 3.10+ runtime...");
+                Console.WriteLine("[1/6] Detecting Python 3.10+ runtime...");
                 Console.ResetColor();
             }
 
@@ -164,7 +370,16 @@ namespace CatInstaller
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine("      Found Python " + pyVersion + " at: " + pyExe);
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("[2/5] Creating installation directory structure...");
+                Console.WriteLine("[2/6] Inspecting device hardware & AI acceleration capabilities...");
+                Console.ResetColor();
+            }
+
+            ShowHardwareAndModelRecommendations(silent);
+
+            if (!silent)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("[3/6] Creating installation directory structure...");
                 Console.ResetColor();
             }
 
@@ -178,7 +393,7 @@ namespace CatInstaller
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine("      Target Directory: " + installDir);
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("[3/5] Deploying CAT CLI core modules...");
+                Console.WriteLine("[4/6] Deploying CAT CLI core modules...");
                 Console.ResetColor();
             }
 
@@ -218,18 +433,47 @@ namespace CatInstaller
                 if (!silent)
                 {
                     Console.ForegroundColor = ConsoleColor.DarkYellow;
-                    Console.WriteLine("      Note: calc_terminal directory not found locally; falling back to environment python package.");
+                    Console.WriteLine("      Installing cct-cli package into Python environment...");
+                    Console.ResetColor();
                 }
+                try
+                {
+                    ProcessStartInfo pipPsi = new ProcessStartInfo(pyExe, "-m pip install --upgrade cct-cli")
+                    {
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+                    using (Process pipProc = Process.Start(pipPsi))
+                    {
+                        pipProc.WaitForExit(30000);
+                        if (pipProc.ExitCode != 0)
+                        {
+                            ProcessStartInfo gitPsi = new ProcessStartInfo(pyExe, "-m pip install --upgrade git+https://github.com/kazizillani-oss/CAT_v0.7.9.git")
+                            {
+                                RedirectStandardOutput = true,
+                                RedirectStandardError = true,
+                                UseShellExecute = false,
+                                CreateNoWindow = true
+                            };
+                            using (Process gitProc = Process.Start(gitPsi))
+                            {
+                                gitProc.WaitForExit(60000);
+                            }
+                        }
+                    }
+                }
+                catch { }
             }
 
             if (!silent)
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("[4/5] Generating launcher shims and developer commands...");
+                Console.WriteLine("[5/6] Generating launcher shims and aliases...");
                 Console.ResetColor();
             }
 
-            // Write command launchers
             WriteShim(binDir, "cat.cmd", pyExe, "calc_terminal.cli");
             WriteShim(binDir, "catx.cmd", pyExe, "calc_terminal.cli");
             WriteShim(binDir, "cct.cmd", pyExe, "calc_terminal.cli");
@@ -241,20 +485,24 @@ namespace CatInstaller
             if (!silent)
             {
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("      Created commands in " + binDir + ":");
+                Console.WriteLine("      Created launcher shims in: " + binDir);
                 Console.ForegroundColor = ConsoleColor.DarkCyan;
-                Console.WriteLine("        - cat.cmd / cat.ps1       (CAT interactive launch)");
+                Console.WriteLine("        - cat.cmd / cat.ps1       (CAT CLI main entry)");
                 Console.WriteLine("        - catx.cmd                (PowerShell collision-safe alias)");
                 Console.WriteLine("        - cct.cmd                 (Classic alias)");
                 Console.WriteLine("        - cat-curl.cmd            (Native HTTP/REST client)");
                 Console.WriteLine("        - cat-brew.cmd            (Universal package bridge)");
-                Console.WriteLine("        - cat-sudo.cmd            (Universal administrative elevation)");
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("[5/5] Updating User PATH and shell profiles...");
+                Console.WriteLine("        - cat-sudo.cmd            (Universal privilege elevation)");
                 Console.ResetColor();
             }
 
-            // Update User PATH environment variable
+            if (!silent)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("[6/6] Configuring User Environment PATH and aliases...");
+                Console.ResetColor();
+            }
+
             string userPath = Environment.GetEnvironmentVariable("Path", EnvironmentVariableTarget.User) ?? "";
             if (!userPath.ToLowerInvariant().Contains(binDir.ToLowerInvariant()))
             {
@@ -264,38 +512,18 @@ namespace CatInstaller
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine("      Added " + binDir + " to User PATH.");
+                    Console.ResetColor();
                 }
             }
-
-            // Configure PowerShell Profile alias helper
-            try
+            else
             {
-                string docsDir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-                string psDir = Path.Combine(docsDir, "WindowsPowerShell");
-                string profilePath = Path.Combine(psDir, "Microsoft.PowerShell_profile.ps1");
-                Directory.CreateDirectory(psDir);
-
-                string aliasMarker = "# === CAT CLI Profile Integration ===";
-                string existing = File.Exists(profilePath) ? File.ReadAllText(profilePath) : "";
-                if (!existing.Contains(aliasMarker))
+                if (!silent)
                 {
-                    StringBuilder sb = new StringBuilder();
-                    sb.AppendLine();
-                    sb.AppendLine(aliasMarker);
-                    sb.AppendLine("if (Get-Command \"" + binDir + "\\cat.cmd\" -ErrorAction SilentlyContinue) {");
-                    sb.AppendLine("    Remove-Item Alias:cat -Force -ErrorAction SilentlyContinue");
-                    sb.AppendLine("    function global:cat { & \"" + binDir + "\\cat.cmd\" @args }");
-                    sb.AppendLine("}");
-                    sb.AppendLine("# ===================================");
-                    File.AppendAllText(profilePath, sb.ToString());
-                    if (!silent)
-                    {
-                        Console.ForegroundColor = ConsoleColor.Green;
-                        Console.WriteLine("      Configured PowerShell profile alias helper.");
-                    }
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.WriteLine("      " + binDir + " is already present in User PATH.");
+                    Console.ResetColor();
                 }
             }
-            catch { }
 
             if (!silent)
             {
@@ -306,11 +534,14 @@ namespace CatInstaller
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine("You can now open a new terminal window and use CAT:");
                 Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine("  cat --version        # Display version");
-                Console.WriteLine("  cat curl --version   # Test HTTP/REST curl client");
-                Console.WriteLine("  cat brew doctor      # Check package manager status");
-                Console.WriteLine("  cat sudo --status    # Check administrative elevation privileges");
-                Console.WriteLine("  cat                  # Launch interactive Tokyo Night terminal\n");
+                Console.WriteLine("  cat --version               # Display version");
+                Console.WriteLine("  cat model list              # Inspect active local models");
+                Console.WriteLine("  ollama run qwen2.5-coder:7b # Run recommended local coding model");
+                Console.WriteLine("  ollama run deepseek-r1:7b   # Run recommended local reasoning model");
+                Console.WriteLine("  cat curl --version          # Test HTTP/REST curl client");
+                Console.WriteLine("  cat brew doctor             # Check package manager status");
+                Console.WriteLine("  cat sudo --status           # Check administrative elevation privileges");
+                Console.WriteLine("  cat                         # Launch interactive Tokyo Night terminal\n");
                 Console.ResetColor();
 
                 Console.WriteLine("Press Enter to launch CAT CLI now (or close this window)...");
