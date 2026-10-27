@@ -77,13 +77,18 @@ Notes:
 ### Option 2: Windows Installer (Native Windows experience)
 
 Download and run the native installer:
-- **`CAT-Setup.exe`** from [Latest Releases](https://github.com/kazizillani-oss/CAT_v0.7.9/releases/latest).
-- Per-user installation to `%LOCALAPPDATA%\Programs\CAT` (no administrator privileges required).
-- Automatically adds `cat`, `catx`, and `cct` to your `PATH` and configures PowerShell aliases cleanly.
+- **`CAT-Setup.exe`** or **`catsetup.exe`** from [Latest Releases](https://github.com/kazizillani-oss/CAT_v0.7.9/releases/latest) or repository root.
+- Standalone self-contained Windows executable — installs to `%LOCALAPPDATA%\Programs\CAT` (no administrator privileges required).
+- Automatically adds `cat`, `catx`, `cct`, `cat-curl`, `cat-brew`, and `cat-sudo` to your `PATH` and configures PowerShell aliases cleanly.
 
-Or via PowerShell:
+Or install via PowerShell:
 ```powershell
 powershell -ExecutionPolicy Bypass -File installer/windows/scripts/install.ps1 -Install
+```
+
+Or via one-line PowerShell web installer:
+```powershell
+irm https://raw.githubusercontent.com/kazizillani-oss/CAT_v0.7.9/main/install.ps1 | iex
 ```
 
 ### Option 3: Install from Source / Git Clone (Clean & Privacy-Safe)
@@ -135,6 +140,67 @@ Install the official **CAT — Coding Agent Terminal** extension for VS Code:
 ```bash
 code --install-extension cat-cli/cat-cli-0.8.6.vsix
 ```
+
+### Option 5: Quick Install via `curl` (Method 5: Linux, macOS, Windows)
+
+Install CAT CLI with a single `curl` command without manually cloning or configuring directories:
+
+```bash
+# Linux and macOS (POSIX curl installer):
+curl -fsSL https://raw.githubusercontent.com/kazizillani-oss/CAT_v0.7.9/main/install.sh | bash
+
+# Windows (Command Prompt / PowerShell via curl.exe):
+curl.exe -fsSL https://raw.githubusercontent.com/kazizillani-oss/CAT_v0.7.9/main/install.ps1 -o install.ps1 && powershell -ExecutionPolicy Bypass -File install.ps1 -Install
+```
+
+What the curl installer does automatically:
+- Detects Python 3.10+ runtime and system architecture.
+- Installs CAT CLI into standard user space (`~/.local/bin` on POSIX or `%LOCALAPPDATA%\Programs\CAT\bin` on Windows).
+- Provides instant access to CAT's built-in developer tools (`cat curl`, `cat brew`, `cat sudo`).
+
+### Option 6: Install via `brew` for macOS & Linux (Method 6: Homebrew)
+
+For macOS and Linux developers using the Homebrew package manager:
+
+```bash
+# 1. Tap the official CAT repository
+brew tap kazizillani-oss/cat
+
+# 2. Install CAT CLI formula
+brew install cat-cli
+
+# Or install directly in one step:
+brew install kazizillani-oss/cat/cat-cli
+
+# 3. Verify installation
+cat --version
+cat brew doctor
+```
+
+> **Universal Package Bridge**:
+> CAT CLI includes its own built-in `cat brew` command that works across macOS, Linux, and Windows, allowing you to search, inspect, and bridge Homebrew formulae and system package managers directly from inside your terminal.
+
+### Option 7: System-wide Linux Installation via `sudo` (Method 7: Linux Admin)
+
+For system administrators and multi-user Linux / Unix servers requiring global system-wide installation:
+
+```bash
+# 1. System-wide installation with administrative privileges (sudo):
+curl -fsSL https://raw.githubusercontent.com/kazizillani-oss/CAT_v0.7.9/main/install.sh | sudo bash
+
+# Or system-wide via pip with sudo (handling PEP 668 managed environments):
+sudo python3 -m pip install cct-cli --break-system-packages
+
+# 2. Verify global system availability for all users:
+cat --version
+catx --version
+sudo cat --version
+```
+
+What the sudo installer does:
+- Installs CAT CLI globally into `/usr/local/bin` and system Python paths.
+- Automatically creates collision-safe aliases (`cat`, `catx`, `cct`, `cat-curl`, `cat-brew`, `cat-sudo`) accessible to every user on the system.
+- Pairs seamlessly with CAT's built-in `cat sudo` tool for privilege elevation.
 
 ---
 

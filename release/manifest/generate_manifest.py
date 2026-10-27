@@ -92,8 +92,14 @@ def generate_manifest(
         }
 
     # Check for Windows installer
-    installer_path = dist_dir / "CAT-Setup.exe"
-    if installer_path.exists():
+    candidate_installers = [
+        dist_dir / "CAT-Setup.exe",
+        REPO_ROOT / "release" / "CAT-Setup.exe",
+        REPO_ROOT / "CAT-Setup.exe",
+        REPO_ROOT / "installer" / "windows" / "CAT-Setup.exe",
+    ]
+    installer_path = next((p for p in candidate_installers if p.exists()), None)
+    if installer_path:
         manifest["installer"]["windows"] = {
             "url": f"{base_url}/CAT-Setup.exe",
             "sha256": compute_sha256(installer_path),
@@ -114,7 +120,7 @@ def generate_manifest(
     else:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(out_json, encoding="utf-8")
-        print(f"✓ Manifest successfully generated at: {output_path}")
+        print(f"[OK] Manifest successfully generated at: {output_path}")
 
     return manifest
 
