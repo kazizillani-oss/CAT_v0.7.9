@@ -16,17 +16,16 @@ build-backend = "setuptools.build_meta"
 # NEVER publish under `cot-ai-ide` (typo) — branding is CAT.
 name = "cct-cli"
 version = "0.8.0b1"
-description = "CAT CLI v0.8.0b1 [beta] — Coding Agent Terminal / terminal AI coding agent"
+description = "CAT CLI v0.8.0b1 [beta] - Coding Agent Terminal / terminal AI coding agent"
 readme = "README.md"
 requires-python = ">=3.10"
-# SPDX identifier (setuptools>=77). License text lives in LICENSE.
-license = "MIT"
-license-files = ["LICENSE*"]
+license = { text = "MIT" }
 authors = [
     { name = "Kazi Zillani" }
 ]
 keywords = ["cat", "cct-cli", "cct", "ai", "agent", "terminal", "tui", "cli", "coding-agent"]
 classifiers = [
+    "License :: OSI Approved :: MIT License",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
