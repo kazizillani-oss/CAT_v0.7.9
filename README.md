@@ -86,16 +86,38 @@ Or via PowerShell:
 powershell -ExecutionPolicy Bypass -File installer/windows/scripts/install.ps1 -Install
 ```
 
-### Option 3: Local Development / Editable Install
-If you are developing or running from source:
+### Option 3: Install from Source / Git Clone (Clean & Privacy-Safe)
+
+To install directly from source on any PC:
+
 ```bash
+# 1. Clone the repository
 git clone https://github.com/kazizillani-oss/CAT_v0.7.9.git
 cd CAT_v0.7.9
+
+# 2. Install CAT CLI into your current Python environment
+python -m pip install .
+
+# Or for local development / live editable mode:
 python -m pip install -e .
+
+# 3. Verify installation and run CAT CLI
+cat --version
 cat
 ```
 
-For contributors, install with test/build tooling:
+> **🔒 Zero Data Leakage & Clean Device Isolation Guarantee**:
+> When you clone CAT CLI onto another computer, **no private developer data, cached models, local sqlite databases, chat logs, or session tokens are downloaded or shared**.
+>
+> CAT enforces strict multi-machine privacy and data separation:
+> - **Source repository contains code only**: Development caches (`cache/`), temporary files, logs, and private keys are strictly git-ignored and excluded from releases and clones.
+> - **Isolated OS App-Data directory**: Every machine gets its own independent user profile initialized on first run in the standard OS user directory:
+>   - **Windows**: `%LOCALAPPDATA%\CCT`
+>   - **Linux**: `$XDG_CONFIG_HOME/cct` (default `~/.config/cct`)
+>   - **macOS**: `~/Library/Application Support/CCT`
+> - **Fresh Environment**: Each installation creates clean, independent configuration and local storage, ensuring your private workspace files and credentials remain 100% on your machine.
+
+For contributors installing with test/build tooling:
 
 ```bash
 pip install -e ".[web,science]"
@@ -123,6 +145,9 @@ code --install-extension cat-cli/cat-cli-0.8.6.vsix
 | `cat` / `catx` / `cct` | Launch the interactive CAT terminal & UI. | Interactive |
 | `cat --version` / `cct --version` | Display the current installed CAT version. | **Read-Only** (Safe to automate) |
 | `cat --debug` / `cct --debug` | Display detailed environment, paths, platform, and runtime debugging information. | **Read-Only** (Safe to automate) |
+| `cat curl [options] <url>` | Execute HTTP/REST requests (our own built-in curl with colorized JSON). | **Read-Only** (GET) / **State-Changing** (POST/PUT/DELETE) |
+| `cat brew <command>` | Cross-platform Homebrew formula manager & universal package bridge (winget/choco/apt). | **Read-Only** (list/doctor/search) / **State-Changing** (install/uninstall) |
+| `cat sudo <command>` | Universal cross-platform administrative privilege elevation (Windows 11 sudo / PowerShell / POSIX). | **Read-Only** (--status/-v) / **State-Changing** (execution) |
 | `cat update --check` / `cct update --check` | Check if a newer version is available from GitHub Releases without installing. | **Read-Only** (Safe to automate) |
 | `cat update` / `cct update` | State-changing update operation (disabled in public builds; prompts to use `update --check`). | **State-Changing** (Not for unattended scripts) |
 | `cat rollback` / `cct rollback` | State-changing rollback to previous snapshot (disabled in public builds to prevent accidental loss). | **State-Changing** (Not for unattended scripts) |
@@ -130,12 +155,92 @@ code --install-extension cat-cli/cat-cli-0.8.6.vsix
 | `cat --doctor` / `cct --doctor` | Run diagnostic health checks across Python, terminal capabilities, and AI providers. | Interactive / Diagnostic |
 
 > **Automation Safety Contract**:
-> Read-only commands (`--version`, `--debug`, `update --check`) guarantee zero filesystem, configuration, or state mutations and are safe for CI/CD and automation scripts. State-changing commands (`update`, `rollback`, `repair`) require explicit control and will never execute silently or unattended.
+> Read-only commands (`--version`, `--debug`, `update --check`, `cat curl <url>`, `cat brew doctor`, `cat sudo --status`) guarantee zero filesystem, configuration, or state mutations and are safe for CI/CD and automation scripts. State-changing commands (`update`, `rollback`, `repair`, `cat brew install`, `cat sudo <cmd>`) require explicit control and will never execute silently or unattended.
+
+---
+
+### ⚡ Built-in Developer Tools: `curl`, `brew`, and `sudo`
+
+CAT CLI comes pre-equipped with its own native, cross-platform implementations of three essential developer tools. They can be invoked directly as subcommands (`cat <tool>`), standalone console scripts (`cat-<tool>`), or slash commands inside the interactive terminal (`/<tool>`):
+
+#### 1. `cat curl` (HTTP & REST Client)
+A high-performance HTTP/HTTPS client featuring ANSI colorized JSON responses and download meters:
+- **Methods**: `GET`, `POST`, `PUT`, `DELETE`, `PATCH`, `HEAD`, `OPTIONS` (`-X` / `--request`).
+- **Headers & Payloads**: Custom headers (`-H`), raw payload (`-d` / `--data`), automatic JSON formatting (`--json`), and multipart forms (`-F`).
+- **File Downloads**: Direct to file (`-o <file>`) or remote file naming (`-O`).
+- **Inspection & Debugging**: Response headers (`-i`, `-I`), verbose trace (`-v`), SSL bypass (`-k`), and format metrics (`-w`).
+
+```bash
+# Quick API query with formatted JSON highlighting
+cat curl https://api.github.com/zen
+
+# POST request with JSON payload and custom headers
+cat curl -X POST https://httpbin.org/post --json '{"project": "CAT", "version": "0.8.0"}'
+
+# Download a remote file
+cat curl -O https://example.com/archive.zip
+
+# Or standalone console script:
+cat-curl https://httpbin.org/get
+```
+
+#### 2. `cat brew` (Homebrew & Universal Package Bridge)
+A unified formula manager that makes Homebrew syntax work everywhere:
+- **macOS & Linux**: Delegates seamlessly to native `brew` when installed.
+- **Windows**: Translates Homebrew formulas (`node`, `python`, `git`, `ffmpeg`, `ripgrep`, `neovim`, `rust`, `docker`, `jq`, `cmake`, etc.) directly into native Windows package managers (`winget`, `choco`, `scoop`, `pip`, `npm`), tracking everything in the local CAT Cellar (`~/.cat/brew/cellar.json`).
+- **Audit & Diagnostics**: `cat brew doctor` inspects package managers, PATH, compilers, and toolchains in one unified report.
+
+```bash
+# Audit package managers, compilers, and PATH health
+cat brew doctor
+
+# Search for software across formulas and native package indices
+cat brew search node
+
+# Install tools with cross-platform formula resolution
+cat brew install node git ffmpeg ripgrep
+
+# Inspect formula metadata and dependencies
+cat brew info ffmpeg
+
+# List installed packages in CAT Cellar
+cat brew list
+
+# Or standalone console script:
+cat-brew doctor
+```
+
+#### 3. `cat sudo` (Cross-Platform Administrative Elevation)
+Run commands with elevated administrative privileges across Windows, Linux, and macOS:
+- **Windows**: Seamlessly bridges to Windows 11 `sudo.exe` (System32) or native PowerShell UAC elevation (`Start-Process -Verb RunAs`) with automatic output capture.
+- **Linux & macOS**: Elevates privileges via system `sudo` (preserving environment with `-E`), `doas`, or `pkexec`.
+- **Safety**: Supports non-interactive mode (`-n`) to prevent hanging in headless CI/CD, credential validation (`-v`), privilege status check (`--status`), and elevated interactive shell (`-s`).
+
+```bash
+# Check current elevation status (returns exit code 0 if admin, 1 if standard)
+cat sudo --status
+
+# Validate administrative credentials
+cat sudo -v
+
+# Run administrative command with elevated privileges
+cat sudo winget install Git.Git
+cat sudo apt-get update
+
+# Open an elevated Administrator shell
+cat sudo -s
+
+# Or standalone console script:
+cat-sudo whoami
+```
+
+Inside the interactive CAT Terminal, you can run `/curl`, `/brew`, and `/sudo` directly from the composer prompt.
 
 ---
 
 ## 🛠️ Key Features
 
+- **Built-in Developer Utilities**: Full native implementations of `curl`, `brew`, and `sudo` out of the box — zero external dependencies needed.
 - **Tokyo Night Terminal UI**: Rich ASCII styling, 24-bit ANSI colors, split-pane Textual layout, animated spinners, and sound effects.
 - **Autonomous Development & Workspace Management**: Detects git roots, VS Code workspaces, parses manifests, and indexes files with live progress indicators.
 - **Universal Formula & Science Calculator**: 39+ symbolic formulas, 2D/3D animated graphs, and live Bohr/quantum orbital simulations.

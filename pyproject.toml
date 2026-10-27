@@ -113,6 +113,9 @@ Changelog = "https://github.com/kazizillani-oss/CAT_v0.7.9/blob/main/CAT_v0.7.4/
 cat = "calc_terminal.cli:main"
 catx = "calc_terminal.cli:main"
 cct = "calc_terminal.cli:main"
+cat-curl = "calc_terminal.commands.curl_cmd:main"
+cat-brew = "calc_terminal.commands.brew_cmd:main"
+cat-sudo = "calc_terminal.commands.sudo_cmd:main"
 
 [tool.setuptools]
 package-dir = {"" = "CAT_v0.7.4"}

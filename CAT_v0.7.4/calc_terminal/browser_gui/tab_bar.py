@@ -24,12 +24,49 @@ try:
     )
     from PySide6.QtGui import QColor, QFontMetrics, QCursor, QMouseEvent, QIcon, QPainter
 except ImportError:
-    from PyQt6.QtCore import Qt, pyqtSignal as Signal, QSize  # type: ignore
-    from PyQt6.QtWidgets import (  # type: ignore
-        QWidget, QVBoxLayout, QHBoxLayout, QTabBar, QScrollArea,
-        QLabel, QPushButton, QSizePolicy, QFrame, QStyleOption, QStyle
-    )
-    from PyQt6.QtGui import QColor, QFontMetrics, QCursor, QMouseEvent, QIcon, QPainter  # type: ignore
+    try:
+        from PyQt6.QtCore import Qt, pyqtSignal as Signal, QSize  # type: ignore
+        from PyQt6.QtWidgets import (  # type: ignore
+            QWidget, QVBoxLayout, QHBoxLayout, QTabBar, QScrollArea,
+            QLabel, QPushButton, QSizePolicy, QFrame, QStyleOption, QStyle
+        )
+        from PyQt6.QtGui import QColor, QFontMetrics, QCursor, QMouseEvent, QIcon, QPainter  # type: ignore
+    except ImportError:
+        class _SignalStub:
+            def connect(self, *args, **kwargs):
+                pass
+            def emit(self, *args, **kwargs):
+                pass
+
+        class _Stub:
+            def __init__(self, *args, **kwargs):
+                pass
+            def __getattr__(self, name):
+                return _Stub()
+            def __call__(self, *args, **kwargs):
+                return _Stub()
+
+        Signal = lambda *args, **kwargs: _SignalStub()
+        Qt = _Stub()
+        QSize = _Stub
+        QWidget = _Stub
+        QVBoxLayout = _Stub
+        QHBoxLayout = _Stub
+        QTabBar = _Stub
+        QScrollArea = _Stub
+        QLabel = _Stub
+        QPushButton = _Stub
+        QSizePolicy = _Stub()
+        QFrame = _Stub
+        QStyleOption = _Stub
+        QStyle = _Stub
+        QColor = _Stub
+        QFontMetrics = _Stub
+        QCursor = _Stub
+        QMouseEvent = _Stub
+        QIcon = _Stub
+        QPainter = _Stub
+
 
 
 def _default_colors() -> dict:

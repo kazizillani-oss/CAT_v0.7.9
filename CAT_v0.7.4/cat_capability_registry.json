@@ -1,9 +1,9 @@
 {
   "version": "0.7.9.8",
-  "total_capabilities": 297,
+  "total_capabilities": 302,
   "summary": {
     "tools_count": 38,
-    "commands_count": 86,
+    "commands_count": 89,
     "modes_count": 8,
     "permissions_count": 10,
     "extensions_count": 2,
@@ -1269,6 +1269,36 @@
       "description": "Quit Chemistry Calc Terminal",
       "is_native_ui": true,
       "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/curl",
+      "category": "cli_command",
+      "source": "calc_terminal/commands/curl_cmd.py",
+      "description": "Execute HTTP/REST requests (built-in high-performance curl)",
+      "is_native_ui": true,
+      "permission_required": false,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/brew",
+      "category": "cli_command",
+      "source": "calc_terminal/commands/brew_cmd.py",
+      "description": "Homebrew package manager & formula bridge (install, list, search, doctor)",
+      "is_native_ui": true,
+      "permission_required": true,
+      "fatty_cat_status": "connected_via_dispatch",
+      "browser_compatible": true
+    },
+    {
+      "name": "/sudo",
+      "category": "cli_command",
+      "source": "calc_terminal/commands/sudo_cmd.py",
+      "description": "Execute commands with elevated administrative privileges",
+      "is_native_ui": true,
+      "permission_required": true,
       "fatty_cat_status": "connected_via_dispatch",
       "browser_compatible": true
     }

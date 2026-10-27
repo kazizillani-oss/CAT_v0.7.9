@@ -511,6 +511,18 @@ class App:
         if low == "/colab" or low.startswith("/colab "):
             self.cmd_colab(raw.split(" ", 1)[1].strip() if " " in raw else "")
             return
+        if low == "/curl" or low.startswith(("/curl ", "curl ")):
+            arg = raw.split(" ", 1)[1] if " " in raw else ""
+            self.cmd_curl(arg)
+            return
+        if low == "/brew" or low.startswith(("/brew ", "brew ")):
+            arg = raw.split(" ", 1)[1] if " " in raw else ""
+            self.cmd_brew(arg)
+            return
+        if low == "/sudo" or low.startswith(("/sudo ", "sudo ")):
+            arg = raw.split(" ", 1)[1] if " " in raw else ""
+            self.cmd_sudo(arg)
+            return
         if low == "/random":
             self.solve(random.choice(list(GENERATORS.keys())))
             return
@@ -3751,6 +3763,37 @@ class App:
             return
         print(theme.orange(f"\n  Unknown /vision subcommand '{sub}'. Try /vision\n"))
         self.print_home()
+
+    # --- Built-in CLI commands: curl, brew, sudo --------------------------
+    def cmd_curl(self, arg=""):
+        """Execute HTTP/REST request via CAT's built-in curl engine."""
+        import shlex
+        from .commands.curl_cmd import run_curl
+        args = shlex.split(arg) if arg.strip() else ["--help"]
+        print(theme.dim(f"  \u25b8 cat curl {' '.join(args)}"))
+        code, out, err = run_curl(args, capture_output=False)
+        if code != 0 and err:
+            print(theme.red(f"  {err}"))
+
+    def cmd_brew(self, arg=""):
+        """Manage formulas and packages via CAT's cross-platform brew engine."""
+        import shlex
+        from .commands.brew_cmd import run_brew
+        args = shlex.split(arg) if arg.strip() else ["doctor"]
+        print(theme.dim(f"  \u25b8 cat brew {' '.join(args)}"))
+        code, out, err = run_brew(args, capture_output=False)
+        if code != 0 and err:
+            print(theme.red(f"  {err}"))
+
+    def cmd_sudo(self, arg=""):
+        """Execute administrative commands via CAT's cross-platform sudo engine."""
+        import shlex
+        from .commands.sudo_cmd import run_sudo
+        args = shlex.split(arg) if arg.strip() else ["--status"]
+        print(theme.dim(f"  \u25b8 cat sudo {' '.join(args)}"))
+        code, out, err = run_sudo(args, capture_output=False)
+        if code != 0 and err:
+            print(theme.red(f"  {err}"))
 
     # -------------------------------------------------------------- exit --
     def cmd_exit(self):

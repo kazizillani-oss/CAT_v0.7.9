@@ -242,11 +242,15 @@ MANAGERS = {
         check_import=False,
     ),
     "brew": dict(
-        label="homebrew (macOS/Linux)",
+        label="homebrew (macOS/Linux/Windows via CAT bridge)",
         icon="\U0001f37a",
-        platforms="darwin",
-        install=lambda name, version, target=None: ["brew", "install", name],
-        verify=lambda name, version: ["brew", "list", name],
+        platforms="",
+        install=lambda name, version, target=None: (
+            ["brew", "install", name] if shutil.which("brew") else [_py(), "-m", "calc_terminal.commands.brew_cmd", "install", name]
+        ),
+        verify=lambda name, version: (
+            ["brew", "list", name] if shutil.which("brew") else [_py(), "-m", "calc_terminal.commands.brew_cmd", "list"]
+        ),
         check_import=False,
     ),
 }

@@ -119,6 +119,9 @@ COMMANDS = [
     ("/checkpoint", "Create workspace snapshot or rollback recent changes"),
     ("/compute", "List compute fabric targets and hardware resources"),
     ("/fabric", "Alias for /compute — inspect compute fabric"),
+    ("/curl", "Execute HTTP/REST requests (built-in high-performance curl)"),
+    ("/brew", "Homebrew package manager & formula bridge (install, list, search, doctor)"),
+    ("/sudo", "Execute commands with elevated administrative privileges"),
     ("/clear", "Clear screen & return home"),
     ("/exit", "Quit Chemistry Calc Terminal"),
 ]
@@ -140,5 +143,5 @@ NATIVE_UI_COMMANDS = {"/clear", "/theme", "/model", "/tokens", "/tui", "/compose
                        "/preview", "/browser", "/browse", "/cat",
                        "/vision", "/signout", "/logout", "/touch",
                        "/doctor", "/self-test", "/verify", "/checkpoint",
-                       "/compute", "/fabric"}
+                       "/compute", "/fabric", "/curl", "/brew", "/sudo"}
 

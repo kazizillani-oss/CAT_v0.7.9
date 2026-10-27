@@ -50,6 +50,7 @@ BUILTIN_COMMANDS: set[str] = {
     "extensions", "extension",
     "skills", "skill",
     "commands", "command",
+    "curl", "brew", "sudo",
 }
 
 

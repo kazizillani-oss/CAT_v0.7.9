@@ -1659,3 +1659,29 @@ def commands_cli(argv: List[str]) -> int:
     print(f"Unknown commands command: {sub}. Run `cat commands --help`.", file=sys.stderr)
     return 1
 
+
+# -----------------------------------------------------------------------------
+# 11. Built-in Curl, Brew, and Sudo CLI Command Handlers
+# -----------------------------------------------------------------------------
+
+def curl_cli(argv: List[str]) -> int:
+    """Handles `cat curl ...` HTTP requests and API calls."""
+    from .commands.curl_cmd import run_curl
+    code, _, _ = run_curl(argv, capture_output=False)
+    return code
+
+
+def brew_cli(argv: List[str]) -> int:
+    """Handles `cat brew ...` package management and formula operations."""
+    from .commands.brew_cmd import run_brew
+    code, _, _ = run_brew(argv, capture_output=False)
+    return code
+
+
+def sudo_cli(argv: List[str]) -> int:
+    """Handles `cat sudo ...` cross-platform administrative command elevation."""
+    from .commands.sudo_cmd import run_sudo
+    code, _, _ = run_sudo(argv, capture_output=False)
+    return code
+
+

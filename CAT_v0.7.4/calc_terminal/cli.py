@@ -149,6 +149,55 @@ def get_command_safety(argv=None) -> dict:
             "reason": f"State-changing CAT {args[0]} operation.",
         }
 
+    if args and args[0] in ("curl", "--curl"):
+        is_write = any(a in ("-d", "--data", "--data-raw", "--data-ascii", "--json", "-F", "--form") for a in args) or any(
+            args[i] in ("-X", "--request") and i + 1 < len(args) and args[i + 1].upper() in ("POST", "PUT", "DELETE", "PATCH")
+            for i in range(len(args))
+        )
+        if is_write:
+            return {
+                "classification": SAFETY_STATE_CHANGING,
+                "safe_to_automate": False,
+                "changes_state": True,
+                "reason": "HTTP state-changing request via built-in CAT curl.",
+            }
+        return {
+            "classification": SAFETY_READ_ONLY,
+            "safe_to_automate": True,
+            "changes_state": False,
+            "reason": "HTTP read-only request via built-in CAT curl.",
+        }
+
+    if args and args[0] in ("brew", "--brew"):
+        if len(args) == 1 or (len(args) > 1 and args[1] in ("list", "ls", "search", "info", "doctor", "cat", "config")):
+            return {
+                "classification": SAFETY_READ_ONLY,
+                "safe_to_automate": True,
+                "changes_state": False,
+                "reason": "Read-only query of CAT brew packages and system state.",
+            }
+        return {
+            "classification": SAFETY_STATE_CHANGING,
+            "safe_to_automate": False,
+            "changes_state": True,
+            "reason": "Modifies system packages via CAT brew.",
+        }
+
+    if args and args[0] in ("sudo", "--sudo"):
+        if len(args) > 1 and args[1] in ("--status", "-v", "--validate"):
+            return {
+                "classification": SAFETY_READ_ONLY,
+                "safe_to_automate": True,
+                "changes_state": False,
+                "reason": "Read-only check of administrative privilege status.",
+            }
+        return {
+            "classification": SAFETY_STATE_CHANGING,
+            "safe_to_automate": False,
+            "changes_state": True,
+            "reason": "Administrative privilege elevation operation.",
+        }
+
     # 3. INTERACTIVE / WORKSPACE / COMPLEX COMMANDS
     return {
         "classification": SAFETY_INTERACTIVE,
@@ -204,6 +253,9 @@ def _usage(prog: str = None) -> str:
         "  extensions      manage extensions: list | info | install | uninstall | update | enable | disable\n"
         "  skills          manage Kitty skills: list | info\n"
         "  commands        custom CLI commands: list\n"
+        "  curl [options] <url>  HTTP/REST client: GET, POST, headers, json, output download\n"
+        "  brew <subcommand>     package manager & formula bridge: install, list, search, doctor\n"
+        "  sudo <command>        execute commands with elevated administrator privileges\n"
         "\n"
         "Automation safety:\n"
         "  Read-only (safe to automate):\n"
@@ -240,6 +292,10 @@ def _usage(prog: str = None) -> str:
         f"  {prog} browse https://example.com   open CAT Browser at a URL\n"
         f"  {prog} terminal                     launch native CAT CLI interactive terminal\n"
         f"  {prog} fomoji                       launch Fomoji Portal in CAT Browser\n"
+        f"  {prog} curl https://api.github.com/zen  execute HTTP GET via built-in CAT curl\n"
+        f"  {prog} brew doctor                  audit local toolchains and package managers\n"
+        f"  {prog} brew install node            install software packages via CAT brew bridge\n"
+        f"  {prog} sudo whoami                  run command with administrative privileges\n"
     )
 
 
@@ -1413,6 +1469,19 @@ def main(argv=None):
     if argv and argv[0] in ("commands", "--commands", "command", "--command"):
         from .cli_commands import commands_cli
         return commands_cli(argv)
+
+    # --- Built-in CLI Tools: curl, brew, sudo --------------------------
+    if argv and argv[0] in ("curl", "--curl"):
+        from .cli_commands import curl_cli
+        return curl_cli(argv)
+
+    if argv and argv[0] in ("brew", "--brew"):
+        from .cli_commands import brew_cli
+        return brew_cli(argv)
+
+    if argv and argv[0] in ("sudo", "--sudo"):
+        from .cli_commands import sudo_cli
+        return sudo_cli(argv)
 
     # --- Custom Commands Dispatch from Extensions -----------------------
     if argv and not argv[0].startswith("-"):
