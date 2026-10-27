@@ -86,9 +86,12 @@ Download and run the native installer:
 irm https://raw.githubusercontent.com/kazizillani-oss/CAT_v0.7.9/main/install.ps1 | iex
 ```
 
-**From the Cloned Repository (Run from repository root)**:
+**From the Cloned Repository (Navigate into the repository first)**:
 ```powershell
+cd CAT_v0.7.9
 powershell -ExecutionPolicy Bypass -File installer/windows/scripts/install.ps1 -Install
+# Or run the compiled installer:
+.\catsetup.exe
 ```
 
 ### Option 3: Install from Source / Git Clone (Clean & Privacy-Safe)
@@ -143,17 +146,20 @@ code --install-extension cat-cli/cat-cli-0.8.6.vsix
 
 ### Option 5: Quick Install via `curl` (Method 5: Linux, macOS, Windows)
 
-Install CAT CLI with a single `curl` command without manually cloning or configuring directories:
+Install CAT CLI with a single command without manually cloning or configuring directories:
 
 ```bash
 # Linux and macOS (POSIX curl installer):
 curl -fsSL https://raw.githubusercontent.com/kazizillani-oss/CAT_v0.7.9/main/install.sh | bash
 
-# Windows PowerShell (all versions including Windows PowerShell 5.1):
-curl.exe -fsSL https://raw.githubusercontent.com/kazizillani-oss/CAT_v0.7.9/main/install.ps1 -o install.ps1; powershell -ExecutionPolicy Bypass -File .\install.ps1 -Install
+# Windows PowerShell (Universal One-Liner - Works in all PowerShell versions, memory-safe):
+irm https://raw.githubusercontent.com/kazizillani-oss/CAT_v0.7.9/main/install.ps1 | iex
+
+# Windows PowerShell with curl.exe (downloads to %TEMP% to avoid file-lock / write error 23):
+curl.exe -fsSL https://raw.githubusercontent.com/kazizillani-oss/CAT_v0.7.9/main/install.ps1 -o "$env:TEMP\cat_install.ps1"; powershell -ExecutionPolicy Bypass -File "$env:TEMP\cat_install.ps1" -Install
 
 # Windows Command Prompt (cmd.exe):
-curl.exe -fsSL https://raw.githubusercontent.com/kazizillani-oss/CAT_v0.7.9/main/install.ps1 -o install.ps1 && powershell -ExecutionPolicy Bypass -File install.ps1 -Install
+curl.exe -fsSL https://raw.githubusercontent.com/kazizillani-oss/CAT_v0.7.9/main/install.ps1 -o "%TEMP%\cat_install.ps1" && powershell -ExecutionPolicy Bypass -File "%TEMP%\cat_install.ps1" -Install
 ```
 
 What the curl installer does automatically:
