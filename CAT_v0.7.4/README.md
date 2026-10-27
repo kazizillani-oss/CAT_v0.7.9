@@ -81,14 +81,14 @@ Download and run the native installer:
 - Standalone self-contained Windows executable — installs to `%LOCALAPPDATA%\Programs\CAT` (no administrator privileges required).
 - Automatically adds `cat`, `catx`, `cct`, `cat-curl`, `cat-brew`, and `cat-sudo` to your `PATH` and configures PowerShell aliases cleanly.
 
-Or install via PowerShell:
-```powershell
-powershell -ExecutionPolicy Bypass -File installer/windows/scripts/install.ps1 -Install
-```
-
-Or via one-line PowerShell web installer:
+**Universal One-Line Install (Run from ANY directory in PowerShell)**:
 ```powershell
 irm https://raw.githubusercontent.com/kazizillani-oss/CAT_v0.7.9/main/install.ps1 | iex
+```
+
+**From the Cloned Repository (Run from repository root)**:
+```powershell
+powershell -ExecutionPolicy Bypass -File installer/windows/scripts/install.ps1 -Install
 ```
 
 ### Option 3: Install from Source / Git Clone (Clean & Privacy-Safe)
@@ -149,7 +149,10 @@ Install CAT CLI with a single `curl` command without manually cloning or configu
 # Linux and macOS (POSIX curl installer):
 curl -fsSL https://raw.githubusercontent.com/kazizillani-oss/CAT_v0.7.9/main/install.sh | bash
 
-# Windows (Command Prompt / PowerShell via curl.exe):
+# Windows PowerShell (all versions including Windows PowerShell 5.1):
+curl.exe -fsSL https://raw.githubusercontent.com/kazizillani-oss/CAT_v0.7.9/main/install.ps1 -o install.ps1; powershell -ExecutionPolicy Bypass -File .\install.ps1 -Install
+
+# Windows Command Prompt (cmd.exe):
 curl.exe -fsSL https://raw.githubusercontent.com/kazizillani-oss/CAT_v0.7.9/main/install.ps1 -o install.ps1 && powershell -ExecutionPolicy Bypass -File install.ps1 -Install
 ```
 

@@ -1,10 +1,12 @@
 <#
 .SYNOPSIS
-    CAT — Coding Agent Terminal Windows PowerShell Installer.
+    CAT — Coding Agent Terminal Universal Windows Installer.
 .DESCRIPTION
     Installs, updates, checks, or uninstalls CAT CLI on Windows.
-    Sets up %LOCALAPPDATA%\Programs\CAT, launcher shims (cat, catx, cct, cat-curl, cat-brew, cat-sudo),
-    updates User PATH, and configures PowerShell aliases.
+    Compatible with:
+      - Direct execution: powershell -ExecutionPolicy Bypass -File install.ps1 -Install
+      - Web one-liner: irm https://raw.githubusercontent.com/kazizillani-oss/CAT_v0.7.9/main/install.ps1 | iex
+      - Curl: curl.exe -fsSL https://.../install.ps1 -o install.ps1; powershell -ExecutionPolicy Bypass -File .\install.ps1 -Install
 .PARAMETER Install
     Perform full installation.
 .PARAMETER Uninstall
@@ -19,8 +21,6 @@
     Force reinstall even if already installed.
 .PARAMETER Quiet
     Suppress interactive prompts and verbose output.
-.EXAMPLE
-    powershell -ExecutionPolicy Bypass -File installer/windows/scripts/install.ps1 -Install
 #>
 
 [CmdletBinding(DefaultParameterSetName = 'Install')]
@@ -69,23 +69,47 @@ function Find-Python {
             $res = & $cmd @cmdArgs -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null
             if ($LASTEXITCODE -eq 0 -and $res) {
                 $verParts = $res.Trim() -split '\.'
-                $major = [int]$verParts[0]
-                $minor = [int]$verParts[1]
-                if ($major -ge 3 -and $minor -ge 10) {
-                    $exePath = & $cmd @cmdArgs -c "import sys; print(sys.executable)" 2>$null
-                    return @{
-                        Command = $cmd
-                        Args = $cmdArgs
-                        Version = $res.Trim()
-                        Executable = $exePath.Trim()
+                if ($verParts.Length -ge 2) {
+                    $major = [int]$verParts[0]
+                    $minor = [int]$verParts[1]
+                    if ($major -ge 3 -and $minor -ge 10) {
+                        $exePath = & $cmd @cmdArgs -c "import sys; print(sys.executable)" 2>$null
+                        return @{
+                            Command = $cmd
+                            Args = $cmdArgs
+                            Version = $res.Trim()
+                            Executable = $exePath.Trim()
+                        }
                     }
                 }
             }
         } catch {
-            # Continue checking
+            # Continue checking next candidate
         }
     }
     return $null
+}
+
+function Copy-CleanModules([string]$source, [string]$destination) {
+    if (-not (Test-Path $destination)) {
+        New-Item -ItemType Directory -Path $destination -Force | Out-Null
+    }
+    Get-ChildItem -Path $source -Recurse -Force | ForEach-Object {
+        $rel = $_.FullName.Substring($source.Length).TrimStart('\', '/')
+        if ($rel -match '__pycache__' -or $rel -match '\.pytest_cache' -or $rel -match '\.sqlite-(shm|wal)$') {
+            return
+        }
+        $target = Join-Path $destination $rel
+        if ($_.PSIsContainer) {
+            if (-not (Test-Path $target)) {
+                New-Item -ItemType Directory -Path $target -Force | Out-Null
+            }
+        } else {
+            try {
+                Copy-Item -Path $_.FullName -Destination $target -Force -ErrorAction SilentlyContinue
+            } catch { }
+        }
+    }
 }
 
 function Get-ShimCmd([string]$module, [string]$pythonExe) {
@@ -120,24 +144,47 @@ function Install-Cat {
     New-Item -ItemType Directory -Path $libDir -Force | Out-Null
     Write-Host ('      Install directory: ' + $InstallDir) -ForegroundColor Green
 
-    # Locate source repository or wheel
+    # Locate source repository safely (handles irm | iex where $PSScriptRoot is null/empty)
     Write-Host '[3/5] Installing CAT core and dependencies...' -ForegroundColor Yellow
-    $scriptDir = if ($PSScriptRoot) { $PSScriptRoot } elseif ($PSCommandPath) { Split-Path -Parent $PSCommandPath } else { (Get-Location).Path }
-    $repoCandidate = Join-Path $scriptDir '..\..\..'
-    $repoRoot = if (Test-Path $repoCandidate) { (Resolve-Path $repoCandidate).Path } else { $null }
+    $repoRoot = $null
 
-    if ($repoRoot -and (Test-Path (Join-Path $repoRoot 'pyproject.toml'))) {
+    # Check potential repository directories
+    $possibleDirs = @()
+    if ($PSScriptRoot -and (Test-Path $PSScriptRoot)) {
+        $possibleDirs += $PSScriptRoot
+        $possibleDirs += (Join-Path $PSScriptRoot '..')
+        $possibleDirs += (Join-Path $PSScriptRoot '..\..\..')
+    }
+    $curr = (Get-Location).Path
+    if ($curr -and (Test-Path $curr)) {
+        $possibleDirs += $curr
+        $possibleDirs += (Join-Path $curr '..')
+    }
+
+    foreach ($cand in $possibleDirs) {
+        try {
+            if (Test-Path $cand) {
+                $resolved = (Resolve-Path $cand).Path
+                if ((Test-Path (Join-Path $resolved 'pyproject.toml')) -and (Test-Path (Join-Path $resolved 'calc_terminal'))) {
+                    $repoRoot = $resolved
+                    break
+                }
+            }
+        } catch { }
+    }
+
+    if ($repoRoot) {
         Write-Host ('      Found local CAT repository at: ' + $repoRoot) -ForegroundColor DarkGray
 
-        # 1. Synchronize calc_terminal to lib directory immediately
+        # Synchronize local calc_terminal to lib directory cleanly
         $calcSrc = Join-Path $repoRoot 'calc_terminal'
         if (Test-Path $calcSrc) {
             $calcDst = Join-Path $libDir 'calc_terminal'
-            Copy-Item -Path $calcSrc -Destination $libDir -Recurse -Force
+            Copy-CleanModules -source $calcSrc -destination $calcDst
             Write-Host ('      Synchronized local runtime modules to: ' + $calcDst) -ForegroundColor Green
         }
 
-        # 2. Register package via pip
+        # Fast package registration
         try {
             & $py.Executable -m pip install -e "$repoRoot" --no-deps --no-build-isolation --no-warn-script-location 2>&1 | Out-Null
             if ($LASTEXITCODE -eq 0) {
@@ -147,14 +194,26 @@ function Install-Cat {
             Write-Host '      Pip install notice: continuing with standalone runtime shims.' -ForegroundColor DarkYellow
         }
     } else {
-        # Standalone install: try pip install cct-cli
+        # Standalone install: try PyPI first, then GitHub repository fallback
+        Write-Host '      Installing cct-cli package into Python environment...' -ForegroundColor DarkGray
+        $pipSuccess = $false
         try {
             & $py.Executable -m pip install --upgrade cct-cli 2>&1 | Out-Null
             if ($LASTEXITCODE -eq 0) {
-                Write-Host '      Installed cct-cli from PyPI.' -ForegroundColor Green
+                $pipSuccess = $true
+                Write-Host '      Installed cct-cli from PyPI successfully.' -ForegroundColor Green
             }
-        } catch {
-            Write-Host '      PyPI install skipped or offline.' -ForegroundColor DarkYellow
+        } catch { }
+
+        if (-not $pipSuccess) {
+            try {
+                Write-Host '      PyPI package pending release; installing latest build from GitHub...' -ForegroundColor DarkYellow
+                & $py.Executable -m pip install --upgrade git+https://github.com/kazizillani-oss/CAT_v0.7.9.git 2>&1 | Out-Null
+                if ($LASTEXITCODE -eq 0) {
+                    $pipSuccess = $true
+                    Write-Host '      Installed latest CAT build from GitHub successfully.' -ForegroundColor Green
+                }
+            } catch { }
         }
     }
 
@@ -191,7 +250,7 @@ function Install-Cat {
     $catPs1 = $linesPs1 -join "`r`n"
     Set-Content -Path (Join-Path $binDir 'cat.ps1') -Value $catPs1 -Encoding ASCII
 
-    Write-Host '      Created command shims:' -ForegroundColor Green
+    Write-Host ('      Created command shims in ' + $binDir + ':') -ForegroundColor Green
     Write-Host '        - cat.cmd / cat.ps1       (CAT CLI launch)' -ForegroundColor DarkCyan
     Write-Host '        - catx.cmd                (PowerShell collision-safe alias)' -ForegroundColor DarkCyan
     Write-Host '        - cct.cmd                 (Classic alias)' -ForegroundColor DarkCyan
@@ -203,7 +262,7 @@ function Install-Cat {
     Write-Host '[5/5] Configuring environment and PowerShell profile...' -ForegroundColor Yellow
     $userPath = [Environment]::GetEnvironmentVariable('Path', [EnvironmentVariableTarget]::User)
     if ($userPath -notlike ('*' + $binDir + '*')) {
-        $newUserPath = if ([string]::IsNullOrWhiteSpace($userPath)) { $binDir } else { $userPath + ';' + $binDir }
+        $newUserPath = if ([string]::IsNullOrWhiteSpace($userPath)) { $binDir } else { $userPath.TrimEnd(';') + ';' + $binDir }
         [Environment]::SetEnvironmentVariable('Path', $newUserPath, [EnvironmentVariableTarget]::User)
         Write-Host ('      Added ' + $binDir + ' to User PATH.') -ForegroundColor Green
     } else {
@@ -218,23 +277,26 @@ function Install-Cat {
     # Configure PowerShell Profile so 'cat' invokes CAT instead of Get-Content
     try {
         $profilePath = $PROFILE.CurrentUserCurrentHost
-        if (-not (Test-Path (Split-Path -Parent $profilePath))) {
-            New-Item -ItemType Directory -Path (Split-Path -Parent $profilePath) -Force | Out-Null
-        }
-        $aliasMarker = '# === CAT CLI Profile Integration ==='
-        $aliasLines = @(
-            $aliasMarker,
-            ('if (Get-Command "' + $binDir + '\cat.cmd" -ErrorAction SilentlyContinue) {'),
-            '    Remove-Item Alias:cat -Force -ErrorAction SilentlyContinue',
-            ('    function global:cat { & "' + $binDir + '\cat.cmd" @args }'),
-            '}',
-            '# ==================================='
-        )
-        $aliasBlock = $aliasLines -join "`r`n"
-        $existingProfile = if (Test-Path $profilePath) { Get-Content $profilePath -Raw } else { '' }
-        if ($existingProfile -notlike ('*' + $aliasMarker + '*')) {
-            Add-Content -Path $profilePath -Value ("`r`n" + $aliasBlock)
-            Write-Host ('      Added PowerShell profile alias helper to: ' + $profilePath) -ForegroundColor Green
+        if ($profilePath) {
+            $profileParent = Split-Path -Parent $profilePath
+            if (-not (Test-Path $profileParent)) {
+                New-Item -ItemType Directory -Path $profileParent -Force | Out-Null
+            }
+            $aliasMarker = '# === CAT CLI Profile Integration ==='
+            $aliasLines = @(
+                $aliasMarker,
+                ('if (Get-Command "' + $binDir + '\cat.cmd" -ErrorAction SilentlyContinue) {'),
+                '    Remove-Item Alias:cat -Force -ErrorAction SilentlyContinue',
+                ('    function global:cat { & "' + $binDir + '\cat.cmd" @args }'),
+                '}',
+                '# ==================================='
+            )
+            $aliasBlock = $aliasLines -join "`r`n"
+            $existingProfile = if (Test-Path $profilePath) { Get-Content $profilePath -Raw } else { '' }
+            if ($existingProfile -notlike ('*' + $aliasMarker + '*')) {
+                Add-Content -Path $profilePath -Value ("`r`n" + $aliasBlock)
+                Write-Host ('      Added PowerShell profile alias helper to: ' + $profilePath) -ForegroundColor Green
+            }
         }
         # In current session:
         Remove-Item Alias:cat -Force -ErrorAction SilentlyContinue
@@ -311,6 +373,5 @@ if ($Uninstall) {
 } elseif ($Update) {
     Install-Cat
 } else {
-    # Default is install
     Install-Cat
 }

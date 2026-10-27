@@ -402,8 +402,15 @@ namespace CatInstaller
             Directory.CreateDirectory(destinationDir);
             foreach (string file in Directory.GetFiles(sourceDir))
             {
-                string destFile = Path.Combine(destinationDir, Path.GetFileName(file));
-                File.Copy(file, destFile, true);
+                string ext = Path.GetExtension(file).ToLowerInvariant();
+                if (ext == ".sqlite-shm" || ext == ".sqlite-wal" || ext == ".pyc")
+                    continue;
+                try
+                {
+                    string destFile = Path.Combine(destinationDir, Path.GetFileName(file));
+                    File.Copy(file, destFile, true);
+                }
+                catch { }
             }
             foreach (string subDir in Directory.GetDirectories(sourceDir))
             {

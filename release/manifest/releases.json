@@ -2,7 +2,7 @@
   "$schema": "./schema.json",
   "version": "0.8.0b1",
   "channel": "stable",
-  "releaseDate": "2026-10-27T18:42:25.383879+00:00",
+  "releaseDate": "2026-10-27T19:01:12.520313+00:00",
   "platforms": {
     "windows-x64": {
       "url": "https://github.com/kazizillani-oss/CAT_v0.7.9/releases/download/v0.8.0b1/cat-windows-x64.zip",
@@ -56,7 +56,7 @@
   "installer": {
     "windows": {
       "url": "https://github.com/kazizillani-oss/CAT_v0.7.9/releases/download/v0.8.0b1/CAT-Setup.exe",
-      "sha256": "c534102f8b7266022c69acca46b3c56fcc8c2fba0741e131524d85c154c175b1",
+      "sha256": "f1a911177ce74d1dfc22b5c1a7c1915454e7e460bdf5ff064cadc03673157793",
       "sizeBytes": 131072
     }
   },
