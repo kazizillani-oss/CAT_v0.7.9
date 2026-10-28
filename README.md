@@ -50,6 +50,7 @@ CAT is free and open source (MIT) and is distributed across multiple channels. C
 <picture>
 <img width="480" height="270" alt="Image" src="https://github.com/user-attachments/assets/386f319d-dae9-465b-ae14-91b73e497d91" />
 </picture>
+
 ### Option 1: Install from PyPI (Recommended for most users)
 
 > **Status: Published & Live on PyPI!** 🚀  
