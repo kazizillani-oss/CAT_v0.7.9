@@ -54,9 +54,9 @@ CAT is free and open source (MIT) and is distributed across multiple channels. C
 ### Option 1: Install from PyPI (Recommended for most users)
 
 > **Status: Published & Live on PyPI!** 🚀  
-> CAT CLI is officially published on PyPI: [**https://pypi.org/project/cct-cli/0.8.0b1/**](https://pypi.org/project/cct-cli/0.8.0b1/)
+> CAT CLI is officially published on PyPI: [**https://pypi.org/project/cct-cli/**](https://pypi.org/project/cct-cli/)
 
-CAT CLI is distributed as [`cct-cli`](https://pypi.org/project/cct-cli/0.8.0b1/) on PyPI. The PyPI distribution name and the
+CAT CLI is distributed as [`cct-cli`](https://pypi.org/project/cct-cli/) on PyPI. The PyPI distribution name and the
 terminal command are intentionally different:
 
 ```text
