@@ -5,14 +5,11 @@ build-backend = "setuptools.build_meta"
 [project]
 # PyPI distribution name is `cct-cli` (CLI command stays `cat`):
 #
-#     python -m pip install cct-cli
+#     python -m pip install cct-cli==0.8.0b1
 #     cat
 #
-# History: `cat-cli` was the first choice (PyPI JSON 404) but PyPI's
-# upload-time similarity check rejected it as too similar to the existing
-# `catcli` project — a 404 does NOT guarantee upload acceptance. `cct-cli`
-# returns 404 (no exact match, checked 2026-09-21); acceptance is proven
-# only by a successful upload. Bare `cat` is TAKEN (unrelated project).
+# Published on PyPI: https://pypi.org/project/cct-cli/0.8.0b1/
+# Bare `cat` is TAKEN (unrelated project).
 # NEVER publish under `cot-ai-ide` (typo) — branding is CAT.
 name = "cct-cli"
 version = "0.8.0b1"

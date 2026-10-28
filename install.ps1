@@ -361,7 +361,7 @@ function Install-Cat {
         Write-Host '      Installing cct-cli package into Python environment...' -ForegroundColor DarkGray
         $pipSuccess = $false
         try {
-            & $py.Executable -m pip install --upgrade cct-cli 2>&1 | Out-Null
+            & $py.Executable -m pip install --upgrade --pre cct-cli 2>&1 | Out-Null
             if ($LASTEXITCODE -eq 0) {
                 $pipSuccess = $true
                 Write-Host '      Installed cct-cli from PyPI successfully.' -ForegroundColor Green
@@ -370,7 +370,7 @@ function Install-Cat {
 
         if (-not $pipSuccess) {
             try {
-                Write-Host '      PyPI package pending release; installing latest build from GitHub...' -ForegroundColor DarkYellow
+                Write-Host '      PyPI install failed; trying GitHub repository fallback...' -ForegroundColor DarkYellow
                 & $py.Executable -m pip install --upgrade git+https://github.com/kazizillani-oss/CAT_v0.7.9.git 2>&1 | Out-Null
                 if ($LASTEXITCODE -eq 0) {
                     $pipSuccess = $true

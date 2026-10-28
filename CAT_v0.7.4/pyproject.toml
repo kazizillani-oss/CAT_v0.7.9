@@ -6,9 +6,8 @@ build-backend = "setuptools.build_meta"
 # Mirror of the root pyproject.toml (which is the canonical config).
 # Prefer installing from the repository root (`pip install .` there).
 # Kept in sync so `pip install ./CAT_v0.7.4` also works.
-# Distribution name `cct-cli` (no exact PyPI match, checked 2026-09-21;
+# Distribution name `cct-cli` (published: https://pypi.org/project/cct-cli/0.8.0b1/);
 # bare `cat` is TAKEN — dist is `cct-cli`, command is `cat`.
-# (`cat-cli` was rejected at upload by PyPI's similarity check vs `catcli`.)
 name = "cct-cli"
 version = "0.8.0b1"
 description = "CAT CLI v0.8.0b1 [beta] — Coding Agent Terminal / terminal AI coding agent"

@@ -160,7 +160,7 @@ if [ "$IS_ROOT" -eq 1 ]; then
         "$PYTHON_BIN" -m pip install $PIP_FLAGS "$SCRIPT_DIR"
     else
         echo -e "${YELLOW}Installing cct-cli via pip...${NC}"
-        "$PYTHON_BIN" -m pip install $PIP_FLAGS cct-cli || "$PYTHON_BIN" -m pip install $PIP_FLAGS git+https://github.com/kazizillani-oss/CAT_v0.7.9.git
+        "$PYTHON_BIN" -m pip install $PIP_FLAGS --pre cct-cli || "$PYTHON_BIN" -m pip install $PIP_FLAGS git+https://github.com/kazizillani-oss/CAT_v0.7.9.git
     fi
     
     for alias_cmd in catx cct cat-curl cat-brew cat-sudo; do
@@ -179,7 +179,7 @@ else
         "$PYTHON_BIN" -m pip install --user --upgrade "$SCRIPT_DIR"
     else
         echo -e "${YELLOW}Installing cct-cli via pip...${NC}"
-        "$PYTHON_BIN" -m pip install --user --upgrade cct-cli || "$PYTHON_BIN" -m pip install --user --upgrade git+https://github.com/kazizillani-oss/CAT_v0.7.9.git
+        "$PYTHON_BIN" -m pip install --user --upgrade --pre cct-cli || "$PYTHON_BIN" -m pip install --user --upgrade git+https://github.com/kazizillani-oss/CAT_v0.7.9.git
     fi
     
     USER_BASE=$("$PYTHON_BIN" -m site --user-base 2>/dev/null || echo "$HOME/.local")

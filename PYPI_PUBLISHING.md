@@ -5,21 +5,20 @@ The PyPI distribution name is **`cct-cli`** and the terminal command is **`cat`*
 (plus aliases `catx` and `cct`).
 
 ```text
-PyPI package: cct-cli   (no exact PyPI match — verified 2026-09-21, JSON 404.
-NOTE: `cat-cli` also returned 404 but was rejected at upload by PyPI's
-similarity check vs the existing `catcli` project — a 404 does NOT prove
-upload acceptance, only a successful upload does.)
-CLI command:  cat
+PyPI package: cct-cli   (Published: https://pypi.org/project/cct-cli/0.8.0b1/)
+CLI command:  cat      (plus aliases catx and cct)
 ```
 
-Do **NOT** publish under `cot-ai-ide` (typo) or assume bare `cat` is free —
-bare `cat` on PyPI is TAKEN (0.0.1, unrelated project). Re-check availability
-immediately before the first upload:
+**Live PyPI Release:**  
+`cct-cli` v0.8.0b1 is officially published and available at:  
+👉 **<https://pypi.org/project/cct-cli/0.8.0b1/>**
 
 ```powershell
-# Browser check (most reliable):
-#   https://pypi.org/project/cct-cli/  → 404 = available
-python -m pip index versions cct-cli
+# Verify available PyPI releases (include --pre for beta):
+python -m pip index versions --pre cct-cli
+
+# Install published release:
+pip install cct-cli==0.8.0b1
 ```
 
 ## Prerequisites

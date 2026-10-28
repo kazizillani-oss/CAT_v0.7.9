@@ -13,6 +13,7 @@
 </picture>
 
 [![CLI](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml/badge.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/cct-cli.svg?color=blue&label=PyPI%20cct-cli)](https://pypi.org/project/cct-cli/0.8.0b1/)
 [![Version](https://img.shields.io/badge/version-0.8.0b1-blue.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9)
 [![VS Code Extension](https://img.shields.io/badge/VS%20Code%20Extension-v0.8.6-blue.svg)](https://marketplace.visualstudio.com/items?itemName=KaziZillani.cat-cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -32,24 +33,25 @@ CAT is distributed across multiple channels. Choose the method that best fits yo
 </picture>
 ### Option 1: Install from PyPI (Recommended for most users)
 
-> **Status: Coming after PyPI release — not yet published.**
-> The PyPI distribution `cct-cli` v0.8.0b1 has been built and validated
-> locally (`python -m build`, `twine check dist/*`) but has **not** been
-> uploaded to PyPI yet. Do not expect `pip install cct-cli` to work until
-> the first successful publish is confirmed. Once published, use:
+> **Status: Published & Live on PyPI!** 🚀  
+> CAT CLI is officially published on PyPI: [**https://pypi.org/project/cct-cli/0.8.0b1/**](https://pypi.org/project/cct-cli/0.8.0b1/)
 
-CAT CLI is distributed as `cct-cli` on PyPI. The PyPI distribution name and the
+CAT CLI is distributed as [`cct-cli`](https://pypi.org/project/cct-cli/0.8.0b1/) on PyPI. The PyPI distribution name and the
 terminal command are intentionally different:
 
 ```text
-PyPI package: cct-cli
-CLI command:  cat  (plus aliases catx and cct)
+PyPI package: cct-cli  →  https://pypi.org/project/cct-cli/0.8.0b1/
+CLI command:  cat      (plus aliases catx and cct)
 ```
 
-Install from PyPI (after release):
+**Install from PyPI:**
 
 ```powershell
-pip install cct-cli
+# Install the official 0.8.0b1 release from PyPI:
+pip install cct-cli==0.8.0b1
+
+# Or install with pre-release flag enabled:
+pip install --pre cct-cli
 ```
 
 CLI launch (after installation):
