@@ -19,6 +19,14 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
 
+**Install your way:**
+
+[![Install with curl](https://img.shields.io/badge/install-curl-073551.svg?logo=curl&logoColor=white)](#option-5-quick-install-via-curl-method-5-linux-macos-windows)
+[![Install with Homebrew](https://img.shields.io/badge/install-brew-FBB040.svg?logo=homebrew&logoColor=white)](#option-6-install-via-brew-for-macos--linux-method-6-homebrew)
+[![Install with irm](https://img.shields.io/badge/install-irm-5391FE.svg?logo=powershell&logoColor=white)](#option-2-windows-installer-native-windows-experience)
+[![Install with sudo](https://img.shields.io/badge/install-sudo-2E8B57.svg?logo=linux&logoColor=white)](#option-7-system-wide-linux-installation-via-sudo-method-7-linux-admin)
+[![Open Source](https://img.shields.io/badge/Open%20Source-%E2%9D%A4-brightgreen.svg?logo=opensourceinitiative&logoColor=white)](LICENSE)
+
 *An autonomous AI developer terminal and chemical computation environment styled like OpenCode, Claude Code, and Warp in the Tokyo Night theme.*
 
 </div>
@@ -27,7 +35,8 @@
 
 ## ⚡ Quick Install
 
-CAT is distributed across multiple channels. Choose the method that best fits your workflow:
+CAT is free and open source (MIT) and is distributed across multiple channels. Choose the method that best fits your workflow — `curl`, `brew`, `irm`, `sudo`, PyPI, the Windows installer, or the VS Code extension:
+
 <picture>
 <img width="480" height="270" alt="Image" src="https://github.com/user-attachments/assets/386f319d-dae9-465b-ae14-91b73e497d91" />
 </picture>
@@ -77,6 +86,8 @@ Notes:
 - Requires Python 3.10 or newer (tested on 3.10–3.13).
 
 ### Option 2: Windows Installer (Native Windows experience)
+
+![Install with irm](https://img.shields.io/badge/install-irm%20one--liner-5391FE.svg?logo=powershell&logoColor=white)
 
 Download and run the native installer:
 - **`CAT-Setup.exe`** or **`catsetup.exe`** from [Latest Releases](https://github.com/kazizillani-oss/CAT_v0.7.9/releases/latest) or repository root.
@@ -148,6 +159,11 @@ code --install-extension cat-cli/cat-cli-0.8.6.vsix
 
 ### Option 5: Quick Install via `curl` (Method 5: Linux, macOS, Windows)
 
+![Install with curl](https://img.shields.io/badge/install-curl-073551.svg?logo=curl&logoColor=white)
+![Linux](https://img.shields.io/badge/platform-Linux-FCC624.svg?logo=linux&logoColor=black)
+![macOS](https://img.shields.io/badge/platform-macOS-000000.svg?logo=apple&logoColor=white)
+![Windows](https://img.shields.io/badge/platform-Windows-0078D6.svg?logo=windows&logoColor=white)
+
 Install CAT CLI with a single command without manually cloning or configuring directories:
 
 ```bash
@@ -171,6 +187,10 @@ What the curl installer does automatically:
 
 ### Option 6: Install via `brew` for macOS & Linux (Method 6: Homebrew)
 
+![Install with Homebrew](https://img.shields.io/badge/install-brew-FBB040.svg?logo=homebrew&logoColor=white)
+![macOS](https://img.shields.io/badge/platform-macOS-000000.svg?logo=apple&logoColor=white)
+![Linux](https://img.shields.io/badge/platform-Linux-FCC624.svg?logo=linux&logoColor=black)
+
 For macOS and Linux developers using the Homebrew package manager:
 
 ```bash
@@ -192,6 +212,10 @@ cat brew doctor
 > CAT CLI includes its own built-in `cat brew` command that works across macOS, Linux, and Windows, allowing you to search, inspect, and bridge Homebrew formulae and system package managers directly from inside your terminal.
 
 ### Option 7: System-wide Linux Installation via `sudo` (Method 7: Linux Admin)
+
+![Install with sudo](https://img.shields.io/badge/install-sudo-2E8B57.svg?logo=linux&logoColor=white)
+![System-wide](https://img.shields.io/badge/scope-system--wide-blue.svg)
+![Admin](https://img.shields.io/badge/privileges-root-red.svg)
 
 For system administrators and multi-user Linux / Unix servers requiring global system-wide installation:
 
@@ -382,6 +406,10 @@ Before deploying CAT or its associated Fomoji identity services to production, e
 ---
 
 ## 📄 License
+
+[![Open Source](https://img.shields.io/badge/Open%20Source-%E2%9D%A4-brightgreen.svg?logo=opensourceinitiative&logoColor=white)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
 ```
   ██████╗ █████╗ ████████╗
  ██╔════╝██╔══██╗╚══██╔══╝
