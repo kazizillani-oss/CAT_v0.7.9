@@ -12,20 +12,30 @@
 <img alt="CAT — Coding Agent Terminal" src="badge.svg" width="850">
 </picture>
 
-[![CLI](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml/badge.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/cct-cli.svg?color=blue&label=PyPI%20cct-cli)](https://pypi.org/project/cct-cli/0.8.0b1/)
-[![Version](https://img.shields.io/badge/version-0.8.0b1-blue.svg)](https://github.com/kazizillani-oss/CAT_v0.7.9)
-[![VS Code Extension](https://img.shields.io/badge/VS%20Code%20Extension-v0.8.6-blue.svg)](https://marketplace.visualstudio.com/items?itemName=KaziZillani.cat-cli)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
+<!-- Tier 1 · Project health -->
+[![PyPI](https://img.shields.io/pypi/v/cct-cli.svg?style=flat-square&color=blue&label=PyPI%20cct-cli)](https://pypi.org/project/cct-cli/0.8.0b1/)
+[![Version](https://img.shields.io/badge/version-0.8.0b1-blue.svg?style=flat-square)](https://github.com/kazizillani-oss/CAT_v0.7.9)
+[![VS Code Extension](https://img.shields.io/badge/VS%20Code%20Extension-v0.8.6-blue.svg?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=KaziZillani.cat-cli)
+[![CI](https://img.shields.io/github/actions/workflow/status/kazizillani-oss/CAT_v0.7.9/ci.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white&label=CI)](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/kazizillani-oss/CAT_v0.7.9?style=flat-square&logo=github&color=gold)](https://github.com/kazizillani-oss/CAT_v0.7.9/stargazers)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](https://github.com/kazizillani-oss/CAT_v0.7.9/pulls)
+
+<!-- Tier 2 · Runtime & compatibility -->
+![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square)
+![Python](https://img.shields.io/badge/Python-3.10%E2%80%933.13-3776AB.svg?style=flat-square&logo=python&logoColor=white)
+![AI](https://img.shields.io/badge/AI-Agentic%20Runtime-8A2BE2.svg?style=flat-square)
+![LLMs](https://img.shields.io/badge/LLMs-OpenAI%20%7C%20Claude%20%7C%20Gemini%20%7C%20Ollama-F59E0B.svg?style=flat-square)
+![Terminal](https://img.shields.io/badge/CLI-Terminal%20UI-000000.svg?style=flat-square&logo=gnubash&logoColor=white)
 
 **Install your way:**
 
-[![Install with curl](https://img.shields.io/badge/install-curl-073551.svg?logo=curl&logoColor=white)](#option-5-quick-install-via-curl-method-5-linux-macos-windows)
-[![Install with Homebrew](https://img.shields.io/badge/install-brew-FBB040.svg?logo=homebrew&logoColor=white)](#option-6-install-via-brew-for-macos--linux-method-6-homebrew)
-[![Install with irm](https://img.shields.io/badge/install-irm-5391FE.svg?logo=powershell&logoColor=white)](#option-2-windows-installer-native-windows-experience)
-[![Install with sudo](https://img.shields.io/badge/install-sudo-2E8B57.svg?logo=linux&logoColor=white)](#option-7-system-wide-linux-installation-via-sudo-method-7-linux-admin)
-[![Open Source](https://img.shields.io/badge/Open%20Source-%E2%9D%A4-brightgreen.svg?logo=opensourceinitiative&logoColor=white)](LICENSE)
+<!-- Tier 3 · Installation methods & open source -->
+[![Install with curl](https://img.shields.io/badge/Install-curl-073551.svg?style=flat-square&logo=curl&logoColor=white)](#option-5-quick-install-via-curl-method-5-linux-macos-windows)
+[![Install with Homebrew](https://img.shields.io/badge/Install-brew-FBB040.svg?style=flat-square&logo=homebrew&logoColor=black)](#option-6-install-via-brew-for-macos--linux-method-6-homebrew)
+[![Install with irm](https://img.shields.io/badge/Install-irm%20%28PowerShell%29-5391FE.svg?style=flat-square&logo=powershell&logoColor=white)](#option-2-windows-installer-native-windows-experience)
+[![Install with sudo](https://img.shields.io/badge/Install-sudo-CC292B.svg?style=flat-square&logo=linux&logoColor=white)](#option-7-system-wide-linux-installation-via-sudo-method-7-linux-admin)
+[![Open Source](https://img.shields.io/badge/Open%20Source-%E2%9D%A4-brightgreen.svg?style=flat-square&logo=opensourceinitiative&logoColor=white)](LICENSE)
 
 *An autonomous AI developer terminal and chemical computation environment styled like OpenCode, Claude Code, and Warp in the Tokyo Night theme.*
 
@@ -87,7 +97,7 @@ Notes:
 
 ### Option 2: Windows Installer (Native Windows experience)
 
-![Install with irm](https://img.shields.io/badge/install-irm%20one--liner-5391FE.svg?logo=powershell&logoColor=white)
+![Install with irm](https://img.shields.io/badge/install-irm%20one--liner-5391FE.svg?style=flat-square&logo=powershell&logoColor=white)
 
 Download and run the native installer:
 - **`CAT-Setup.exe`** or **`catsetup.exe`** from [Latest Releases](https://github.com/kazizillani-oss/CAT_v0.7.9/releases/latest) or repository root.
@@ -159,10 +169,10 @@ code --install-extension cat-cli/cat-cli-0.8.6.vsix
 
 ### Option 5: Quick Install via `curl` (Method 5: Linux, macOS, Windows)
 
-![Install with curl](https://img.shields.io/badge/install-curl-073551.svg?logo=curl&logoColor=white)
-![Linux](https://img.shields.io/badge/platform-Linux-FCC624.svg?logo=linux&logoColor=black)
-![macOS](https://img.shields.io/badge/platform-macOS-000000.svg?logo=apple&logoColor=white)
-![Windows](https://img.shields.io/badge/platform-Windows-0078D6.svg?logo=windows&logoColor=white)
+![Install with curl](https://img.shields.io/badge/install-curl-073551.svg?style=flat-square&logo=curl&logoColor=white)
+![Linux](https://img.shields.io/badge/platform-Linux-FCC624.svg?style=flat-square&logo=linux&logoColor=black)
+![macOS](https://img.shields.io/badge/platform-macOS-000000.svg?style=flat-square&logo=apple&logoColor=white)
+![Windows](https://img.shields.io/badge/platform-Windows-0078D6.svg?style=flat-square&logo=windows&logoColor=white)
 
 Install CAT CLI with a single command without manually cloning or configuring directories:
 
@@ -187,9 +197,9 @@ What the curl installer does automatically:
 
 ### Option 6: Install via `brew` for macOS & Linux (Method 6: Homebrew)
 
-![Install with Homebrew](https://img.shields.io/badge/install-brew-FBB040.svg?logo=homebrew&logoColor=white)
-![macOS](https://img.shields.io/badge/platform-macOS-000000.svg?logo=apple&logoColor=white)
-![Linux](https://img.shields.io/badge/platform-Linux-FCC624.svg?logo=linux&logoColor=black)
+![Install with Homebrew](https://img.shields.io/badge/install-brew-FBB040.svg?style=flat-square&logo=homebrew&logoColor=white)
+![macOS](https://img.shields.io/badge/platform-macOS-000000.svg?style=flat-square&logo=apple&logoColor=white)
+![Linux](https://img.shields.io/badge/platform-Linux-FCC624.svg?style=flat-square&logo=linux&logoColor=black)
 
 For macOS and Linux developers using the Homebrew package manager:
 
@@ -213,9 +223,9 @@ cat brew doctor
 
 ### Option 7: System-wide Linux Installation via `sudo` (Method 7: Linux Admin)
 
-![Install with sudo](https://img.shields.io/badge/install-sudo-2E8B57.svg?logo=linux&logoColor=white)
-![System-wide](https://img.shields.io/badge/scope-system--wide-blue.svg)
-![Admin](https://img.shields.io/badge/privileges-root-red.svg)
+![Install with sudo](https://img.shields.io/badge/install-sudo-2E8B57.svg?style=flat-square&logo=linux&logoColor=white)
+![System-wide](https://img.shields.io/badge/scope-system--wide-blue.svg?style=flat-square)
+![Admin](https://img.shields.io/badge/privileges-root-red.svg?style=flat-square)
 
 For system administrators and multi-user Linux / Unix servers requiring global system-wide installation:
 
@@ -405,10 +415,27 @@ Before deploying CAT or its associated Fomoji identity services to production, e
 
 ---
 
+## 👥 Contributing
+
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](https://github.com/kazizillani-oss/CAT_v0.7.9/pulls)
+[![Stars](https://img.shields.io/github/stars/kazizillani-oss/CAT_v0.7.9?style=flat-square&logo=github&color=gold)](https://github.com/kazizillani-oss/CAT_v0.7.9/stargazers)
+[![Open Source](https://img.shields.io/badge/Open%20Source-%E2%9D%A4-brightgreen.svg?style=flat-square&logo=opensourceinitiative&logoColor=white)](LICENSE)
+
+CAT is open source and contributions of every size are welcome — bug reports, feature requests, docs fixes, and pull requests.
+
+1. **Fork** the repository and create a feature branch (`git checkout -b feature/my-improvement`).
+2. **Install** the dev environment: `python -m pip install -e ".[all]"`.
+3. **Test** your change: `python -m pytest`.
+4. **Open a pull request** against `main` with a clear description of the problem and the fix.
+
+Not sure where to start? Browse the [open issues](https://github.com/kazizillani-oss/CAT_v0.7.9/issues) or open a discussion — we're happy to help.
+
+---
+
 ## 📄 License
 
-[![Open Source](https://img.shields.io/badge/Open%20Source-%E2%9D%A4-brightgreen.svg?logo=opensourceinitiative&logoColor=white)](LICENSE)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Open Source](https://img.shields.io/badge/Open%20Source-%E2%9D%A4-brightgreen.svg?style=flat-square&logo=opensourceinitiative&logoColor=white)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
 
 ```
   ██████╗ █████╗ ████████╗
