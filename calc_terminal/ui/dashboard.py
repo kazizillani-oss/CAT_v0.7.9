@@ -249,7 +249,7 @@ if TEXTUAL_AVAILABLE:
                 with Horizontal(id="cct-dash-actions"):
                     yield _QuickAction("\U0001f4c1 Open", "dash-open-folder")
                     yield _QuickAction("\U0001f4dd New Chat", "dash-new-chat")
-                    yield _QuickAction("\u2699  Settings", "dash-settings")
+                    yield _QuickAction("🕘 Settings", "dash-settings")
                     yield _QuickAction("\U0001f4d6 Docs", "dash-docs")
 
             # --- Centered 3-Column Responsive Dashboard Cards ----------
@@ -258,7 +258,13 @@ if TEXTUAL_AVAILABLE:
                     with Vertical(classes="cct-dash-col cct-dash-card-3d"):
                         yield Static("[b]Recent Projects[/b]", classes="cct-dash-col-title")
                         try:
-                            recent = projects.recent()[:5]
+                            recent = projects.recent()
+                            try:
+                                _, vh = self._get_viewport_size()
+                                max_p = 2 if vh < 28 else 4
+                            except Exception:
+                                max_p = 2
+                            recent = recent[:max_p]
                         except Exception:
                             recent = []
                         if recent:
@@ -286,8 +292,8 @@ if TEXTUAL_AVAILABLE:
 
         def _stats_markup(self):
             """The whole Project & Workspace column body as one concise markup
-            string, formatted cleanly with responsive path shortening and
-            compact line budgeting so content is never cut off or overflows."""
+            string, formatted cleanly without long paths and with compact line
+            budgeting so content is never cut off or overflows."""
             from . import theme_css
             faint = theme_css.current_hex("text-faint")
             root = self._workspace_root
@@ -297,24 +303,24 @@ if TEXTUAL_AVAILABLE:
             cpu = project_stats.cpu_percent()
             config = aicore.load_config()
 
-            def _truncate_path(p: str, max_chars: int = 24) -> str:
-                if not p or len(p) <= max_chars:
-                    return p
-                norm = p.replace("\\", "/")
-                parts = [part for part in norm.split("/") if part]
-                if len(parts) >= 2:
-                    cand = f"{parts[0]}/.../{parts[-1]}"
-                    if len(cand) <= max_chars:
-                        return cand
-                return "..." + p[-(max_chars - 3):]
-
             folder_name = os.path.basename(root.rstrip(os.sep)) or root
-            short_root = _truncate_path(root, 22)
             files_str = str(stats['total_files']) if stats['total_files'] is not None else "—"
-            lines = [
-                f"  \U0001f4c1 [b]{folder_name}[/]  [{faint}]({short_root})[/]",
-                f"  {project_stats.human_size(stats['total_size'])}{'+' if stats['truncated'] else ''}  \u00b7  {files_str} files",
-            ]
+
+            try:
+                w, vh = self._get_viewport_size()
+            except Exception:
+                w, vh = 80, 24
+
+            line1 = f"  \U0001f4c1 [b]{folder_name}[/]"
+            line2 = f"  {project_stats.human_size(stats['total_size'])}{'+' if stats['truncated'] else ''}  \u00b7  {files_str} files"
+
+            # In floating window / compact dashboard / side-by-side columns:
+            # exactly 2 lines ensures perfect alignment with CAT and Recent Projects
+            # and prevents ANY vertical expansion or clipping!
+            if vh < 34 or w < 90:
+                return f"{line1}\n{line2}"
+
+            lines = [line1, line2]
             if stats.get("languages"):
                 top_langs = list(stats["languages"].items())[:2]
                 langs = ", ".join(f"{lang} ({n})" for lang, n in top_langs)
@@ -323,12 +329,6 @@ if TEXTUAL_AVAILABLE:
                 lines.append(f"  [{faint}]Lang:[/] {langs}")
             git_str = branch or "—"
             lines.append(f"  [{faint}]Git:[/] {git_str}  \u00b7  [{faint}]Mod:[/] {project_stats.human_age(stats['last_modified'])}")
-            provider = config.get('provider', '\u2014')
-            model = config.get('model', '\u2014')
-            lines.append(f"  [{faint}]AI:[/] {provider} ({model})")
-            mem_str = f"{mem:.0f}MB" if mem is not None else "\u2014"
-            cpu_str = f"{cpu:.0f}%" if cpu is not None else "\u2014"
-            lines.append(f"  [{faint}]Sys:[/] Mem: {mem_str}  \u00b7  CPU: {cpu_str}")
             return "\n".join(lines)
 
         def refresh_stats(self):
@@ -393,7 +393,7 @@ if TEXTUAL_AVAILABLE:
             except Exception:
                 pass
 
-        def _cat_section_markup(self, mode_key=None):
+        def _cat_section_markup(self, mode_key=None, compact=None):
             try:
                 fn = get_cat_routine_display
                 if fn is None:
@@ -410,19 +410,36 @@ if TEXTUAL_AVAILABLE:
                     accent = theme_css.current_hex("accent")
                 muted = theme_css.current_hex("text-muted")
                 faint = theme_css.current_hex("text-faint")
+                if compact is None:
+                    try:
+                        w, h = self._get_viewport_size()
+                        cols = self.query_one("#cct-dash-columns")
+                        compact = (h < 28) or cols.has_class("stacked")
+                    except Exception:
+                        compact = False
                 return fn(
                     offset=getattr(self, "_greeting_offset", 0),
                     accent_hex=accent,
                     text_muted_hex=muted,
                     text_faint_hex=faint,
                     mode_key=mk,
+                    compact=compact,
                 )
             except Exception:
                 return "  [b]CAT[/b] > Ready."
 
         def on_mount(self):
             try:
+                self.styles.overflow_y = "hidden"
+                self.styles.scrollbar_size_vertical = 0
+            except Exception:
+                pass
+            try:
                 self.set_interval(60.0, self._tick_routine_greeting)
+            except Exception:
+                pass
+            try:
+                self.fit_to_viewport()
             except Exception:
                 pass
 
@@ -481,6 +498,23 @@ if TEXTUAL_AVAILABLE:
             elif bid == "dash-solve-gibbs":
                 self.post_message(MessageSubmitted("derive gibbs free energy equation step by step"))
 
+        
+        def _scroll_conv(self, delta_y: int):
+            try:
+                conv = self.app.query_one("#cct-conversation")
+                if conv is not None and hasattr(conv, "scroll_relative"):
+                    conv.scroll_relative(y=delta_y, immediate=True, animate=False)
+            except Exception:
+                pass
+
+        def on_mouse_scroll_down(self, event):
+            self._scroll_conv(3)
+            event.stop()
+
+        def on_mouse_scroll_up(self, event):
+            self._scroll_conv(-3)
+            event.stop()
+
         def fit_to_viewport(self):
             """Immediately re-evaluates live viewport height/width and adapts layout,
             ensuring zero overflow, zero card clipping, and smooth logo scaling."""
@@ -510,9 +544,9 @@ if TEXTUAL_AVAILABLE:
 
             # 2. Adjust vertical breathing room based on available height
             try:
-                # Progressive height compression ensures cards never get cut off
-                self.query_one("#cct-empty-suggest", Static).display = (h >= 32)
-                self.query_one("#cct-empty-tagline", Static).display = (h >= 26)
+                # Progressive height compression ensures cards never get cut off and NO scrollbar needed
+                self.query_one("#cct-empty-suggest", Static).display = (h >= 30)
+                self.query_one("#cct-empty-tagline", Static).display = (h >= 25)
                 self.query_one("#cct-dash-ai-status", Static).display = (h >= 22)
                 self.query_one("#cct-empty-version", Static).display = (h >= 18)
             except Exception:
@@ -526,39 +560,45 @@ if TEXTUAL_AVAILABLE:
                 btn_settings = self.query_one("#dash-settings", Button)
                 btn_docs = self.query_one("#dash-docs", Button)
 
-                if bp in (BP_LARGE, BP_NORMAL):
+                if bp in (BP_LARGE, BP_NORMAL) or w >= 74:
                     btn_open.label = "\U0001f4c1 Open"
                     btn_chat.label = "\U0001f4dd New Chat"
-                    btn_settings.label = "\u2699 Settings"
+                    btn_settings.label = "🕘 Settings"
                     btn_docs.label = "\U0001f4d6 Docs"
                     if actions.has_class("stacked"):
                         actions.remove_class("stacked")
-                elif bp == BP_MEDIUM:
+                elif w >= 40:
                     btn_open.label = "Open"
                     btn_chat.label = "Chat"
-                    btn_settings.label = "Settings"
+                    btn_settings.label = "🕘 Settings"
                     btn_docs.label = "Docs"
                     if actions.has_class("stacked"):
                         actions.remove_class("stacked")
-                else:  # BP_SMALL or BP_VERY_SMALL
+                else:  # extremely narrow w < 44
                     btn_open.label = "Open"
                     btn_chat.label = "Chat"
-                    btn_settings.label = "Settings"
+                    btn_settings.label = "🕘 Settings"
                     btn_docs.label = "Docs"
                     if not actions.has_class("stacked"):
                         actions.add_class("stacked")
             except Exception:
                 pass
 
-            # 4. Responsive Card System: 3 columns -> 2+1 columns -> 1 column stack
+            # 4. Responsive Card System: 3 columns -> 1 column stack
             try:
                 columns = self.query_one("#cct-dash-columns")
-                if bp in (BP_LARGE, BP_NORMAL):
+                # 3 columns side-by-side need at least 80 width to prevent clipping
+                if w >= 50 and h >= 14:
                     if columns.has_class("stacked"):
                         columns.remove_class("stacked")
-                else:  # BP_MEDIUM, BP_SMALL, BP_VERY_SMALL
+                else:  # BP_MEDIUM, BP_SMALL, BP_VERY_SMALL or compact height/floating window
                     if not columns.has_class("stacked"):
                         columns.add_class("stacked")
+                try:
+                    cat_content = self.query_one("#cct-dash-cat-content", Static)
+                    cat_content.update(self._cat_section_markup())
+                except Exception:
+                    pass
             except Exception:
                 pass
 

@@ -114,18 +114,43 @@ if TEXTUAL_AVAILABLE:
                         yield PreviewPanel()
 
         def on_mount(self):
-            # The Explorer / Workspace section starts OPEN by default on launch
+            # Workspace section is always open by default on launch
             self.explorer.display = True
-            self.explorer.set_width(EXPLORER_DEFAULT_WIDTH)
+            try:
+                self.explorer.set_width(EXPLORER_DEFAULT_WIDTH)
+            except Exception:
+                pass
             self.preview_panel.display = False
             try:
                 saved = load_layout()
                 w = saved.get("explorer_width")
-                if w:
-                    self.explorer.set_width(w)
+                if w and int(w) >= 20:
+                    self.explorer.set_width(int(w))
+                else:
+                    self.explorer.set_width(EXPLORER_DEFAULT_WIDTH)
                 rw = saved.get("rightpane_width")
                 if rw:
                     self.set_right_width(rw)
+                # v0.7.9.15 fix (composer resizing didn't stick): the
+                # dragged height was persisted on drop but never READ
+                # back — so composer resizing silently vanished between
+                # runs. Restore it after the composer's own mount
+                # settles (set_explicit_height re-clamps to the real
+                # screen, so a small window keeps it sane).
+                ch = saved.get("composer_height")
+                if ch:
+                    from .composer import StickyComposer
+                    try:
+                        composer = self._composer or self.query_one(StickyComposer)
+                        total_h = self.size.height or 24
+                        # Never let restored height exceed 32% of window height in floating/compact view
+                        max_allowed = max(5, int(total_h * 0.32))
+                        safe_ch = min(int(ch), max_allowed)
+                        self.call_after_refresh(
+                            lambda comp=composer, h=safe_ch:
+                            comp.set_explicit_height(h))
+                    except Exception:
+                        pass
             except Exception:
                 pass
             self.sync_resizer()
@@ -450,6 +475,7 @@ if TEXTUAL_AVAILABLE:
                 chat_col.styles.width = "1fr"
                 self._sync_switcher()
                 self._sync_sidebar_toggle()
+                self._notify_dashboard_relayout()
                 return
 
             if tiny:
@@ -463,6 +489,7 @@ if TEXTUAL_AVAILABLE:
                 self.sync_right_resizer()
                 self._sync_switcher()
                 self._sync_sidebar_toggle()
+                self._notify_dashboard_relayout()
                 return
 
             if split_possible:
@@ -483,6 +510,14 @@ if TEXTUAL_AVAILABLE:
             try:
                 exp_btn = self.query_one("#cct-sidebar-expand-btn", Button)
                 exp_btn.display = (not self.explorer.display or self.explorer.width == 0)
+            except Exception:
+                pass
+            self._notify_dashboard_relayout()
+
+        def _notify_dashboard_relayout(self):
+            try:
+                if hasattr(self, "conversation") and self.conversation and hasattr(self.conversation, "_dashboard") and self.conversation._dashboard:
+                    self.conversation._dashboard.fit_to_viewport()
             except Exception:
                 pass
 

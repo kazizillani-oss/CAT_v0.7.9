@@ -688,8 +688,28 @@ if TEXTUAL_AVAILABLE:
             self._ctx = None
 
         def compose(self):
-            yield Static("\U0001f4c2 No workspace open", classes="cct-wshead-name")
+            with Horizontal(classes="cct-wshead-row"):
+                yield Static("\U0001f4c2 No workspace open", classes="cct-wshead-name")
+                btn = Button("\u2715", classes="cct-wshead-close-btn", tooltip="Close workspace")
+                btn.display = False
+                yield btn
             yield Static("", classes="cct-wshead-detail")
+
+        def on_button_pressed(self, event):
+            classes = getattr(event.button, "classes", set())
+            if "cct-wshead-close-btn" in classes:
+                event.stop()
+                try:
+                    for ancestor in getattr(self, "ancestors", []):
+                        if hasattr(ancestor, "close_workspace"):
+                            ancestor.close_workspace()
+                            return
+                    if hasattr(self, "app"):
+                        exp = self.app.query_one("Explorer")
+                        if exp and hasattr(exp, "close_workspace"):
+                            exp.close_workspace()
+                except Exception:
+                    pass
 
         def set_workspace(self, path):
             self._path = path
@@ -701,7 +721,9 @@ if TEXTUAL_AVAILABLE:
 
         def _rerender(self):
             try:
+                close_btn = self.query_one(".cct-wshead-close-btn", Button)
                 if self._path:
+                    close_btn.display = True
                     name = os.path.basename(self._path.rstrip(os.sep)) or self._path
                     branch = None
                     if self._ctx:
@@ -710,6 +732,7 @@ if TEXTUAL_AVAILABLE:
                     self.query_one(".cct-wshead-name", Static).update(
                         f"[bold]\U0001f4c1 {name}[/bold]{suffix}")
                 else:
+                    close_btn.display = False
                     self.query_one(".cct-wshead-name", Static).update(
                         "\U0001f4c2 No workspace open")
                 detail = self._detail_line()
@@ -798,8 +821,7 @@ if TEXTUAL_AVAILABLE:
             # chevron flips ▼/▶ with the panel's width state.
             with Horizontal(id="cct-sidebar-titlebar"):
                 yield Static("[b]Explorer[/b]", id="cct-sidebar-title")
-                yield Button(_safe_glyph("◀", "<"), id="cct-sidebar-collapse-btn",
-                             classes="cct-sidebar-collapse-btn", tooltip="Collapse Sidebar (Ctrl+B)")
+                yield Button(_safe_glyph("✕", "x"), id="cct-sidebar-collapse-btn", classes="cct-sidebar-collapse-btn", tooltip="Close Sidebar (Ctrl+B)")
             yield Button("📁 Open Folder", id="cct-open-folder-btn", classes="cct-sidebar-open-btn")
             with ScrollableContainer(id="cct-sidebar-body"):
                 yield Static("No folder open.", id="cct-sidebar-empty")
@@ -895,8 +917,14 @@ if TEXTUAL_AVAILABLE:
                 self.post_message(FileOpenRequested("__open_folder_prompt__"))
             elif event.button.id == "cct-sidebar-collapse-btn":
                 event.stop()
-                self.toggle()
-                self.post_message(SidebarToggled(self.width > 0 and self.display))
+                p = getattr(self, "parent", None)
+                if p is not None and hasattr(p, "toggle_sidebar"):
+                    p.toggle_sidebar()
+                elif hasattr(getattr(p, "parent", None), "toggle_sidebar"):
+                    p.parent.toggle_sidebar()
+                else:
+                    self.toggle()
+                    self.post_message(SidebarToggled(self.width > 0 and self.display))
             elif event.button.id == "cct-sidebar-menu-btn":
                 self._show_explorer_menu()
 
@@ -1272,8 +1300,8 @@ if TEXTUAL_AVAILABLE:
                 try:
                     btn = self.query_one("#cct-sidebar-collapse-btn", Button)
                     is_open = (self.width > 0 and self.display)
-                    btn.label = _safe_glyph("◀", "<") if is_open else _safe_glyph("▶", ">")
-                    btn.tooltip = "Collapse Sidebar (Ctrl+B)" if is_open else "Expand Sidebar (Ctrl+B)"
+                    btn.label = _safe_glyph("✕", "x") if is_open else _safe_glyph("▶", ">")
+                    btn.tooltip = "Close Sidebar (Ctrl+B)" if is_open else "Open Sidebar (Ctrl+B)"
                 except Exception:
                     pass
                 # Announce visibility flips once, so the shell can keep

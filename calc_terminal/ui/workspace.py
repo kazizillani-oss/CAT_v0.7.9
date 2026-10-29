@@ -114,42 +114,20 @@ if TEXTUAL_AVAILABLE:
                         yield PreviewPanel()
 
         def on_mount(self):
-            # v0.7.9.15 fix (workspace section open on first launch):
-            # on a GENUINE first launch — no earlier sessions (nothing
-            # in the recent-workspace history) and the welcome notice
-            # never seen — show the workspace section OPEN by default:
-            # its "Open Folder" button and Recent list are exactly the
-            # trail head a first-time user needs, instead of a bare
-            # chat with a hidden sidebar. Any other launch (history
-            # already exists) keeps the long-standing collapsed default
-            # until a folder is opened.
+            # Workspace section is always open by default on launch
+            self.explorer.display = True
             try:
-                from .. import projects as _projects_mod
-                first_run = not _projects_mod.recent()
-            except Exception:
-                first_run = False
-            try:
-                from .welcome_modal import has_seen_version as _has_seen
-                first_run = first_run and not _has_seen()
+                self.explorer.set_width(EXPLORER_DEFAULT_WIDTH)
             except Exception:
                 pass
-            if first_run:
-                self.explorer.display = True
-                try:
-                    self.explorer.set_width(EXPLORER_DEFAULT_WIDTH)
-                except Exception:
-                    pass
-            else:
-                # No folder open yet: the Explorer stays hidden so the
-                # app looks like a clean chat until the first Open
-                # Folder.
-                self.explorer.display = False
             self.preview_panel.display = False
             try:
                 saved = load_layout()
                 w = saved.get("explorer_width")
-                if w:
-                    self.explorer.set_width(w)
+                if w and int(w) >= 20:
+                    self.explorer.set_width(int(w))
+                else:
+                    self.explorer.set_width(EXPLORER_DEFAULT_WIDTH)
                 rw = saved.get("rightpane_width")
                 if rw:
                     self.set_right_width(rw)
@@ -164,9 +142,13 @@ if TEXTUAL_AVAILABLE:
                     from .composer import StickyComposer
                     try:
                         composer = self._composer or self.query_one(StickyComposer)
+                        total_h = self.size.height or 24
+                        # Never let restored height exceed 32% of window height in floating/compact view
+                        max_allowed = max(5, int(total_h * 0.32))
+                        safe_ch = min(int(ch), max_allowed)
                         self.call_after_refresh(
-                            lambda comp=composer:
-                            comp.set_explicit_height(int(ch)))
+                            lambda comp=composer, h=safe_ch:
+                            comp.set_explicit_height(h))
                     except Exception:
                         pass
             except Exception:
@@ -493,6 +475,7 @@ if TEXTUAL_AVAILABLE:
                 chat_col.styles.width = "1fr"
                 self._sync_switcher()
                 self._sync_sidebar_toggle()
+                self._notify_dashboard_relayout()
                 return
 
             if tiny:
@@ -506,6 +489,7 @@ if TEXTUAL_AVAILABLE:
                 self.sync_right_resizer()
                 self._sync_switcher()
                 self._sync_sidebar_toggle()
+                self._notify_dashboard_relayout()
                 return
 
             if split_possible:
@@ -526,6 +510,14 @@ if TEXTUAL_AVAILABLE:
             try:
                 exp_btn = self.query_one("#cct-sidebar-expand-btn", Button)
                 exp_btn.display = (not self.explorer.display or self.explorer.width == 0)
+            except Exception:
+                pass
+            self._notify_dashboard_relayout()
+
+        def _notify_dashboard_relayout(self):
+            try:
+                if hasattr(self, "conversation") and self.conversation and hasattr(self.conversation, "_dashboard") and self.conversation._dashboard:
+                    self.conversation._dashboard.fit_to_viewport()
             except Exception:
                 pass
 

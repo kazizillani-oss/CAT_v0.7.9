@@ -102,14 +102,12 @@ if TEXTUAL_AVAILABLE:
                              "badge-notebook", self._toggle_notebook)
                 yield Static("\u00b7", classes="cct-badge-sep")
                 yield _Badge(self._model_label, "badge-model", self._open_model)
-                yield Static("\u00b7", classes="cct-badge-sep")
-                yield _Badge(WORKSPACE_CYCLE[0], "badge-workspace", self._cycle_workspace)
             yield Static(id="cct-footer-spacer-left")
             yield Static(self._status_text(), id="cct-center-status")
             yield Static(id="cct-footer-spacer-right")
             with Horizontal(id="cct-right-controls"):
-                yield Button(_safe_glyph("🛡", "(P)"), id="btn-permissions", classes="cct-icon-btn", tooltip="Permissions & Security (Click / Alt+P)")
-                yield Button(_safe_glyph("📎", "(+)"), id="btn-attach", classes="cct-icon-btn", tooltip="Attach file (Click / Alt+A)")
+                yield Button(_safe_glyph("🕘", "(P)"), id="btn-permissions", classes="cct-icon-btn", tooltip="Permissions & Security (Click / Alt+P)")
+                yield Button(_safe_glyph("🔗", "(+)"), id="btn-attach", classes="cct-icon-btn", tooltip="Attach file (Click / Alt+A)")
                 yield Button(_safe_glyph("➤", ">"), id="btn-send", classes="cct-icon-btn cct-icon-send", tooltip="Send message (Enter)")
 
         def _status_text(self):
@@ -121,10 +119,26 @@ if TEXTUAL_AVAILABLE:
             except Exception:
                 pass
 
+        def _shorten_model_label(self, label, w):
+            if not label:
+                return ""
+            if w and w < 96:
+                clean = label
+                for prefix in ("OLLAMA ", "OPENROUTER ", "OPENAI ", "GEMINI ", "ANTHROPIC ", "GROQ "):
+                    if clean.upper().startswith(prefix):
+                        clean = clean[len(prefix):]
+                        break
+                if len(clean) > 16:
+                    clean = clean[:15] + "…"
+                return clean
+            return label
+
         def set_model_label(self, label):
             self._model_label = label
+            w = getattr(getattr(self, "size", None), "width", 80)
+            display_label = self._shorten_model_label(label, w)
             try:
-                self.query_one("#badge-model", _Badge).update(label)
+                self.query_one("#badge-model", _Badge).update(display_label)
             except Exception:
                 pass
 
@@ -147,16 +161,16 @@ if TEXTUAL_AVAILABLE:
             self.post_message(WorkspaceChanged(name))
 
         def on_resize(self, event=None):
-            """Responsive footer collapse at narrow viewports: ensures send button never gets pushed off."""
+            """Responsive footer collapse at narrow viewports: ensures send button never gets pushed off and Workspace is never clipped."""
             w = (event.size.width if event else None) or (self.size.width if self.size else 80)
             try:
                 center = self.query_one("#cct-center-status", Static)
-                center.display = (w >= 70)
+                center.display = (w >= 84)
             except Exception:
                 pass
             try:
-                ws_badge = self.query_one("#badge-workspace", _Badge)
-                ws_badge.display = (w >= 56)
+                display_label = self._shorten_model_label(self._model_label, w)
+                self.query_one("#badge-model", _Badge).update(display_label)
             except Exception:
                 pass
 

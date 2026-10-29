@@ -305,6 +305,67 @@ def path_is_protected(path):
     return False
 
 
+# ========================================= v0.7.9.15 workspace adoption ==
+# v0.7.9.15 fix (CAT CLI opened the wrong folder on launch): folders
+# that belong to the CAT installation itself must never be adopted as
+# (or recorded as) the user's workspace. An older build recorded e.g.
+# ...\AppData\Local\Programs\CAT\lib\calc_terminal as a "recent
+# project" from mere launch detection, so the next launch auto-opened
+# 'calc_terminal' — the CLI's own install folder — instead of the
+# workspace the user had last opened. Markers are matched with
+# slash-bounded tokens so e.g. ...\Programs\CatalogTool or a user
+# folder named "crime-scene-packages" never falsely matches.
+_APP_TREE_MARKERS = (
+    "appdata/local/programs/cat",   # the copied program directory
+    "site-packages",                # pip/venv installs of the package
+    "dist-packages",                # distro python installs
+    "lib/calc_terminal",            # the installed package folder
+)
+
+
+def path_is_app_tree(path):
+    """True when `path` is (or sits inside) a folder that belongs to
+    CAT's own installation — the copied program directory, a pip/venv
+    site/dist-packages copy, or the installed calc_terminal package
+    folder itself. Used by detect_workspace() to refuse adopting the
+    installation as a workspace, and by projects.forget_protected()
+    to purge junk 'recent project' entries an older build recorded.
+    Never raises; comparison is slash-bounded and case-insensitive."""
+    try:
+        norm = _norm_ci(path).replace("\\", "/")
+    except Exception:
+        return False
+    if not norm:
+        return False
+    parts = [p for p in norm.split("/") if p]
+    joined = "/" + "/".join(parts) + "/"
+    if "/calc_terminal/" in joined and any(m in joined for m in ("lib/", "site-packages/", "dist-packages/", "programs/cat/")):
+        return True
+    for marker in _APP_TREE_MARKERS:
+        token = "/" + marker.strip("/") + "/"
+        if token in joined:
+            return True
+    return False
+
+
+def _is_launcher_dir(path):
+    """True when `path` looks like the directory the `cat` launcher
+    itself lives in (the pip 'Scripts'/bin console-script dir or a
+    copied program dir). Launching the CLI from such a directory says
+    nothing about the user's project, so detection must never adopt it
+    (the v0.7.9.15 wrong-workspace-on-launch bug). Never raises."""
+    try:
+        p = os.path.abspath(os.path.expanduser(str(path)))
+        if path_is_app_tree(p):
+            return True
+        for name in ("cat.exe", "cat.bat", "cat.cmd", "cat.py", "cat"):
+            if os.path.exists(os.path.join(p, name)):
+                return True
+        return False
+    except Exception:
+        return False
+
+
 def resolve_readable_path(path):
     """Resolve a path for READ-ONLY tool access (read_file, archive_list,
     archive_validate, search). Read-only access is safe anywhere except
@@ -408,11 +469,31 @@ def summary():
 def app_directory():
     """The CCT application's own source directory (the folder that
     holds main.py + calc_terminal/). Used by detection to avoid
-    declaring CCT itself to be the user's workspace."""
+    declaring CCT itself to be the user's workspace.
+
+    v0.7.9.15 fix (wrong 'recent workspace' reopened): with the
+    installed layout CAT's calc_terminal package lives inside the
+    program directory (...\\AppData\\Local\\Programs\\CAT\\lib\\calc_terminal)
+    and main.py is absent, so the old single-level check fell through
+    to return the CURRENT directory — when the shell's cwd was the
+    install folder the app directory AND 'the workspace' became the
+    same worthless install path. Walk up a few levels looking for
+    main.py first; when none exists (installed layout), still report
+    the folder that CONTAINS the calc_terminal package so detection
+    can recognize install paths as the app's own tree."""
     try:
-        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        if os.path.exists(os.path.join(base, "main.py")):
-            return os.path.abspath(base)
+        here = os.path.abspath(__file__)    # ...\calc_terminal\workspace.py
+        pkg_dir = os.path.dirname(here)     # ...\calc_terminal
+        walk = pkg_dir
+        for _ in range(5):
+            if os.path.exists(os.path.join(walk, "main.py")):
+                return os.path.abspath(walk)
+            walk = os.path.dirname(walk)
+        # No main.py anywhere up the chain (installed layout): the
+        # package's own folder boundary (its parent, e.g. ...\CAT\lib)
+        # is still the application tree — return it so install paths
+        # are at least recognizable as non-workspace.
+        return os.path.abspath(os.path.dirname(pkg_dir))
     except Exception:
         pass
     return os.path.abspath(os.getcwd())
@@ -511,25 +592,16 @@ def _vscode_workspace(cwd):
 
 def detect_workspace(cwd=None):
     """Automatic workspace detection (spec section 1) — returns the
-    first valid workspace path in this priority order, or None:
+    first valid workspace path in this priority order:
 
-      1. the current terminal working directory (when it isn't CCT's
-         own app folder — a project-looking cwd is the workspace);
-      2. the VS Code workspace (.code-workspace file / .vscode marker);
-      3. the git repository root;
-      4. the directory CCT was launched from;
-      5. the last opened workspace (projects.last_opened()).
+      1. the current terminal working directory (cwd) when valid and not app tree;
+      2. the VS Code workspace (.code-workspace file / .vscode marker) or git root for cwd;
+      3. fallback to genuine recent projects (projects.last_opened()) only when cwd is blocked;
+      4. user home directory fallback (~).
 
-    Pure function: never mutates state, never writes files. Callers
-    decide what to do with the result.
-
-    v0.7.9.0 fix: candidates inside protected system roots
-    (C:\\Windows, C:\\Program Files, ...) are skipped entirely —
-    launching `cat` from PowerShell's default C:\\WINDOWS\\System32 used
-    to adopt System32 as the workspace (and even record it into recent
-    history), which then crashed generated-file creation with
-    PermissionError."""
+    Pure function: never mutates state, never writes files."""
     cwd = os.path.abspath(cwd or os.getcwd())
+    home = os.path.abspath(os.path.expanduser("~"))
     app_dir = app_directory()
     try:
         def _protected(path):
@@ -540,56 +612,43 @@ def detect_workspace(cwd=None):
                     return True
             return False
 
-        def _is_app_internal(path):
-            norm = _norm_ci(path)
-            bname = os.path.basename(norm).lower()
-            if bname in ("calc_terminal", "cat_v0.7.4", "cat_v0.7.9"):
-                return True
-            if os.path.isdir(os.path.join(path, "calc_terminal", "ui")):
-                return True
-            if os.path.exists(os.path.join(path, "agent_runtime.py")):
-                return True
-            return False
+        def _acceptable(path):
+            if not path or not os.path.isdir(path):
+                return False
+            if _protected(path) or _is_launcher_dir(path) or path_is_app_tree(path):
+                return False
+            base = os.path.basename(str(path).rstrip("\\/")).lower()
+            if base in ("calc_terminal", "cct") and path_is_app_tree(path):
+                return False
+            return True
 
-        candidates = []
-        # Priority 1 — Last opened workspace (e.g. from Admin / recent work) if cwd is internal or protected
+        # 1 — When launched from ANY directory (e.g. Downloads, Documents, project repo, or user profile),
+        # that present terminal working directory ALWAYS takes top priority!
+        if _acceptable(cwd):
+            vsc = _vscode_workspace(cwd)
+            if _acceptable(vsc) and _norm_ci(vsc) != _norm_ci(home):
+                return os.path.abspath(vsc)
+
+            gr = git_root(cwd)
+            if _acceptable(gr) and _norm_ci(gr) != _norm_ci(home):
+                return os.path.abspath(gr)
+
+            return os.path.abspath(cwd)
+
+        # 2 — When launched from a blocked system root (e.g. C:\\Windows\\System32) or launcher dir, fallback to recent projects
         try:
             from . import projects
             last = projects.last_opened()
-            if last and not _protected(last) and not _is_app_internal(last) and os.path.isdir(last):
-                candidates.append(os.path.abspath(last))
+            if _acceptable(last) and _norm_ci(last) != _norm_ci(home):
+                return os.path.abspath(last)
+            for rec in projects.recent():
+                if _acceptable(rec) and _norm_ci(rec) != _norm_ci(home):
+                    return os.path.abspath(rec)
         except Exception:
             pass
 
-        # Priority 2 — cwd itself, unless it IS the app, package internal, or a protected system dir.
-        if cwd != app_dir and not _protected(cwd) and not _is_app_internal(cwd):
-            if cwd not in candidates:
-                candidates.append(cwd)
-        # Priority 3 — VS Code workspace.
-        vsc = _vscode_workspace(cwd)
-        if vsc and vsc not in candidates:
-            candidates.append(vsc)
-        # Priority 4 — git root.
-        gr = git_root(cwd)
-        if gr and gr not in candidates and not _is_app_internal(gr):
-            candidates.append(gr)
-        # Priority 5 — launch directory (when it differs from cwd and isn't the app folder).
-        try:
-            launch = os.path.abspath(os.path.dirname(sys.argv[0]) or cwd)
-            if launch != cwd and launch != app_dir and launch not in candidates and not _is_app_internal(launch):
-                candidates.append(launch)
-        except Exception:
-            pass
-        # Priority 6 — User home directory fallback if cwd was internal/admin/system32
-        try:
-            user_home = os.path.abspath(os.path.expanduser("~"))
-            if user_home not in candidates and os.path.isdir(user_home):
-                candidates.append(user_home)
-        except Exception:
-            pass
-        for path in candidates:
-            if os.path.isdir(path) and not _protected(path):
-                return os.path.abspath(path)
+        if _acceptable(home):
+            return home
     except Exception:
         pass
     return None
@@ -597,15 +656,23 @@ def detect_workspace(cwd=None):
 
 def auto_load_workspace():
     """Run detection once at startup and, if a workspace was found,
-    load it: record it in recent history and make it the active
-    project root (the same state _open_folder would set). Returns the
-    detected path, or None. Idempotent — safe to call from both UIs."""
+    make it the active project root (the same state _open_folder sets,
+    minus the recent-history write). Returns the detected path, or
+    None. Idempotent — safe to call from both UIs.
+
+    v0.7.9.15 fix (wrong 'recent workspace' reopened): the old version
+    called projects.record_opened() on EVERY mere detection, so
+    launching CAT from its own program folder pushed pieces of the
+    installation tree (…\\lib\\calc_terminal) to the front of the recent
+    list — and the UI's last-workspace autoload then reopened THAT
+    folder on the next launch instead of the workspace the user had
+    actually opened. Detection is now a passive read: it sets the
+    active project for this session but never pollutes recent history
+    (only a real Explorer 'Open Folder' is recorded)."""
     try:
         path = detect_workspace()
         if not path:
             return None
-        from . import projects
-        projects.record_opened(path)
         set_active_project(path)
         return path
     except Exception:

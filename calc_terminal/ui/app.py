@@ -247,10 +247,10 @@ _COMPONENT_CSS = """
 #cct-conversation {
     width: 100%;
     height: 1fr;
-    padding: 1 2 0 2;
+    padding: 1 1 0 1;
     overflow-y: auto;
     overflow-x: hidden;
-    scrollbar-size: 2 1;
+    scrollbar-size: 1 1;
     scrollbar-gutter: stable;
     scrollbar-color: #565f89 #14151f;
     scrollbar-color-hover: #7aa2f7 #1a1b26;
@@ -380,13 +380,33 @@ Screen.-light #cct-conversation {
     max-width: 100%;
     height: auto;
     padding: 1 2;
+    background: $surface;
+    color: $text;
+    border: tall;
+    border-top: tall $accent-highlight;
+    border-left: tall $accent-highlight;
+    border-bottom: tall $surface-dark;
+    border-right: tall $surface-dark;
+    tint: $accent 4%;
     transition: background 150ms, border 150ms;
 }
 .cct-bubble-user:hover {
+    background: $surface-alt;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall $accent-highlight;
+    border-bottom: tall $surface-dark;
+    border-right: tall $surface-dark;
+    tint: $accent 8%;
     offset-y: 0;
 }
 .cct-bubble-user.-active {
     offset-y: 0;
+    border: tall;
+    border-top: tall $surface-dark;
+    border-left: tall $surface-dark;
+    border-bottom: tall $accent-highlight;
+    border-right: tall $accent-highlight;
 }
 .cct-bubble-assistant {
     width: 100%;
@@ -495,13 +515,13 @@ LiveActivitiesBlock.collapsed #live-header, .live-activities-block.collapsed #li
    Notebook / Research / Build / … still override all of this the
    moment a mode class is present. */
 #cct-composer {
-    background: $app-background;
+    background: $surface;
     border: heavy;
     border-top: heavy $surface-highlight;
     border-left: heavy $surface-highlight;
     border-bottom: heavy $surface-dark;
     border-right: heavy $surface-dark;
-    tint: $surface-highlight 4%;
+    tint: transparent;
     padding: 0 1;
     margin: 0 1 1 1;
     height: auto;
@@ -512,15 +532,16 @@ LiveActivitiesBlock.collapsed #live-header, .live-activities-block.collapsed #li
     transition: border 120ms, tint 120ms, offset 90ms;
 }
 #cct-composer:hover {
-    tint: $surface-highlight 8%;
+    tint: transparent;
 }
 #cct-composer:focus-within {
+    background: $surface;
     border: heavy;
     border-top: heavy $accent-highlight;
     border-left: heavy $accent-highlight;
-    border-bottom: heavy $accent;
-    border-right: heavy $accent;
-    tint: $accent 6%;
+    border-bottom: heavy $surface-dark;
+    border-right: heavy $surface-dark;
+    tint: transparent;
 }
 
 #cct-composer,
@@ -531,19 +552,18 @@ LiveActivitiesBlock.collapsed #live-header, .live-activities-block.collapsed #li
 #cct-composer.cct-mode-build,
 #cct-composer.cct-mode-debugger,
 #cct-composer.cct-mode-agent {
-    background: $app-background;
+    background: $surface;
 }
 
 #cct-prompt-row {
-    height: 1fr;
-    min-height: 2;
+    height: auto;
+    min-height: 1;
     max-height: 100%;
     align-vertical: middle;
     padding: 0 1;
     margin: 0;
     background: transparent;
     border: none;
-    transition: background 120ms;
 }
 #cct-prompt-row:focus-within {
     border: none;
@@ -628,19 +648,51 @@ LiveActivitiesBlock.collapsed #live-header, .live-activities-block.collapsed #li
 }
 
 #cct-cmdpalette {
-    background: $surface; border: tall $accent $border; margin-left: 3; margin-right: 1;
-    margin-top: 1; margin-bottom: 1;
-    width: 1fr; max-height: 8; height: auto; display: none;
+    background: $surface-alt;
+    border: tall;
+    border-top: tall $surface-highlight;
+    border-left: tall $surface-highlight;
+    border-bottom: tall $surface-dark;
+    border-right: tall $surface-dark;
+    tint: $surface-highlight 4%;
+    margin-left: 2;
+    margin-right: 2;
+    margin-top: 1;
+    margin-bottom: 1;
+    width: 1fr;
+    max-height: 8;
+    height: auto;
+    display: none;
+    padding: 0 1;
     scrollbar-size: 1 1;
-    scrollbar-color: $border $surface;
-    scrollbar-color-hover: $accent $surface;
-    scrollbar-color-active: $accent $surface;
+    scrollbar-gutter: stable;
+    scrollbar-color: $accent $surface-dark;
+    scrollbar-color-hover: $accent-highlight $surface-dark;
+    scrollbar-color-active: $accent $surface-dark;
 }
 #cct-cmdpalette.open { display: block; }
-        .cct-cmd-row { height: 1; padding: 0 2; color: $text-faint; width: 1fr; border-left: thick transparent; }
-/* v0.7.9.0: selection indicated by the accent bar + bold text, not a
-   filled background strip behind the row. */
-.cct-cmd-row-selected { color: $text; border-left: thick $accent; text-style: bold; }
+.cct-cmd-row {
+    height: 1;
+    min-height: 1;
+    max-height: 1;
+    padding: 0 1;
+    color: $text-muted;
+    width: 1fr;
+    border-left: thick transparent;
+    transition: background 60ms, color 60ms, border-left 60ms;
+}
+.cct-cmd-row:hover {
+    background: $surface-highlight 25%;
+    color: #ffffff;
+}
+.cct-cmd-row-selected {
+    background: $surface-alt;
+    tint: $accent 15%;
+    color: #ffffff;
+    border-left: thick $accent;
+    border-right: thick $surface-dark;
+    text-style: bold;
+}
 
 #cct-kbhints { height: 1; color: $text-faint; padding: 0 2; }
 
@@ -1440,8 +1492,8 @@ Screen Button#cct-open-folder-btn {
     height: 3;
     min-height: 3;
     max-height: 3;
-    padding: 0;
-    margin: 1 0;
+    padding: 0 1;
+    margin: 0 0 1 0;
     background: $accent 25%;
     color: #ffffff;
     text-style: bold;
@@ -1509,13 +1561,43 @@ Screen Button#cct-open-folder-btn.-active {
 .cct-sidebar-project-row:hover .cct-sidebar-project {
     color: #ffffff;
 }
+Button.cct-sidebar-project-del,
+Button.cct-sidebar-project-del:ansi.-style-default,
+Button.cct-sidebar-project-del:ansi.-style-flat,
+Button.cct-wshead-close-btn,
+Button.cct-wshead-close-btn:ansi.-style-default,
+Button.cct-wshead-close-btn:ansi.-style-flat,
 .cct-sidebar-project-del {
-    width: 3; min-width: 3; height: 1; min-height: 1; padding: 0;
-    border: none; background: transparent; color: $text-faint;
+    width: 3; min-width: 3; max-width: 3;
+    height: 1; min-height: 1; max-height: 1;
+    padding: 0; margin: 0;
+    border: none; background: transparent; color: $text-muted;
     content-align: center middle; text-align: center;
-    transition: color 150ms;
+    offset: 0 0;
+    transition: color 100ms, background 100ms;
 }
-.cct-sidebar-project-del:hover { color: #ff7b72; background: #3e1b24; text-style: bold; }
+Button.cct-sidebar-project-del:hover,
+Button.cct-wshead-close-btn:hover,
+.cct-sidebar-project-del:hover {
+    color: #ff5555; background: rgba(255, 85, 85, 0.2);
+    border: none; text-style: bold;
+}
+Button.cct-sidebar-project-del:focus,
+Button.cct-wshead-close-btn:focus {
+    color: #ff5555; background: rgba(255, 85, 85, 0.15);
+    border: none;
+}
+Button.cct-sidebar-project-del.-active,
+Button.cct-wshead-close-btn.-active {
+    color: #ffffff; background: #ff5555;
+    border: none;
+}
+.cct-wshead-row {
+    width: 100%; height: 1; layout: horizontal;
+}
+.cct-wshead-name {
+    width: 1fr; height: 1; text-style: bold; color: $text;
+}
 .cct-sidebar-clear-recent {
     height: 1; color: $text-faint; width: auto; padding: 1 1 0 1;
     transition: color 150ms;
@@ -1567,7 +1649,7 @@ Screen Button#cct-open-folder-btn.-active {
     scrollbar-color-hover: $accent $surface;
     scrollbar-color-active: $accent $surface;
 }
-.cct-filetree { height: auto; max-height: 20; width: auto; }
+.cct-filetree { height: auto; max-height: 20; width: 100%; scrollbar-size: 0 0; overflow-x: hidden; }
 .cct-filetree > .tree--cursor {
     background: $accent 22%;
     color: #ffffff;
@@ -1869,17 +1951,21 @@ Button.cct-switch.-active {
    the viewport, so it is clamped to the conversation height and
    SCROLLABLE: wheel / grab the visible scrollbar / drag to reach
    everything instead of watching it get cut off. */
+#cct-conversation.has-dashboard {
+    scrollbar-size-vertical: 0;
+    scrollbar-gutter: auto;
+    overflow-y: hidden;
+    overflow-x: hidden;
+}
+
 .cct-dashboard {
     width: 100%;
     height: auto;
-    max-height: 100%;
-    padding: 1 2;
-    overflow-y: auto;
-    overflow-x: hidden;
-    scrollbar-size: 1 1;
-    scrollbar-color: $border $surface;
-    scrollbar-color-hover: $accent $surface;
-    scrollbar-color-active: $accent $surface;
+    min-height: 0;
+    padding: 0 1 1 1;
+    overflow: hidden;
+    scrollbar-size-vertical: 0;
+    scrollbar-gutter: auto;
     align-horizontal: center;
 }
 #cct-empty-art {
@@ -1887,7 +1973,7 @@ Button.cct-switch.-active {
     text-align: center;
     content-align: center middle;
     min-height: 1;
-    margin: 0 0 1 0;
+    margin: 0;
 }
 .cct-dash-line {
     width: 100%;
@@ -1898,9 +1984,11 @@ Button.cct-switch.-active {
 }
 #cct-dash-hero { text-align: center; padding-bottom: 1; }
 #cct-dash-actions {
-    height: auto;
+    height: 3;
+    min-height: 3;
+    max-height: 3;
     width: auto;
-    max-width: 96;
+    max-width: 100%;
     padding: 0;
     layout: horizontal;
     align: center middle;
@@ -1908,22 +1996,29 @@ Button.cct-switch.-active {
     margin: 1 0;
 }
 #cct-dash-actions.stacked {
-    layout: vertical;
-    height: auto;
-    width: 100%;
-    max-width: 48;
+    layout: horizontal;
+    height: 3;
+    min-height: 3;
+    max-height: 3;
+    width: auto;
+    max-width: 100%;
     margin: 1 0;
     align-horizontal: center;
 }
-#cct-dash-actions.stacked .cct-dash-action { width: 100%; max-width: 100%; margin: 1 0; }
+#cct-dash-actions.stacked .cct-dash-action {
+    width: auto;
+    min-width: 8;
+    max-width: 16;
+    margin: 0 1;
+}
 .cct-dash-action, Button.cct-dash-action,
 Button.cct-dash-action.-style-default,
 Button.cct-dash-action:ansi.-style-default,
 Button.cct-dash-action:ansi.-style-flat,
 Screen Button.cct-dash-action {
-    width: 18;
-    min-width: 14;
-    max-width: 24;
+    width: auto;
+    min-width: 9;
+    max-width: 20;
     height: 3;
     min-height: 3;
     max-height: 3;
@@ -1983,24 +2078,32 @@ Screen Button.cct-dash-action.-active {
     height: auto;
     width: auto;
     max-width: 100%;
-    padding-top: 1;
+    padding-top: 0;
+    padding-bottom: 1;
+    margin-bottom: 0;
     layout: horizontal;
     overflow: hidden;
     align: center middle;
     align-horizontal: center;
-    margin: 0 0;
+    margin: 0 0 1 0;
 }
 #cct-dash-columns.stacked {
     layout: vertical;
     width: 100%;
-    max-width: 86;
-    margin: 0 0;
+    max-width: 100%;
+    margin-bottom: 3;
+    padding-bottom: 3;
     align-horizontal: center;
 }
-#cct-dash-columns.stacked .cct-dash-col { width: 100%; margin: 1 0; }
+#cct-dash-columns.stacked .cct-dash-col {
+    width: 100%;
+    max-width: 100%;
+    margin: 1 0;
+    min-height: 5;
+}
 .cct-dash-col {
     width: 1fr;
-    min-width: 28;
+    min-width: 20;
     height: auto;
     background: $surface;
     border: tall;
@@ -2021,10 +2124,14 @@ Screen Button.cct-dash-action.-active {
     border-right: tall $accent-shadow;
     tint: $accent 6%;
 }
+.cct-dash-col Static {
+    text-wrap: nowrap;
+    overflow-x: hidden;
+}
 .cct-dash-col-title {
     color: $accent;
     padding-bottom: 0;
-    margin-bottom: 1;
+    margin-bottom: 0;
     border-bottom: tall $surface-shadow;
     text-style: bold;
     content-align: center middle;
@@ -2205,10 +2312,14 @@ if TEXTUAL_AVAILABLE:
             self._workspace_shell = None  # WorkspaceShell, once a folder is opened
             try:
                 from .. import chat_store
-                detected_ws = ws_paths.active_project() or ws_paths.root_dir(ensure=False)
+                from .. import projects as _projects_mod
+                detected_ws = ws_paths.detect_workspace()
+                if not detected_ws or not os.path.isdir(detected_ws):
+                    detected_ws = os.path.expanduser("~")
                 if detected_ws and os.path.isdir(detected_ws):
                     self._workspace_root = chat_store.normalize_workspace_path(detected_ws)
                     self._current_workspace = os.path.basename(self._workspace_root.rstrip(os.sep)) or self._workspace_root
+                    ws_paths.set_active_project(self._workspace_root)
                 else:
                     self._workspace_root = None
             except Exception:
@@ -2617,46 +2728,19 @@ if TEXTUAL_AVAILABLE:
                 pass
 
         def _autoload_last_workspace(self):
-            """Spec v0.7.4 "load it automatically on startup": the most-
-            recently-OPENED project (projects.recent(), tracked by every
-            Explorer Open Folder) is reopened without the user going
-            through the menu again — same as any modern IDE restoring
-            its last folder.
-
-            v0.7.9.15 fix (CAT CLI opened 'calc_terminal' instead of the
-            workspace the user opened last): the old version blindly
-            took recent[0], which could be a junk entry an earlier build
-            recorded from mere launch detection (CAT's own install
-            folder). Second-guessing is now skipped entirely when
-            workspace detection already gave this launch a real folder
-            (the folder we were launched in wins), and when autoloading
-            we walk the recents list and reopen the first entry that is
-            a real existing folder — never a protected system root or a
-            CAT installation path."""
-            try:
-                # A real launch workspace (cwd / VS Code folder of THIS
-                # run) is already the active project — never override it
-                # with a remembered folder from an earlier session.
-                if ws_paths.active_project() and \
-                        os.path.isdir(ws_paths.active_project()):
-                    return
-            except Exception:
-                pass
-            try:
-                recent = projects.recent()
-            except Exception:
-                return
-            for path in recent:
-                if not path or not os.path.isdir(path):
-                    continue  # moved/deleted since last run — try older entries
+            """Ensures the present active workspace is opened into
+            WorkspaceShell and the Explorer file tree upon app startup."""
+            target = getattr(self, "_workspace_root", None)
+            if not target or not os.path.isdir(target):
                 try:
-                    if ws_paths.path_is_protected(path) or \
-                            ws_paths.path_is_app_tree(path):
-                        continue  # junk an older build recorded — never reopens
+                    target = ws_paths.detect_workspace()
                 except Exception:
-                    pass
-                self.run_worker(self._open_folder(path))
-                return
+                    target = None
+            if not target or not os.path.isdir(target):
+                target = os.path.expanduser("~")
+
+            if target and os.path.isdir(target):
+                self.run_worker(self._open_folder(target))
 
         def _show_dashboard_home(self):
             """v0.7.9.0: (re)mount the Dashboard — THE primary startup
@@ -2813,9 +2897,12 @@ if TEXTUAL_AVAILABLE:
                 # collapse it now, before the tree is even mounted, so
                 # there's no visible flash of the expanded panel.
                 try:
-                    from .. import config as cct_config
-                    if cct_config.load_config().sidebar_collapsed:
-                        self._workspace_shell.explorer.set_width(0)
+                    from .resizers import EXPLORER_DEFAULT_WIDTH
+                    self._workspace_shell.explorer.display = True
+                    if not self._workspace_shell.explorer.width or self._workspace_shell.explorer.width < 20:
+                        self._workspace_shell.explorer.set_width(EXPLORER_DEFAULT_WIDTH)
+                    self._workspace_shell.sync_resizer()
+                    self._workspace_shell._sync_sidebar_toggle()
                 except Exception:
                     pass
             from .. import chat_store

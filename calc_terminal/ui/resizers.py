@@ -43,7 +43,7 @@ EXPLORER_MAX_FRACTION = 0.55 # never wider than ~half the shell
 EXPLORER_DEFAULT_WIDTH = 32
 
 # ---- Composer height bounds ----------------------------------------------
-COMPOSER_MIN_HEIGHT = 5      # input + footer stay usable
+COMPOSER_MIN_HEIGHT = 4      # compact chatbox: 1-line input + footer stay usable
 COMPOSER_MAX_FRACTION = 0.35 # compact bounds — chat history keeps majority of shell
 COMPOSER_MARGIN_ROWS = 2     # composer's vertical margin rows (1 top + 1 bottom)
 # v0.7.9.15 fix: the persisted dragged height was rejected above 14 rows
@@ -279,8 +279,7 @@ if TEXTUAL_AVAILABLE:
             # height instead: the composer may now take just over half
             # of it, while the chat column above always keeps ≥ 12 rows
             # so a small chat/dashboard area always remains visible.
-            ceiling = max(COMPOSER_MIN_HEIGHT + 3,
-                          min(available - 12, int(available * 0.55)))
+            ceiling = max(COMPOSER_MIN_HEIGHT + 2, min(available - 10, int(available * 0.35)))
             return COMPOSER_MIN_HEIGHT, max(COMPOSER_MIN_HEIGHT, ceiling)
 
         def _apply(self, event):

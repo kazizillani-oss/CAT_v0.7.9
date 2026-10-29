@@ -12,7 +12,7 @@ from __future__ import annotations
 import datetime
 from typing import Dict, List, Tuple
 
-# ─── 50 NUMBERED ROUTINE GREETINGS ───────────────────────────────────────────
+# ─── 105+ NUMBERED ROUTINE GREETINGS ──────────────────────────────────────────
 GREETINGS_NUMBERED = [
     "[01]  > CAT is ready.",
     "[02]  > Welcome back.",
@@ -64,9 +64,64 @@ GREETINGS_NUMBERED = [
     "[48]  > Coffee optional. Code required.",
     "[49]  > No noise. Just code.",
     "[50]  > CAT ready. Your move.",
+    "[51]  > Quantum engine synchronized.",
+    "[52]  > Fasten seatbelts, let's ship.",
+    "[53]  > Neural links calibrated.",
+    "[54]  > Code compilation ready.",
+    "[55]  > Precision mode engaged.",
+    "[56]  > Let's solve the unsolvable.",
+    "[57]  > Deep analysis ready.",
+    "[58]  > Ready to hack and build.",
+    "[59]  > Zero latency, maximum focus.",
+    "[60]  > High-performance terminal.",
+    "[61]  > Ready to debug anything.",
+    "[62]  > Architecture visualized.",
+    "[63]  > Full stack unlocked.",
+    "[64]  > Clean code, zero fluff.",
+    "[65]  > Ready to execute flawlessly.",
+    "[66]  > System diagnostics nominal.",
+    "[67]  > Logic circuits fully primed.",
+    "[68]  > Let's design something epic.",
+    "[69]  > Intelligence running locally.",
+    "[70]  > Speed and precision aligned.",
+    "[71]  > Terminal powered and eager.",
+    "[72]  > Ready to optimize performance.",
+    "[73]  > Workflow accelerated.",
+    "[74]  > CAT intelligence standing by.",
+    "[75]  > Let's craft elegant solutions.",
+    "[76]  > Paws steady on the terminal.",
+    "[77]  > Workspace mapped and indexed.",
+    "[78]  > Ready to crush the backlog.",
+    "[79]  > Bug-hunting radar active.",
+    "[80]  > Autonomous reasoning ready.",
+    "[81]  > Smooth terminal workflow.",
+    "[82]  > Ideas into reality.",
+    "[83]  > Your coding copilot is set.",
+    "[84]  > Ready for rapid prototyping.",
+    "[85]  > Quantum thoughts, fast keys.",
+    "[86]  > Let's streamline your flow.",
+    "[87]  > Code review mode ready.",
+    "[88]  > Complex equations simplified.",
+    "[89]  > Focus sharpened to a point.",
+    "[90]  > Ready to explore new frontiers.",
+    "[91]  > All dependencies resolved.",
+    "[92]  > Lightning-fast execution ready.",
+    "[93]  > Let's refactor with elegance.",
+    "[94]  > Code intelligence active.",
+    "[95]  > Seamless terminal harmony.",
+    "[96]  > Test suite ready to execute.",
+    "[97]  > Ready to build the future.",
+    "[98]  > Full developer powers online.",
+    "[99]  > Always responsive, always ready.",
+    "[100] > One hundred routines strong.",
+    "[101] > Peak performance unlocked.",
+    "[102] > Quantum calculation standing by.",
+    "[103] > Zero warnings, zero errors.",
+    "[104] > Let's ship something great.",
+    "[105] > CAT ready. Time to conquer.",
 ]
 
-# ─── ACTION PHRASES ──────────────────────────────────────────────────────────
+# ─── ACTION PHRASES ─────────────────────────────────────────────────────────
 GREETINGS_ACTION = [
     "> Ready.",
     "> Online.",
@@ -98,9 +153,27 @@ GREETINGS_ACTION = [
     "> System ready.",
     "> All systems go.",
     "> Your move.",
+    "> Fast mode.",
+    "> Hack mode.",
+    "> Quantum mode.",
+    "> Solve mode.",
+    "> Focus mode.",
+    "> Explore mode.",
+    "> Purr mode.",
+    "> Brain surge.",
+    "> Dev mode.",
+    "> AI standing by.",
+    "> Engine primed.",
+    "> Flow engaged.",
+    "> Power online.",
+    "> Rapid build.",
+    "> Surgical debug.",
+    "> Logic verified.",
+    "> Clean workspace.",
+    "> Ready to ship.",
 ]
 
-# ─── FELINE PHRASES ──────────────────────────────────────────────────────────
+# ─── FELINE PHRASES ─────────────────────────────────────────────────────────
 GREETINGS_FELINE = [
     "> *meow* — ready.",
     "> Paws ready.",
@@ -112,11 +185,21 @@ GREETINGS_FELINE = [
     "> 🐾 Ready to debug.",
     "> 🐾 Ready to explore.",
     "> 🐾 Ready to create.",
+    "> *purr* — quantum cat awake.",
+    "> Curious whiskers twitching.",
+    "> Silent paws, loud code.",
+    "> Cat nap over. Time to ship.",
+    "> Warm terminal, purring agent.",
+    "> Sharp claws, sharper logic.",
+    "> 🐾 Paws on the enter key.",
+    "> 🐾 Zero bugs catchable.",
+    "> 🐾 Ready to pounce on bugs.",
+    "> *meow* — let's solve this.",
 ]
 
-# ─── 3D ASCII BLOCK ART GREETINGS ────────────────────────────────────────────
+# ─── 3D ASCII BLOCK ART GREETINGS ───────────────────────────────────────────
 # Handcrafted 3D isometric block typography for greetings (NOT a CAT logo).
-# Width budgeted at 18–27 characters to ensure zero overflow in card columns.
+# Width budgeted at 18–32 characters to ensure zero overflow in card columns.
 GREETING_3D_ART: Dict[str, List[str]] = {
     "READY": [
         "  █▀▀▄ █▀▀ █▀▀█ █▀▀▄ █   █",
@@ -188,6 +271,61 @@ GREETING_3D_ART: Dict[str, List[str]] = {
         "   █ █ █ █  █ █▄▄▀ █ █",
         "   ▀▀ ▀▀ ▀▀▀▀ ▀  ▀ ▀ ▀",
     ],
+    "FAST": [
+        "   █▀▀ █▀▀█ █▀▀ ▀█▀",
+        "   █▀▀ █▄▄█ ▀▀█  █ ",
+        "   ▀   ▀  ▀ ▀▀▀  ▀ ",
+    ],
+    "HACK": [
+        "   █  █ █▀▀█ █▀▀ █ █",
+        "   █▀▀█ █▄▄█ █   █▀▄",
+        "   ▀  ▀ ▀  ▀ ▀▀▀ ▀ ▀",
+    ],
+    "SOLVE": [
+        "   █▀▀ █▀▀█ █   █   █ █▀▀",
+        "   ▀▀█ █  █ █   █ █ █ █▀▀",
+        "   ▀▀▀ ▀▀▀▀ ▀▀▀  ▀ ▀  ▀▀▀",
+    ],
+    "FOCUS": [
+        "   █▀▀ █▀▀█ █▀▀ █ █ █▀▀",
+        "   █▀▀ █  █ █   █ █ ▀▀█",
+        "   ▀   ▀▀▀▀ ▀▀▀ ▀▀▀ ▀▀▀",
+    ],
+    "EXPLORE": [
+        "   █▀▀ █ █ █▀▀█ █   █▀▀█ █▀▀█ █▀▀",
+        "   █▀▀  █  █▄▄█ █   █  █ █▄▄▀ █▀▀",
+        "   ▀▀▀ ▀ ▀ █    ▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀",
+    ],
+    "QUANTUM": [
+        " █▀▀█ █ █ █▀▀█ █▄ █ ▀█▀ █ █ █▄ ▄█",
+        " █ ▀█ █ █ █▄▄█ █ ▀█  █  █ █ █ ▀ █",
+        " ▀▀▀▀ ▀▀▀ ▀  ▀ ▀  ▀  ▀  ▀▀▀ ▀   ▀",
+    ],
+    "PURR": [
+        "   █▀▀█ █ █ █▀▀█ █▀▀█",
+        "   █▄▄█ █ █ █▄▄▀ █▄▄▀",
+        "   ▀    ▀▀▀ ▀  ▀ ▀  ▀",
+    ],
+    "BRAIN": [
+        "   █▀▀▄ █▀▀█ █▀▀█ ▀█▀ █▄ █",
+        "   █▀▀▄ █▄▄▀ █▄▄█  █  █ ▀█",
+        "   ▀▀▀  ▀  ▀ ▀  ▀ ▀▀▀ ▀  ▀",
+    ],
+    "DEV": [
+        "      █▀▀▄ █▀▀ █ █",
+        "      █  █ █▀▀ █ █",
+        "      ▀▀▀  ▀▀▀  ▀ ",
+    ],
+    "SURGE": [
+        "   █▀▀ █ █ █▀▀█ █▀▀█ █▀▀",
+        "   ▀▀█ █ █ █▄▄▀ █ ▄▄ █▀▀",
+        "   ▀▀▀ ▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀",
+    ],
+    "AI": [
+        "        █▀▀█ ▀█▀",
+        "        █▄▄█  █ ",
+        "        ▀  ▀ ▀▀▀",
+    ],
 }
 
 # Backward compatibility alias
@@ -212,9 +350,31 @@ def extract_greeting_keyword(numbered: str, action: str, feline: str) -> str:
     """Selects the matching 3D block greeting keyword based on active messages."""
     for text in (numbered, action, feline):
         t = text.lower()
-        if "ready" in t or "assist" in t or "mission" in t or "task" in t:
+        if "quantum" in t:
+            return "QUANTUM"
+        elif "surge" in t:
+            return "SURGE"
+        elif "fast" in t or "rapid" in t:
+            return "FAST"
+        elif "hack" in t:
+            return "HACK"
+        elif "solve" in t or "unsolvable" in t:
+            return "SOLVE"
+        elif "focus" in t or "sharpen" in t:
+            return "FOCUS"
+        elif "explore" in t or "frontier" in t:
+            return "EXPLORE"
+        elif "purr" in t:
+            return "PURR"
+        elif "brain" in t:
+            return "BRAIN"
+        elif "dev" in t or "ship" in t:
+            return "DEV"
+        elif "ai" in t or "neural" in t or "intelligence" in t:
+            return "AI"
+        elif "ready" in t or "assist" in t or "mission" in t or "task" in t:
             return "READY"
-        elif "online" in t or "brain online" in t or "initialized" in t:
+        elif "online" in t or "initialized" in t:
             return "ONLINE"
         elif "awake" in t:
             return "AWAKE"
@@ -224,7 +384,7 @@ def extract_greeting_keyword(numbered: str, action: str, feline: str) -> str:
             return "BUILD"
         elif "plan" in t:
             return "PLAN"
-        elif "debug" in t:
+        elif "debug" in t or "bug" in t:
             return "DEBUG"
         elif "welcome" in t or "arrived" in t or "here" in t:
             return "HELLO"
@@ -232,13 +392,13 @@ def extract_greeting_keyword(numbered: str, action: str, feline: str) -> str:
             return "START"
         elif "begin" in t:
             return "BEGIN"
-        elif "work" in t or "solve" in t:
+        elif "work" in t:
             return "WORK"
         elif "go" in t or "move" in t:
             return "GO !"
         elif "paws" in t:
             return "PAWS"
-        elif "meow" in t or "purr" in t:
+        elif "meow" in t:
             return "MEOW"
     return "READY"
 
@@ -286,11 +446,10 @@ def get_cat_routine_display(
     text_muted_hex: str = "#a6adc8",
     text_faint_hex: str = "#6c7086",
     mode_key: str | None = None,
+    compact: bool = False,
 ) -> str:
     """Generates rich markup text for the CAT dashboard column."""
     data = get_cat_routine_data(offset=offset)
-    # Render the 3D block greeting typography with active mode accent
-    art = "\n".join(f"[{accent_hex} b]{line}[/]" for line in data["art_lines"])
 
     mode_prefix = ""
     if mode_key:
@@ -307,15 +466,27 @@ def get_cat_routine_display(
                     "research": "Research",
                     "debugger": "Debugger",
                 }.get(mode_key.lower(), m.get("label", mode_key.capitalize()))
-                mode_prefix = f"  [{accent_hex} b]{m_icon} {m_lbl} Mode[/] \u00b7 "
+                mode_prefix = f"  [{accent_hex} b]{m_icon} {m_lbl} Mode[/] · "
         except Exception:
             pass
 
     badge = (
         f"{mode_prefix}[{accent_hex}]⚡[/] [b]{data['period_icon']} Routine {data['time_str']}[/]  "
-        f"\u00b7  [{text_faint_hex}]{data['period_name']}[/]"
+        f"·  [{text_faint_hex}]{data['period_name']}[/]"
     )
     greeting = f"  [{accent_hex} b]{data['numbered']}[/]"
     sub_greeting = f"  [{text_muted_hex}]{data['feline']}[/]"
 
+    if compact:
+        b_txt = f"[b]{data['period_icon']} {data['time_str']}[/]"
+        short_greeting = data['numbered'].split('>', 1)[-1].strip() if '>' in data['numbered'] else data['numbered']
+        if len(short_greeting) > 22:
+            short_greeting = short_greeting[:21].rstrip() + '…'
+        return (
+            f" [{accent_hex} b]/\_/\ [/] {b_txt}\n"
+            f" [{accent_hex} b](o.o)[/] [{accent_hex} b]{short_greeting}[/]"
+        )
+
+    # Render the 3D block greeting typography with active mode accent
+    art = "\n".join(f"[{accent_hex} b]{line}[/]" for line in data["art_lines"])
     return f"{art}\n\n{badge}\n{greeting}\n{sub_greeting}"

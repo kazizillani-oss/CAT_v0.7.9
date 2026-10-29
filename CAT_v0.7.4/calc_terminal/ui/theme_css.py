@@ -310,16 +310,22 @@ Screen { background: $app-background; }
     padding: 1 2;
 }
 
+#cct-conversation.has-dashboard {
+    scrollbar-size-vertical: 0;
+    scrollbar-gutter: auto;
+    overflow-y: hidden;
+    overflow-x: hidden;
+}
+
 .cct-dashboard {
     background: transparent;
     border: none;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: hidden;
     height: auto;
-    min-height: 100%;
-    scrollbar-gutter: stable;
-    scrollbar-size-vertical: 1;
-    scrollbar-color: $border $surface;
+    min-height: 0;
+    padding: 0 1 1 1;
+    scrollbar-size-vertical: 0;
+    scrollbar-gutter: auto;
 }
 
 .cct-dashboard-header {
@@ -503,7 +509,7 @@ Button.cct-dash-action:ansi.-style-flat,
 Screen Button.cct-dash-action {
     height: 3; min-height: 3; max-height: 3;
     padding: 0 1;
-    min-width: 14; max-width: 24; width: 1fr;
+    min-width: 9; max-width: 20; width: auto;
     margin: 0 1;
     color: $text;
     text-style: bold;
@@ -596,6 +602,10 @@ Screen Button.cct-dash-action:disabled {
     border-bottom: tall $accent-shadow;
     border-right: tall $accent-shadow;
     tint: $accent 6%;
+}
+.cct-dash-col Static {
+    text-wrap: nowrap;
+    overflow-x: hidden;
 }
 
 /* Quick-Solve notebook action chips — 3D tactile bevels with visible text */
@@ -1135,7 +1145,13 @@ Button#btn-send.-active,
 Button.cct-stop-btn,
 Button#btn-stop,
 Button#cct-sidebar-collapse-btn,
-Button#cct-chat-sidebar-toggle {
+Button#cct-chat-sidebar-toggle,
+Button.cct-sidebar-project-del,
+Button.cct-sidebar-project-del:ansi.-style-default,
+Button.cct-sidebar-project-del:ansi.-style-flat,
+Button.cct-wshead-close-btn,
+Button.cct-wshead-close-btn:ansi.-style-default,
+Button.cct-wshead-close-btn:ansi.-style-flat {
     offset: 0 0;
     offset-x: 0;
     offset-y: 0;
@@ -1296,6 +1312,37 @@ Button#cct-chat-sidebar-toggle:hover, .cct-chat-nav-btn:hover {
     text-style: bold;
 }
 
+/* v0.7.9.15: DEFAULT 3D chassis for the chat box (StickyComposer).
+   The per-mode chassis below takes over the moment a mode class is
+   set; this uses the same bevel language with the surface tokens so
+   the composer still reads as a raised slab before any mode is
+   active — bright top/left highlight, dark bottom/right shadow, a
+   faint raised tint, and an accent glow on focus. */
+#cct-composer {
+    background: $surface;
+    border: tall;
+    border-top: tall $surface-highlight;
+    border-left: tall $surface-highlight;
+    border-bottom: tall $surface-dark;
+    border-right: tall $surface-dark;
+    tint: transparent;
+    padding: 0 1;
+    margin: 0 1 1 1;
+    transition: border 120ms, tint 120ms, offset 90ms;
+}
+#cct-composer:hover {
+    tint: transparent;
+}
+#cct-composer:focus-within {
+    background: $surface;
+    border: heavy;
+    border-top: heavy $accent-highlight;
+    border-left: heavy $accent-highlight;
+    border-bottom: heavy $surface-dark;
+    border-right: heavy $surface-dark;
+    tint: transparent;
+}
+
 /* AI Mode Dynamic 3D Chassis & Skeuomorphic Accent Theming */
 #cct-composer,
 #cct-composer:focus-within,
@@ -1306,42 +1353,39 @@ Button#cct-chat-sidebar-toggle:hover, .cct-chat-nav-btn:hover {
 #cct-composer.cct-mode-debugger,
 #cct-composer.cct-mode-agent {
     background: $surface;
-    tint: $surface-highlight 3%;
-    margin: 0 1 1 1;
-    padding: 0 1;
 }
 
 #cct-prompt-row {
-    background: $app-background;
-    border: tall;
-    border-top: tall $surface-shadow;
-    border-left: tall $surface-shadow;
-    border-bottom: tall $surface-highlight;
-    border-right: tall $surface-highlight;
+    background: transparent;
+    border: none;
     padding: 0 1;
-    margin-top: 1;
+    margin: 0;
+    height: auto;
+    min-height: 1;
+}
+#cct-prompt-row:focus-within {
+    background: transparent;
+    border: none;
 }
 
 #cct-composer.cct-mode-notebook {
     border: tall;
-    border-top: tall #89b4fa;
-    border-left: tall #89b4fa;
-    border-bottom: tall #1e293b;
-    border-right: tall #1e293b;
+    border-top: tall #b4befe;
+    border-left: tall #b4befe;
+    border-bottom: tall #1e1e2e;
+    border-right: tall #1e1e2e;
+    tint: transparent;
 }
 #cct-composer.cct-mode-notebook:focus-within {
     border: tall;
-    border-top: tall #b4befe;
-    border-left: tall #b4befe;
-    border-bottom: tall #2a3a58;
-    border-right: tall #2a3a58;
+    border-top: tall #cdd6f4;
+    border-left: tall #cdd6f4;
+    border-bottom: tall #313244;
+    border-right: tall #313244;
+    tint: transparent;
 }
 #cct-composer.cct-mode-notebook #cct-prompt-glyph {
     color: #7aa2f7;
-}
-#cct-composer.cct-mode-notebook #cct-prompt-row,
-#cct-composer.cct-mode-notebook #cct-prompt-row:focus-within {
-    border: none;
 }
 #cct-composer.cct-mode-notebook Button#btn-send,
 #cct-composer.cct-mode-notebook Button.cct-icon-send {
@@ -1355,25 +1399,23 @@ Button#cct-chat-sidebar-toggle:hover, .cct-chat-nav-btn:hover {
 }
 
 #cct-composer.cct-mode-research {
-    border: heavy;
-    border-top: heavy #ff85c0;
-    border-left: heavy #ff85c0;
-    border-bottom: heavy #9e366a;
-    border-right: heavy #9e366a;
+    border: tall;
+    border-top: tall #ffb3d9;
+    border-left: tall #ffb3d9;
+    border-bottom: tall #4a0429;
+    border-right: tall #4a0429;
+    tint: transparent;
 }
 #cct-composer.cct-mode-research:focus-within {
-    border: heavy;
-    border-top: heavy #ffb3d9;
-    border-left: heavy #ffb3d9;
-    border-bottom: heavy #b8437d;
-    border-right: heavy #b8437d;
+    border: tall;
+    border-top: tall #ffcce6;
+    border-left: tall #ffcce6;
+    border-bottom: tall #630837;
+    border-right: tall #630837;
+    tint: transparent;
 }
 #cct-composer.cct-mode-research #cct-prompt-glyph {
     color: #ff69b4;
-}
-#cct-composer.cct-mode-research #cct-prompt-row,
-#cct-composer.cct-mode-research #cct-prompt-row:focus-within {
-    border: none;
 }
 #cct-composer.cct-mode-research Button#btn-send,
 #cct-composer.cct-mode-research Button.cct-icon-send {
@@ -1387,25 +1429,23 @@ Button#cct-chat-sidebar-toggle:hover, .cct-chat-nav-btn:hover {
 }
 
 #cct-composer.cct-mode-plan {
-    border: heavy;
-    border-top: heavy #a6e3a1;
-    border-left: heavy #a6e3a1;
-    border-bottom: heavy #567e30;
-    border-right: heavy #567e30;
+    border: tall;
+    border-top: tall #c5f3be;
+    border-left: tall #c5f3be;
+    border-bottom: tall #1e3a1e;
+    border-right: tall #1e3a1e;
+    tint: transparent;
 }
 #cct-composer.cct-mode-plan:focus-within {
-    border: heavy;
-    border-top: heavy #c5f3be;
-    border-left: heavy #c5f3be;
-    border-bottom: heavy #6e9d40;
-    border-right: heavy #6e9d40;
+    border: tall;
+    border-top: tall #d8f8d0;
+    border-left: tall #d8f8d0;
+    border-bottom: tall #2d5a2d;
+    border-right: tall #2d5a2d;
+    tint: transparent;
 }
 #cct-composer.cct-mode-plan #cct-prompt-glyph {
     color: #9ece6a;
-}
-#cct-composer.cct-mode-plan #cct-prompt-row,
-#cct-composer.cct-mode-plan #cct-prompt-row:focus-within {
-    border: none;
 }
 #cct-composer.cct-mode-plan Button#btn-send,
 #cct-composer.cct-mode-plan Button.cct-icon-send {
@@ -1421,16 +1461,18 @@ Button#cct-chat-sidebar-toggle:hover, .cct-chat-nav-btn:hover {
 #cct-composer.cct-mode-build {
     border: tall;
     border-top: tall #ffe082;
-    border-left: tall #ffca28;
-    border-bottom: tall #2b180d;
-    border-right: tall #4a2815;
+    border-left: tall #ffe082;
+    border-bottom: tall #3e2723;
+    border-right: tall #3e2723;
+    tint: transparent;
 }
 #cct-composer.cct-mode-build:focus-within {
     border: tall;
-    border-top: tall #fff9c4;
-    border-left: tall #ffd54f;
-    border-bottom: tall #3e2723;
+    border-top: tall #fff3b0;
+    border-left: tall #fff3b0;
+    border-bottom: tall #5d4037;
     border-right: tall #5d4037;
+    tint: transparent;
 }
 #cct-composer.cct-mode-build #cct-prompt-glyph {
     color: #e0af68;
@@ -1449,16 +1491,18 @@ Button#cct-chat-sidebar-toggle:hover, .cct-chat-nav-btn:hover {
 #cct-composer.cct-mode-debugger {
     border: tall;
     border-top: tall #fca5a5;
-    border-left: tall #f87171;
+    border-left: tall #fca5a5;
     border-bottom: tall #450a0a;
-    border-right: tall #7f1d1d;
+    border-right: tall #450a0a;
+    tint: transparent;
 }
 #cct-composer.cct-mode-debugger:focus-within {
     border: tall;
-    border-top: tall #fee2e2;
-    border-left: tall #fca5a5;
-    border-bottom: tall #591616;
-    border-right: tall #991b1b;
+    border-top: tall #fecaca;
+    border-left: tall #fecaca;
+    border-bottom: tall #630e0e;
+    border-right: tall #630e0e;
+    tint: transparent;
 }
 #cct-composer.cct-mode-debugger #cct-prompt-glyph {
     color: #dc143c;
@@ -1477,16 +1521,18 @@ Button#cct-chat-sidebar-toggle:hover, .cct-chat-nav-btn:hover {
 #cct-composer.cct-mode-agent {
     border: tall;
     border-top: tall #e0caff;
-    border-left: tall #cba6f7;
-    border-bottom: tall #28183e;
-    border-right: tall #432868;
+    border-left: tall #e0caff;
+    border-bottom: tall #2a1b4e;
+    border-right: tall #2a1b4e;
+    tint: transparent;
 }
 #cct-composer.cct-mode-agent:focus-within {
     border: tall;
-    border-top: tall #f3e8ff;
-    border-left: tall #e0caff;
-    border-bottom: tall #3b2060;
-    border-right: tall #58338a;
+    border-top: tall #f0e6ff;
+    border-left: tall #f0e6ff;
+    border-bottom: tall #3e2870;
+    border-right: tall #3e2870;
+    tint: transparent;
 }
 #cct-composer.cct-mode-agent #cct-prompt-glyph {
     color: #bb9af7;
@@ -1732,11 +1778,98 @@ Screen.cust-btn-shape-pill Button.cct-dash-action, Screen.cust-btn-shape-square 
 Screen.cust-btn-shape-ghost Button.cct-dash-action, Screen.cust-btn-shape-outlined Button.cct-dash-action,
 Screen.cust-btn-shape-filled Button.cct-dash-action, Screen.cust-btn-shape-minimal Button.cct-dash-action,
 Button#cct-open-folder-btn, Screen Button#cct-open-folder-btn {
+    height: 3; min-height: 3; max-height: 3;
+    content-align: center middle;
+}
+Button#cct-open-folder-btn, Screen Button#cct-open-folder-btn {
     border: tall;
     border-top: tall $surface-highlight;
     border-left: tall $surface-highlight;
     border-bottom: tall $surface-dark;
     border-right: tall $surface-dark;
+}
+
+/* Sleek 1-row Workspace and Sidebar Close Buttons */
+Button.cct-sidebar-project-del,
+Button.cct-sidebar-project-del:ansi.-style-default,
+Button.cct-sidebar-project-del:ansi.-style-flat,
+Button.cct-wshead-close-btn,
+Button.cct-wshead-close-btn:ansi.-style-default,
+Button.cct-wshead-close-btn:ansi.-style-flat {
+    width: 3; min-width: 3; max-width: 3;
+    height: 1; min-height: 1; max-height: 1;
+    padding: 0; margin: 0;
+    border: none; background: transparent; color: $text-muted;
+    content-align: center middle; text-align: center;
+    offset: 0 0;
+    transition: color 100ms, background 100ms;
+}
+Button.cct-sidebar-project-del:hover,
+Button.cct-wshead-close-btn:hover {
+    color: #ff5555; background: rgba(255, 85, 85, 0.2);
+    border: none; text-style: bold;
+}
+Button.cct-sidebar-project-del:focus,
+Button.cct-wshead-close-btn:focus {
+    color: #ff5555; background: rgba(255, 85, 85, 0.15);
+    border: none;
+}
+Button.cct-sidebar-project-del.-active,
+Button.cct-wshead-close-btn.-active {
+    color: #ffffff; background: #ff5555;
+    border: none;
+}
+.cct-wshead-row {
+    width: 100%; height: 1; layout: horizontal;
+}
+.cct-wshead-name {
+    width: 1fr; height: 1; text-style: bold; color: $text;
+}
+
+/* 3D Elevated Command Palette */
+#cct-cmdpalette {
+    background: $surface-alt;
+    border: tall;
+    border-top: tall $surface-highlight;
+    border-left: tall $surface-highlight;
+    border-bottom: tall $surface-dark;
+    border-right: tall $surface-dark;
+    tint: $surface-highlight 4%;
+    margin-left: 2;
+    margin-right: 2;
+    margin-top: 1;
+    margin-bottom: 1;
+    width: 1fr;
+    max-height: 8;
+    height: auto;
+    display: none;
+    padding: 0 1;
+    scrollbar-size: 1 1;
+    scrollbar-gutter: stable;
+    scrollbar-color: $accent $surface-dark;
+    scrollbar-color-hover: $accent-highlight $surface-dark;
+    scrollbar-color-active: $accent $surface-dark;
+}
+#cct-cmdpalette.open { display: block; }
+.cct-cmd-row {
+    height: 1; min-height: 1; max-height: 1;
+    padding: 0 1; color: $text-muted; width: 1fr;
+    border-left: thick transparent;
+    border-right: thick transparent;
+    transition: background 60ms, color 60ms, border-left 60ms;
+}
+.cct-cmd-row:hover {
+    background: $surface-highlight 25%; color: #ffffff;
+    border-left: thick $surface-highlight;
+    border-right: thick $surface-dark;
+}
+.cct-cmd-row-selected {
+    background: $surface-alt;
+    tint: $accent 15%;
+    color: #ffffff;
+    border-left: thick $accent;
+    border-right: thick $surface-dark;
+    text-style: bold;
 }
 
 /* ====================================================================

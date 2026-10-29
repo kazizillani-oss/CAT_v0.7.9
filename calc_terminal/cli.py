@@ -1577,6 +1577,19 @@ def main(argv=None):
                 _projects_mod.record_opened(expanded)
         except Exception:
             pass
+    else:
+        # When launched without an explicit folder argument, the present
+        # directory where the terminal is opened (os.getcwd()) is the active workspace.
+        try:
+            from . import workspace as _ws_paths
+            from . import projects as _projects_mod
+            cwd = os.path.abspath(os.getcwd())
+            if (os.path.isdir(cwd)
+                    and not _ws_paths.path_is_protected(cwd)
+                    and not _ws_paths.path_is_app_tree(cwd)):
+                _ws_paths.set_active_project(cwd)
+        except Exception:
+            pass
 
     # First-run detection: on the very first launch only, prepare the
     # application-data directory and run model.py's one-time
@@ -1924,4 +1937,4 @@ def _log_startup_failure(what, detail):
 _launch = bootstrap
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main())

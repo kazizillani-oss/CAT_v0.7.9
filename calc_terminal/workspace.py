@@ -339,6 +339,8 @@ def path_is_app_tree(path):
         return False
     parts = [p for p in norm.split("/") if p]
     joined = "/" + "/".join(parts) + "/"
+    if "/calc_terminal/" in joined and any(m in joined for m in ("lib/", "site-packages/", "dist-packages/", "programs/cat/")):
+        return True
     for marker in _APP_TREE_MARKERS:
         token = "/" + marker.strip("/") + "/"
         if token in joined:
@@ -590,33 +592,16 @@ def _vscode_workspace(cwd):
 
 def detect_workspace(cwd=None):
     """Automatic workspace detection (spec section 1) — returns the
-    first valid workspace path in this priority order, or None:
+    first valid workspace path in this priority order:
 
-      1. the current terminal working directory (when it isn't CCT's
-         own app folder — a project-looking cwd is the workspace);
-      2. the VS Code workspace (.code-workspace file / .vscode marker);
-      3. the git repository root;
-      4. the directory CCT was launched from;
-      5. the last opened workspace (projects.last_opened()).
+      1. the current terminal working directory (cwd) when valid and not app tree;
+      2. the VS Code workspace (.code-workspace file / .vscode marker) or git root for cwd;
+      3. fallback to genuine recent projects (projects.last_opened()) only when cwd is blocked;
+      4. user home directory fallback (~).
 
-    Pure function: never mutates state, never writes files. Callers
-    decide what to do with the result.
-
-    v0.7.9.0 fix: candidates inside protected system roots
-    (C:\\Windows, C:\\Program Files, ...) are skipped entirely —
-    launching `cat` from PowerShell's default C:\\WINDOWS\\System32 used
-    to adopt System32 as the workspace (and even record it into recent
-    history), which then crashed generated-file creation with
-    PermissionError.
-
-    v0.7.9.15 fix (wrong workspace on launch): candidates that belong
-    to the CAT installation itself — the copied program directory
-    (AppData\\Local\\Programs\\CAT), the installed calc_terminal package
-    folder, the pip Scripts/bin dir the launcher lives in — are now
-    refused in EVERY candidate slot, including the cwd slot (a
-    shortcut/admin launch houses the process in the install folder)
-    and the old "launch directory" candidate."""
+    Pure function: never mutates state, never writes files."""
     cwd = os.path.abspath(cwd or os.getcwd())
+    home = os.path.abspath(os.path.expanduser("~"))
     app_dir = app_directory()
     try:
         def _protected(path):
@@ -627,49 +612,43 @@ def detect_workspace(cwd=None):
                     return True
             return False
 
-        candidates = []
-        # 1 — cwd itself, unless it IS the app, the CAT install tree /
-        #     launcher's own folder, or a protected system dir.
-        if cwd != app_dir and not _protected(cwd) and not _is_launcher_dir(cwd):
-            candidates.append(cwd)
-        # 2 — VS Code workspace.
-        vsc = _vscode_workspace(cwd)
-        if vsc and vsc not in candidates:
-            candidates.append(vsc)
-        # 3 — git root.
-        gr = git_root(cwd)
-        if gr and gr not in candidates:
-            candidates.append(gr)
-        # 4 — launch directory (when it differs from cwd and isn't the
-        #     app folder or CAT's own install/launcher dir — a shortcut
-        #     launch's argv[0] folder is the install folder, and
-        #     adopting it here is exactly what recorded the junk
-        #     'calc_terminal' recent entry that made the next launch
-        #     auto-open the wrong workspace).
-        try:
-            launch = os.path.abspath(os.path.dirname(sys.argv[0]) or cwd)
-            if (launch != cwd and launch != app_dir
-                    and launch not in candidates
-                    and not _protected(launch)
-                    and not _is_launcher_dir(launch)):
-                candidates.append(launch)
-        except Exception:
-            pass
-        # 5 — last opened workspace (real recordings only — never the
-        #     installation itself).
+        def _acceptable(path):
+            if not path or not os.path.isdir(path):
+                return False
+            if _protected(path) or _is_launcher_dir(path) or path_is_app_tree(path):
+                return False
+            base = os.path.basename(str(path).rstrip("\\/")).lower()
+            if base in ("calc_terminal", "cct") and path_is_app_tree(path):
+                return False
+            return True
+
+        # 1 — When launched from ANY directory (e.g. Downloads, Documents, project repo, or user profile),
+        # that present terminal working directory ALWAYS takes top priority!
+        if _acceptable(cwd):
+            vsc = _vscode_workspace(cwd)
+            if _acceptable(vsc) and _norm_ci(vsc) != _norm_ci(home):
+                return os.path.abspath(vsc)
+
+            gr = git_root(cwd)
+            if _acceptable(gr) and _norm_ci(gr) != _norm_ci(home):
+                return os.path.abspath(gr)
+
+            return os.path.abspath(cwd)
+
+        # 2 — When launched from a blocked system root (e.g. C:\\Windows\\System32) or launcher dir, fallback to recent projects
         try:
             from . import projects
             last = projects.last_opened()
-            if (last and last not in candidates
-                    and not _protected(last)
-                    and not path_is_app_tree(last)):
-                candidates.append(last)
+            if _acceptable(last) and _norm_ci(last) != _norm_ci(home):
+                return os.path.abspath(last)
+            for rec in projects.recent():
+                if _acceptable(rec) and _norm_ci(rec) != _norm_ci(home):
+                    return os.path.abspath(rec)
         except Exception:
             pass
-        for path in candidates:
-            if (os.path.isdir(path) and not _protected(path)
-                    and not path_is_app_tree(path)):
-                return os.path.abspath(path)
+
+        if _acceptable(home):
+            return home
     except Exception:
         pass
     return None

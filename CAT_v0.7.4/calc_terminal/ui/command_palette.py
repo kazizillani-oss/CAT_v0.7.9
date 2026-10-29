@@ -117,7 +117,7 @@ if TEXTUAL_AVAILABLE:
             for i, (item, desc) in enumerate(self._matches):
                 is_sel = (i == self._selected)
                 classes = "cct-cmd-row" + (" cct-cmd-row-selected" if is_sel else "")
-                bar = f"[{accent} b]\u25ae[/] " if is_sel else "  "
+                bar = f"[{accent} b]▶[/] " if is_sel else "  "
                 if item.startswith("/"):
                     color = category_color(item)
                     cmd_label = f"{item:<12}" if len(item) < 12 else f"{item} "

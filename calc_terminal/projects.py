@@ -80,6 +80,10 @@ def record_opened(path):
     (label/favorite/collapsed) on the entry is preserved across
     reopens."""
     path = _norm(path)
+    home = _norm(os.path.expanduser("~"))
+    if path.lower() == home.lower():
+        # Never record bare user profile as a project
+        return _load()
     data = _load()
     old = _get_entry(data, path)
     meta = {}
@@ -156,13 +160,21 @@ def forget_protected():
         from . import workspace as _ws
         data = _load()
         before = (len(data["recent"]), len(data["pinned"]))
+        home = _norm(os.path.expanduser("~")).lower()
         data["recent"] = [r for r in data["recent"]
                           if not _ws.path_is_protected(r.get("path", ""))
-                          and not _ws.path_is_app_tree(r.get("path", ""))]
+                          and not _ws.path_is_app_tree(r.get("path", ""))
+                          and _norm(r.get("path", "")).lower() != home
+                          and os.path.basename(str(r.get("path", "")).rstrip("\\/")).lower() not in ("calc_terminal", "cct")]
         data["pinned"] = [p for p in data["pinned"]
                           if not _ws.path_is_protected(
                               p.get("path", "") if isinstance(p, dict)
-                              else str(p))]
+                              else str(p))
+                          and not _ws.path_is_app_tree(
+                              p.get("path", "") if isinstance(p, dict)
+                              else str(p))
+                          and _norm(p.get("path", "") if isinstance(p, dict) else str(p)).lower() != home
+                          and os.path.basename(str(p.get("path", "") if isinstance(p, dict) else str(p)).rstrip("\\/")).lower() not in ("calc_terminal", "cct")]
         if (len(data["recent"]), len(data["pinned"])) != before:
             _save(data)
     except Exception:
@@ -170,7 +182,13 @@ def forget_protected():
 
 
 def recent():
-    return [r["path"] for r in _load()["recent"]]
+    home = _norm(os.path.expanduser("~")).lower()
+    rec = []
+    for r in _load()["recent"]:
+        p = r.get("path", "")
+        if p and _norm(p).lower() != home and os.path.basename(str(p).rstrip("\\/")).lower() not in ("calc_terminal", "cct"):
+            rec.append(p)
+    return rec
 
 
 def pinned():
@@ -268,27 +286,30 @@ def workspaces():
     data = _load()
     by_path = {}
     for r in data["recent"]:
-        by_path[r["path"]] = {
-            "path": r["path"],
-            "label": r.get("label") or os.path.basename(r["path"].rstrip(os.sep)) or r["path"],
-            "favorite": bool(r.get("favorite")),
-            "collapsed": bool(r.get("collapsed")),
-            "opened_at": r.get("opened_at", 0),
-            "pinned": False,
-        }
-    for p in data["pinned"]:
-        p = _norm(p)
-        if p in by_path:
-            by_path[p]["pinned"] = True
-        else:
+        p = r.get("path")
+        if p and os.path.basename(str(p).rstrip("\\/")).lower() not in ("calc_terminal", "cct"):
             by_path[p] = {
                 "path": p,
-                "label": os.path.basename(p.rstrip(os.sep)) or p,
-                "favorite": False,
-                "collapsed": False,
-                "opened_at": 0,
-                "pinned": True,
+                "label": r.get("label") or os.path.basename(p.rstrip(os.sep)) or p,
+                "favorite": bool(r.get("favorite")),
+                "collapsed": bool(r.get("collapsed")),
+                "opened_at": r.get("opened_at", 0),
+                "pinned": False,
             }
+    for p in data["pinned"]:
+        p = _norm(p)
+        if p and os.path.basename(str(p).rstrip("\\/")).lower() not in ("calc_terminal", "cct"):
+            if p in by_path:
+                by_path[p]["pinned"] = True
+            else:
+                by_path[p] = {
+                    "path": p,
+                    "label": os.path.basename(p.rstrip(os.sep)) or p,
+                    "favorite": False,
+                    "collapsed": False,
+                    "opened_at": 0,
+                    "pinned": True,
+                }
     ordered = sorted(by_path.values(),
                      key=lambda w: (not w["pinned"], -w.get("opened_at", 0)))
     return ordered
@@ -296,8 +317,8 @@ def workspaces():
 
 def last_opened():
     """The most recently opened workspace path, or None."""
-    r = _load()["recent"]
-    return r[0]["path"] if r else None
+    rec = recent()
+    return rec[0] if rec else None
 
 
 def search(query):

@@ -212,10 +212,12 @@ if TEXTUAL_AVAILABLE:
                 child.remove()
             for i, (item, desc) in enumerate(self._matches):
                 classes = "cct-cmd-row" + (" cct-cmd-row-selected" if i == self._selected else "")
+                marker = "▶ " if i == self._selected else "  "
                 if item.startswith("/"):
-                    self.mount(Static(f"[{accent} b]{item}[/]  [dim]{desc}[/dim]", classes=classes))
+                    cmd_pad = f"{item:<14}"
+                    self.mount(Static(f"{marker}[{accent} b]{cmd_pad}[/]  [dim]{desc}[/dim]", classes=classes))
                 else:
-                    self.mount(Static(f"[{accent}]\u2726[/] {item}  [dim]{desc}[/dim]", classes=classes))
+                    self.mount(Static(f"{marker}[{accent}]\u2726[/] {item}  [dim]{desc}[/dim]", classes=classes))
 
 else:
     CommandPalette = None

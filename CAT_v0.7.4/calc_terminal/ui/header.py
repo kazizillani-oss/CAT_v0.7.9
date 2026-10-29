@@ -68,7 +68,7 @@ _MODE_DESCRIPTIONS = {
 _MODE_TONE = {"ask": "text", "restricted": "warning", "full": "success"}
 
 # Permission mode icons for the selector
-_MODE_ICONS = {"ask": "\U0001f510", "restricted": "\U0001f6e1", "full": "\u26a1"}
+_MODE_ICONS = {"ask": "🕘", "restricted": "\U0001f6e1", "full": "\u26a1"}
 
 # NavPanel items: (action id, icon, label). v0.7.8.1 cleanup: "New
 # Workspace" / "Save Workspace" / "Close Workspace" are gone — opening a
@@ -565,7 +565,7 @@ if TEXTUAL_AVAILABLE:
             color = theme_css.current_hex(_MODE_TONE[self.mode])
             faint = theme_css.current_hex("text-faint")
             plain_label = perm.manager.plain_mode_label(self.mode)
-            icon = {"ask": "\U0001f512", "restricted": "\U0001f7e1", "full": "\u26a1"}.get(self.mode, "\u25cf")
+            icon = {"ask": "🕘", "restricted": "🟡", "full": "⚡"}.get(self.mode, "🕘")
             desc = _MODE_DESCRIPTIONS[self.mode]
             check = " \u2713" if self.mode == perm.manager.mode else ""
             self.update(f"[{color} b]{icon} {plain_label}{check}[/]\n  [{faint}]{desc}[/]")
@@ -669,7 +669,7 @@ if TEXTUAL_AVAILABLE:
 
         def compose(self):
             with Vertical(id="cct-permmenu-box"):
-                yield Static("\U0001f510 Access", classes="cct-permmenu-title")
+                yield Static("🕘 Access & Permissions", classes="cct-permmenu-title")
                 for i, mode in enumerate(_MODE_ORDER):
                     yield _PermMenuRow(mode, i)
 
@@ -832,7 +832,7 @@ if TEXTUAL_AVAILABLE:
             is_compact = getattr(self, "_compact", False)
             mode = perm.manager.mode
             color = theme_css.current_hex(_MODE_TONE[mode])
-            icon = {"ask": "\U0001f512", "restricted": "\U0001f7e1", "full": "\u26a1"}.get(mode, "\u25cf")
+            icon = {"ask": "🕘", "restricted": "🟡", "full": "⚡"}.get(mode, "🕘")
             if is_compact:
                 self.update(f"{icon}")
             else:
@@ -1013,29 +1013,22 @@ if TEXTUAL_AVAILABLE:
             reported. Guarded here: no change, no update() call, no
             repaint. The first call still renders unconditionally."""
             from . import theme_css
-            new_text = workspace_path or "No workspace open"
+            new_text = workspace_path
+            if not new_text or new_text == "No workspace open":
+                try:
+                    from .. import workspace as _ws
+                    new_text = getattr(self.app, "_workspace_root", None) or _ws.active_project() or "No workspace open"
+                except Exception:
+                    new_text = getattr(self.app, "_workspace_root", None) or "No workspace open"
+            if not new_text or os.path.basename(str(new_text).rstrip("\\/")).lower() in ("calc_terminal", "cct"):
+                new_text = "No workspace open"
             if new_text == self._workspace_path:
                 return
             self._workspace_path = new_text
             accent = theme_css.current_hex("accent")
             faint = theme_css.current_hex("text-faint")
             # Extract just the folder name for compact display
-            short_name = os.path.basename(new_text) if new_text and new_text != "No workspace open" else "No workspace"
-            if short_name.lower() in ("calc_terminal", "cat_v0.7.4", "cat_v0.7.9"):
-                try:
-                    from .. import projects
-                    last = projects.last_opened()
-                    if last and os.path.basename(last).lower() not in ("calc_terminal", "cat_v0.7.4", "cat_v0.7.9"):
-                        short_name = os.path.basename(last.rstrip(os.sep))
-                        new_text = last
-                    else:
-                        home_dir = os.path.expanduser("~")
-                        short_name = os.path.basename(home_dir.rstrip(os.sep)) or "Workspace"
-                        new_text = home_dir
-                except Exception:
-                    home_dir = os.path.expanduser("~")
-                    short_name = os.path.basename(home_dir.rstrip(os.sep)) or "Workspace"
-                    new_text = home_dir
+            short_name = os.path.basename(str(new_text).rstrip("\\/")) if new_text and new_text != "No workspace open" else "No workspace"
             # Workspace indicator: 📁 prefix + short name, with full path as tooltip
             display = f"[{accent}]\U0001f4c1[/] [b]{short_name}[/b]"
             try:

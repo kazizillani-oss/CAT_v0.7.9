@@ -1349,7 +1349,8 @@ if TEXTUAL_AVAILABLE:
                 self.post_message(MessageContextAction(f"retry:{mode}", self._bubble.turn_id))
 
     class ConversationView(VerticalScroll):
-        """The ONLY scrollable region in the primary UI. Mounts once per
+        """The ONLY scrollable region in the primary UI.
+        can_focus = True Mounts once per
         session and only ever appends — never re-renders the whole list.
         Streaming mutates the one active ConversationItem in place
         (`append_chunk`), not the view around it."""
@@ -1378,7 +1379,7 @@ if TEXTUAL_AVAILABLE:
 
         def on_click(self, event) -> None:
             # Clicking empty chat area or conversation view focuses composer input
-            # unless clicking an interactive control like a button or scrollbar
+            # unless clicking an interactive control like a button or scrollbar.
             target = getattr(event, "widget", None)
             if target is not None:
                 from textual.widgets import Button
@@ -1396,7 +1397,9 @@ if TEXTUAL_AVAILABLE:
                         return
             try:
                 from .composer import ComposerInput
-                self.app.query_one("#cct-input", ComposerInput).focus()
+                editor = self.app.query_one("#cct-input", ComposerInput)
+                if not editor.has_focus:
+                    editor.focus()
             except Exception:
                 pass
 
@@ -1404,7 +1407,23 @@ if TEXTUAL_AVAILABLE:
             # Let navigation/scrolling keys scroll the conversation view normally
             key = getattr(event, "key", "") or ""
             char = getattr(event, "character", None)
-            if key in ("up", "down", "left", "right", "pageup", "pagedown", "home", "end", "tab", "escape", "ctrl+c"):
+            if key == "up":
+                self.scroll_relative(y=-2, animate=False)
+                event.stop()
+                return
+            elif key == "down":
+                self.scroll_relative(y=2, animate=False)
+                event.stop()
+                return
+            elif key in ("pageup", "page_up"):
+                self.scroll_page_up(animate=False)
+                event.stop()
+                return
+            elif key in ("pagedown", "page_down"):
+                self.scroll_page_down(animate=False)
+                event.stop()
+                return
+            elif key in ("left", "right", "home", "end", "tab", "escape", "ctrl+c"):
                 return
             # Printable character, slash command, or backspace: route immediately to composer input!
             if char or (len(key) == 1 and key.isprintable()) or key in ("slash", "backspace"):
@@ -1434,6 +1453,14 @@ if TEXTUAL_AVAILABLE:
                 self._welcome.remove()
                 self._welcome = None
             self._dashboard = None
+            self.remove_class("has-dashboard")
+            try:
+                self.styles.scrollbar_size_vertical = 1
+                self.styles.scrollbar_gutter = "stable"
+                self.styles.overflow_y = "auto"
+                self.styles.overflow_x = "hidden"
+            except Exception:
+                pass
 
         def show_dashboard(self, dashboard_widget):
             """spec v0.7 Welcome Dashboard: mounted the same way
@@ -1445,6 +1472,19 @@ if TEXTUAL_AVAILABLE:
             self.hide_welcome()
             self._welcome = dashboard_widget
             self.mount(self._welcome)
+            self.add_class("has-dashboard")
+            try:
+                self.styles.scrollbar_size_vertical = 0
+                self.styles.scrollbar_gutter = "auto"
+                self.styles.overflow_y = "hidden"
+                self.styles.overflow_x = "hidden"
+            except Exception:
+                pass
+            if hasattr(dashboard_widget, "fit_to_viewport"):
+                try:
+                    dashboard_widget.fit_to_viewport()
+                except Exception:
+                    pass
             # v0.7.9.6: the welcome slot is duck-typed (plain WelcomeBanner,
             # CATChatEmptyState, or the richer WelcomeDashboard all land
             # here). Track the dashboard specifically so callers that need

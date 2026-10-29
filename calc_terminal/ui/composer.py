@@ -171,6 +171,16 @@ if TEXTUAL_AVAILABLE:
         to the AttachmentBar as collapsible chips.
         """
 
+        DEFAULT_CSS = """
+        ComposerInput, #cct-input, #cct-input:focus, ComposerInput:focus {
+            border: none;
+            background: transparent;
+            padding: 0;
+            margin: 0;
+            outline: none;
+        }
+        """
+
         def __init__(self, *args, composer_ref=None, **kwargs):
             kwargs.setdefault("placeholder", _INPUT_PLACEHOLDER)
             super().__init__(*args, **kwargs)
@@ -257,6 +267,40 @@ if TEXTUAL_AVAILABLE:
                                 pass
                     return
 
+            # When palette is not active, route arrow/page navigation to conversation scroll
+            if palette is None or not palette.is_open():
+                if not self.text.strip():
+                    if event.key in ("down", "page_down", "pagedown"):
+                        try:
+                            conv = self.app.query_one("#cct-conversation")
+                            if conv is not None and hasattr(conv, "scroll_relative"):
+                                step = 3 if event.key == "down" else 8
+                                conv.scroll_relative(y=step, immediate=True, animate=False)
+                                event.stop()
+                                return
+                        except Exception:
+                            pass
+                    elif event.key in ("up", "page_up", "pageup"):
+                        try:
+                            conv = self.app.query_one("#cct-conversation")
+                            if conv is not None and hasattr(conv, "scroll_relative"):
+                                step = -3 if event.key == "up" else -8
+                                conv.scroll_relative(y=step, immediate=True, animate=False)
+                                event.stop()
+                                return
+                        except Exception:
+                            pass
+                elif event.key in ("pageup", "pagedown", "ctrl+up", "ctrl+down"):
+                    try:
+                        conv = self.app.query_one("#cct-conversation")
+                        if conv is not None and hasattr(conv, "scroll_relative"):
+                            step = -8 if "up" in event.key else 8
+                            conv.scroll_relative(y=step, immediate=True, animate=False)
+                            event.stop()
+                            return
+                    except Exception:
+                        pass
+
             if event.key == "escape" and self._composer is not None:
                 try:
                     from .permission_panel import PermissionsSettingsPanel
@@ -271,6 +315,20 @@ if TEXTUAL_AVAILABLE:
                         return
                 except Exception:
                     pass
+
+            if event.key in ("pageup", "pagedown", "ctrl+up", "ctrl+down", "shift+pageup", "shift+pagedown"):
+                if self.app:
+                    try:
+                        conv = self.app.query_one("#cct-conversation")
+                        if conv:
+                            if "up" in event.key:
+                                conv.scroll_relative(y=-4, animate=False)
+                            else:
+                                conv.scroll_relative(y=4, animate=False)
+                            event.stop()
+                            return
+                    except Exception:
+                        pass
 
             if event.key == "alt+a":
                 event.stop()
@@ -618,7 +676,7 @@ if TEXTUAL_AVAILABLE:
                         editor = self.query_one("#cct-input", ComposerInput)
                         stack = self.query_one("#cct-editor-stack", Container)
                         row = self.query_one("#cct-prompt-row")
-                        line_count = max(2, min(5, editor.text.count("\n") + 1))
+                        line_count = max(1, min(5, editor.text.count("\n") + 1))
                         editor.styles.height = line_count
                         stack.styles.height = line_count
                         row.styles.height = "auto"
@@ -631,7 +689,7 @@ if TEXTUAL_AVAILABLE:
                 # math — the explicit height may now reach just over
                 # half the screen height.
                 hi = max(COMPOSER_MIN_HEIGHT + 4,
-                         int(self.screen.size.height * 0.55) - 2)
+                         min(int(self.screen.size.height * 0.60), 20))
                 height = max(COMPOSER_MIN_HEIGHT, min(hi, int(height)))
                 self._explicit_height = height
                 self.styles.height = height
@@ -661,7 +719,7 @@ if TEXTUAL_AVAILABLE:
 
         def _apply_compact_height(self):
             try:
-                short = self.screen.size.height <= 20
+                short = self.screen.size.height <= 26
                 try:
                     hints = self.query_one("#cct-kbhints", Static)
                     hints.display = not short
@@ -1074,7 +1132,9 @@ if TEXTUAL_AVAILABLE:
                 except Exception:
                     pass
             try:
-                self.query_one("#cct-input", ComposerInput).focus()
+                editor = self.query_one("#cct-input", ComposerInput)
+                if target != editor and not editor.has_focus:
+                    editor.focus()
             except Exception:
                 pass
 
@@ -1098,7 +1158,9 @@ if TEXTUAL_AVAILABLE:
                 except Exception:
                     pass
             try:
-                self.query_one("#cct-input", ComposerInput).focus()
+                editor = self.query_one("#cct-input", ComposerInput)
+                if target != editor and not editor.has_focus:
+                    editor.focus()
             except Exception:
                 pass
 
