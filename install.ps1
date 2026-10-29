@@ -249,6 +249,46 @@ function Find-Python {
     return $null
 }
 
+function Test-PypiSsl {
+    param([hashtable]$Py)
+    # Reuses Python's OpenSSL stack (same verification path as pip) against PyPI.
+    & $Py.Executable -c "import urllib.request; urllib.request.urlopen('https://pypi.org/simple/', timeout=10)" 2>$null
+    return ($LASTEXITCODE -eq 0)
+}
+
+function Repair-SslCertificates {
+    param([hashtable]$Py)
+    # Self-heal for machines where pip fails with:
+    #   SSL: CERTIFICATE_VERIFY_FAILED - unable to get local issuer certificate
+    # Causes: missing CA bundle, or corporate/school networks (Zscaler, Netscope,
+    # Kaspersky, Sophos) that re-sign HTTPS traffic with their own root CA.
+    if (Test-PypiSsl -Py $Py) { return $true }
+
+    Write-Host '      WARNING: Python cannot verify the pypi.org SSL certificate (CERTIFICATE_VERIFY_FAILED).' -ForegroundColor DarkYellow
+    Write-Host '      Repairing CA certificates automatically...' -ForegroundColor DarkYellow
+
+    # Bootstrap the certifi CA bundle over explicitly trusted index hosts.
+    # Only this single bootstrap call skips TLS verification; every later
+    # pip call in this session verifies against the freshly imported bundle.
+    & $Py.Executable -m pip install --user --quiet certifi --trusted-host pypi.org --trusted-host files.pythonhosted.org --trusted-host pypi.python.org 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        # Retry without --user (some environments disable user site-packages).
+        & $Py.Executable -m pip install --quiet certifi --trusted-host pypi.org --trusted-host files.pythonhosted.org --trusted-host pypi.python.org 2>&1 | Out-Null
+    }
+    $certPath = & $Py.Executable -c "import certifi; print(certifi.where())" 2>$null
+    if ($LASTEXITCODE -eq 0 -and $certPath) {
+        $certPath = $certPath.Trim()
+        if ($certPath) {
+            # Point Python and requests-based code at the full bundle for this session.
+            $env:SSL_CERT_FILE = $certPath
+            $env:REQUESTS_CA_BUNDLE = $certPath
+            Write-Host ('      Using certifi CA bundle: ' + $certPath) -ForegroundColor Green
+            Write-Host '      NOTE: To make this permanent, set the SSL_CERT_FILE user environment variable to that path.' -ForegroundColor DarkGray
+        }
+    }
+    return (Test-PypiSsl -Py $Py)
+}
+
 function Copy-CleanModules([string]$source, [string]$destination) {
     if (-not (Test-Path $destination)) {
         New-Item -ItemType Directory -Path $destination -Force | Out-Null
@@ -295,6 +335,17 @@ function Install-Cat {
         exit 1
     }
     Write-Host ('      Found Python ' + $py.Version + ' at: ' + $py.Executable) -ForegroundColor Green
+
+    # SSL self-heal: repair CA trust so pip never dies with CERTIFICATE_VERIFY_FAILED
+    $trustedArgs = @()
+    if (-not (Test-PypiSsl -Py $py)) {
+        if (Repair-SslCertificates -Py $py) {
+            Write-Host '      PyPI SSL trust repaired successfully.' -ForegroundColor Green
+        } else {
+            Write-Host '      Falling back to unverified TLS for pypi.org / files.pythonhosted.org only.' -ForegroundColor DarkYellow
+            $trustedArgs = @('--trusted-host', 'pypi.org', '--trusted-host', 'files.pythonhosted.org', '--trusted-host', 'pypi.python.org')
+        }
+    }
 
     # Step 2: Device & Local AI Model Compatibility
     Write-Host '[2/6] Inspecting device hardware & AI acceleration capabilities...' -ForegroundColor Yellow
@@ -349,7 +400,7 @@ function Install-Cat {
 
         # Fast package registration
         try {
-            & $py.Executable -m pip install -e "$repoRoot" --no-deps --no-build-isolation --no-warn-script-location 2>&1 | Out-Null
+            & $py.Executable -m pip install -e "$repoRoot" --no-deps --no-build-isolation --no-warn-script-location @trustedArgs 2>&1 | Out-Null
             if ($LASTEXITCODE -eq 0) {
                 Write-Host '      Installed cct-cli package via pip successfully.' -ForegroundColor Green
             }
@@ -361,7 +412,7 @@ function Install-Cat {
         Write-Host '      Installing cct-cli package into Python environment...' -ForegroundColor DarkGray
         $pipSuccess = $false
         try {
-            & $py.Executable -m pip install --upgrade --pre cct-cli 2>&1 | Out-Null
+            & $py.Executable -m pip install --upgrade --pre cct-cli @trustedArgs 2>&1 | Out-Null
             if ($LASTEXITCODE -eq 0) {
                 $pipSuccess = $true
                 Write-Host '      Installed cct-cli from PyPI successfully.' -ForegroundColor Green
@@ -371,7 +422,7 @@ function Install-Cat {
         if (-not $pipSuccess) {
             try {
                 Write-Host '      PyPI install failed; trying GitHub repository fallback...' -ForegroundColor DarkYellow
-                & $py.Executable -m pip install --upgrade git+https://github.com/kazizillani-oss/CAT_v0.7.9.git 2>&1 | Out-Null
+                & $py.Executable -m pip install --upgrade @trustedArgs git+https://github.com/kazizillani-oss/CAT_v0.7.9.git 2>&1 | Out-Null
                 if ($LASTEXITCODE -eq 0) {
                     $pipSuccess = $true
                     Write-Host '      Installed latest CAT build from GitHub successfully.' -ForegroundColor Green

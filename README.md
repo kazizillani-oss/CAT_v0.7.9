@@ -47,6 +47,17 @@
 
 CAT is free and open source (MIT) and is distributed across multiple channels. Choose the method that best fits your workflow — `curl`, `brew`, `irm`, `sudo`, PyPI, the Windows installer, or the VS Code extension:
 
+> **⚠️ `pip install` failing with `SSL: CERTIFICATE_VERIFY_FAILED` / "unable to get local issuer certificate"?**
+> That error is a **local machine or network certificate issue** (missing CA bundle on fresh macOS/Linux Pythons, or a corporate/school firewall re-signing HTTPS) — never a problem with the CAT package itself.
+> One-line universal fix, then retry the install:
+>
+> ```bash
+> python -m pip install --upgrade pip --trusted-host pypi.org --trusted-host files.pythonhosted.org
+> ```
+>
+> Per-OS permanent fixes: **[🩺 SSL fix &amp; troubleshooting](#ssl-fix)** below.
+> The CAT one-line installers (`install.sh` / `install.ps1`) detect and auto-repair this automatically.
+
 <picture>
 <img width="480" height="270" alt="Image" src="https://github.com/user-attachments/assets/386f319d-dae9-465b-ae14-91b73e497d91" />
 </picture>
@@ -95,6 +106,55 @@ Notes:
   `pip install "cct-cli[browser]"` (embedded browser), or
   `pip install "cct-cli[all]"` for everything.
 - Requires Python 3.10 or newer (tested on 3.10–3.13).
+
+<a id="ssl-fix"></a>
+
+### 🩺 Troubleshooting: `pip` SSL errors (`CERTIFICATE_VERIFY_FAILED`)
+
+If `pip install` fails with
+`SSL: CERTIFICATE_VERIFY_FAILED ... unable to get local issuer certificate`,
+your Python/pip cannot verify PyPI's HTTPS certificate. This is a **client-side issue on
+that machine/network** — never a problem with the CAT package itself. The usual causes are
+a missing CA bundle (fresh python.org macOS installs, minimal Linux/Docker images) or a
+corporate/school firewall re-signing HTTPS (Zscaler, Netskope, Kaspersky, Sophos).
+
+**Universal quick fix (all platforms)** — refresh pip over explicitly trusted hosts once:
+newer pip (≥ 25.1) validates through your OS trust store and fixes most cases:
+
+```bash
+python -m pip install --upgrade pip --trusted-host pypi.org --trusted-host files.pythonhosted.org
+```
+
+**macOS** — Python installed from python.org ships without CA certificates; run the
+official helper once (replace `3.12` with your installed version):
+
+```bash
+"/Applications/Python 3.12/Install Certificates.command"
+```
+
+**Linux** — install or refresh the system CA store:
+
+```bash
+# Debian / Ubuntu
+sudo apt-get install -y ca-certificates && sudo update-ca-certificates
+# Fedora / RHEL / openSUSE / Arch / Alpine
+sudo dnf install -y ca-certificates || sudo zypper install ca-certificates || sudo pacman -S ca-certificates || sudo apk add ca-certificates
+```
+
+**Windows behind a corporate firewall / antivirus** — the firewall re-signs HTTPS with its
+own root CA. Export that root certificate (ask your IT department) and point pip at it:
+
+```powershell
+pip config set global.cert C:\certs\company-root.pem
+```
+
+**Last resort** (skips TLS verification for the PyPI index hosts only; prefer the fixes above):
+
+```bash
+pip install --pre cct-cli --trusted-host pypi.org --trusted-host files.pythonhosted.org
+```
+
+The CAT one-line installers (`install.sh` / `install.ps1`) run this same repair automatically.
 
 ### Option 2: Windows Installer (Native Windows experience)
 
@@ -235,7 +295,8 @@ For system administrators and multi-user Linux / Unix servers requiring global s
 curl -fsSL https://raw.githubusercontent.com/kazizillani-oss/CAT_v0.7.9/main/install.sh | sudo bash
 
 # Or system-wide via pip with sudo (handling PEP 668 managed environments):
-sudo python3 -m pip install cct-cli --break-system-packages
+# (--pre is required while the latest release is a beta, e.g. 0.8.0b1)
+sudo python3 -m pip install --pre cct-cli --break-system-packages
 
 # 2. Verify global system availability for all users:
 cat --version

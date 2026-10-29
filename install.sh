@@ -53,6 +53,89 @@ fi
 
 echo -e "${GREEN}[OK] Found Python $("$PYTHON_BIN" --version 2>&1) at $(command -v "$PYTHON_BIN")${NC}"
 
+# ---------------------------------------------------------------------------
+# SSL / CA certificate self-heal
+# Some machines ship Python without a usable CA bundle (python.org macOS
+# builds, minimal/Docker Linux images) and corporate or school networks often
+# re-sign HTTPS with their own root certificate. Without repair, pip dies with:
+#   SSL: CERTIFICATE_VERIFY_FAILED - unable to get local issuer certificate
+# ---------------------------------------------------------------------------
+PIP_TRUSTED=""
+
+pypi_ssl_ok() {
+    "$PYTHON_BIN" -c "import urllib.request; urllib.request.urlopen('https://pypi.org/simple/', timeout=10)" >/dev/null 2>&1
+}
+
+fix_ssl_certs() {
+    if pypi_ssl_ok; then
+        echo -e "${GREEN}[OK] SSL trust for pypi.org verified.${NC}"
+        return 0
+    fi
+    echo -e "${RED}[WARN] Python cannot verify the pypi.org SSL certificate (CERTIFICATE_VERIFY_FAILED).${NC}"
+    echo -e "${YELLOW}[FIX ] Repairing CA certificates automatically...${NC}"
+
+    if [ "$(uname)" = "Darwin" ]; then
+        # python.org macOS builds ship the official CA-cert helper; run it once.
+        for CERT_CMD in /Applications/Python*/Install\ Certificates.command; do
+            if [ -f "$CERT_CMD" ]; then
+                echo -e "${DARKCYAN}    Running: $CERT_CMD${NC}"
+                bash "$CERT_CMD" >/dev/null 2>&1 || true
+            fi
+        done
+    else
+        # Linux/Unix: install the system CA store when we have root rights.
+        if [ "$(id -u)" -eq 0 ]; then
+            if command -v apt-get >/dev/null 2>&1; then
+                apt-get install -y ca-certificates >/dev/null 2>&1 || true
+                update-ca-certificates >/dev/null 2>&1 || true
+            elif command -v dnf >/dev/null 2>&1; then
+                dnf install -y ca-certificates >/dev/null 2>&1 || true
+            elif command -v yum >/dev/null 2>&1; then
+                yum install -y ca-certificates >/dev/null 2>&1 || true
+            elif command -v zypper >/dev/null 2>&1; then
+                zypper --non-interactive install ca-certificates >/dev/null 2>&1 || true
+            elif command -v pacman >/dev/null 2>&1; then
+                pacman --noconfirm -S ca-certificates >/dev/null 2>&1 || true
+            elif command -v apk >/dev/null 2>&1; then
+                apk add --no-cache ca-certificates >/dev/null 2>&1 || true
+            fi
+        fi
+    fi
+
+    if ! pypi_ssl_ok; then
+        # Bootstrap the certifi bundle over explicitly trusted index hosts
+        # (only this single bootstrap call skips TLS verification; every later
+        # pip call verifies against the freshly installed bundle).
+        echo -e "${YELLOW}[FIX ] Installing a full CA bundle (certifi) as a fallback...${NC}"
+        BOOT_FLAGS="--quiet"
+        if [ "$(id -u)" -eq 0 ]; then
+            if "$PYTHON_BIN" -m pip install --help 2>&1 | grep -q -- '--break-system-packages'; then
+                BOOT_FLAGS="$BOOT_FLAGS --break-system-packages"
+            fi
+        else
+            BOOT_FLAGS="$BOOT_FLAGS --user"
+        fi
+        "$PYTHON_BIN" -m pip install $BOOT_FLAGS certifi \
+            --trusted-host pypi.org --trusted-host files.pythonhosted.org --trusted-host pypi.python.org >/dev/null 2>&1 || true
+        CERTIFI_PATH=$("$PYTHON_BIN" -c "import certifi; print(certifi.where())" 2>/dev/null || true)
+        if [ -n "$CERTIFI_PATH" ]; then
+            export SSL_CERT_FILE="$CERTIFI_PATH"
+            export REQUESTS_CA_BUNDLE="$CERTIFI_PATH"
+            echo -e "${GREEN}[OK] Using certifi CA bundle: $CERTIFI_PATH${NC}"
+        fi
+    fi
+
+    if ! pypi_ssl_ok; then
+        # Last resort (corporate SSL inspection proxies): complete the install
+        # without TLS verification for the PyPI index hosts only.
+        echo -e "${YELLOW}[WARN] Falling back to unverified TLS for pypi.org / files.pythonhosted.org only.${NC}"
+        echo -e "${YELLOW}       For a permanent fix, add your network's root CA to the system trust store.${NC}"
+        PIP_TRUSTED="--trusted-host pypi.org --trusted-host files.pythonhosted.org --trusted-host pypi.python.org"
+    fi
+}
+
+fix_ssl_certs
+
 # Hardware & Local Model Compatibility Inspection
 echo ""
 echo -e "${DARKCYAN}  ----------------------------------------------------------------${NC}"
@@ -157,10 +240,10 @@ if [ "$IS_ROOT" -eq 1 ]; then
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo "")"
     if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/pyproject.toml" ]; then
         echo -e "${YELLOW}Installing from local repository: $SCRIPT_DIR${NC}"
-        "$PYTHON_BIN" -m pip install $PIP_FLAGS "$SCRIPT_DIR"
+        "$PYTHON_BIN" -m pip install $PIP_FLAGS $PIP_TRUSTED "$SCRIPT_DIR"
     else
         echo -e "${YELLOW}Installing cct-cli via pip...${NC}"
-        "$PYTHON_BIN" -m pip install $PIP_FLAGS --pre cct-cli || "$PYTHON_BIN" -m pip install $PIP_FLAGS git+https://github.com/kazizillani-oss/CAT_v0.7.9.git
+        "$PYTHON_BIN" -m pip install $PIP_FLAGS --pre $PIP_TRUSTED cct-cli || "$PYTHON_BIN" -m pip install $PIP_FLAGS $PIP_TRUSTED git+https://github.com/kazizillani-oss/CAT_v0.7.9.git
     fi
     
     for alias_cmd in catx cct cat-curl cat-brew cat-sudo; do
@@ -176,10 +259,10 @@ else
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo "")"
     if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/pyproject.toml" ]; then
         echo -e "${YELLOW}Installing from local repository: $SCRIPT_DIR${NC}"
-        "$PYTHON_BIN" -m pip install --user --upgrade "$SCRIPT_DIR"
+        "$PYTHON_BIN" -m pip install --user --upgrade $PIP_TRUSTED "$SCRIPT_DIR"
     else
         echo -e "${YELLOW}Installing cct-cli via pip...${NC}"
-        "$PYTHON_BIN" -m pip install --user --upgrade --pre cct-cli || "$PYTHON_BIN" -m pip install --user --upgrade git+https://github.com/kazizillani-oss/CAT_v0.7.9.git
+        "$PYTHON_BIN" -m pip install --user --upgrade --pre $PIP_TRUSTED cct-cli || "$PYTHON_BIN" -m pip install --user --upgrade $PIP_TRUSTED git+https://github.com/kazizillani-oss/CAT_v0.7.9.git
     fi
     
     USER_BASE=$("$PYTHON_BIN" -m site --user-base 2>/dev/null || echo "$HOME/.local")
