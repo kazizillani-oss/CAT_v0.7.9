@@ -313,8 +313,18 @@ Screen { background: $app-background; }
 .cct-dashboard {
     background: transparent;
     border: none;
-    overflow-y: hidden;
+    /* v0.7.9.15 fix (dashboard cut off in small / floating windows):
+       the dashboard is the startup home — it must never hide its
+       content just because the viewport is short. It is clamped to
+       the conversation's height and scrollable inside its own region,
+       so everything (hero, actions, columns) stays reachable by wheel
+       and drag. */
+    overflow-y: auto;
     overflow-x: hidden;
+    scrollbar-size: 1 1;
+    scrollbar-color: $border $surface;
+    scrollbar-color-hover: $accent $surface;
+    scrollbar-color-active: $accent $surface;
     height: auto;
     max-height: 100%;
 }
@@ -1291,6 +1301,33 @@ Button#cct-chat-sidebar-toggle:hover, .cct-chat-nav-btn:hover {
     background: $accent;
     border: none;
     text-style: bold;
+}
+
+/* v0.7.9.15: DEFAULT 3D chassis for the chat box (StickyComposer).
+   The per-mode chassis below takes over the moment a mode class is
+   set; this uses the same bevel language with the surface tokens so
+   the composer still reads as a raised slab before any mode is
+   active — bright top/left highlight, dark bottom/right shadow, a
+   faint raised tint, and an accent glow on focus. */
+#cct-composer {
+    border: heavy;
+    border-top: heavy $surface-highlight;
+    border-left: heavy $surface-highlight;
+    border-bottom: heavy $surface-dark;
+    border-right: heavy $surface-dark;
+    tint: $surface-highlight 4%;
+    transition: border 120ms, tint 120ms, offset 90ms;
+}
+#cct-composer:hover {
+    tint: $surface-highlight 8%;
+}
+#cct-composer:focus-within {
+    border: heavy;
+    border-top: heavy $accent-highlight;
+    border-left: heavy $accent-highlight;
+    border-bottom: heavy $accent;
+    border-right: heavy $accent;
+    tint: $accent 6%;
 }
 
 /* AI Mode Dynamic 3D Chassis & Skeuomorphic Accent Theming */

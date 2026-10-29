@@ -313,10 +313,13 @@ Screen { background: $app-background; }
 .cct-dashboard {
     background: transparent;
     border: none;
-    overflow-y: hidden;
+    overflow-y: auto;
     overflow-x: hidden;
     height: auto;
-    max-height: 100%;
+    min-height: 100%;
+    scrollbar-gutter: stable;
+    scrollbar-size-vertical: 1;
+    scrollbar-color: $border $surface;
 }
 
 .cct-dashboard-header {
@@ -1302,22 +1305,36 @@ Button#cct-chat-sidebar-toggle:hover, .cct-chat-nav-btn:hover {
 #cct-composer.cct-mode-build,
 #cct-composer.cct-mode-debugger,
 #cct-composer.cct-mode-agent {
+    background: $surface;
+    tint: $surface-highlight 3%;
+    margin: 0 1 1 1;
+    padding: 0 1;
+}
+
+#cct-prompt-row {
     background: $app-background;
+    border: tall;
+    border-top: tall $surface-shadow;
+    border-left: tall $surface-shadow;
+    border-bottom: tall $surface-highlight;
+    border-right: tall $surface-highlight;
+    padding: 0 1;
+    margin-top: 1;
 }
 
 #cct-composer.cct-mode-notebook {
-    border: heavy;
-    border-top: heavy #89b4fa;
-    border-left: heavy #89b4fa;
-    border-bottom: heavy #3d59a1;
-    border-right: heavy #3d59a1;
+    border: tall;
+    border-top: tall #89b4fa;
+    border-left: tall #89b4fa;
+    border-bottom: tall #1e293b;
+    border-right: tall #1e293b;
 }
 #cct-composer.cct-mode-notebook:focus-within {
-    border: heavy;
-    border-top: heavy #b4befe;
-    border-left: heavy #b4befe;
-    border-bottom: heavy #5875b7;
-    border-right: heavy #5875b7;
+    border: tall;
+    border-top: tall #b4befe;
+    border-left: tall #b4befe;
+    border-bottom: tall #2a3a58;
+    border-right: tall #2a3a58;
 }
 #cct-composer.cct-mode-notebook #cct-prompt-glyph {
     color: #7aa2f7;
@@ -1402,25 +1419,21 @@ Button#cct-chat-sidebar-toggle:hover, .cct-chat-nav-btn:hover {
 }
 
 #cct-composer.cct-mode-build {
-    border: heavy;
-    border-top: heavy #f0d3a7;
-    border-left: heavy #f0d3a7;
-    border-bottom: heavy #966b33;
-    border-right: heavy #966b33;
+    border: tall;
+    border-top: tall #ffe082;
+    border-left: tall #ffca28;
+    border-bottom: tall #2b180d;
+    border-right: tall #4a2815;
 }
 #cct-composer.cct-mode-build:focus-within {
-    border: heavy;
-    border-top: heavy #fae3b0;
-    border-left: heavy #fae3b0;
-    border-bottom: heavy #b88642;
-    border-right: heavy #b88642;
+    border: tall;
+    border-top: tall #fff9c4;
+    border-left: tall #ffd54f;
+    border-bottom: tall #3e2723;
+    border-right: tall #5d4037;
 }
 #cct-composer.cct-mode-build #cct-prompt-glyph {
     color: #e0af68;
-}
-#cct-composer.cct-mode-build #cct-prompt-row,
-#cct-composer.cct-mode-build #cct-prompt-row:focus-within {
-    border: none;
 }
 #cct-composer.cct-mode-build Button#btn-send,
 #cct-composer.cct-mode-build Button.cct-icon-send {
@@ -1434,25 +1447,21 @@ Button#cct-chat-sidebar-toggle:hover, .cct-chat-nav-btn:hover {
 }
 
 #cct-composer.cct-mode-debugger {
-    border: heavy;
-    border-top: heavy #f38ba8;
-    border-left: heavy #f38ba8;
-    border-bottom: heavy #991b1b;
-    border-right: heavy #991b1b;
+    border: tall;
+    border-top: tall #fca5a5;
+    border-left: tall #f87171;
+    border-bottom: tall #450a0a;
+    border-right: tall #7f1d1d;
 }
 #cct-composer.cct-mode-debugger:focus-within {
-    border: heavy;
-    border-top: heavy #fca5a5;
-    border-left: heavy #fca5a5;
-    border-bottom: heavy #b91c1c;
-    border-right: heavy #b91c1c;
+    border: tall;
+    border-top: tall #fee2e2;
+    border-left: tall #fca5a5;
+    border-bottom: tall #591616;
+    border-right: tall #991b1b;
 }
 #cct-composer.cct-mode-debugger #cct-prompt-glyph {
     color: #dc143c;
-}
-#cct-composer.cct-mode-debugger #cct-prompt-row,
-#cct-composer.cct-mode-debugger #cct-prompt-row:focus-within {
-    border: none;
 }
 #cct-composer.cct-mode-debugger Button#btn-send,
 #cct-composer.cct-mode-debugger Button.cct-icon-send {
@@ -1466,25 +1475,21 @@ Button#cct-chat-sidebar-toggle:hover, .cct-chat-nav-btn:hover {
 }
 
 #cct-composer.cct-mode-agent {
-    border: heavy;
-    border-top: heavy #cba6f7;
-    border-left: heavy #cba6f7;
-    border-bottom: heavy #7a58b8;
-    border-right: heavy #7a58b8;
+    border: tall;
+    border-top: tall #e0caff;
+    border-left: tall #cba6f7;
+    border-bottom: tall #28183e;
+    border-right: tall #432868;
 }
 #cct-composer.cct-mode-agent:focus-within {
-    border: heavy;
-    border-top: heavy #e0caff;
-    border-left: heavy #e0caff;
-    border-bottom: heavy #946fd4;
-    border-right: heavy #946fd4;
+    border: tall;
+    border-top: tall #f3e8ff;
+    border-left: tall #e0caff;
+    border-bottom: tall #3b2060;
+    border-right: tall #58338a;
 }
 #cct-composer.cct-mode-agent #cct-prompt-glyph {
     color: #bb9af7;
-}
-#cct-composer.cct-mode-agent #cct-prompt-row,
-#cct-composer.cct-mode-agent #cct-prompt-row:focus-within {
-    border: none;
 }
 #cct-composer.cct-mode-agent Button#btn-send,
 #cct-composer.cct-mode-agent Button.cct-icon-send {

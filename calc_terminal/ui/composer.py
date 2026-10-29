@@ -625,13 +625,24 @@ if TEXTUAL_AVAILABLE:
                     except Exception:
                         pass
                     return
-                hi = min(8, max(COMPOSER_MIN_HEIGHT + 1,
-                                 int(self.screen.size.height * 0.28)))
+                # v0.7.9.15 fix (drag ceiling too low): the old min(…, 8)
+                # cap dead-ended the drag after a few rows on any real
+                # desktop terminal. Mirror the resize handle's bounds
+                # math — the explicit height may now reach just over
+                # half the screen height.
+                hi = max(COMPOSER_MIN_HEIGHT + 4,
+                         int(self.screen.size.height * 0.55) - 2)
                 height = max(COMPOSER_MIN_HEIGHT, min(hi, int(height)))
                 self._explicit_height = height
                 self.styles.height = height
                 self.styles.min_height = height
-                self.styles.max_height = "32%"
+                # v0.7.9.15 fix (clamp fought the drag): "32%" won over
+                # the dragged height on anything smaller than a full
+                # screen, so nothing moved. The dragged height is a
+                # floor for this session; the column's own 1fr chat
+                # area above already keeps the composer from
+                # swallowing the screen.
+                self.styles.max_height = "100%"
                 try:
                     editor = self.query_one("#cct-input", ComposerInput)
                     stack = self.query_one("#cct-editor-stack", Container)
@@ -660,9 +671,17 @@ if TEXTUAL_AVAILABLE:
                 stack = self.query_one("#cct-editor-stack", Container)
                 row = self.query_one("#cct-prompt-row")
                 if getattr(self, "_explicit_height", None):
-                    stack.styles.min_height = 1
-                    row.styles.min_height = 1
-                    editor.styles.min_height = 1
+                    # v0.7.9.15 fix: keep the dragged height intact —
+                    # a resize event must never re-clamp it to a
+                    # percentage or clear the fixed editor row (the old
+                    # fall-through let on_resize erase the user's drag
+                    # whenever the window moved). Only the emergency
+                    # short-screen path below overrides it.
+                    if short:
+                        stack.styles.min_height = 1
+                        row.styles.min_height = 1
+                        editor.styles.min_height = 1
+                        editor.styles.max_height = self._explicit_height
                     return
                 if short:
                     editor.styles.min_height = 1
@@ -1165,11 +1184,37 @@ if TEXTUAL_AVAILABLE:
                     self.styles.max_height = "75%"
 
         def _on_permission_panel_toggled(self, is_open):
-            self.styles.height = "auto"
-            if is_open:
-                self.styles.max_height = "85%"
-            else:
-                self.styles.max_height = "80%" if self._explicit_height is not None else "75%"
+            # v0.7.9.15 fix (dragged height silently lost): the old
+            # handler flipped styles.height to "auto" and left it there
+            # when the panel closed, erasing the user's dragged height
+            # (and even persisting the wrong value to the layout file).
+            # Now: auto-grow only WHILE the panel is open (it can be up
+            # to 14 rows), and the explicit drag height is put back the
+            # moment it closes.
+            try:
+                if is_open:
+                    self.styles.height = "auto"
+                    if self._explicit_height is not None:
+                        self.styles.min_height = self._explicit_height
+                    self.styles.max_height = "85%"
+                elif self._explicit_height is not None:
+                    self.styles.height = self._explicit_height
+                    self.styles.min_height = self._explicit_height
+                    self.styles.max_height = "100%"
+                    try:
+                        editor = self.query_one("#cct-input", ComposerInput)
+                        stack = self.query_one("#cct-editor-stack", Container)
+                        row = self.query_one("#cct-prompt-row")
+                        editor.styles.height = "1fr"
+                        stack.styles.height = "1fr"
+                        row.styles.height = "1fr"
+                    except Exception:
+                        pass
+                else:
+                    self.styles.height = "auto"
+                    self.styles.max_height = "75%"
+            except Exception:
+                pass
             try:
                 self.query_one("#btn-permissions", Button).set_class(bool(is_open), "-active")
             except Exception:

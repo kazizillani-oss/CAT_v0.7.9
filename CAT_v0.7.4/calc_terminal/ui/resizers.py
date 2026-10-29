@@ -264,13 +264,12 @@ if TEXTUAL_AVAILABLE:
             column right now."""
             try:
                 main = self._shell.query_one("#cct-workspace-main", Vertical)
-                available = max(20, main.region.height)
+                available = max(16, main.region.height)
             except Exception:
-                available = 20
-            # Reserve at least 18 rows for chat column / dashboard so it never overlaps or gets cut off
-            max_chat_room = max(18, int(available * 0.65))
-            max_h = max(COMPOSER_MIN_HEIGHT, min(8, available - max_chat_room))
-            return COMPOSER_MIN_HEIGHT, max(COMPOSER_MIN_HEIGHT, max_h)
+                available = 24
+            # Keep at least 8 rows for chat conversation, allowing composer to expand up to 16 rows
+            max_h = max(COMPOSER_MIN_HEIGHT + 3, min(16, int(available * 0.60)))
+            return COMPOSER_MIN_HEIGHT, max_h
 
         def _apply(self, event):
             from .composer import StickyComposer

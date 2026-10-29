@@ -18,9 +18,13 @@ def test_composer_input_focus_rules_exist_in_css():
     assert "#cct-input:focus" in css_text
     assert "ComposerInput:focus" in css_text
     assert "#cct-editor-stack:focus" in css_text
-    # Composer must use restrained single border or sharp border
+    # Composer must use a restrained SINGLE border (never a nested
+    # double border). v0.7.9.15's 3D chassis is one `border: heavy`
+    # with a bevel highlight on the top edge (surface tokens); older
+    # builds used solid/tall against the surface background.
     assert ("border: solid $border;" in css_text or "border-top: heavy $surface-highlight;" in css_text or "border-top: tall $surface-highlight;" in css_text)
-    assert ("#cct-composer {\n    background: $surface;\n    border: solid $border;" in css_text or
+    assert ("#cct-composer {\n    background: $app-background;\n    border: heavy;" in css_text or
+            "#cct-composer {\n    background: $surface;\n    border: solid $border;" in css_text or
             "#cct-composer {\n    background: $surface;\n    border: heavy;" in css_text or
             "#cct-composer {\n    background: $surface;\n    border: tall;" in css_text)
 

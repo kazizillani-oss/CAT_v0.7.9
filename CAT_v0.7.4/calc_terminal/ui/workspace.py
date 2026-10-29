@@ -114,9 +114,9 @@ if TEXTUAL_AVAILABLE:
                         yield PreviewPanel()
 
         def on_mount(self):
-            # No folder open yet: the Explorer stays hidden so the app
-            # looks like a clean chat until the first Open Folder.
-            self.explorer.display = False
+            # The Explorer / Workspace section starts OPEN by default on launch
+            self.explorer.display = True
+            self.explorer.set_width(EXPLORER_DEFAULT_WIDTH)
             self.preview_panel.display = False
             try:
                 saved = load_layout()

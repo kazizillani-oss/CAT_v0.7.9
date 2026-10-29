@@ -488,9 +488,20 @@ LiveActivitiesBlock.collapsed #live-header, .live-activities-block.collapsed #li
 }
 
 
+/* v0.7.9.15: default 3D chat box chassis — the composer is a raised
+   slab with a real bevel (bright top/left highlight, dark bottom/right
+   shadow) plus a raised tint, and an accent glow on focus. The
+   per-mode chassis rules in theme_css.py have higher specificity, so
+   Notebook / Research / Build / … still override all of this the
+   moment a mode class is present. */
 #cct-composer {
-    background: $surface;
-    border: solid $border;
+    background: $app-background;
+    border: heavy;
+    border-top: heavy $surface-highlight;
+    border-left: heavy $surface-highlight;
+    border-bottom: heavy $surface-dark;
+    border-right: heavy $surface-dark;
+    tint: $surface-highlight 4%;
     padding: 0 1;
     margin: 0 1 1 1;
     height: auto;
@@ -498,11 +509,20 @@ LiveActivitiesBlock.collapsed #live-header, .live-activities-block.collapsed #li
     max-height: 75%;
     width: 1fr;
     layout: vertical;
-    transition: border 120ms;
+    transition: border 120ms, tint 120ms, offset 90ms;
+}
+#cct-composer:hover {
+    tint: $surface-highlight 8%;
 }
 #cct-composer:focus-within {
-    border: solid $accent;
+    border: heavy;
+    border-top: heavy $accent-highlight;
+    border-left: heavy $accent-highlight;
+    border-bottom: heavy $accent;
+    border-right: heavy $accent;
+    tint: $accent 6%;
 }
+
 #cct-composer,
 #cct-composer:focus-within,
 #cct-composer.cct-mode-notebook,
@@ -1844,12 +1864,22 @@ Button.cct-switch.-active {
 .cct-cmd-category { color: $text-faint; }
 
 /* ------------------------------------------------------------ dashboard -- */
+/* v0.7.9.15: the dashboard is the startup home — in small or floating
+   windows its full content (hero + actions + live columns) can exceed
+   the viewport, so it is clamped to the conversation height and
+   SCROLLABLE: wheel / grab the visible scrollbar / drag to reach
+   everything instead of watching it get cut off. */
 .cct-dashboard {
     width: 100%;
     height: auto;
+    max-height: 100%;
     padding: 1 2;
     overflow-y: auto;
     overflow-x: hidden;
+    scrollbar-size: 1 1;
+    scrollbar-color: $border $surface;
+    scrollbar-color-hover: $accent $surface;
+    scrollbar-color-active: $accent $surface;
     align-horizontal: center;
 }
 #cct-empty-art {
@@ -2349,11 +2379,14 @@ if TEXTUAL_AVAILABLE:
             except Exception:
                 pass
             # v0.7.7 spec section 1 — automatic workspace detection on
-            # launch: cwd (when it isn't CCT's own folder) -> VS Code
-            # workspace -> git root -> launch dir -> last opened. If
-            # something is found it's recorded and set as the active
-            # project root before the UI builds, so the header/status
-            # show the right workspace from the first frame.
+            # launch: cwd (when it isn't CCT's own folder / install
+            # tree) -> VS Code workspace -> git root -> launch dir ->
+            # last opened. v0.7.9.15: detection is a PASSIVE read — it
+            # sets the active project root (so the header/status show
+            # the right workspace from the first frame) but never
+            # writes recent history (only a real Open Folder / explicit
+            # `cat <folder>` records), so junk launches can't return as
+            # the "recent workspace".
             try:
                 ws_paths.auto_load_workspace()
             except Exception:
@@ -2584,12 +2617,46 @@ if TEXTUAL_AVAILABLE:
                 pass
 
         def _autoload_last_workspace(self):
-            recent = projects.recent()
-            if not recent:
+            """Spec v0.7.4 "load it automatically on startup": the most-
+            recently-OPENED project (projects.recent(), tracked by every
+            Explorer Open Folder) is reopened without the user going
+            through the menu again — same as any modern IDE restoring
+            its last folder.
+
+            v0.7.9.15 fix (CAT CLI opened 'calc_terminal' instead of the
+            workspace the user opened last): the old version blindly
+            took recent[0], which could be a junk entry an earlier build
+            recorded from mere launch detection (CAT's own install
+            folder). Second-guessing is now skipped entirely when
+            workspace detection already gave this launch a real folder
+            (the folder we were launched in wins), and when autoloading
+            we walk the recents list and reopen the first entry that is
+            a real existing folder — never a protected system root or a
+            CAT installation path."""
+            try:
+                # A real launch workspace (cwd / VS Code folder of THIS
+                # run) is already the active project — never override it
+                # with a remembered folder from an earlier session.
+                if ws_paths.active_project() and \
+                        os.path.isdir(ws_paths.active_project()):
+                    return
+            except Exception:
+                pass
+            try:
+                recent = projects.recent()
+            except Exception:
                 return
-            path = recent[0]
-            if os.path.isdir(path):
+            for path in recent:
+                if not path or not os.path.isdir(path):
+                    continue  # moved/deleted since last run — try older entries
+                try:
+                    if ws_paths.path_is_protected(path) or \
+                            ws_paths.path_is_app_tree(path):
+                        continue  # junk an older build recorded — never reopens
+                except Exception:
+                    pass
                 self.run_worker(self._open_folder(path))
+                return
 
         def _show_dashboard_home(self):
             """v0.7.9.0: (re)mount the Dashboard — THE primary startup

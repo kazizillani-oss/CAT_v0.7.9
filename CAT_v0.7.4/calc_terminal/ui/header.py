@@ -1021,6 +1021,21 @@ if TEXTUAL_AVAILABLE:
             faint = theme_css.current_hex("text-faint")
             # Extract just the folder name for compact display
             short_name = os.path.basename(new_text) if new_text and new_text != "No workspace open" else "No workspace"
+            if short_name.lower() in ("calc_terminal", "cat_v0.7.4", "cat_v0.7.9"):
+                try:
+                    from .. import projects
+                    last = projects.last_opened()
+                    if last and os.path.basename(last).lower() not in ("calc_terminal", "cat_v0.7.4", "cat_v0.7.9"):
+                        short_name = os.path.basename(last.rstrip(os.sep))
+                        new_text = last
+                    else:
+                        home_dir = os.path.expanduser("~")
+                        short_name = os.path.basename(home_dir.rstrip(os.sep)) or "Workspace"
+                        new_text = home_dir
+                except Exception:
+                    home_dir = os.path.expanduser("~")
+                    short_name = os.path.basename(home_dir.rstrip(os.sep)) or "Workspace"
+                    new_text = home_dir
             # Workspace indicator: 📁 prefix + short name, with full path as tooltip
             display = f"[{accent}]\U0001f4c1[/] [b]{short_name}[/b]"
             try:

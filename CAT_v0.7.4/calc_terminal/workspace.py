@@ -540,32 +540,51 @@ def detect_workspace(cwd=None):
                     return True
             return False
 
+        def _is_app_internal(path):
+            norm = _norm_ci(path)
+            bname = os.path.basename(norm).lower()
+            if bname in ("calc_terminal", "cat_v0.7.4", "cat_v0.7.9"):
+                return True
+            if os.path.isdir(os.path.join(path, "calc_terminal", "ui")):
+                return True
+            if os.path.exists(os.path.join(path, "agent_runtime.py")):
+                return True
+            return False
+
         candidates = []
-        # 1 — cwd itself, unless it IS the app or a protected system dir.
-        if cwd != app_dir and not _protected(cwd):
-            candidates.append(cwd)
-        # 2 — VS Code workspace.
-        vsc = _vscode_workspace(cwd)
-        if vsc and vsc not in candidates:
-            candidates.append(vsc)
-        # 3 — git root.
-        gr = git_root(cwd)
-        if gr and gr not in candidates:
-            candidates.append(gr)
-        # 4 — launch directory (when it differs from cwd and isn't
-        #    the app folder).
-        try:
-            launch = os.path.abspath(os.path.dirname(sys.argv[0]) or cwd)
-            if launch != cwd and launch != app_dir and launch not in candidates:
-                candidates.append(launch)
-        except Exception:
-            pass
-        # 5 — last opened workspace.
+        # Priority 1 — Last opened workspace (e.g. from Admin / recent work) if cwd is internal or protected
         try:
             from . import projects
             last = projects.last_opened()
-            if last and last not in candidates:
-                candidates.append(last)
+            if last and not _protected(last) and not _is_app_internal(last) and os.path.isdir(last):
+                candidates.append(os.path.abspath(last))
+        except Exception:
+            pass
+
+        # Priority 2 — cwd itself, unless it IS the app, package internal, or a protected system dir.
+        if cwd != app_dir and not _protected(cwd) and not _is_app_internal(cwd):
+            if cwd not in candidates:
+                candidates.append(cwd)
+        # Priority 3 — VS Code workspace.
+        vsc = _vscode_workspace(cwd)
+        if vsc and vsc not in candidates:
+            candidates.append(vsc)
+        # Priority 4 — git root.
+        gr = git_root(cwd)
+        if gr and gr not in candidates and not _is_app_internal(gr):
+            candidates.append(gr)
+        # Priority 5 — launch directory (when it differs from cwd and isn't the app folder).
+        try:
+            launch = os.path.abspath(os.path.dirname(sys.argv[0]) or cwd)
+            if launch != cwd and launch != app_dir and launch not in candidates and not _is_app_internal(launch):
+                candidates.append(launch)
+        except Exception:
+            pass
+        # Priority 6 — User home directory fallback if cwd was internal/admin/system32
+        try:
+            user_home = os.path.abspath(os.path.expanduser("~"))
+            if user_home not in candidates and os.path.isdir(user_home):
+                candidates.append(user_home)
         except Exception:
             pass
         for path in candidates:

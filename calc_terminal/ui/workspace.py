@@ -114,9 +114,36 @@ if TEXTUAL_AVAILABLE:
                         yield PreviewPanel()
 
         def on_mount(self):
-            # No folder open yet: the Explorer stays hidden so the app
-            # looks like a clean chat until the first Open Folder.
-            self.explorer.display = False
+            # v0.7.9.15 fix (workspace section open on first launch):
+            # on a GENUINE first launch — no earlier sessions (nothing
+            # in the recent-workspace history) and the welcome notice
+            # never seen — show the workspace section OPEN by default:
+            # its "Open Folder" button and Recent list are exactly the
+            # trail head a first-time user needs, instead of a bare
+            # chat with a hidden sidebar. Any other launch (history
+            # already exists) keeps the long-standing collapsed default
+            # until a folder is opened.
+            try:
+                from .. import projects as _projects_mod
+                first_run = not _projects_mod.recent()
+            except Exception:
+                first_run = False
+            try:
+                from .welcome_modal import has_seen_version as _has_seen
+                first_run = first_run and not _has_seen()
+            except Exception:
+                pass
+            if first_run:
+                self.explorer.display = True
+                try:
+                    self.explorer.set_width(EXPLORER_DEFAULT_WIDTH)
+                except Exception:
+                    pass
+            else:
+                # No folder open yet: the Explorer stays hidden so the
+                # app looks like a clean chat until the first Open
+                # Folder.
+                self.explorer.display = False
             self.preview_panel.display = False
             try:
                 saved = load_layout()
@@ -126,6 +153,22 @@ if TEXTUAL_AVAILABLE:
                 rw = saved.get("rightpane_width")
                 if rw:
                     self.set_right_width(rw)
+                # v0.7.9.15 fix (composer resizing didn't stick): the
+                # dragged height was persisted on drop but never READ
+                # back — so composer resizing silently vanished between
+                # runs. Restore it after the composer's own mount
+                # settles (set_explicit_height re-clamps to the real
+                # screen, so a small window keeps it sane).
+                ch = saved.get("composer_height")
+                if ch:
+                    from .composer import StickyComposer
+                    try:
+                        composer = self._composer or self.query_one(StickyComposer)
+                        self.call_after_refresh(
+                            lambda comp=composer:
+                            comp.set_explicit_height(int(ch)))
+                    except Exception:
+                        pass
             except Exception:
                 pass
             self.sync_resizer()

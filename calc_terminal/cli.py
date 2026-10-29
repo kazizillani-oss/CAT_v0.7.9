@@ -1559,6 +1559,24 @@ def main(argv=None):
         except OSError as e:
             print(f"cat: error: cannot open workspace {expanded}: {e}", file=sys.stderr)
             return 2
+        # v0.7.9.15 (recent-workspace correctness): an EXPLICIT
+        # `cat <folder>` — which is how the VS Code extension hands the
+        # opened folder to the CLI — is the only launch-time path with
+        # real "Open Folder" intent, so record it for the workspace
+        # section and the next launch's last-workspace autoload.
+        # Everything else about detection stays a passive read (never
+        # recorded), and protected system roots / the CAT installation
+        # tree are never recorded, so junk like the old
+        # …\lib\calc_terminal recent entry cannot return.
+        try:
+            from . import workspace as _ws_paths
+            from . import projects as _projects_mod
+            if (os.path.isdir(expanded)
+                    and not _ws_paths.path_is_protected(expanded)
+                    and not _ws_paths.path_is_app_tree(expanded)):
+                _projects_mod.record_opened(expanded)
+        except Exception:
+            pass
 
     # First-run detection: on the very first launch only, prepare the
     # application-data directory and run model.py's one-time

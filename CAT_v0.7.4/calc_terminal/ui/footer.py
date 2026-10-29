@@ -123,8 +123,19 @@ if TEXTUAL_AVAILABLE:
 
         def set_model_label(self, label):
             self._model_label = label
+            self._update_model_display()
+
+        def _update_model_display(self):
+            w = (self.size.width if self.size and self.size.width > 0 else 80)
+            disp = self._model_label
+            # Smartly compact long model names on narrower viewports to prevent "Workspac" clipping
+            if w < 86 and len(disp) > 18:
+                if disp.startswith("OLLAMA "):
+                    disp = disp[7:]
+                if len(disp) > 18:
+                    disp = disp[:17] + "…"
             try:
-                self.query_one("#badge-model", _Badge).update(label)
+                self.query_one("#badge-model", _Badge).update(disp)
             except Exception:
                 pass
 
@@ -149,14 +160,15 @@ if TEXTUAL_AVAILABLE:
         def on_resize(self, event=None):
             """Responsive footer collapse at narrow viewports: ensures send button never gets pushed off."""
             w = (event.size.width if event else None) or (self.size.width if self.size else 80)
+            self._update_model_display()
             try:
                 center = self.query_one("#cct-center-status", Static)
-                center.display = (w >= 70)
+                center.display = (w >= 78)
             except Exception:
                 pass
             try:
                 ws_badge = self.query_one("#badge-workspace", _Badge)
-                ws_badge.display = (w >= 56)
+                ws_badge.display = (w >= 54)
             except Exception:
                 pass
 

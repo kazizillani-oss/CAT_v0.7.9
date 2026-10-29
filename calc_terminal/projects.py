@@ -144,13 +144,21 @@ def forget_protected():
     project' when `cat` was launched from PowerShell's default cwd;
     reopening such a directory is never useful (generated-file creation
     fails with PermissionError there). Runs once at UI startup. Never
-    raises."""
+    raises.
+
+    v0.7.9.15 fix (wrong workspace reopened on launch): also purge
+    entries inside the CAT installation tree itself — an older build
+    recorded CAT's own install folder (…\\AppData\\Local\\Programs\\CAT\\
+    lib\\calc_terminal) as the most-recent project from mere launch
+    detection, so the workspace autoload reopened 'calc_terminal'
+    instead of the folder the user actually opened last."""
     try:
         from . import workspace as _ws
         data = _load()
         before = (len(data["recent"]), len(data["pinned"]))
         data["recent"] = [r for r in data["recent"]
-                          if not _ws.path_is_protected(r.get("path", ""))]
+                          if not _ws.path_is_protected(r.get("path", ""))
+                          and not _ws.path_is_app_tree(r.get("path", ""))]
         data["pinned"] = [p for p in data["pinned"]
                           if not _ws.path_is_protected(
                               p.get("path", "") if isinstance(p, dict)

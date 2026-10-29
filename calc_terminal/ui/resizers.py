@@ -46,6 +46,11 @@ EXPLORER_DEFAULT_WIDTH = 32
 COMPOSER_MIN_HEIGHT = 5      # input + footer stay usable
 COMPOSER_MAX_FRACTION = 0.35 # compact bounds — chat history keeps majority of shell
 COMPOSER_MARGIN_ROWS = 2     # composer's vertical margin rows (1 top + 1 bottom)
+# v0.7.9.15 fix: the persisted dragged height was rejected above 14 rows
+# and the drag handle capped at 8 — resizing the composer "did nothing"
+# after the third row. Values now persist up to this generous ceiling
+# (the live drag is still re-clamped to the real screen on apply).
+COMPOSER_PERSIST_MAX_HEIGHT = 32
 
 # ---- Right pane (Code / Preview) width bounds ------------------------------
 RIGHTPANE_MIN_WIDTH = 24     # code/preview stays usable
@@ -67,7 +72,7 @@ def load_layout():
     for key in ("explorer_width", "composer_height", "rightpane_width"):
         try:
             v = data.get(key)
-            if key == "composer_height" and (v is None or int(v) <= COMPOSER_MIN_HEIGHT or int(v) > 14):
+            if key == "composer_height" and (v is None or int(v) <= COMPOSER_MIN_HEIGHT or int(v) > COMPOSER_PERSIST_MAX_HEIGHT):
                 out[key] = None
             else:
                 out[key] = int(v) if v else None
@@ -267,10 +272,16 @@ if TEXTUAL_AVAILABLE:
                 available = max(20, main.region.height)
             except Exception:
                 available = 20
-            # Reserve at least 18 rows for chat column / dashboard so it never overlaps or gets cut off
-            max_chat_room = max(18, int(available * 0.65))
-            max_h = max(COMPOSER_MIN_HEIGHT, min(8, available - max_chat_room))
-            return COMPOSER_MIN_HEIGHT, max(COMPOSER_MIN_HEIGHT, max_h)
+            # v0.7.9.15 fix (composer resize dead-ended too early): the
+            # old hard cap of 8 rows made dragging feel broken — on a
+            # real desktop-sized column the grip stopped moving after
+            # three rows. Scale the ceiling with the ACTUAL column
+            # height instead: the composer may now take just over half
+            # of it, while the chat column above always keeps ≥ 12 rows
+            # so a small chat/dashboard area always remains visible.
+            ceiling = max(COMPOSER_MIN_HEIGHT + 3,
+                          min(available - 12, int(available * 0.55)))
+            return COMPOSER_MIN_HEIGHT, max(COMPOSER_MIN_HEIGHT, ceiling)
 
         def _apply(self, event):
             from .composer import StickyComposer

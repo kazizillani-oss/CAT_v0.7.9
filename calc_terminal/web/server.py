@@ -3135,13 +3135,18 @@ async def workspace_info():
 
 @app.get("/api/workspace/detect")
 async def workspace_detect():
-    """Auto-detect workspace from current directory."""
+    """Auto-detect workspace from current directory.
+
+    v0.7.9.15 fix (wrong 'recent workspace' reopened): detection is a
+    passive read — it sets the active project for this session but
+    never writes recent-workspace history (only a real open records
+    it); merely detecting used to pollute the recent list with launch
+    directories, which then auto-reopened on the next CLI launch."""
     try:
         from calc_terminal import workspace as _ws
         detected = _ws.detect_workspace(os.getcwd())
         if detected:
             _ws.set_active_project(detected)
-            projects.record_opened(detected)
             return {"path": detected, "name": os.path.basename(detected)}
         return {"path": None}
     except Exception as e:
