@@ -63,6 +63,26 @@ BP_SMALL = "small"
 BP_VERY_SMALL = "very_small"
 BP_TINY = "tiny"
 
+# ─── 4-TIER OFFICIAL RESPONSIVE LAYOUT MODES ──────────────────────────────────
+MODE_WIDE = "wide"          # >= 140 cols: 3-col cards, spacious, explorer 24-28%
+MODE_STANDARD = "standard"  # 100-139 cols: 2/3-col adaptive cards, standard controls
+MODE_COMPACT = "compact"    # 70-99 cols: 2-col cards, 2x2 action grid, auto-collapsible explorer
+MODE_NARROW = "narrow"      # < 70 cols: single-col stacked, compact buttons, explorer collapsed
+
+def get_responsive_mode(width, height=None) -> str:
+    """Classifies live terminal dimensions into the 4 official CAT responsive tiers."""
+    try:
+        w = int(width or 80)
+    except Exception:
+        w = 80
+    if w >= 140:
+        return MODE_WIDE
+    elif w >= 100:
+        return MODE_STANDARD
+    elif w >= 70:
+        return MODE_COMPACT
+    return MODE_NARROW
+
 
 class CATResponsiveBreakpoints:
     """Centralized 5-tier responsive layout breakpoint engine."""

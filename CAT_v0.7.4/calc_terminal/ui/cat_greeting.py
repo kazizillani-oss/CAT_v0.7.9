@@ -447,18 +447,22 @@ def get_cat_routine_display(
     text_faint_hex: str = "#6c7086",
     mode_key: str | None = None,
     compact: bool = False,
+    card_width: int = 80,
+    is_portrait: bool = False,
 ) -> str:
-    """Generates rich markup text for the CAT dashboard column."""
+    """Generates rich markup text for the CAT dashboard column, adapting
+    to available card width and height so text and art never awkwardly wrap."""
     data = get_cat_routine_data(offset=offset)
 
-    mode_prefix = ""
+    mode_label = ""
+    mode_icon = "⚡"
     if mode_key:
         try:
             from .. import ai_modes
             m = ai_modes.meta(mode_key)
             if m:
-                m_icon = m.get("icon", "⚡")
-                m_lbl = {
+                mode_icon = m.get("icon", "⚡")
+                mode_label = {
                     "build": "Build",
                     "agent": "Agent",
                     "notebook": "Notebook",
@@ -466,27 +470,22 @@ def get_cat_routine_display(
                     "research": "Research",
                     "debugger": "Debugger",
                 }.get(mode_key.lower(), m.get("label", mode_key.capitalize()))
-                mode_prefix = f"  [{accent_hex} b]{m_icon} {m_lbl} Mode[/] · "
         except Exception:
             pass
 
-    badge = (
-        f"{mode_prefix}[{accent_hex}]⚡[/] [b]{data['period_icon']} Routine {data['time_str']}[/]  "
-        f"·  [{text_faint_hex}]{data['period_name']}[/]"
-    )
-    greeting = f"  [{accent_hex} b]{data['numbered']}[/]"
-    sub_greeting = f"  [{text_muted_hex}]{data['feline']}[/]"
+    short_greeting = data["numbered"].split(">", 1)[-1].strip() if ">" in data["numbered"] else data["numbered"]
 
-    if compact:
-        b_txt = f"[b]{data['period_icon']} {data['time_str']}[/]"
-        short_greeting = data['numbered'].split('>', 1)[-1].strip() if '>' in data['numbered'] else data['numbered']
-        if len(short_greeting) > 22:
-            short_greeting = short_greeting[:21].rstrip() + '…'
-        return (
-            f" [{accent_hex} b]/\_/\ [/] {b_txt}\n"
-            f" [{accent_hex} b](o.o)[/] [{accent_hex} b]{short_greeting}[/]"
-        )
+    # Portrait mode: Display CAT 3D ASCII greeting art
+    if is_portrait:
+        mode_part = f"[{accent_hex} b]{mode_icon} {mode_label} Mode[/] · " if mode_label else ""
+        badge = f"  {mode_part}[{accent_hex}]⚡[/] [b]{data['period_icon']} {data['time_str']}[/] · [{text_faint_hex}]{data['period_name']}[/]"
+        greeting = f"  [{accent_hex} b]{data['numbered']}[/]"
+        sub_greeting = f"  [{text_muted_hex}]{data['feline']}[/]"
+        art = "\n".join(f"[{accent_hex} b]{line}[/]" for line in data["art_lines"])
+        return f"{art}\n\n{badge}\n{greeting}\n{sub_greeting}"
 
-    # Render the 3D block greeting typography with active mode accent
-    art = "\n".join(f"[{accent_hex} b]{line}[/]" for line in data["art_lines"])
-    return f"{art}\n\n{badge}\n{greeting}\n{sub_greeting}"
+    # Landscape mode: clean compact 2-line greeting WITHOUT 3D ASCII block art
+    # and WITHOUT awkward truncation (e.g. no slicing words into '...')
+    line1 = f"  [{accent_hex} b]/\\_/\\ [/] [b]{data['period_icon']} {data['time_str']}[/]  [{text_faint_hex}]{data['period_name']}[/]"
+    line2 = f"  [{accent_hex} b](o.o)[/] [{accent_hex} b]{short_greeting}[/]"
+    return f"{line1}\n{line2}"

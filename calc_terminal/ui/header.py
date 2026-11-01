@@ -53,6 +53,15 @@ try:
 except Exception:
     TEXTUAL_AVAILABLE = False
 
+def _safe_glyph(emoji: str, fallback: str) -> str:
+    try:
+        import sys
+        enc = getattr(sys.stdout, "encoding", None) or "utf-8"
+        emoji.encode(enc)
+        return emoji
+    except Exception:
+        return fallback
+
 _MARK = "\u2b21"  # WHITE HEXAGON — a molecule/benzene-ring silhouette,
                   # a cleaner and more legible brand mark at 1-cell size
                   # than the previous alembic glyph.
@@ -317,6 +326,7 @@ if TEXTUAL_AVAILABLE:
 
         CSS = """
         NavPanel { align: left top; background: $app-background 0%; }
+        NavPanel.is-portrait { align: center top; background: $app-background 60%; }
         #cct-navmenu-box {
             margin-top: 3; margin-left: 1;
             width: 42; height: auto;
@@ -332,6 +342,17 @@ if TEXTUAL_AVAILABLE:
             scrollbar-gutter: stable;
             scrollbar-size: 1 1;
             scrollbar-color: $border $surface;
+        }
+        NavPanel.is-portrait #cct-navmenu-box,
+        #cct-navmenu-box.is-portrait {
+            margin-top: 2; margin-left: 0; margin-right: 0;
+            width: 92%; max-width: 46;
+            border: heavy $border;
+        }
+        .cct-navmenu-header {
+            height: 2; background: $surface-alt; color: $accent;
+            text-style: bold; padding: 0 2; content-align: left middle;
+            border-bottom: solid $border;
         }
         #cct-navmenu-box.open { opacity: 1; offset-y: 0; }
         .cct-navmenu-row {
@@ -386,7 +407,38 @@ if TEXTUAL_AVAILABLE:
             self._selected = None  # action_id of selected row
             self._nav_cache = None
 
+        def is_portrait(self):
+            try:
+                s = getattr(self.app, "size", None) or getattr(self.screen, "size", None)
+                if s:
+                    return (s.width < 92) or (s.width <= 105 and (s.width / max(1, s.height)) < 2.3)
+            except Exception:
+                pass
+            return False
+
         def _get_filtered(self):
+            if self.is_portrait():
+                return (
+                    ("__header", "⬡ CAT", "Coding Agent Terminal"),
+                    ("__section_proj", "📁", "Project"),
+                    ("open_folder", "📂", "Open Folder"),
+                    ("recent_workspaces", "🕒", "Recent Workspaces"),
+                    ("sep_proj", "", ""),
+                    ("__section_int", "🔌", "Integrations"),
+                    ("mcp_servers", "🔌", "MCP Servers"),
+                    ("backup_providers", "📡", "Backup Providers"),
+                    ("sep_int", "", ""),
+                    ("__section_app", "🎨", "Appearance"),
+                    ("themes", "◑", "Themes"),
+                    ("extensions", "▣", "Extensions"),
+                    ("sep_app", "", ""),
+                    ("__section_acc", "👤", "Account"),
+                    ("user", "☺", "Users & Profile"),
+                    ("signout", "⎋", "Sign Out"),
+                    ("sep_acc", "", ""),
+                    ("__section_sys", "⚙", "Application"),
+                    ("quit", "✕", "Quit"),
+                )
             try:
                 return get_nav_items()
             except Exception:
@@ -395,11 +447,12 @@ if TEXTUAL_AVAILABLE:
         def compose(self):
             items = self._get_filtered()
             self._nav_cache = items
-            # No default forced text selection on open; keyboard navigation activates it on demand
             with Vertical(id="cct-navmenu-box"):
                 for i, (action_id, icon, label) in enumerate(items):
-                    if action_id.startswith("sep"):
-                        yield Static("\u2500" * 30, id=f"cct-navmenu-sep-{i}",
+                    if action_id == "__header":
+                        yield Static(f"⬡ CAT  [dim]Coding Agent Terminal[/dim]", classes="cct-navmenu-header")
+                    elif action_id.startswith("sep"):
+                        yield Static("─" * 30, id=f"cct-navmenu-sep-{i}",
                                      classes="cct-navmenu-sep")
                     elif action_id.startswith("__section"):
                         yield Static(f"{icon}  {label}", id=f"cct-navmenu-section-{i}",
@@ -411,6 +464,12 @@ if TEXTUAL_AVAILABLE:
                         yield _NavRow(action_id, icon, label, i)
 
         def on_mount(self):
+            if self.is_portrait():
+                self.add_class("is-portrait")
+                try:
+                    self.query_one("#cct-navmenu-box").add_class("is-portrait")
+                except Exception:
+                    pass
             self._sync_selected_class()
             try:
                 self.query_one("#cct-navmenu-box").add_class("open")
@@ -422,9 +481,16 @@ if TEXTUAL_AVAILABLE:
                 row.set_class(row.action_id == self._selected, "cct-navmenu-row-selected")
 
         def on_row_picked(self, action_id):
-            """Shared by mouse clicks and the Enter key. Keep-open
-            destinations post NavAction and leave the panel up; the
-            rest dismiss, which triggers the usual push callback."""
+            if action_id == "quit":
+                self.dismiss(None)
+                if hasattr(self.app, "_handle_quit"):
+                    self.app._handle_quit()
+                else:
+                    try:
+                        self.app.exit()
+                    except Exception:
+                        pass
+                return
             if action_id in self._KEEP_OPEN:
                 self.post_message(NavAction(action_id))
                 return
@@ -608,13 +674,11 @@ if TEXTUAL_AVAILABLE:
             background: $app-background 60%;
         }
         #cct-permmenu-box {
-            width: 50;
+            width: auto;
+            max-width: 48;
             height: auto;
             background: $surface;
-            border-top: tall $surface-highlight;
-            border-left: tall $surface-highlight;
-            border-bottom: tall $surface-dark;
-            border-right: tall $surface-dark;
+            border: round $accent;
             padding: 1 1;
             opacity: 1; offset-y: 0;
         }
@@ -693,26 +757,25 @@ if TEXTUAL_AVAILABLE:
             screen_w, screen_h = self.size.width, self.size.height
             if not screen_w or not screen_h:
                 return
-            box_w = self._BOX_WIDTH
+            box_w = min(self._BOX_WIDTH, max(28, screen_w - 4))
+            box.styles.width = box_w
+            box.styles.max_height = max(8, screen_h - 2)
             box_h = box.size.height or self._ESTIMATED_HEIGHT
 
             if self._anchor is not None:
                 region = self._anchor.region
                 x, y = region.x, region.y + region.height
             else:
-                x, y = (screen_w - box_w) // 2, 3
+                x, y = (screen_w - box_w) // 2, 2
 
-            # Edge collision, horizontal: never let the box run past
-            # the right edge (or, on a very narrow terminal, the left).
-            x = max(0, min(x, max(0, screen_w - box_w)))
+            # Edge collision, horizontal: never let the box run past screen bounds
+            x = max(1, min(x, max(1, screen_w - box_w - 1)))
 
-            # Edge collision, vertical: prefer opening below the
-            # anchor, but flip to above it when there isn't enough
-            # room underneath; then clamp to the terminal's height.
+            # Edge collision, vertical: flip above if not enough room underneath, then clamp
             if self._anchor is not None and y + box_h > screen_h:
                 above = region.y - box_h
-                y = above if above >= 0 else max(0, screen_h - box_h)
-            y = max(0, min(y, max(0, screen_h - box_h)))
+                y = above if above >= 0 else max(1, screen_h - box_h - 1)
+            y = max(1, min(y, max(1, screen_h - box_h - 1)))
 
             box.styles.offset = (x, y)
 
@@ -834,7 +897,16 @@ if TEXTUAL_AVAILABLE:
             color = theme_css.current_hex(_MODE_TONE[mode])
             icon = {"ask": "🕘", "restricted": "🟡", "full": "⚡"}.get(mode, "🕘")
             if is_compact:
-                self.update(f"{icon}")
+                try:
+                    w = getattr(getattr(self, "screen", None), "size", None)
+                    term_w = w.width if w else 80
+                except Exception:
+                    term_w = 80
+                if term_w >= 75:
+                    plain_short = {"ask": "Ask", "restricted": "Restr", "full": "Full"}.get(mode, "Ask")
+                    self.update(f"{icon} [{color} b]{plain_short}[/]")
+                else:
+                    self.update(f"{icon}")
             else:
                 plain_label = perm.manager.plain_mode_label()
                 self.update(f"{icon} [{color} b]{plain_label}[/]")
@@ -871,6 +943,9 @@ if TEXTUAL_AVAILABLE:
 
         def _show_workspace_info(self):
             try:
+                if not self._workspace_path or self._workspace_path == "No workspace open":
+                    self.post_message(NavAction("open_folder"))
+                    return
                 info_lines = [f"Path: {self._workspace_path or 'No workspace open'}"]
                 try:
                     from .. import workspace as _ws
@@ -924,7 +999,21 @@ if TEXTUAL_AVAILABLE:
                 yield Static("", id="cct-header-spacer-left")
                 yield PermissionPill()
                 yield Static("", id="cct-header-spacer-right")
-                yield _Clickable("", widget_id="cct-header-right", on_click=self._show_workspace_info)
+                with Horizontal(id="cct-header-right-box"):
+                    yield Button(_safe_glyph("📁", "Exp"), id="cct-header-explorer-btn", classes="cct-header-explorer-btn", tooltip="Toggle Explorer (Ctrl+B)")
+                    yield _Clickable("", widget_id="cct-header-right", on_click=self._show_workspace_info)
+
+        def on_button_pressed(self, event: Button.Pressed) -> None:
+            if event.button.id == "cct-header-explorer-btn":
+                event.stop()
+                try:
+                    self.app.action_toggle_sidebar()
+                except Exception:
+                    try:
+                        from .workspace import WorkspaceShell
+                        self.app.query_one(WorkspaceShell).toggle_sidebar()
+                    except Exception:
+                        pass
 
         def on_mount(self):
             self.refresh_brand()
@@ -941,7 +1030,10 @@ if TEXTUAL_AVAILABLE:
                 from .. import customization as _cust
                 if not _cust.is_active():
                     self.display = True
-                    self.styles.height = 4
+                    if not self.has_class("is-portrait"):
+                        self.styles.height = 4
+                    else:
+                        self.styles.height = 2
                     try:
                         logo = self.query_one(Logo)
                         if logo:
@@ -1027,8 +1119,11 @@ if TEXTUAL_AVAILABLE:
             self._workspace_path = new_text
             accent = theme_css.current_hex("accent")
             faint = theme_css.current_hex("text-faint")
-            # Extract just the folder name for compact display
-            short_name = os.path.basename(str(new_text).rstrip("\\/")) if new_text and new_text != "No workspace open" else "No workspace"
+            # Extract just the folder name with responsive truncation
+            raw_name = os.path.basename(str(new_text).rstrip("\\/")) if new_text and new_text != "No workspace open" else "No workspace"
+            w_avail = getattr(getattr(self, "size", None), "width", 80)
+            max_len = 10 if w_avail < 75 else (16 if w_avail < 105 else 26)
+            short_name = (raw_name[:max_len - 1] + "…") if len(raw_name) > max_len else raw_name
             # Workspace indicator: 📁 prefix + short name, with full path as tooltip
             display = f"[{accent}]\U0001f4c1[/] [b]{short_name}[/b]"
             try:
@@ -1043,19 +1138,53 @@ if TEXTUAL_AVAILABLE:
 
         def on_resize(self, event=None):
             """Responsive header collapse: prevent horizontal overflow at small widths."""
-            w = (event.size.width if event else None) or (self.size.width if self.size else 80)
-            compact = (w < 72)
-            very_compact = (w < 50)
+            try:
+                screen_size = getattr(self.app, "size", None) or getattr(self.screen, "size", None)
+                w = screen_size.width if screen_size else ((event.size.width if event else None) or (self.size.width if self.size else 80))
+                h = screen_size.height if screen_size else ((event.size.height if event else None) or 40)
+            except Exception:
+                w = (event.size.width if event else None) or (self.size.width if self.size else 80)
+                h = 40
+            from . import theme_css
+            is_portrait = (w < 92) or (w <= 105 and (w / max(1, h)) < 2.3)
+            self.set_class(is_portrait, "is-portrait")
+
+            if is_portrait:
+                self.styles.height = 2
+                compact = True
+                ultra_compact = (w < 45)
+            else:
+                self.styles.height = 4
+                compact = (w < 85)
+                ultra_compact = (w < 50)
+
             try:
                 self.query_one(PermissionPill).refresh_label(compact=compact)
             except Exception:
                 pass
             try:
+                exp_btn = self.query_one("#cct-header-explorer-btn", Button)
                 w_right = self.query_one("#cct-header-right", Static)
-                if very_compact:
+                if is_portrait:
+                    exp_btn.display = True
                     w_right.display = False
                 else:
-                    w_right.display = True
+                    exp_btn.display = False
+                    if ultra_compact:
+                        w_right.display = False
+                    else:
+                        w_right.display = True
+                    # Re-truncate for new width
+                    raw_name = os.path.basename(str(self._workspace_path).rstrip("\\/")) if self._workspace_path and self._workspace_path != "No workspace open" else "No workspace"
+                    max_len = 10 if w < 75 else (16 if w < 105 else 26)
+                    short_name = (raw_name[:max_len - 1] + "…") if len(raw_name) > max_len else raw_name
+                    accent = theme_css.current_hex("accent")
+                    w_right.update(f"[{accent}]\U0001f4c1[/] [b]{short_name}[/b]")
+            except Exception:
+                pass
+            try:
+                logo = self.query_one(Logo)
+                logo.display = not ultra_compact
             except Exception:
                 pass
 

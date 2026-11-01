@@ -1,0 +1,425 @@
+<USER_REQUEST>
+# CAT CLI — PORTRAIT MODE OPTIMIZATION
+
+## HEADER COMPACTION + CHAT COMPOSER REDESIGN
+
+Act as a senior Python developer, Textual framework specialist and professional terminal UI/UX engineer.
+
+We have supplied two screenshots showing our current CAT CLI portrait interface:
+
+1. Header screenshot.
+2. Chat composer screenshot.
+
+We want to improve ONLY the portrait-mode interface.
+
+**CRITICAL: Our existing landscape interface is already good. DO NOT MODIFY, REDESIGN, REARRANGE OR DAMAGE THE LANDSCAPE LAYOUT.**
+
+We want two distinct responsive experiences:
+
+* Landscape: Preserve the existing design and behaviour.
+* Portrait: Introduce a compact, minimal and carefully optimized layout.
+
+This is an actual implementation task, not a design proposal.
+
+# 1. UNDERSTAND THE EXISTING RESPONSIVE ARCHITECTURE
+
+Before modifying anything:
+
+* Inspect our existing Textual application.
+* Inspect the installed Textual version.
+* Inspect the header widget.
+* Inspect the chat composer widget.
+* Inspect the current responsive breakpoints.
+* Inspect existing landscape and portrait styling.
+* Identify which CSS rules are shared between the two layouts.
+
+Create a clear separation between landscape-specific and portrait-specific styling.
+
+Use Textual's native responsive mechanisms wherever appropriate.
+
+Do not introduce arbitrary global styling changes.
+
+# 2. PORTRAIT HEADER — COMPLETE COMPACTION
+
+Our current portrait header looks unnecessarily large.
+
+### Problems visible in the screenshot
+
+* The hamburger menu occupies an oversized rectangular area.
+* The CAT branding has excessive spacing.
+* The clock/permission control is displayed inside a disproportionately large square.
+* Header height consumes too much vertical space.
+* Controls do not feel like a unified toolbar.
+
+### Desired design
+
+Create a compact, single-row toolbar.
+
+LEFT:
+
+* Small hamburger menu.
+* CAT icon/branding.
+* Minimal horizontal spacing.
+
+RIGHT:
+
+* Compact permission/time control.
+* Other essential controls, when space permits.
+
+### Requirements
+
+* Reduce unnecessary header height.
+* Remove oversized button containers.
+* Use consistent control heights.
+* Properly center icons vertically.
+* Keep CAT branding recognizable.
+* Use compact button padding.
+* Maintain readable labels.
+* Avoid excessive empty space.
+* Align all controls consistently.
+
+The clock control must not look like a giant square card.
+
+Use a compact icon button or small status chip instead.
+
+If the permission label does not fit, use a compact representation while preserving access to the complete permission settings.
+
+If the workspace selector or other secondary controls cannot fit, make them accessible through the existing menu.
+
+### Important
+
+Do not delete header functionality.
+
+Do not remove the permission system.
+
+Do not change the existing command handlers.
+
+# 3. MINIMAL PORTRAIT WELCOME AREA
+
+In portrait mode ONLY, remove the following three lines from the main dashboard welcome area:
+
+`CAT v0.8.9.01`
+
+`Chemistry • Coding • Intelligence`
+
+`● CAT Build ready`
+
+These three welcome-text elements should not occupy space in portrait mode.
+
+The CAT identity should remain available through the compact header.
+
+Keep the AI provider/model information accessible through the existing status interface.
+
+Do not globally delete these elements from the application.
+
+**In landscape mode, preserve all three lines exactly as they currently appear.**
+
+# 4. HIDE TWO DASHBOARD SECTIONS IN PORTRAIT MODE ONLY
+
+In portrait mode, hide these two dashboard sections:
+
+1. Recent Projects.
+2. Project & Workspace.
+
+Reason: These cards consume too much vertical space on narrow/tall layouts and make the interface unnecessarily crowded.
+
+### Important implementation rules
+
+* Hide Recent Projects only in portrait mode.
+* Hide Project & Workspace only in portrait mode.
+* Preserve both cards in landscape mode.
+* Preserve their underlying components, data and functionality.
+* Do not delete their source code.
+* Do not disable their functionality globally.
+* Do not affect their existing landscape appearance.
+
+The CAT Activity section should remain available.
+
+Do not accidentally hide the remaining dashboard components.
+
+# 5. PORTRAIT CHAT COMPOSER — COMPLETE UI REPAIR
+
+This is another major priority.
+
+Our current chat composer has poor proportions and inconsistent alignment.
+
+### Problems identified
+
+1. Outer border has inconsistent colours and appearance.
+2. Right-side border appears interrupted.
+3. Bottom and side borders do not look visually consistent.
+4. Input area contains too much unused vertical space.
+5. Agent information is not properly grouped.
+6. Clock, attachment and send icons are distributed awkwardly.
+7. Controls do not share a consistent alignment.
+8. Composer looks like separate components placed inside a large box rather than one unified component.
+
+### Desired structure
+
+Redesign it as a single cohesive chat composer.
+
+#### TOP SECTION — MESSAGE INPUT
+
+Display:
+
+`❯ Type a message...`
+
+Requirements:
+
+* Clean multiline input.
+* Comfortable internal padding.
+* Proper cursor positioning.
+* Consistent background.
+* Clear input focus.
+* No excessive empty space.
+* Responsive height.
+
+The input section should expand naturally when the user types multiple lines.
+
+It should not have an unnecessarily large fixed height when empty.
+
+#### BOTTOM SECTION — STATUS AND CONTROLS
+
+Organize controls into two logical groups.
+
+LEFT GROUP:
+
+* CAT agent indicator.
+* Current agent name (Aria or whichever agent is active).
+* Model/provider information where space permits.
+
+RIGHT GROUP:
+
+* Permission/time control.
+* Attachment button.
+* Send button.
+
+Requirements:
+
+* Consistent icon dimensions.
+* Consistent spacing.
+* Proper vertical alignment.
+* No overlapping.
+* No controls escaping the composer.
+* No excessive gaps.
+* Clear grouping.
+
+On particularly narrow portrait layouts, use a compact second row.
+
+Do not force all controls into one horizontal line when there is insufficient space.
+
+# 6. CHAT COMPOSER BORDER AND CONTAINER REPAIR
+
+The current screenshot shows an inconsistent outline.
+
+Investigate the actual Textual CSS and component hierarchy.
+
+Check:
+
+* Nested widget borders.
+* Border styles.
+* Parent padding.
+* Child margins.
+* Overflow.
+* Container dimensions.
+* Background differences.
+* Incorrect CSS selectors.
+
+### Desired result
+
+The composer must have:
+
+* One visually consistent outer boundary.
+* Matching border styling on all four sides.
+* Proper corner rendering where supported.
+* Consistent internal padding.
+* No broken or missing border segments.
+* No unexpected brown border sections unless intentionally part of the existing theme.
+
+Use CAT's existing amber/gold accent colour for the portrait composer focus state.
+
+Preserve the existing CAT colour identity.
+
+Do not add unnecessary decorative borders inside the composer.
+
+# 7. PORTRAIT RESPONSIVE LAYOUT
+
+Make the portrait interface use vertical space intelligently.
+
+Expected component order:
+
+COMPACT HEADER
+↓
+COMPACT CAT CONTENT AREA
+↓
+CAT ACTIVITY / ACTIVE CHAT CONTENT
+↓
+CHAT COMPOSER
+
+The Recent Projects and Project & Workspace cards should not be displayed in portrait mode.
+
+Keep the main content scrollable when required.
+
+The chat composer should remain anchored to the bottom of the main content area.
+
+It must not cover or overlap the conversation or dashboard.
+
+Avoid excessive empty space between the header and composer.
+
+# 8. PRESERVE THE LANDSCAPE INTERFACE
+
+THIS IS A STRICT REQUIREMENT.
+
+Our current landscape UI is already satisfactory.
+
+Do not change:
+
+* Landscape header dimensions.
+* Landscape header alignment.
+* Landscape CAT welcome section.
+* Landscape welcome text.
+* Landscape Recent Projects card.
+* Landscape CAT Activity card.
+* Landscape Project & Workspace card.
+* Landscape button arrangement.
+* Landscape chat composer layout.
+* Landscape colour scheme.
+* Landscape spacing.
+
+Implement portrait-specific changes using isolated responsive classes or rules.
+
+Avoid modifying shared component styling unless absolutely necessary.
+
+If a shared component requires changes, ensure the existing landscape rendering remains visually identical.
+
+# 9. RESPONSIVE TESTING
+
+Test both layouts using actual terminal dimensions.
+
+Suggested portrait tests:
+
+* 60 × 35
+* 70 × 40
+* 80 × 45
+* 90 × 50
+* 100 × 55
+
+Suggested landscape tests:
+
+* 120 × 40
+* 140 × 45
+* 160 × 50
+* 180 × 55
+* 200 × 60
+
+The dimensions are representative test targets, not rigid device definitions.
+
+Remember that terminal UI responsiveness must be based on terminal columns and rows, not browser-style pixel dimensions.
+
+### Portrait acceptance tests
+
+[ ] Header is compact.
+
+[ ] Hamburger button is correctly sized.
+
+[ ] CAT branding is aligned.
+
+[ ] Clock control is no longer oversized.
+
+[ ] CAT version welcome text is hidden.
+
+[ ] Chemistry • Coding • Intelligence text is hidden.
+
+[ ] CAT Build ready text is hidden.
+
+[ ] Recent Projects is hidden.
+
+[ ] Project & Workspace is hidden.
+
+[ ] CAT Activity remains accessible.
+
+[ ] Chat composer border is consistent.
+
+[ ] Input area has appropriate height.
+
+[ ] Agent controls are aligned.
+
+[ ] Permission control is accessible.
+
+[ ] Attachment button works.
+
+[ ] Send button works.
+
+[ ] No overflow or clipping.
+
+### Landscape regression tests
+
+[ ] Existing landscape header is unchanged.
+
+[ ] All welcome text remains visible.
+
+[ ] Recent Projects remains visible.
+
+[ ] Project & Workspace remains visible.
+
+[ ] Existing dashboard arrangement is unchanged.
+
+[ ] Existing chat composer appearance is preserved.
+
+[ ] Existing controls continue working.
+
+# 10. IMPLEMENTATION AND FINAL DELIVERABLES
+
+Do not stop after analysing the screenshots.
+
+Modify the actual CAT CLI source code.
+
+Provide:
+
+1. Updated portrait-specific layout.
+2. Compact portrait header.
+3. Improved portrait chat composer.
+4. Corrected border styling.
+5. Portrait-specific welcome-text visibility.
+6. Portrait-specific dashboard visibility.
+7. Existing landscape layout preserved.
+8. Actual screenshots of portrait mode.
+9. Actual screenshots of landscape mode.
+10. List of modified files.
+11. Test results.
+
+Do not claim landscape preservation unless you have actually compared the resulting landscape interface with the existing version.
+
+# FINAL DESIGN DIRECTION
+
+LANDSCAPE:
+Keep our existing CAT interface.
+
+PORTRAIT:
+Make CAT minimal, compact, clean and comfortable to use.
+
+The portrait interface should feel intentionally designed for a narrow/tall display, not like a landscape interface squeezed into a smaller window.
+
+Do not remove functionality globally.
+
+Do not rewrite the entire application.
+
+**Preserve landscape. Optimize portrait. Perfect the chat composer.**
+
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-10-31T20:22:08+05:30.
+
+The user's current state is as follows:
+Other open documents:
+- c:\Users\ADMIN\OneDrive\PlayGround_Official\Dev_Project_PlayGorund{Dp{P} }_Official_v0.5\CAT_v0.7.9\cat-cli\readme.md (LANGUAGE_UNSPECIFIED)
+- c:\Users\ADMIN\OneDrive\PlayGround_Official\Dev_Project_PlayGorund{Dp{P} }_Official_v0.5\CAT_v0.7.9\cat-cli\test\extension.test.js (LANGUAGE_UNSPECIFIED)
+- c:\Users\ADMIN\OneDrive\PlayGround_Official\Dev_Project_PlayGorund{Dp{P} }_Official_v0.5\CAT_v0.7.9\cat-cli\package.json (LANGUAGE_UNSPECIFIED)
+- c:\Users\ADMIN\OneDrive\PlayGround_Official\Dev_Project_PlayGorund{Dp{P} }_Official_v0.5\CAT_v0.7.9\calc_terminal\tests\test_all_user_fixes.py (LANGUAGE_UNSPECIFIED)
+- c:\Users\ADMIN\OneDrive\PlayGround_Official\Dev_Project_PlayGorund{Dp{P} }_Official_v0.5\CAT_v0.7.9\calc_terminal\ui\footer.py (LANGUAGE_UNSPECIFIED)
+
+The user has uploaded 2 image(s):
+- C:/Users/ADMIN/.gemini/antigravity/brain/6044f886-d0e4-4199-9ee7-c7349e91cb18/.user_uploaded/media_1793458272238_e0d61218.png
+- C:/Users/ADMIN/.gemini/antigravity/brain/6044f886-d0e4-4199-9ee7-c7349e91cb18/.user_uploaded/media_1793458272240_bbc8df6a.png
+You can embed these images in an artifact if you need the USER to review them.
+</ADDITIONAL_METADATA>

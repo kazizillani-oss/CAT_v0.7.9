@@ -85,17 +85,18 @@ if TEXTUAL_AVAILABLE:
         def _mode_badge_markup(self, mode_key):
             accent = ai_modes.accent_hex(mode_key)
             m = ai_modes.meta(mode_key)
-            # v0.7.8: per-mode gradient applied to the badge — a 4-segment
-            # ▮ bar blending the mode's two-stop gradient, then the icon in
-            # the start color and the label in the end color.
+            raw_icon = m.get('icon', '')
+            if raw_icon in ('🛠️', '🛠'):
+                raw_icon = '🔨'
+            clean_icon = raw_icon.replace('\ufe0f', '')
+            safe_icon = _safe_glyph(clean_icon, '[B]')
             try:
                 gs, ge = ai_modes.gradient(mode_key)
-                bar = "".join(f"[{_hex_blend(gs, ge, t)}]\u25ae[/]"
+                bar = ''.join(f'[{_hex_blend(gs, ge, t)}]\u25ae[/]'
                               for t in (0.0, 0.33, 0.66, 1.0))
-                return f"{bar} [{gs} b]{m['icon']}[/] [{ge} b]{m['label']}[/]"
+                return f'{bar} [{gs} b]{safe_icon}[/] [{ge} b]{m["label"]}[/]'
             except Exception:
-                return f"[{accent} b]{m['icon']} {m['label']}[/]"
-
+                return f'[{accent} b]{safe_icon} {m["label"]}[/]'
         def compose(self):
             with Horizontal(id="cct-left-controls"):
                 yield _Badge(self._mode_badge_markup(self.notebook_mode),
@@ -110,28 +111,35 @@ if TEXTUAL_AVAILABLE:
                 yield Button(_safe_glyph("🔗", "(+)"), id="btn-attach", classes="cct-icon-btn", tooltip="Attach file (Click / Alt+A)")
                 yield Button(_safe_glyph("➤", ">"), id="btn-send", classes="cct-icon-btn cct-icon-send", tooltip="Send message (Enter)")
 
-        def _status_text(self):
-            return f"Context {self.context_tokens}K"
+        def _status_text(self, w=80):
+            if w and w < 75:
+                return f"{self.context_tokens}K" if self.context_tokens else "OK"
+            return f"Context {self.context_tokens}K" if self.context_tokens else "Context OK"
 
         def watch_context_tokens(self, value):
             try:
-                self.query_one("#cct-center-status", Static).update(self._status_text())
+                w = getattr(getattr(self, "size", None), "width", 80)
+                self.query_one("#cct-center-status", Static).update(self._status_text(w))
             except Exception:
                 pass
 
         def _shorten_model_label(self, label, w):
             if not label:
                 return ""
-            if w and w < 96:
-                clean = label
-                for prefix in ("OLLAMA ", "OPENROUTER ", "OPENAI ", "GEMINI ", "ANTHROPIC ", "GROQ "):
-                    if clean.upper().startswith(prefix):
-                        clean = clean[len(prefix):]
-                        break
-                if len(clean) > 16:
-                    clean = clean[:15] + "…"
+            clean = label
+            for prefix in ("OLLAMA ", "OPENROUTER ", "OPENAI ", "GEMINI ", "ANTHROPIC ", "GROQ "):
+                if clean.upper().startswith(prefix):
+                    clean = clean[len(prefix):]
+                    break
+            if w and w < 60:
+                if len(clean) > 12:
+                    clean = clean[:11] + "…"
                 return clean
-            return label
+            elif w and w < 96:
+                if len(clean) > 18:
+                    clean = clean[:17] + "…"
+                return clean
+            return label if (w and w >= 120) else clean
 
         def set_model_label(self, label):
             self._model_label = label
@@ -161,19 +169,34 @@ if TEXTUAL_AVAILABLE:
             self.post_message(WorkspaceChanged(name))
 
         def on_resize(self, event=None):
-            """Responsive footer collapse at narrow viewports: ensures send button never gets pushed off and Workspace is never clipped."""
+            """Responsive footer collapse at narrow viewports: ensures send button never gets pushed off and controls never clip."""
             w = (event.size.width if event else None) or (self.size.width if self.size else 80)
             try:
                 center = self.query_one("#cct-center-status", Static)
-                center.display = (w >= 84)
+                center.display = (w >= 80)
+                center.update(self._status_text(w))
             except Exception:
                 pass
             try:
-                display_label = self._shorten_model_label(self._model_label, w)
-                self.query_one("#badge-model", _Badge).update(display_label)
+                model_badge = self.query_one("#badge-model", _Badge)
+                sep = self.query_one(".cct-badge-sep", Static)
+                if w < 55:
+                    model_badge.display = False
+                    sep.display = False
+                elif w < 75:
+                    model_badge.display = True
+                    sep.display = True
+                    clean = self._shorten_model_label(self._model_label, w)
+                    if len(clean) > 10:
+                        clean = clean[:9] + "…"
+                    model_badge.update(clean)
+                else:
+                    model_badge.display = True
+                    sep.display = True
+                    display_label = self._shorten_model_label(self._model_label, w)
+                    model_badge.update(display_label)
             except Exception:
                 pass
-
     class StatusLine(Static):
         """One compact bottom status line for the whole app — no boxes,
         no oversized labels. `get_fields` is a zero-arg callable

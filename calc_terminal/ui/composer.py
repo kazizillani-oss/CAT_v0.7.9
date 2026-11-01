@@ -1338,7 +1338,7 @@ if TEXTUAL_AVAILABLE:
                 editor = self.query_one("#cct-input", ComposerInput)
                 stack = self.query_one("#cct-editor-stack", Container)
                 # Auto-resize editor and stack from 2 up to 8 lines based on line count
-                line_count = max(2, min(8, editor.text.count("\n") + 1))
+                line_count = max(1, min(6, editor.text.count("\n") + 1))
                 if not getattr(self, "_explicit_height", None):
                     if editor.styles.height != line_count:
                         editor.styles.height = line_count

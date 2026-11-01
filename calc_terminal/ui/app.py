@@ -238,10 +238,10 @@ _COMPONENT_CSS = """
 #cct-brandheader {
     dock: top;
     height: 4;
-    padding: 0 2;
+    padding: 0 1;
     background: $app-background;
     color: $text;
-    border-bottom: tall $border-active $border;
+    border-bottom: solid $border;
 }
 
 #cct-conversation {
@@ -516,11 +516,7 @@ LiveActivitiesBlock.collapsed #live-header, .live-activities-block.collapsed #li
    moment a mode class is present. */
 #cct-composer {
     background: $surface;
-    border: heavy;
-    border-top: heavy $surface-highlight;
-    border-left: heavy $surface-highlight;
-    border-bottom: heavy $surface-dark;
-    border-right: heavy $surface-dark;
+    border: heavy $border;
     tint: transparent;
     padding: 0 1;
     margin: 0 1 1 1;
@@ -536,11 +532,7 @@ LiveActivitiesBlock.collapsed #live-header, .live-activities-block.collapsed #li
 }
 #cct-composer:focus-within {
     background: $surface;
-    border: heavy;
-    border-top: heavy $accent-highlight;
-    border-left: heavy $accent-highlight;
-    border-bottom: heavy $surface-dark;
-    border-right: heavy $surface-dark;
+    border: heavy $border-active;
     tint: transparent;
 }
 
@@ -648,27 +640,21 @@ LiveActivitiesBlock.collapsed #live-header, .live-activities-block.collapsed #li
 }
 
 #cct-cmdpalette {
-    background: $surface-alt;
-    border: tall;
-    border-top: tall $surface-highlight;
-    border-left: tall $surface-highlight;
-    border-bottom: tall $surface-dark;
-    border-right: tall $surface-dark;
-    tint: $surface-highlight 4%;
-    margin-left: 2;
-    margin-right: 2;
-    margin-top: 1;
-    margin-bottom: 1;
+    background: $surface;
+    border: round $border;
+    tint: $accent 4%;
+    margin-left: 1;
+    margin-right: 1;
+    margin-top: 0;
+    margin-bottom: 0;
     width: 1fr;
-    max-height: 8;
+    max-height: 10;
     height: auto;
     display: none;
-    padding: 0 1;
+    padding: 0;
     scrollbar-size: 1 1;
-    scrollbar-gutter: stable;
-    scrollbar-color: $accent $surface-dark;
-    scrollbar-color-hover: $accent-highlight $surface-dark;
-    scrollbar-color-active: $accent $surface-dark;
+    scrollbar-gutter: auto;
+    scrollbar-color: $accent $surface;
 }
 #cct-cmdpalette.open { display: block; }
 .cct-cmd-row {
@@ -697,9 +683,9 @@ LiveActivitiesBlock.collapsed #live-header, .live-activities-block.collapsed #li
 #cct-kbhints { height: 1; color: $text-faint; padding: 0 2; }
 
 #cct-bottom-row {
-    height: 1;
+    height: auto;
     min-height: 1;
-    max-height: 1;
+    max-height: 2;
     margin: 0;
     padding: 0 1;
     layout: horizontal;
@@ -710,7 +696,7 @@ LiveActivitiesBlock.collapsed #live-header, .live-activities-block.collapsed #li
 }
 #cct-left-controls {
     width: auto;
-    max-width: 55%;
+    max-width: 65%;
     overflow: hidden;
     height: 1;
     layout: horizontal;
@@ -732,7 +718,6 @@ LiveActivitiesBlock.collapsed #live-header, .live-activities-block.collapsed #li
 }
 #cct-footer-spacer-right { width: 1fr; height: 1; }
 #cct-right-controls {
-    dock: right;
     width: auto;
     min-width: 12;
     max-width: 20;
@@ -1294,157 +1279,147 @@ Button.cct-perm-close-btn:hover {
    which is the "blank pill" bug: MenuButton/Logo/the workspace-path
    Static all already use content-align: *  middle, so they still sit
    correctly centered on the row when the container is 3 rows tall. */
-#cct-header-top { height: 3; overflow: hidden; align: center middle; align-vertical: middle; }
-#cct-header-left { width: auto; height: 3; align: left middle; align-vertical: middle; layout: horizontal; }
-#cct-header-spacer-left { width: 1fr; height: 3; }
-#cct-header-spacer-right { width: 1fr; height: 3; }
+#cct-header-top {
+    height: 3; overflow: hidden;
+    layout: horizontal;
+    align: center middle; align-vertical: middle;
+}
+#cct-header-left {
+    width: 1fr; height: 3;
+    align: left middle; align-vertical: middle;
+    layout: horizontal;
+}
+#cct-header-spacer-left { display: none; }
+#cct-header-spacer-right { display: none; }
+#cct-header-right-box {
+    width: 1fr; height: 3;
+    align: right middle; align-vertical: middle;
+    layout: horizontal;
+}
 
-/* LEFT: clean menu button + logo */
+/* LEFT: 3D raised menu button + logo */
 .cct-menu-btn {
     width: 5; min-width: 5; height: 3; color: $text; content-align: center middle;
-    background: $surface-alt;
+    background: $surface;
     border-top: tall $surface-highlight;
     border-left: tall $surface-highlight;
-    border-bottom: tall $surface-dark;
-    border-right: tall $surface-dark;
+    border-bottom: tall $surface-shadow;
+    border-right: tall $surface-shadow;
     margin-right: 1;
-    transition: color 120ms, border 120ms, background 120ms, offset 80ms;
+    transition: color 120ms, border 120ms, background 120ms;
 }
 .cct-menu-btn:hover {
-    color: $text;
-    background: $accent 24%;
-    border-top: tall #ffffff;
-    border-left: tall $accent-highlight;
-    border-bottom: tall $surface-dark;
-    border-right: tall $surface-dark;
+    color: $accent;
+    background: $surface-alt;
+    border-top: tall $accent-lighten-2;
+    border-left: tall $accent-lighten-2;
+    border-bottom: tall $accent;
+    border-right: tall $accent;
 }
-.cct-menu-btn.-active {
-    offset: 0 0;
-    border-top: tall $surface-dark;
-    border-left: tall $surface-dark;
-    border-bottom: tall $surface-highlight;
-    border-right: tall $surface-highlight;
-}
-.cct-menu-btn-active {
-    color: $text;
-    background: $accent 30%;
-    border-top: tall $surface-dark;
-    border-left: tall $surface-dark;
+.cct-menu-btn.-active, .cct-menu-btn-active {
+    color: $accent;
+    background: $surface-dark;
+    border-top: tall $surface-shadow;
+    border-left: tall $surface-shadow;
     border-bottom: tall $surface-highlight;
     border-right: tall $surface-highlight;
     text-style: none;
 }
 .cct-logo { width: auto; padding: 0 1; content-align: left middle; height: 3; text-style: bold; }
 
-/* CENTER: Permission pill */
+/* CENTER: 3D raised Permission pill - dead centered */
 .cct-perm-pill {
     width: auto; content-align: center middle; height: 3;
     padding: 0 2; margin: 0;
-    background: $surface-alt;
+    background: $surface;
     border-top: tall $surface-highlight;
     border-left: tall $surface-highlight;
-    border-bottom: tall $surface-dark;
-    border-right: tall $surface-dark;
+    border-bottom: tall $surface-shadow;
+    border-right: tall $surface-shadow;
     text-style: bold;
     color: $text;
     transition: border 120ms, color 120ms, background 120ms;
 }
 .cct-perm-pill:hover {
-    background: $accent 24%;
-    border-top: tall #ffffff;
-    border-left: tall $accent-highlight;
-    border-bottom: tall $surface-dark;
-    border-right: tall $surface-dark;
-    color: $text;
+    background: $surface-alt;
+    border-top: tall $accent-lighten-2;
+    border-left: tall $accent-lighten-2;
+    border-bottom: tall $accent;
+    border-right: tall $accent;
+    color: #ffffff;
 }
 .cct-perm-pill.-active {
-    offset: 0 0;
-    border-top: tall $surface-dark;
-    border-left: tall $surface-dark;
+    background: $surface-dark;
+    border-top: tall $surface-shadow;
+    border-left: tall $surface-shadow;
     border-bottom: tall $surface-highlight;
     border-right: tall $surface-highlight;
+    color: $accent;
 }
-.cct-perm-pill:focus {
-    border-top: tall #ffffff;
-    border-left: tall $accent-highlight;
-    border-bottom: tall $surface-dark;
-    border-right: tall $surface-dark;
-}
-.cct-perm-pill-active {
-    background: $accent 30%;
-    color: $text;
-    border-top: tall #ffffff;
-    border-left: tall $accent-highlight;
-    border-bottom: tall $surface-dark;
-    border-right: tall $surface-dark;
+.cct-perm-pill:focus, .cct-perm-pill-active {
+    background: $surface-dark;
+    border-top: tall $surface-shadow;
+    border-left: tall $surface-shadow;
+    border-bottom: tall $surface-highlight;
+    border-right: tall $surface-highlight;
+    color: $accent;
 }
 
 .cct-chat-title-pill {
     width: auto; max-width: 30; content-align: center middle; height: 3;
     padding: 0 2; margin: 0 1 0 1;
-    background: $surface-alt;
+    background: $surface;
     border-top: tall $surface-highlight;
     border-left: tall $surface-highlight;
-    border-bottom: tall $surface-dark;
-    border-right: tall $surface-dark;
+    border-bottom: tall $surface-shadow;
+    border-right: tall $surface-shadow;
     color: $text;
     text-style: bold;
     overflow: hidden;
     text-overflow: ellipsis;
-    transition: border 120ms, color 120ms, background 120ms, offset 80ms;
+    transition: border 120ms, color 120ms, background 120ms;
 }
 .cct-chat-title-pill:hover {
-    background: $accent 18%;
-    border-top: tall #ffffff;
-    border-left: tall $accent-highlight;
-    border-bottom: tall $surface-dark;
-    border-right: tall $surface-dark;
-    color: $text;
-    offset-y: 0;
+    background: $surface-alt;
+    border-top: tall $accent-lighten-2;
+    border-left: tall $accent-lighten-2;
+    border-bottom: tall $accent;
+    border-right: tall $accent;
+    color: #ffffff;
 }
-.cct-chat-title-pill:focus {
-    border-top: tall #ffffff;
-    border-left: tall $accent-highlight;
-    border-bottom: tall $surface-dark;
-    border-right: tall $surface-dark;
-}
-.cct-chat-title-pill.-active {
-    background: $accent 28%;
-    border-top: tall $surface-dark;
-    border-left: tall $surface-dark;
+.cct-chat-title-pill:focus, .cct-chat-title-pill.-active {
+    background: $surface-dark;
+    border-top: tall $surface-shadow;
+    border-left: tall $surface-shadow;
     border-bottom: tall $surface-highlight;
     border-right: tall $surface-highlight;
-    offset-y: 1;
 }
 
-/* RIGHT: 3D workspace path chip — aligned, beveled, and balanced with the pill */
+/* RIGHT: 3D raised workspace path chip — cleanly aligned with permission pill */
 #cct-header-right {
     width: auto; max-width: 32; content-align: center middle;
     padding: 0 2; height: 3;
-    background: $surface-alt;
-    border: tall;
+    background: $surface;
     border-top: tall $surface-highlight;
     border-left: tall $surface-highlight;
-    border-bottom: tall $surface-dark;
-    border-right: tall $surface-dark;
+    border-bottom: tall $surface-shadow;
+    border-right: tall $surface-shadow;
     overflow: hidden;
     text-overflow: ellipsis;
     text-style: bold;
     color: $text;
-    transition: background 120ms, border 120ms, color 120ms, offset 80ms;
+    transition: background 120ms, border 120ms, color 120ms;
 }
 #cct-header-right:hover {
-    background: $accent 20%;
-    border: tall;
-    border-top: tall #ffffff;
-    border-left: tall $accent-highlight;
-    border-bottom: tall $accent-shadow;
-    border-right: tall $accent-shadow;
+    background: $surface-alt;
+    border-top: tall $accent-lighten-2;
+    border-left: tall $accent-lighten-2;
+    border-bottom: tall $accent;
+    border-right: tall $accent;
     color: #ffffff;
-    offset: 0 0;
 }
-.cct-menu-btn:focus { color: $accent; text-style: bold; }
-.cct-perm-pill:focus { border: tall $accent; }
+.cct-menu-btn:focus { color: $accent; text-style: bold; border-top: tall $accent-lighten-2; border-left: tall $accent-lighten-2; }
+.cct-perm-pill:focus { border: round $accent; }
 
 /* --------------------------------------------------------------- sidebar -- */
 #cct-sidebar {
@@ -1984,46 +1959,61 @@ Button.cct-switch.-active {
 }
 #cct-dash-hero { text-align: center; padding-bottom: 1; }
 #cct-dash-actions {
-    height: 3;
-    min-height: 3;
-    max-height: 3;
-    width: auto;
+    height: auto;
+    width: 100%;
     max-width: 100%;
     padding: 0;
-    layout: horizontal;
     align: center middle;
     align-horizontal: center;
     margin: 1 0;
 }
-#cct-dash-actions.stacked {
-    layout: horizontal;
+#cct-dash-actions.mode-4col {
+    layout: grid;
+    grid-size: 4;
+    grid-gutter: 0 1;
     height: 3;
     min-height: 3;
     max-height: 3;
-    width: auto;
-    max-width: 100%;
-    margin: 1 0;
+    width: 84;
+    max-width: 96%;
+}
+#cct-dash-actions.mode-2x2 {
+    layout: grid;
+    grid-size: 2;
+    grid-gutter: 1 1;
+    height: 7;
+    min-height: 7;
+    max-height: 7;
+    width: 48;
+    max-width: 96%;
+}
+#cct-dash-actions.mode-1col,
+#cct-dash-actions.stacked {
+    layout: vertical;
+    height: auto;
+    width: 28;
+    max-width: 90%;
     align-horizontal: center;
 }
+#cct-dash-actions.mode-1col .cct-dash-action,
 #cct-dash-actions.stacked .cct-dash-action {
-    width: auto;
-    min-width: 8;
-    max-width: 16;
-    margin: 0 1;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 0 1 0;
 }
 .cct-dash-action, Button.cct-dash-action,
 Button.cct-dash-action.-style-default,
 Button.cct-dash-action:ansi.-style-default,
 Button.cct-dash-action:ansi.-style-flat,
 Screen Button.cct-dash-action {
-    width: auto;
-    min-width: 9;
-    max-width: 20;
+    width: 100%;
+    min-width: 8;
+    max-width: 24;
     height: 3;
     min-height: 3;
     max-height: 3;
     padding: 0 1;
-    margin: 0 1;
+    margin: 0;
     background: $surface-alt;
     color: $text;
     text-style: bold;
@@ -2076,34 +2066,52 @@ Screen Button.cct-dash-action.-active {
 }
 #cct-dash-columns {
     height: auto;
-    width: auto;
+    width: 100%;
     max-width: 100%;
     padding-top: 0;
     padding-bottom: 1;
     margin-bottom: 0;
-    layout: horizontal;
     overflow: hidden;
     align: center middle;
     align-horizontal: center;
     margin: 0 0 1 0;
 }
+#cct-dash-columns.mode-3col {
+    layout: grid;
+    grid-size: 3;
+    grid-gutter: 0 1;
+    width: 96%;
+    max-width: 132;
+}
+#cct-dash-columns.mode-2col {
+    layout: grid;
+    grid-size: 2;
+    grid-gutter: 1 1;
+    width: 96%;
+    max-width: 92;
+}
+#cct-dash-columns.mode-2col #cct-dash-col-workspace {
+    column-span: 2;
+}
+#cct-dash-columns.mode-1col,
 #cct-dash-columns.stacked {
     layout: vertical;
-    width: 100%;
-    max-width: 100%;
-    margin-bottom: 3;
-    padding-bottom: 3;
+    width: 94%;
+    max-width: 52;
+    margin-bottom: 2;
+    padding-bottom: 1;
     align-horizontal: center;
 }
+#cct-dash-columns.mode-1col .cct-dash-col,
 #cct-dash-columns.stacked .cct-dash-col {
     width: 100%;
     max-width: 100%;
     margin: 1 0;
-    min-height: 5;
+    min-height: 4;
 }
 .cct-dash-col {
-    width: 1fr;
-    min-width: 20;
+    width: 100%;
+    min-width: 22;
     height: auto;
     background: $surface;
     border: tall;
@@ -2113,7 +2121,7 @@ Screen Button.cct-dash-action.-active {
     border-right: tall $surface-shadow;
     tint: $surface-highlight 3%;
     padding: 0 1;
-    margin: 0 1;
+    margin: 0;
     transition: border 100ms, tint 100ms;
 }
 .cct-dash-col:hover, .cct-dash-col:focus-within {
@@ -2127,6 +2135,7 @@ Screen Button.cct-dash-action.-active {
 .cct-dash-col Static {
     text-wrap: nowrap;
     overflow-x: hidden;
+    text-overflow: ellipsis;
 }
 .cct-dash-col-title {
     color: $accent;
@@ -2135,6 +2144,9 @@ Screen Button.cct-dash-action.-active {
     border-bottom: tall $surface-shadow;
     text-style: bold;
     content-align: center middle;
+    text-wrap: nowrap;
+    overflow-x: hidden;
+    text-overflow: ellipsis;
 }
 .cct-dash-row {
     color: $text-muted;
@@ -2216,6 +2228,198 @@ Screen Button.cct-dash-action.-active {
 #cct-right-pane { width: 44; min-width: 24; height: 100%; overflow: hidden; border-left: solid $border; }
 #cct-conversation { overflow-y: auto; overflow-x: hidden; padding: 0 1; scrollbar-size: 2 1; scrollbar-gutter: stable; scrollbar-color: #565f89 #14151f; scrollbar-color-hover: #7aa2f7 #1a1b26; scrollbar-color-active: #bb9af7 #101018; }
 #cct-composer { overflow: hidden; }
+
+/* -------------------- PORTRAIT RESPONSIVE RULES -------------------- */
+#cct-brandheader.is-portrait {
+    height: 2;
+    padding: 0 1;
+    border-bottom: solid $border;
+}
+#cct-brandheader.is-portrait .cct-menu-btn,
+#cct-brandheader.is-portrait .cct-menu-btn:hover,
+#cct-brandheader.is-portrait .cct-menu-btn:focus,
+#cct-brandheader.is-portrait .cct-menu-btn-active {
+    width: 3;
+    min-width: 3;
+    height: 1;
+    min-height: 1;
+    max-height: 1;
+    padding: 0;
+    border: none;
+    background: $surface-alt;
+    margin-right: 1;
+}
+#cct-brandheader.is-portrait .cct-perm-pill,
+#cct-brandheader.is-portrait .cct-perm-pill:hover,
+#cct-brandheader.is-portrait .cct-perm-pill:focus,
+#cct-brandheader.is-portrait .cct-perm-pill-active {
+    height: 1;
+    min-height: 1;
+    max-height: 1;
+    width: auto;
+    padding: 0 1;
+    border: none;
+    background: $surface-alt;
+}
+#cct-brandheader.is-portrait #cct-header-right,
+#cct-brandheader.is-portrait #cct-header-right:hover,
+#cct-brandheader.is-portrait #cct-header-right:focus {
+    height: 1;
+    min-height: 1;
+    max-height: 1;
+    padding: 0 1;
+    border: none;
+    background: $surface-alt;
+}
+#cct-sidebar-back-btn {
+    display: none;
+    height: 1;
+    min-height: 1;
+    max-height: 1;
+    border: none;
+    background: $surface-alt;
+    color: $accent;
+    padding: 0 1;
+    margin-right: 1;
+}
+#cct-sidebar.is-portrait #cct-sidebar-back-btn,
+.is-portrait #cct-sidebar-back-btn {
+    display: block;
+}
+#cct-tb-back {
+    display: none;
+    height: 1;
+    min-height: 1;
+    max-height: 1;
+    border: none;
+    background: $surface-alt;
+    color: $accent;
+    padding: 0 1;
+    margin-right: 1;
+    text-style: bold;
+}
+.is-portrait #cct-tb-back,
+#cct-workspace.is-portrait #cct-tb-back {
+    display: block;
+}
+.is-portrait #cct-tb-split,
+#cct-workspace.is-portrait #cct-tb-split {
+    display: none;
+}
+#cct-brandheader.is-portrait #cct-header-top {
+    height: 1;
+    align-vertical: middle;
+    align: left middle;
+}
+#cct-brandheader.is-portrait #cct-header-left {
+    height: 1;
+    align-vertical: middle;
+}
+#cct-brandheader.is-portrait .cct-menu-btn {
+    width: 3;
+    min-width: 3;
+    height: 1;
+    min-height: 1;
+    padding: 0;
+    border: none;
+    background: $surface-alt;
+    margin-right: 1;
+}
+#cct-brandheader.is-portrait .cct-menu-btn:hover {
+    background: $accent 24%;
+    color: $accent;
+}
+#cct-brandheader.is-portrait .cct-logo {
+    height: 1;
+    min-height: 1;
+    padding: 0 1;
+}
+#cct-brandheader.is-portrait .cct-perm-pill {
+    height: 1;
+    min-height: 1;
+    max-height: 1;
+    width: auto;
+    padding: 0 1;
+    border: none;
+    background: $surface-alt;
+}
+#cct-brandheader.is-portrait .cct-perm-pill:hover {
+    background: $accent 24%;
+}
+#cct-brandheader.is-portrait #cct-header-right {
+    height: 1;
+    min-height: 1;
+    max-height: 1;
+    padding: 0 1;
+    border: none;
+    background: $surface-alt;
+}
+
+#cct-header-explorer-btn {
+    display: none;
+    height: 1;
+    min-height: 1;
+    max-height: 1;
+    border: none;
+    background: transparent;
+    color: $accent;
+    padding: 0 1;
+    min-width: 4;
+}
+#cct-header-explorer-btn:hover {
+    background: $accent 35%;
+    color: #ffffff;
+}
+#cct-brandheader.is-portrait #cct-header-explorer-btn,
+.is-portrait #cct-header-explorer-btn {
+    display: block;
+}
+#cct-brandheader.is-portrait #cct-header-right-box {
+    height: 1;
+    min-height: 1;
+    max-height: 1;
+    width: auto;
+    layout: horizontal;
+    align: right middle;
+}
+#cct-tb-close {
+    height: 1;
+    min-height: 1;
+    max-height: 1;
+    border: none;
+    background: $surface-alt;
+    color: $text-muted;
+    padding: 0 1;
+    min-width: 7;
+    text-style: bold;
+}
+#cct-tb-close:hover {
+    color: $error;
+    background: $surface-highlight 25%;
+}
+.is-portrait #cct-cmdpalette,
+#cct-workspace.is-portrait #cct-cmdpalette {
+    margin-left: 1;
+    margin-right: 1;
+    padding: 0;
+}
+
+#cct-dash-columns.mode-portrait-single {
+    width: 100%;
+    max-width: 60;
+    height: auto;
+    align: center middle;
+    align-horizontal: center;
+    layout: vertical;
+    margin-top: 1;
+}
+#cct-dash-columns.mode-portrait-single #cct-dash-col-notebooks {
+    width: 100%;
+    max-width: 58;
+    height: auto;
+    margin: 0;
+}
+
 """
 
 
@@ -2803,14 +3007,19 @@ if TEXTUAL_AVAILABLE:
                 pass
 
         def _version(self):
+            try:
+                from ..identity import APP_VERSION
+                return APP_VERSION
+            except Exception:
+                pass
             v = getattr(self.repl, "VERSION", None)
             if v:
                 return v
             try:
                 from .. import app as _backend
-                return getattr(_backend, "VERSION", "0.8.0b1")
+                return getattr(_backend, "VERSION", "0.8.9.01")
             except Exception:
-                return "0.8.0b1"
+                return "0.8.9.01"
 
         def _tick_idle_animation(self):
             """Cheap idle-heartbeat: paints the status bar once per cycle
@@ -4120,6 +4329,10 @@ if TEXTUAL_AVAILABLE:
                 self._handle_signout()
                 return
 
+            if action == "quit":
+                self._handle_quit()
+                return
+
             if action == "settings":
                 from .nav_screens import UserPanel
                 self.push_screen(UserPanel(self._user_panel_values),
@@ -4627,39 +4840,40 @@ if TEXTUAL_AVAILABLE:
                 pass
 
         def _cascade_resize(self):
-            """Walk the tree once and invoke on_resize on the dashboard
-            + chat empty state (if mounted). Direct method calls — we
-            intentionally do NOT use `post_message` because every
-            child already implements its own debounce.
-
-            v0.7.9.6: `_dashboard` is a SUBSET of the welcome slot (a
-            WelcomeDashboard is mounted *as* the welcome widget), so the
-            two calls below used to hit the same object twice on every
-            resize — one redundant full art rebuild + 2 widget queries.
-            The identity check collapses that to a single pass."""
+            """Cascade resize to all responsive application components in a single
+            coordinated pass without thrashing: dashboard, workspace, header, composer."""
             try:
+                # 1. Update dashboard & welcome state
                 conv = getattr(self, "conversation", None)
-                if conv is None:
-                    return
-                welcome = getattr(conv, "_welcome", None)
-                dash = getattr(conv, "_dashboard", None)
-                target = welcome if welcome is not None else dash
-                if target is not None and getattr(target, "is_attached", False):
+                if conv is not None:
+                    target = getattr(conv, "_welcome", None) or getattr(conv, "_dashboard", None)
+                    if target is not None and getattr(target, "is_attached", False):
+                        try:
+                            if hasattr(target, "fit_to_viewport"):
+                                target.fit_to_viewport()
+                            else:
+                                target.on_resize(None)
+                        except Exception:
+                            pass
+                # 2. Update workspace / sidebar bounds
+                ws = getattr(self, "workspace", None)
+                if ws is not None and hasattr(ws, "on_resize"):
                     try:
-                        if hasattr(target, "fit_to_viewport"):
-                            target.fit_to_viewport()
-                        else:
-                            target.on_resize(None)
+                        ws.on_resize()
                     except Exception:
                         pass
-                # Only a *distinct* dashboard needs a second pass.
-                if (dash is not None and dash is not target
-                        and getattr(dash, "is_attached", False)):
+                # 3. Update header controls
+                hdr = getattr(self, "header", None)
+                if hdr is not None and hasattr(hdr, "on_resize"):
                     try:
-                        if hasattr(dash, "fit_to_viewport"):
-                            dash.fit_to_viewport()
-                        else:
-                            dash.on_resize(None)
+                        hdr.on_resize()
+                    except Exception:
+                        pass
+                # 4. Update composer
+                comp = getattr(self, "composer", None)
+                if comp is not None and hasattr(comp, "on_resize"):
+                    try:
+                        comp.on_resize()
                     except Exception:
                         pass
             except Exception:
@@ -5369,74 +5583,89 @@ if TEXTUAL_AVAILABLE:
                 self._system_note(f"Host failed: {e}")
 
         def _handle_signout(self):
-            """Prompt confirmation modal before signing out (Requirement #42)."""
+            """Prompt ultra-responsive confirmation modal before signing out."""
             from textual.screen import Screen
             from textual.containers import Vertical, Horizontal
             from textual.widgets import Static, Button
             from textual.binding import Binding
 
             class SignOutModal(Screen):
-                """Requirement #42: Sign out confirmation modal."""
+                """Ultra-responsive sign out confirmation modal."""
                 DEFAULT_CSS = """
                 SignOutModal {
                     align: center middle;
-                    background: #1a1b26 75%;
+                    background: $app-background 75%;
                     width: 100%;
                     height: 100%;
                 }
                 #signout-box {
-                    width: 52;
+                    width: 90%;
+                    max-width: 48;
                     height: auto;
-                    background: #1f2335;
-                    border: thick #a78bfa;
-                    padding: 2 3;
+                    background: $surface;
+                    border-top: tall $surface-highlight;
+                    border-left: tall $surface-highlight;
+                    border-bottom: tall $border;
+                    border-right: tall $border;
+                    padding: 1 2;
                     layout: vertical;
                     align: center middle;
                 }
                 #signout-title {
-                    color: #a78bfa;
+                    color: $accent;
                     text-style: bold;
                     text-align: center;
                     margin-bottom: 1;
                 }
                 #signout-prompt {
                     text-align: center;
-                    margin-bottom: 2;
-                    color: #e2e8f0;
+                    margin-bottom: 1;
+                    color: $text;
                 }
                 #signout-buttons {
-                    height: 3;
+                    height: auto;
+                    min-height: 4;
                     width: 100%;
                     align: center middle;
                     layout: horizontal;
                 }
                 #signout-buttons Button {
-                    margin: 0 2;
-                    min-width: 14;
+                    margin: 0 1;
+                    min-width: 12;
                     height: 3;
-                    border: none;
-                }
-                #btn-signout-yes {
-                    background: #2e3440;
-                    color: #e2e8f0;
-                    border: round #4c566a;
-                }
-                #btn-signout-yes:hover, #btn-signout-yes:focus {
-                    background: #3b4252;
-                    color: #ffffff;
-                    border: round #a78bfa;
-                }
-                #btn-signout-cancel {
-                    background: #7c3aed;
-                    color: #ffffff;
+                    border-top: tall $surface-highlight;
+                    border-left: tall $surface-highlight;
+                    border-bottom: tall $surface-shadow;
+                    border-right: tall $surface-shadow;
+                    background: $surface;
+                    color: $text;
                     text-style: bold;
-                    border: round #7c3aed;
                 }
-                #btn-signout-cancel:hover, #btn-signout-cancel:focus {
-                    background: #8b5cf6;
+                #signout-buttons Button:hover {
+                    border-top: tall $accent-lighten-2;
+                    border-left: tall $accent-lighten-2;
+                    border-bottom: tall $accent;
+                    border-right: tall $accent;
+                    background: $surface-alt;
                     color: #ffffff;
-                    border: round #c4b5fd;
-                    text-style: bold;
+                }
+                #signout-confirm {
+                    background: $accent 35%;
+                    color: #ffffff;
+                    border-top: tall $accent-lighten-2;
+                    border-left: tall $accent-lighten-2;
+                    border-bottom: tall $surface-shadow;
+                    border-right: tall $surface-shadow;
+                }
+                SignOutModal.is-portrait #signout-buttons,
+                .is-portrait #signout-buttons {
+                    layout: vertical;
+                    height: auto;
+                }
+                SignOutModal.is-portrait #signout-buttons Button,
+                .is-portrait #signout-buttons Button {
+                    width: 100%;
+                    margin: 1 0;
                 }
                 """
 
@@ -5446,15 +5675,20 @@ if TEXTUAL_AVAILABLE:
 
                 def compose(self):
                     with Vertical(id="signout-box"):
-                        yield Static("SIGN OUT", id="signout-title")
+                        yield Static("⎋  SIGN OUT", id="signout-title")
                         yield Static("Are you sure you want to sign out?", id="signout-prompt")
                         with Horizontal(id="signout-buttons"):
-                            yield Button("  Yes  ", id="btn-signout-yes")
-                            yield Button("  Cancel  ", id="btn-signout-cancel")
+                            yield Button("  Sign Out  ", id="btn-signout-yes", variant="error")
+                            yield Button("  Cancel  ", id="btn-signout-cancel", variant="default")
 
                 def on_mount(self):
                     try:
-                        # Default focus: Cancel (Requirement #42)
+                        w = getattr(self.app, "size", None)
+                        if w and (w.width < 75 or (w.width / max(1, w.height)) < 2.0):
+                            self.add_class("is-portrait")
+                    except Exception:
+                        pass
+                    try:
                         self.query_one("#btn-signout-cancel", Button).focus()
                     except Exception:
                         pass
@@ -5473,6 +5707,136 @@ if TEXTUAL_AVAILABLE:
                     self._do_execute_signout()
 
             self.push_screen(SignOutModal(), _on_confirmed)
+
+        def _handle_quit(self):
+            """Prompt ultra-responsive confirmation modal before quitting."""
+            from textual.screen import Screen
+            from textual.containers import Vertical, Horizontal
+            from textual.widgets import Static, Button
+            from textual.binding import Binding
+
+            class QuitModal(Screen):
+                """Ultra-responsive quit confirmation modal."""
+                DEFAULT_CSS = """
+                QuitModal {
+                    align: center middle;
+                    background: $app-background 75%;
+                    width: 100%;
+                    height: 100%;
+                }
+                #quit-box {
+                    width: 90%;
+                    max-width: 46;
+                    height: auto;
+                    background: $surface;
+                    border-top: tall #ffa198;
+                    border-left: tall #ffa198;
+                    border-bottom: tall #c73859;
+                    border-right: tall #c73859;
+                    padding: 1 2;
+                    layout: vertical;
+                    align: center middle;
+                }
+                #quit-title {
+                    color: $error;
+                    text-style: bold;
+                    text-align: center;
+                    margin-bottom: 1;
+                }
+                #quit-prompt {
+                    text-align: center;
+                    margin-bottom: 1;
+                    color: $text;
+                }
+                #quit-buttons {
+                    height: auto;
+                    min-height: 4;
+                    width: 100%;
+                    align: center middle;
+                    layout: horizontal;
+                }
+                #quit-buttons Button {
+                    margin: 0 1;
+                    min-width: 12;
+                    height: 3;
+                    border-top: tall $surface-highlight;
+                    border-left: tall $surface-highlight;
+                    border-bottom: tall $surface-shadow;
+                    border-right: tall $surface-shadow;
+                    background: $surface;
+                    color: $text;
+                    text-style: bold;
+                }
+                #quit-buttons Button:hover {
+                    border-top: tall $accent-lighten-2;
+                    border-left: tall $accent-lighten-2;
+                    border-bottom: tall $accent;
+                    border-right: tall $accent;
+                    background: $surface-alt;
+                    color: #ffffff;
+                }
+                #quit-confirm {
+                    background: #472635;
+                    border-top: tall #ffa198;
+                    border-left: tall #ffa198;
+                    border-bottom: tall #c73859;
+                    border-right: tall #c73859;
+                    color: #ff7b72;
+                }
+                #quit-confirm:hover {
+                    background: #612739;
+                    color: #ffffff;
+                }
+                QuitModal.is-portrait #quit-buttons,
+                .is-portrait #quit-buttons {
+                    layout: vertical;
+                    height: auto;
+                }
+                QuitModal.is-portrait #quit-buttons Button,
+                .is-portrait #quit-buttons Button {
+                    width: 100%;
+                    margin: 1 0;
+                }
+                """
+
+                BINDINGS = [
+                    Binding("escape", "cancel", "Cancel"),
+                ]
+
+                def compose(self):
+                    with Vertical(id="quit-box"):
+                        yield Static("✕  QUIT CAT", id="quit-title")
+                        yield Static("Are you sure you want to quit CAT?", id="quit-prompt")
+                        with Horizontal(id="quit-buttons"):
+                            yield Button("✕  Quit Application  ", id="btn-quit-yes", variant="error")
+                            yield Button("  Cancel  ", id="btn-quit-cancel", variant="default")
+
+                def on_mount(self):
+                    try:
+                        w = getattr(self.app, "size", None)
+                        if w and (w.width < 75 or (w.width / max(1, w.height)) < 2.0):
+                            self.add_class("is-portrait")
+                    except Exception:
+                        pass
+                    try:
+                        self.query_one("#btn-quit-cancel", Button).focus()
+                    except Exception:
+                        pass
+
+                def action_cancel(self):
+                    self.dismiss(False)
+
+                def on_button_pressed(self, event):
+                    if event.button.id == "btn-quit-yes":
+                        self.dismiss(True)
+                    else:
+                        self.dismiss(False)
+
+            def _on_quit_confirmed(confirmed):
+                if confirmed:
+                    self.exit()
+
+            self.push_screen(QuitModal(), _on_quit_confirmed)
 
         def _do_execute_signout(self):
             """Sign out — clears token, stops Node.js, shows ASCII goodbye."""

@@ -38,9 +38,10 @@ except Exception:
 LAYOUT_PATH = os.path.join(os.path.expanduser("~"), ".cct_ui_layout.json")
 
 # ---- Explorer width bounds ------------------------------------------------
-EXPLORER_MIN_WIDTH = 14      # never disappears by accident while dragging
-EXPLORER_MAX_FRACTION = 0.55 # never wider than ~half the shell
-EXPLORER_DEFAULT_WIDTH = 32
+EXPLORER_MIN_WIDTH = 20      # legible filenames without immediate clipping
+EXPLORER_MAX_FRACTION = 0.30 # never wider than ~30% of the shell (preserves main dashboard)
+EXPLORER_MAX_WIDTH = 34      # absolute ceiling on wide desktop monitors
+EXPLORER_DEFAULT_WIDTH = 26
 
 # ---- Composer height bounds ----------------------------------------------
 COMPOSER_MIN_HEIGHT = 4      # compact chatbox: 1-line input + footer stay usable
@@ -169,9 +170,10 @@ if TEXTUAL_AVAILABLE:
 
         def _clamp(self, width):
             total = max(10, self._shell.size.width) if self._shell.is_attached \
-                else EXPLORER_DEFAULT_WIDTH * 2
-            ceiling = max(EXPLORER_MIN_WIDTH + 4,
-                          int(total * EXPLORER_MAX_FRACTION))
+                else EXPLORER_DEFAULT_WIDTH * 3
+            ceiling = min(EXPLORER_MAX_WIDTH,
+                          max(EXPLORER_MIN_WIDTH + 2,
+                              int(total * EXPLORER_MAX_FRACTION)))
             return max(EXPLORER_MIN_WIDTH, min(ceiling, width))
 
         def _apply(self, event):

@@ -79,6 +79,12 @@ if TEXTUAL_AVAILABLE:
         # has no media queries, so this is decided in Python on Resize.
         SPLIT_MIN_WIDTH = 68
 
+        def is_portrait(self) -> bool:
+            s = getattr(self.app, "size", None) or getattr(self.screen, "size", None) or self.size
+            w = s.width if s else 80
+            h = s.height if s else 40
+            return (w < 92) or (w <= 105 and (w / max(1, h)) < 2.3)
+
         def __init__(self, conversation_view, composer=None, id="cct-workspace"):
             super().__init__(id=id)
             self._conversation_view = conversation_view
@@ -114,20 +120,30 @@ if TEXTUAL_AVAILABLE:
                         yield PreviewPanel()
 
         def on_mount(self):
-            # Workspace section is always open by default on launch
-            self.explorer.display = True
-            try:
-                self.explorer.set_width(EXPLORER_DEFAULT_WIDTH)
-            except Exception:
-                pass
+            # Workspace section is always open by default on launch in landscape,
+            # but in portrait (<92 cols or portrait ratio), start with explorer collapsed
+            # and main dashboard visible so it never opens to a blank screen or covers the chat.
+            is_port = self.is_portrait()
+            main = self.query_one("#cct-workspace-main", Vertical)
+            main.display = True
+            if is_port:
+                self.explorer.display = False
+                self.explorer.width = 0
+            else:
+                self.explorer.display = True
+                try:
+                    self.explorer.set_width(EXPLORER_DEFAULT_WIDTH)
+                except Exception:
+                    pass
             self.preview_panel.display = False
             try:
                 saved = load_layout()
-                w = saved.get("explorer_width")
-                if w and int(w) >= 20:
-                    self.explorer.set_width(int(w))
-                else:
-                    self.explorer.set_width(EXPLORER_DEFAULT_WIDTH)
+                if not is_port:
+                    w = saved.get("explorer_width")
+                    if w and int(w) >= 20:
+                        self.explorer.set_width(int(w))
+                    else:
+                        self.explorer.set_width(EXPLORER_DEFAULT_WIDTH)
                 rw = saved.get("rightpane_width")
                 if rw:
                     self.set_right_width(rw)
@@ -242,6 +258,22 @@ if TEXTUAL_AVAILABLE:
         def on_sidebar_toggled(self, event):
             """Explorer collapse/expand crossed through here on its way
             up to CCTApp — keep the divider in lockstep."""
+            is_port = self.is_portrait()
+            main = self.query_one("#cct-workspace-main", Vertical)
+            if event.visible:
+                if is_port:
+                    self.explorer.add_class("is-portrait")
+                    self.explorer.styles.width = "100%"
+                    self.explorer.width = self.size.width or 80
+                    main.display = False
+                else:
+                    self.explorer.remove_class("is-portrait")
+                    main.display = True
+            else:
+                self.explorer.remove_class("is-portrait")
+                self.explorer.display = False
+                self.explorer.width = 0
+                main.display = True
             self.sync_resizer()
             self._relayout()
             self._sync_sidebar_toggle()
@@ -277,12 +309,23 @@ if TEXTUAL_AVAILABLE:
             """Window got smaller? Shrink the explorer proportionally so
             the chat pane always keeps a usable width."""
             try:
-                from .resizers import EXPLORER_MIN_WIDTH, EXPLORER_MAX_FRACTION
+                from .resizers import EXPLORER_MIN_WIDTH, EXPLORER_MAX_FRACTION, EXPLORER_MAX_WIDTH
                 explorer = self.explorer
+                main = self.query_one("#cct-workspace-main", Vertical)
                 if not explorer.display or explorer.width <= 0:
+                    main.display = True
                     return
-                ceiling = max(EXPLORER_MIN_WIDTH + 4,
-                              int(self.size.width * EXPLORER_MAX_FRACTION))
+                # Auto-collapse on compact screen sizes (< 85 cols) to prioritize chat/dashboard readability
+                if self.size.width and self.size.width < 85:
+                    if not getattr(self, "_explorer_manually_opened", False):
+                        explorer.display = False
+                        explorer.width = 0
+                        main.display = True
+                        self.sync_resizer()
+                        return
+                ceiling = min(EXPLORER_MAX_WIDTH,
+                              max(EXPLORER_MIN_WIDTH,
+                                  int(self.size.width * EXPLORER_MAX_FRACTION)))
                 if explorer.width > ceiling:
                     explorer.set_width(ceiling)
                     self.sync_resizer()
@@ -427,6 +470,18 @@ if TEXTUAL_AVAILABLE:
             explorer_w = self.explorer.width if self.explorer.display else 0
             usable = max(0, self.size.width - explorer_w)
             split_possible = usable >= self.SPLIT_MIN_WIDTH
+            is_port = self.is_portrait()
+            self.set_class(is_port, "is-portrait")
+            if self.explorer:
+                self.explorer.set_class(is_port, "is-portrait")
+                if is_port and self.explorer.display and self.explorer.width > 0:
+                    self.explorer.styles.width = "100%"
+                    main.display = False
+                    return
+                else:
+                    main.display = True
+            else:
+                main.display = True
 
             editor_disabled = False
             try:
@@ -466,6 +521,31 @@ if TEXTUAL_AVAILABLE:
             except Exception:
                 pass
 
+            if is_port and has_files and not editor_disabled:
+                if self._showing == "chat":
+                    switcher.display = False
+                    right.display = False
+                    chat_col.display = True
+                    chat_col.styles.width = "1fr"
+                    main.display = True
+                    self.sync_right_resizer()
+                    self._sync_switcher()
+                    self._sync_sidebar_toggle()
+                    self._notify_dashboard_relayout()
+                    return
+                else:
+                    # Dedicated full-screen code editor in portrait
+                    switcher.display = False
+                    chat_col.display = False
+                    right.display = True
+                    right.styles.width = "100%"
+                    main.display = True
+                    self.sync_right_resizer()
+                    self._sync_switcher()
+                    self._sync_sidebar_toggle()
+                    self._notify_dashboard_relayout()
+                    return
+
             if (not has_files and not has_preview) or editor_disabled:
                 # Nothing to show on the right or editor disabled: chat alone, full width.
                 right.display = False
@@ -473,6 +553,7 @@ if TEXTUAL_AVAILABLE:
                 switcher.display = False
                 chat_col.display = True
                 chat_col.styles.width = "1fr"
+                main.display = True
                 self._sync_switcher()
                 self._sync_sidebar_toggle()
                 self._notify_dashboard_relayout()
@@ -486,6 +567,7 @@ if TEXTUAL_AVAILABLE:
                 chat_col.display = True
                 right.display = False
                 chat_col.styles.width = "1fr"
+                main.display = True
                 self.sync_right_resizer()
                 self._sync_switcher()
                 self._sync_sidebar_toggle()
@@ -498,12 +580,14 @@ if TEXTUAL_AVAILABLE:
                 chat_col.display = True
                 right.display = True
                 chat_col.styles.width = "1fr"
+                main.display = True
             else:
                 # Stacked: switcher on top, exactly one section below.
                 switcher.display = True
                 chat_col.styles.width = "1fr"
                 chat_col.display = self._showing == "chat"
                 right.display = self._showing == "files"
+                main.display = True
             self.sync_right_resizer()
             self._sync_switcher()
             self._sync_sidebar_toggle()
@@ -570,12 +654,28 @@ if TEXTUAL_AVAILABLE:
 
         def toggle_sidebar(self):
             if self.explorer:
+                is_port = self.is_portrait()
+                main = self.query_one("#cct-workspace-main", Vertical)
                 if not self.explorer.display or self.explorer.width == 0:
+                    self._explorer_manually_opened = True
                     self.explorer.display = True
-                    restore_w = getattr(self.explorer, "_restore_width", None) or 32
-                    self.explorer.set_width(max(restore_w, 32))
+                    if is_port:
+                        self.explorer.add_class("is-portrait")
+                        self.explorer.styles.width = "100%"
+                        self.explorer.width = self.size.width or 80
+                        main.display = False
+                    else:
+                        self.explorer.remove_class("is-portrait")
+                        main.display = True
+                        target_w = min(28, max(20, int(self.size.width * 0.28))) if self.size.width else 26
+                        restore_w = getattr(self.explorer, "_restore_width", None) or target_w
+                        self.explorer.set_width(min(32, max(restore_w, 20)))
                 else:
-                    self.explorer.toggle()
+                    self._explorer_manually_opened = False
+                    self.explorer.display = False
+                    self.explorer.width = 0
+                    main.display = True
+                    self.explorer.remove_class("is-portrait")
                 self.sync_resizer()
                 self._relayout()
                 self._sync_sidebar_toggle()
@@ -585,10 +685,13 @@ if TEXTUAL_AVAILABLE:
                 collapsed = (not self.explorer.display or self.explorer.width == 0)
                 nav = self.query_one("#cct-chat-nav", Horizontal)
                 btn = self.query_one("#cct-chat-sidebar-toggle", Button)
-                nav.display = collapsed
-                if collapsed:
-                    btn.label = _safe_glyph("▶ Explorer", "> Explorer")
-                    btn.tooltip = "Open Sidebar (Ctrl+B)"
+                if self.is_portrait():
+                    nav.display = False
+                else:
+                    nav.display = collapsed
+                    if collapsed:
+                        btn.label = _safe_glyph("▶ Explorer", "> Explorer")
+                        btn.tooltip = "Open Sidebar (Ctrl+B)"
             except Exception:
                 pass
             try:
@@ -661,7 +764,15 @@ if TEXTUAL_AVAILABLE:
                 editor = self.editor
                 if editor is None:
                     return False
-                if self._mode is WorkspaceMode.CODE and not self._fullscreen:
+                if self.is_portrait():
+                    self.explorer.display = False
+                    self.explorer.width = 0
+                    self.explorer.remove_class("is-portrait")
+                    main = self.query_one("#cct-workspace-main")
+                    main.display = True
+                    self._showing = "files"
+                    self._relayout()
+                elif self._mode is WorkspaceMode.CODE and not self._fullscreen:
                     self._showing = "files"
                     self._relayout()
                 return editor.open_file(path)

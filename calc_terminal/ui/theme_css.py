@@ -311,21 +311,21 @@ Screen { background: $app-background; }
 }
 
 #cct-conversation.has-dashboard {
-    scrollbar-size-vertical: 0;
+    scrollbar-size-vertical: 1;
     scrollbar-gutter: auto;
-    overflow-y: hidden;
+    overflow-y: auto;
     overflow-x: hidden;
 }
 
 .cct-dashboard {
     background: transparent;
     border: none;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+    width: 100%;
     height: auto;
     min-height: 0;
     padding: 0 1 1 1;
-    scrollbar-size-vertical: 0;
-    scrollbar-gutter: auto;
 }
 
 .cct-dashboard-header {
@@ -509,8 +509,8 @@ Button.cct-dash-action:ansi.-style-flat,
 Screen Button.cct-dash-action {
     height: 3; min-height: 3; max-height: 3;
     padding: 0 1;
-    min-width: 9; max-width: 20; width: auto;
-    margin: 0 1;
+    min-width: 8; max-width: 26; width: 100%;
+    margin: 0;
     color: $text;
     text-style: bold;
     content-align: center middle;
@@ -828,7 +828,7 @@ Button.cct-dash-action:ansi.-style-flat,
 Screen Button.cct-dash-action {
     height: 3; min-height: 3; max-height: 3;
     padding: 0 1;
-    min-width: 14; max-width: 24; width: 1fr; margin: 0 1;
+    min-width: 8; max-width: 26; width: 100%; margin: 0;
     background: $surface-alt;
     color: $text;
     text-style: bold;
@@ -952,8 +952,8 @@ Button.cct-modal-close-btn {
     border: tall;
     border-top: tall #ffa198;
     border-left: tall #ffa198;
-    border-bottom: tall #b8324f;
-    border-right: tall #b8324f;
+    border-bottom: tall #c73859;
+    border-right: tall #c73859;
     background: #2b1d24;
     color: #ff7b72;
     text-style: bold;
@@ -1105,7 +1105,6 @@ Button.cct-ctrl:hover, .cct-ctrl:hover {
 }
 
 #cct-right-controls {
-    dock: right;
     width: auto;
     min-width: 12;
     max-width: 20;
@@ -1343,6 +1342,56 @@ Button#cct-chat-sidebar-toggle:hover, .cct-chat-nav-btn:hover {
     tint: transparent;
 }
 
+
+#cct-header-explorer-btn {
+    display: none;
+    height: 1;
+    min-height: 1;
+    max-height: 1;
+    border: none;
+    background: transparent;
+    color: $accent;
+    padding: 0 1;
+    min-width: 4;
+}
+#cct-header-explorer-btn:hover {
+    background: $accent 35%;
+    color: #ffffff;
+}
+#cct-brandheader.is-portrait #cct-header-explorer-btn,
+.is-portrait #cct-header-explorer-btn {
+    display: block;
+}
+#cct-brandheader.is-portrait #cct-header-right-box {
+    height: 1;
+    min-height: 1;
+    max-height: 1;
+    width: auto;
+    layout: horizontal;
+    align: right middle;
+}
+#cct-tb-close {
+    height: 1;
+    min-height: 1;
+    max-height: 1;
+    border: none;
+    background: $surface-alt;
+    color: $text-muted;
+    padding: 0 1;
+    min-width: 7;
+    text-style: bold;
+}
+#cct-tb-close:hover {
+    color: $error;
+    background: $surface-highlight 25%;
+}
+.is-portrait #cct-cmdpalette,
+#cct-workspace.is-portrait #cct-cmdpalette {
+    margin-left: 1;
+    margin-right: 1;
+    padding: 0;
+}
+
 /* AI Mode Dynamic 3D Chassis & Skeuomorphic Accent Theming */
 #cct-composer,
 #cct-composer:focus-within,
@@ -1369,19 +1418,11 @@ Button#cct-chat-sidebar-toggle:hover, .cct-chat-nav-btn:hover {
 }
 
 #cct-composer.cct-mode-notebook {
-    border: tall;
-    border-top: tall #b4befe;
-    border-left: tall #b4befe;
-    border-bottom: tall #1e1e2e;
-    border-right: tall #1e1e2e;
+    border: heavy #7aa2f7;
     tint: transparent;
 }
 #cct-composer.cct-mode-notebook:focus-within {
-    border: tall;
-    border-top: tall #cdd6f4;
-    border-left: tall #cdd6f4;
-    border-bottom: tall #313244;
-    border-right: tall #313244;
+    border: heavy #89b4fa;
     tint: transparent;
 }
 #cct-composer.cct-mode-notebook #cct-prompt-glyph {
@@ -1399,19 +1440,11 @@ Button#cct-chat-sidebar-toggle:hover, .cct-chat-nav-btn:hover {
 }
 
 #cct-composer.cct-mode-research {
-    border: tall;
-    border-top: tall #ffb3d9;
-    border-left: tall #ffb3d9;
-    border-bottom: tall #4a0429;
-    border-right: tall #4a0429;
+    border: heavy #ff69b4;
     tint: transparent;
 }
 #cct-composer.cct-mode-research:focus-within {
-    border: tall;
-    border-top: tall #ffcce6;
-    border-left: tall #ffcce6;
-    border-bottom: tall #630837;
-    border-right: tall #630837;
+    border: heavy #ff85c0;
     tint: transparent;
 }
 #cct-composer.cct-mode-research #cct-prompt-glyph {
@@ -1429,19 +1462,11 @@ Button#cct-chat-sidebar-toggle:hover, .cct-chat-nav-btn:hover {
 }
 
 #cct-composer.cct-mode-plan {
-    border: tall;
-    border-top: tall #c5f3be;
-    border-left: tall #c5f3be;
-    border-bottom: tall #1e3a1e;
-    border-right: tall #1e3a1e;
+    border: heavy #9ece6a;
     tint: transparent;
 }
 #cct-composer.cct-mode-plan:focus-within {
-    border: tall;
-    border-top: tall #d8f8d0;
-    border-left: tall #d8f8d0;
-    border-bottom: tall #2d5a2d;
-    border-right: tall #2d5a2d;
+    border: heavy #a6e3a1;
     tint: transparent;
 }
 #cct-composer.cct-mode-plan #cct-prompt-glyph {
@@ -1459,19 +1484,11 @@ Button#cct-chat-sidebar-toggle:hover, .cct-chat-nav-btn:hover {
 }
 
 #cct-composer.cct-mode-build {
-    border: tall;
-    border-top: tall #ffe082;
-    border-left: tall #ffe082;
-    border-bottom: tall #3e2723;
-    border-right: tall #3e2723;
+    border: heavy #e0af68;
     tint: transparent;
 }
 #cct-composer.cct-mode-build:focus-within {
-    border: tall;
-    border-top: tall #fff3b0;
-    border-left: tall #fff3b0;
-    border-bottom: tall #5d4037;
-    border-right: tall #5d4037;
+    border: heavy #fab387;
     tint: transparent;
 }
 #cct-composer.cct-mode-build #cct-prompt-glyph {
@@ -1489,19 +1506,11 @@ Button#cct-chat-sidebar-toggle:hover, .cct-chat-nav-btn:hover {
 }
 
 #cct-composer.cct-mode-debugger {
-    border: tall;
-    border-top: tall #fca5a5;
-    border-left: tall #fca5a5;
-    border-bottom: tall #450a0a;
-    border-right: tall #450a0a;
+    border: heavy #dc143c;
     tint: transparent;
 }
 #cct-composer.cct-mode-debugger:focus-within {
-    border: tall;
-    border-top: tall #fecaca;
-    border-left: tall #fecaca;
-    border-bottom: tall #630e0e;
-    border-right: tall #630e0e;
+    border: heavy #f38ba8;
     tint: transparent;
 }
 #cct-composer.cct-mode-debugger #cct-prompt-glyph {
@@ -1519,19 +1528,11 @@ Button#cct-chat-sidebar-toggle:hover, .cct-chat-nav-btn:hover {
 }
 
 #cct-composer.cct-mode-agent {
-    border: tall;
-    border-top: tall #e0caff;
-    border-left: tall #e0caff;
-    border-bottom: tall #2a1b4e;
-    border-right: tall #2a1b4e;
+    border: heavy #bb9af7;
     tint: transparent;
 }
 #cct-composer.cct-mode-agent:focus-within {
-    border: tall;
-    border-top: tall #f0e6ff;
-    border-left: tall #f0e6ff;
-    border-bottom: tall #3e2870;
-    border-right: tall #3e2870;
+    border: heavy #cba6f7;
     tint: transparent;
 }
 #cct-composer.cct-mode-agent #cct-prompt-glyph {
@@ -1826,49 +1827,39 @@ Button.cct-wshead-close-btn.-active {
     width: 1fr; height: 1; text-style: bold; color: $text;
 }
 
-/* 3D Elevated Command Palette */
+/* Clean Elevated Command Palette */
 #cct-cmdpalette {
-    background: $surface-alt;
-    border: tall;
-    border-top: tall $surface-highlight;
-    border-left: tall $surface-highlight;
-    border-bottom: tall $surface-dark;
-    border-right: tall $surface-dark;
-    tint: $surface-highlight 4%;
-    margin-left: 2;
-    margin-right: 2;
-    margin-top: 1;
-    margin-bottom: 1;
+    background: $surface;
+    border: round $border;
+    tint: $accent 4%;
+    margin-left: 1;
+    margin-right: 1;
+    margin-top: 0;
+    margin-bottom: 0;
     width: 1fr;
-    max-height: 8;
+    max-height: 10;
     height: auto;
     display: none;
-    padding: 0 1;
+    padding: 0;
     scrollbar-size: 1 1;
-    scrollbar-gutter: stable;
-    scrollbar-color: $accent $surface-dark;
-    scrollbar-color-hover: $accent-highlight $surface-dark;
-    scrollbar-color-active: $accent $surface-dark;
+    scrollbar-gutter: auto;
+    scrollbar-color: $accent $surface;
 }
 #cct-cmdpalette.open { display: block; }
 .cct-cmd-row {
     height: 1; min-height: 1; max-height: 1;
-    padding: 0 1; color: $text-muted; width: 1fr;
+    padding: 0 1; color: $text-muted; width: 100%;
     border-left: thick transparent;
     border-right: thick transparent;
     transition: background 60ms, color 60ms, border-left 60ms;
 }
 .cct-cmd-row:hover {
-    background: $surface-highlight 25%; color: #ffffff;
-    border-left: thick $surface-highlight;
-    border-right: thick $surface-dark;
+    background: $accent 15%; color: #ffffff;
+    border-left: thick $accent;
 }
 .cct-cmd-row-selected {
-    background: $surface-alt;
-    tint: $accent 15%;
-    color: #ffffff;
+    background: $accent 22%; color: #ffffff;
     border-left: thick $accent;
-    border-right: thick $surface-dark;
     text-style: bold;
 }
 
@@ -1939,6 +1930,108 @@ Button.cct-wshead-close-btn.-active {
 .cct-touch-mode .cct-bv-btn:focus {
     color: $accent;
     background: $surface-alt;
+}
+
+/* -------------------------------------------------------------
+   ULTRA-RESPONSIVE PORTRAIT MODAL & NAVIGATION RULES
+------------------------------------------------------------- */
+.is-portrait .cct-navpanel-box,
+UserPanel.is-portrait .cct-navpanel-box,
+ThemesPanel.is-portrait #cct-navpanel-box {
+    width: 94%;
+    max-width: 52;
+    min-width: 28;
+    max-height: 88%;
+    padding: 1 1;
+    border: round $accent;
+}
+
+UserPanel.is-portrait .user-prefs,
+UserPanel.is-portrait .user-quick,
+UserPanel.is-portrait .user-actions {
+    layout: vertical;
+    height: auto;
+}
+
+UserPanel.is-portrait .user-prefs Button,
+UserPanel.is-portrait .user-quick Button,
+UserPanel.is-portrait .user-actions Button {
+    width: 100%;
+    margin-right: 0;
+    margin-top: 1;
+    min-height: 2;
+    height: auto;
+}
+
+UserPanel.is-portrait .user-detail {
+    text-overflow: ellipsis;
+    overflow-x: hidden;
+}
+
+ThemesPanel.is-portrait #cct-navpanel-box {
+    width: 92%;
+    max-width: 48;
+    max-height: 88%;
+}
+
+OpenWorkspaceScreen.is-portrait #ows-box,
+.is-portrait #ows-box {
+    width: 94%;
+    max-width: 52;
+    max-height: 88%;
+    padding: 0 1;
+    border: round $accent;
+}
+
+OpenWorkspaceScreen.is-portrait #ows-titlebar,
+.is-portrait #ows-titlebar {
+    height: 3;
+    min-height: 3;
+    max-height: 3;
+    padding: 0 1;
+}
+
+OpenWorkspaceScreen.is-portrait #ows-button-row,
+.is-portrait #ows-button-row {
+    layout: vertical;
+    height: auto;
+}
+
+OpenWorkspaceScreen.is-portrait #ows-button-row Button,
+.is-portrait #ows-button-row Button {
+    width: 100%;
+    margin: 1 0;
+    min-height: 2;
+    height: auto;
+}
+
+RecentWorkspacesScreen.is-portrait #cct-recentws-box,
+.is-portrait #cct-recentws-box {
+    width: 94%;
+    max-width: 52;
+    max-height: 88%;
+    padding: 0;
+    border: round $accent;
+}
+
+RecentWorkspacesScreen.is-portrait #cct-recentws-titlebar,
+.is-portrait #cct-recentws-titlebar {
+    height: 3;
+    min-height: 3;
+    max-height: 3;
+    padding: 0 1;
+}
+
+RecentWorkspacesScreen.is-portrait .cct-rws-label,
+.is-portrait .cct-rws-label {
+    width: 1fr;
+    min-width: 12;
+    max-width: 100%;
+}
+
+RecentWorkspacesScreen.is-portrait .cct-rws-path,
+.is-portrait .cct-rws-path {
+    display: none;
 }
 """
 
@@ -2080,3 +2173,5 @@ def fit_dialog(screen, box_id, scroll_id, fill_ids=()):
 
     release()
     screen.call_after_refresh(apply)
+
+

@@ -67,7 +67,7 @@ if not IS_SERVERLESS_ENV and not os.environ.get("CAT_WEB_SERVER"):
     except Exception:
         pass
 
-__version__ = "0.8.0b1"
+__version__ = "0.8.9.01"
 
 
 def _sync_version():

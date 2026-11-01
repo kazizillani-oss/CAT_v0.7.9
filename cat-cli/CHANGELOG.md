@@ -2,6 +2,28 @@
 
 All notable changes to the "cat-cli" extension will be documented in this file.
 
+## [0.8.10] - 2026-10-31
+
+### Added
+- **Marketplace Release Bump**:
+  - Incremented version to `0.8.10` for Visual Studio Code Marketplace and Open VSX release compliance (resolves immutable version collision).
+  - Maintained canonical terminal tab display version: `CAT CLI v0.8.9.01`.
+- **Dedicated Editor Group 2 Native Terminal Tab**:
+  - Replaced bottom terminal panel launch with dedicated native editor tab in **Editor Group 2** (`location: { viewColumn: vscode.ViewColumn.Two }`).
+  - Terminal tab displays canonical display version: `CAT CLI v0.8.9.01`.
+  - Configured custom terminal tab icon linking to official CAT vector assets (`cat-open-light.svg` / `cat-open-dark.svg`).
+  - Intelligent lifecycle management: first click creates Editor Group 2 terminal, subsequent clicks reveal and focus existing session without duplicate tab clutter.
+- **Official Brand Identity & Marketplace Assets**:
+  - Integrated official CATcli kitten-terminal artwork as high-resolution Marketplace icon (`media/cat-extension-icon.png`).
+  - Updated extension manifest `"icon": "media/cat-extension-icon.png"` and updated fallback `media/icon.png`.
+  - Replaced generic terminal toolbar icon (`$(terminal)`) with theme-adaptive SVG logo (`cat-open-light.svg` / `cat-open-dark.svg`).
+  - Added official full-fidelity branded SVG (`media/cat-open.svg`) featuring authentic CAT blue gradient.
+- **Marketplace README Overhaul & Animated Demonstration**:
+  - Comprehensive 25-section developer-oriented README with clear technical architecture and feature documentation.
+  - Integrated authentic animated demonstration GIF showcasing CAT CLI autonomous planning, multi-agent execution, and MCP tool usage.
+  - Expanded badge suite with verified project health, Marketplace metrics, CI status, and runtime compatibility.
+  - Documented Model Context Protocol (MCP), backup provider failover, and multi-agent coordination.
+
 ## [0.8.6] - 2026-09-24
 
 ### Fixed

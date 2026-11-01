@@ -620,8 +620,10 @@ def test_security_layer_redacts_supabase_and_stripe_and_db_uris():
 def test_env_example_has_no_secrets():
     """Root .env.example must only have placeholder keys with zero values."""
     from pathlib import Path
-    root = Path(__file__).resolve().parent.parent.parent.parent
+    root = Path(__file__).resolve().parent.parent.parent
     env_ex = root / ".env.example"
+    if not env_ex.exists():
+        env_ex = root.parent / ".env.example"
     assert env_ex.exists()
 
     content = env_ex.read_text(encoding="utf-8")

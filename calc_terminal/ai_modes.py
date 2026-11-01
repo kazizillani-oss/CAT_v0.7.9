@@ -88,7 +88,7 @@ MODE_META = {
     ),
     "build": dict(
         label="Aria", full_label="Aria · Build Agent", role="Build Agent",
-        icon="🛠️", accent=(224, 175, 104),  # orange
+        icon="🔨", accent=(224, 175, 104),  # orange
         purpose="Aria · Build Agent — production code implementation, feature development, refactoring, and test suites.",
         gradient=((230, 150, 70), (250, 200, 130)),  # orange gradient
         agent_id="aria",

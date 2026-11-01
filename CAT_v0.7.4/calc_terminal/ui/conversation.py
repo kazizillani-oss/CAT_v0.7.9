@@ -1474,9 +1474,9 @@ if TEXTUAL_AVAILABLE:
             self.mount(self._welcome)
             self.add_class("has-dashboard")
             try:
-                self.styles.scrollbar_size_vertical = 0
+                self.styles.scrollbar_size_vertical = 1
                 self.styles.scrollbar_gutter = "auto"
-                self.styles.overflow_y = "hidden"
+                self.styles.overflow_y = "auto"
                 self.styles.overflow_x = "hidden"
             except Exception:
                 pass

@@ -55,11 +55,14 @@ if TEXTUAL_AVAILABLE:
         .cct-navpanel-box {
             width: 90%;
             max-width: 68;
-            min-width: 30;
+            min-width: 28;
             height: auto;
-            max-height: 28;
+            max-height: 88%;
             background: $surface;
-            border: tall $border-active $border;
+            border-top: tall $surface-highlight;
+            border-left: tall $surface-highlight;
+            border-bottom: tall $border;
+            border-right: tall $border;
             padding: 1 2;
             opacity: 1;
             offset-y: 0;
@@ -97,6 +100,12 @@ if TEXTUAL_AVAILABLE:
             yield from ()
 
         def on_mount(self):
+            try:
+                screen_size = getattr(self.app, "size", None)
+                if screen_size and (screen_size.width < 85 or (screen_size.width / max(1, screen_size.height)) < 2.0):
+                    self.add_class("is-portrait")
+            except Exception:
+                pass
             self.call_after_refresh(
                 lambda: self.query_one("#cct-navpanel-box").add_class("open"))
 
@@ -209,7 +218,21 @@ if TEXTUAL_AVAILABLE:
 
         CSS = _CenteredPanel.CSS + """
         ThemesPanel { align: center middle; background: $app-background 60%; width: 100%; height: 100%; }
-        #cct-navpanel-box { width: 56; max-height: 30; overflow: hidden hidden; }
+        #cct-navpanel-box {
+            width: 92%; max-width: 56; max-height: 30; overflow: hidden hidden;
+            border-top: tall $surface-highlight;
+            border-left: tall $surface-highlight;
+            border-bottom: tall $border;
+            border-right: tall $border;
+        }
+        ThemesPanel.is-portrait #cct-navpanel-box,
+        .is-portrait #cct-navpanel-box {
+            width: 92%; max-width: 48; max-height: 85%; padding: 1 1;
+            border-top: tall $surface-highlight;
+            border-left: tall $surface-highlight;
+            border-bottom: tall $border;
+            border-right: tall $border;
+        }
         """
 
         def __init__(self, current_theme):
@@ -442,20 +465,100 @@ if TEXTUAL_AVAILABLE:
 
         CSS = _CenteredPanel.CSS + """
         UserPanel { align: center middle; background: $app-background 60%; width: 100%; height: 100%; }
-        .cct-navpanel-box { width: 68; max-height: 34; overflow: hidden hidden; }
+        .cct-navpanel-box {
+            width: 92%; max-width: 68; max-height: 34; overflow: hidden hidden;
+            border-top: tall $surface-highlight;
+            border-left: tall $surface-highlight;
+            border-bottom: tall $border;
+            border-right: tall $border;
+        }
+        UserPanel.is-portrait .cct-navpanel-box,
+        .is-portrait .cct-navpanel-box {
+            width: 94%; max-width: 52; max-height: 88%; padding: 1 1;
+            border-top: tall $surface-highlight;
+            border-left: tall $surface-highlight;
+            border-bottom: tall $border;
+            border-right: tall $border;
+        }
+        UserPanel.is-portrait .user-prefs,
+        UserPanel.is-portrait .user-quick,
+        UserPanel.is-portrait .user-actions { layout: vertical; height: auto; }
+        UserPanel.is-portrait .user-prefs Button,
+        UserPanel.is-portrait .user-quick Button,
+        UserPanel.is-portrait .user-actions Button {
+            width: 100%; margin-right: 0; margin-top: 1; min-height: 3; height: auto;
+        }
+        UserPanel.is-portrait .user-detail { text-overflow: ellipsis; overflow-x: hidden; }
         .user-section { color: $text-faint; height: auto; padding-top: 1;
                         border-top: solid $border; margin-top: 1; }
         .user-detail { height: 1; color: $text-muted; padding: 0 1; }
         .user-toggle-row { height: 3; align-vertical: middle; padding: 0 1; margin-top: 1; }
         .user-toggle-label { width: 1fr; height: 1; color: $text; text-style: bold; }
-        #user-wordwrap-switch { border: tall $border-active $border; background: $surface-alt; }
+        #user-wordwrap-switch {
+            border-top: tall $surface-highlight;
+            border-left: tall $surface-highlight;
+            border-bottom: tall $surface-shadow;
+            border-right: tall $surface-shadow;
+            background: $surface-alt;
+        }
         #user-wordwrap-switch.-on { border: tall #86efac $success; }
         .user-quick { height: auto; padding-top: 1; border-top: solid $border; }
-        .user-quick Button { margin-right: 1; margin-top: 0; border: tall $border-active $border; }
+        .user-quick Button {
+            margin-right: 1; margin-top: 0; height: 3;
+            border-top: tall $surface-highlight;
+            border-left: tall $surface-highlight;
+            border-bottom: tall $surface-shadow;
+            border-right: tall $surface-shadow;
+            background: $surface;
+            color: $text;
+            text-style: bold;
+        }
+        .user-quick Button:hover {
+            border-top: tall $accent-lighten-2;
+            border-left: tall $accent-lighten-2;
+            border-bottom: tall $accent;
+            border-right: tall $accent;
+            background: $surface-alt;
+            color: #ffffff;
+        }
         .user-actions { height: auto; padding-top: 1; border-top: solid $border; }
-        .user-actions Button { margin-right: 1; margin-top: 0; border: tall $border-active $border; }
+        .user-actions Button {
+            margin-right: 1; margin-top: 0; height: 3;
+            border-top: tall $surface-highlight;
+            border-left: tall $surface-highlight;
+            border-bottom: tall $surface-shadow;
+            border-right: tall $surface-shadow;
+            background: $surface;
+            color: $text;
+            text-style: bold;
+        }
+        .user-actions Button:hover {
+            border-top: tall $accent-lighten-2;
+            border-left: tall $accent-lighten-2;
+            border-bottom: tall $accent;
+            border-right: tall $accent;
+            background: $surface-alt;
+            color: #ffffff;
+        }
         .user-prefs { height: auto; padding-top: 1; }
-        .user-prefs Button { margin-right: 1; margin-top: 1; border: tall $border-active $border; }
+        .user-prefs Button {
+            margin-right: 1; margin-top: 1; height: 3;
+            border-top: tall $surface-highlight;
+            border-left: tall $surface-highlight;
+            border-bottom: tall $surface-shadow;
+            border-right: tall $surface-shadow;
+            background: $surface;
+            color: $text;
+            text-style: bold;
+        }
+        .user-prefs Button:hover {
+            border-top: tall $accent-lighten-2;
+            border-left: tall $accent-lighten-2;
+            border-bottom: tall $accent;
+            border-right: tall $accent;
+            background: $surface-alt;
+            color: #ffffff;
+        }
         """
 
         def __init__(self, get_values):
@@ -506,6 +609,12 @@ if TEXTUAL_AVAILABLE:
                 yield Static("Esc to close", classes="cct-navpanel-hint")
 
         def on_mount(self):
+            try:
+                screen_size = getattr(self.app, "size", None)
+                if screen_size and (screen_size.width < 85 or (screen_size.width / max(1, screen_size.height)) < 2.0):
+                    self.add_class("is-portrait")
+            except Exception:
+                pass
             super().on_mount()
             self.call_after_refresh(self._refresh)
 

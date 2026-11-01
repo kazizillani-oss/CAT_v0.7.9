@@ -3,7 +3,7 @@
   "displayName": "CAT — Coding Agent Terminal",
   "description": "CAT — Coding Agent Terminal (also known as CCT) is an AI CLI and AI coding assistant for VS Code — a terminal AI and coding agent for terminal-first development, coding, debugging, research and planning. Launches the real CAT terminal assistant inside the VS Code integrated terminal.",
   "publisher": "KaziZillani",
-  "version": "0.8.6",
+  "version": "0.8.10",
   "engines": {
     "vscode": "^1.100.0"
   },
@@ -51,17 +51,27 @@
   ],
   "badges": [
     {
-      "url": "https://img.shields.io/badge/CAT-v0.7.9-ff79c6.svg",
-      "href": "https://github.com/kazizillani-oss/CAT_v0.7.9",
-      "description": "CAT CLI Version"
+      "url": "https://img.shields.io/badge/Version-v0.8.10-blue.svg",
+      "href": "https://marketplace.visualstudio.com/items?itemName=KaziZillani.cat-cli",
+      "description": "VS Code Extension Version"
     },
     {
-      "url": "https://img.shields.io/badge/License-MIT-blue.svg",
+      "url": "https://img.shields.io/badge/CAT%20CLI-v0.8.9.01-ff79c6.svg",
+      "href": "https://github.com/kazizillani-oss/CAT_v0.7.9",
+      "description": "CAT CLI Display Version"
+    },
+    {
+      "url": "https://img.shields.io/github/actions/workflow/status/kazizillani-oss/CAT_v0.7.9/ci.yml?branch=main&label=CI",
+      "href": "https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml",
+      "description": "Build Status"
+    },
+    {
+      "url": "https://img.shields.io/badge/License-MIT-green.svg",
       "href": "https://github.com/kazizillani-oss/CAT_v0.7.9/blob/main/LICENSE",
       "description": "License"
     }
   ],
-  "icon": "media/icon.png",
+  "icon": "media/cat-extension-icon.png",
   "galleryBanner": {
     "color": "#0d1117",
     "theme": "dark"
@@ -86,7 +96,10 @@
         "command": "kazizillani.cat.open",
         "title": "CAT: Open",
         "category": "CAT",
-        "icon": "$(terminal)"
+        "icon": {
+          "light": "./media/cat-open-light.svg",
+          "dark": "./media/cat-open-dark.svg"
+        }
       },
       {
         "command": "kazizillani.cat.restart",

@@ -15,7 +15,9 @@ const OPEN = 'kazizillani.cat.open';
 const RESTART = 'kazizillani.cat.restart';
 const CLOSE = 'kazizillani.cat.close';
 const CHECK = 'kazizillani.cat.checkInstallation';
+const NEW_TERM = RESTART;
 const COMMANDS = [OPEN, RESTART, CLOSE, CHECK];
+const isCatTerminal = (t) => t && t.name && (t.name === 'CAT CLI v0.8.9.01' || t.name.startsWith('CAT CLI'));
 
 /** True when the real CAT CLI (or the module) is importable/launchable here. */
 let catAvailable = false;
@@ -108,7 +110,7 @@ suite('CAT CLI extension (integration)', () => {
 		const cwd = vscode.workspace.workspaceFolders[0].uri.fsPath;
 		await vscode.commands.executeCommand(OPEN);
 		await new Promise((resolve) => setTimeout(resolve, 2500));
-		const catTerminals = vscode.window.terminals.filter((t) => t.name === 'CAT CLI');
+		const catTerminals = vscode.window.terminals.filter(isCatTerminal);
 		assert.ok(catTerminals.length > 0, 'no CAT terminal was created');
 		const active = catTerminals[catTerminals.length - 1];
 		const terminalCwd = (active.creationOptions && active.creationOptions.cwd) || cwd;
@@ -126,17 +128,17 @@ suite('CAT CLI extension (integration)', () => {
 		}
 		// Start from a clean slate so the count comparison is exact.
 		for (const t of vscode.window.terminals) {
-			if (t.name === 'CAT CLI') {
+			if (isCatTerminal(t)) {
 				t.dispose();
 			}
 		}
 		await new Promise((resolve) => setTimeout(resolve, 500));
 		await vscode.commands.executeCommand(OPEN); // first click → create
 		await new Promise((resolve) => setTimeout(resolve, 2000));
-		const afterFirst = vscode.window.terminals.filter((t) => t.name === 'CAT CLI').length;
+		const afterFirst = vscode.window.terminals.filter(isCatTerminal).length;
 		await vscode.commands.executeCommand(OPEN); // second click → focus, not create
 		await new Promise((resolve) => setTimeout(resolve, 1500));
-		const afterSecond = vscode.window.terminals.filter((t) => t.name === 'CAT CLI').length;
+		const afterSecond = vscode.window.terminals.filter(isCatTerminal).length;
 		assert.strictEqual(afterFirst, 1, `first click should create exactly one CAT terminal, got ${afterFirst}`);
 		assert.strictEqual(afterSecond, 1, `second click must reuse, got ${afterSecond}`);
 	});
@@ -146,10 +148,10 @@ suite('CAT CLI extension (integration)', () => {
 		if (!catAvailable || !vscode.workspace.workspaceFolders || !vscode.workspace.workspaceFolders.length) {
 			this.skip();
 		}
-		const before = vscode.window.terminals.filter((t) => t.name === 'CAT CLI').length;
+		const before = vscode.window.terminals.filter(isCatTerminal).length;
 		await vscode.commands.executeCommand(NEW_TERM);
 		await new Promise((resolve) => setTimeout(resolve, 1500));
-		const after = vscode.window.terminals.filter((t) => t.name === 'CAT CLI').length;
+		const after = vscode.window.terminals.filter(isCatTerminal).length;
 		assert.strictEqual(after, before + 1, `expected exactly one new CAT terminal: ${before} → ${after}`);
 	});
 

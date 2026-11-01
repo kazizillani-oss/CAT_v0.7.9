@@ -42,6 +42,16 @@ try:
 except Exception:
     TEXTUAL_AVAILABLE = False
 
+def _safe_glyph(emoji: str, fallback: str) -> str:
+    try:
+        import sys
+        enc = getattr(sys.stdout, "encoding", None) or "utf-8"
+        emoji.encode(enc)
+        return emoji
+    except Exception:
+        return fallback
+
+
 # Whether real syntax highlighting can actually happen. `tree_sitter`
 # (plus the per-language `tree_sitter_<lang>` grammar packages the
 # `textual[syntax]` extra installs) is what TextArea's highlighter
@@ -1138,6 +1148,7 @@ if TEXTUAL_AVAILABLE:
 
         def compose(self):
             with Horizontal(id="cct-editor-toolbar"):
+                yield Static(_safe_glyph("← Back to CAT", "<- Back"), id="cct-tb-back", classes="cct-tb-back")
                 yield Static("", id="cct-tb-file", classes="cct-tb-file")
                 yield Static("", id="cct-tb-language", classes="cct-tb-pill")
                 yield Static("UTF-8", id="cct-tb-encoding", classes="cct-tb-pill")
@@ -1151,7 +1162,7 @@ if TEXTUAL_AVAILABLE:
                              classes="cct-tb-pill cct-tb-split")
                 yield Static("Wrap", id="cct-tb-wrap", classes="cct-tb-pill")
                 yield Static("Preview", id="cct-tb-preview", classes="cct-tb-pill")
-                yield Static("\u2715", id="cct-tb-close", classes="cct-tb-close")
+                yield Static("Close", id="cct-tb-close", classes="cct-tb-close")
             with TabbedContent(id="cct-editor-tabs"):
                 yield TabPane("Editor", Static(
                     "Open a file from the Explorer to start editing.",
@@ -1481,6 +1492,7 @@ if TEXTUAL_AVAILABLE:
                     try:
                         self.query_one("#cct-tb-run").display = False
                         self.query_one("#cct-tb-split").display = False
+                        self.query_one("#cct-tb-back").display = False
                     except Exception:
                         pass
                     try:
@@ -1520,30 +1532,40 @@ if TEXTUAL_AVAILABLE:
                         self.query_one("#cct-tb-encoding", Static).display = True
                     except Exception:
                         pass
-                    # ▷ and ⿻ — show only for web-previewable files (spec 2)
+                    # Toolbar controls: ⿻ (maximize toggle) in landscape, Back in portrait, Close in landscape
                     try:
                         run_pill = self.query_one("#cct-tb-run")
                         split_pill = self.query_one("#cct-tb-split")
-                        is_web = is_web_previewable(area.path)
-                        is_split = is_web or is_markdown_file(area.path)
-                        run_pill.display = bool(is_web)
-                        split_pill.display = bool(is_split)
+                        back_pill = self.query_one("#cct-tb-back", Static)
+                        close_pill = self.query_one("#cct-tb-close", Static)
+                        is_port = False
                         try:
-                            run_pill.set_class(is_web, "-run")
-                            split_pill.set_class(is_split, "-split")
+                            s = getattr(self.app, "size", None) or getattr(self.screen, "size", None)
+                            if s:
+                                is_port = (s.width < 92) or (s.width <= 105 and (s.width / max(1, s.height)) < 2.3)
                         except Exception:
                             pass
+                        if is_port:
+                            back_pill.display = True
+                            split_pill.display = False
+                            close_pill.display = False
+                        else:
+                            back_pill.display = False
+                            split_pill.display = True
+                            close_pill.display = True
+                            close_pill.update("Close")
+                            close_pill.tooltip = "Close Editor & Return to CAT"
+                            try:
+                                shell = self.app.query_one("#cct-workspace")
+                                is_fs = getattr(shell, "fullscreen", False)
+                                split_pill.tooltip = "Restore Split View (⿻)" if is_fs else "Maximize Editor (⿻)"
+                            except Exception:
+                                split_pill.tooltip = "Maximize / Restore Editor (⿻)"
+                        is_web = is_web_previewable(area.path)
+                        run_pill.display = bool(is_web)
                         try:
-                            if is_web:
-                                run_pill.tooltip = "Open Live Web Preview (▷)"
-                                split_pill.tooltip = "Split editor / preview (⿻)"
-                            elif is_split:
-                                split_pill.tooltip = "Split editor / preview (⿻)"
-                                try: run_pill.tooltip = ""
-                                except: pass
-                            else:
-                                run_pill.tooltip = ""
-                                split_pill.tooltip = ""
+                            run_pill.set_class(is_web, "-run")
+                            split_pill.set_class(True, "-split")
                         except Exception:
                             pass
                     except Exception:
@@ -1725,8 +1747,26 @@ if TEXTUAL_AVAILABLE:
             if widget_id == "cct-editor-highlight-warning":
                 widget.remove()
                 return
+            if widget_id == "cct-tb-back" or (widget and any(getattr(a, "id", None) == "cct-tb-back" for a in getattr(widget, "ancestors", []))):
+                event.stop()
+                try:
+                    shell = self.app.query_one("#cct-workspace")
+                    shell._showing = "chat"
+                    shell._relayout()
+                except Exception:
+                    pass
+                self.action_editor_escape()
+                return
             if widget_id == "cct-tb-close":
+                event.stop()
                 self.close_active()
+                try:
+                    shell = self.app.query_one("#cct-workspace")
+                    if not self._open_paths:
+                        shell.show_chat()
+                except Exception:
+                    pass
+                self._refresh_toolbar()
                 return
             if widget_id == "cct-tb-wrap":
                 self._toggle_wrap(self.active_text_area())
@@ -1738,35 +1778,16 @@ if TEXTUAL_AVAILABLE:
                 self.action_show_preview()
                 return
             if widget_id == "cct-tb-split":
-                area = self.active_text_area()
-                path = getattr(area, "path", None)
-                if path:
+                event.stop()
+                try:
+                    shell = self.app.query_one("#cct-workspace")
+                    shell.set_fullscreen(not shell.fullscreen)
+                except Exception:
                     try:
-                        from ..browser import WorkspaceMode
-                        shell = self.app.query_one("#cct-workspace")
-                        if shell.mode is WorkspaceMode.SPLIT:
-                            shell.set_right_mode(WorkspaceMode.CODE)
-                            return
-                        try:
-                            ctrl = getattr(self.app, "_preview_ctrl", None)
-                            running = ctrl is not None and ctrl.preview_state.value == "running"
-                        except Exception:
-                            running = False
-                        if not running:
-                            from .events import PreviewRequested
-                            self.post_message(PreviewRequested(path))
-                            def _to_split():
-                                try:
-                                    if shell.mode is not WorkspaceMode.SPLIT:
-                                        shell.set_right_mode(WorkspaceMode.SPLIT)
-                                except Exception:
-                                    pass
-                            self.set_timer(0.8, _to_split)
-                        else:
-                            shell.set_right_mode(WorkspaceMode.SPLIT)
+                        self.app.action_toggle_right_pane_fullscreen()
                     except Exception:
-                        from .events import PreviewRequested
-                        self.post_message(PreviewRequested(path))
+                        pass
+                self._refresh_toolbar()
                 return
             if isinstance(widget, Tab) and widget_id and widget_id.startswith(self._TAB_PREFIX):
                 target_id = widget_id[len(self._TAB_PREFIX):]
@@ -1922,6 +1943,8 @@ if TEXTUAL_AVAILABLE:
                 if shell.fullscreen:
                     self.app.action_toggle_right_pane_fullscreen()
                     return
+                shell._showing = "chat"
+                shell._relayout()
             except Exception:
                 pass
             try:

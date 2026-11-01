@@ -148,13 +148,17 @@ if TEXTUAL_AVAILABLE:
                 return
             self._selected = min(self._selected, len(self._matches) - 1)
             self._redraw()
-            self.add_class("open")
-            # Dynamically size between 3 and 7 rows
-            self.styles.height = min(7, max(3, len(self._matches)))
+            self.add_class('open')
+            try:
+                screen_h = getattr(getattr(self.app, 'size', None), 'height', 30)
+                max_items = 4 if screen_h < 32 else (5 if screen_h < 40 else 7)
+            except Exception:
+                max_items = 5
+            visible_rows = min(max_items, len(self._matches))
+            self.styles.height = max(4, visible_rows + 2)
             self.scroll_home(animate=False)
-            if self.parent and hasattr(self.parent, "_on_palette_state_changed"):
+            if self.parent and hasattr(self.parent, '_on_palette_state_changed'):
                 self.parent._on_palette_state_changed(True)
-
         def close(self):
             was_open = self.is_open()
             self._matches = []
@@ -207,17 +211,31 @@ if TEXTUAL_AVAILABLE:
 
         def _redraw(self):
             from . import theme_css
-            accent = theme_css.current_hex("accent")
+            accent = theme_css.current_hex('accent')
             for child in list(self.children):
                 child.remove()
+            try:
+                palette_w = self.size.width if (self.size and self.size.width > 0) else 0
+                if not palette_w and self.parent and self.parent.size:
+                    palette_w = self.parent.size.width - 4
+                if not palette_w:
+                    palette_w = 80
+            except Exception:
+                palette_w = 80
+            is_compact = (palette_w < 70)
             for i, (item, desc) in enumerate(self._matches):
-                classes = "cct-cmd-row" + (" cct-cmd-row-selected" if i == self._selected else "")
-                marker = "▶ " if i == self._selected else "  "
-                if item.startswith("/"):
-                    cmd_pad = f"{item:<14}"
-                    self.mount(Static(f"{marker}[{accent} b]{cmd_pad}[/]  [dim]{desc}[/dim]", classes=classes))
+                classes = 'cct-cmd-row' + (' cct-cmd-row-selected' if i == self._selected else '')
+                marker = '▶ ' if i == self._selected else '  '
+                if item.startswith('/'):
+                    cmd_pad = f'{item}  ' if is_compact else (f'{item:<12}' if len(item) < 12 else f'{item} ')
+                    avail_desc = max(8, palette_w - len(cmd_pad) - 5)
+                    disp_desc = (desc[:avail_desc - 1] + '…') if len(desc) > avail_desc else desc
+                    self.mount(Static(f'{marker}[{accent} b]{cmd_pad}[/][dim]{disp_desc}[/dim]', classes=classes))
                 else:
-                    self.mount(Static(f"{marker}[{accent}]\u2726[/] {item}  [dim]{desc}[/dim]", classes=classes))
-
+                    avail_item = max(10, int(palette_w * (0.35 if is_compact else 0.45)))
+                    disp_item = (item[:avail_item - 1] + '…') if len(item) > avail_item else item
+                    avail_desc = max(8, palette_w - len(disp_item) - 8)
+                    disp_desc = (desc[:avail_desc - 1] + '…') if len(desc) > avail_desc else desc
+                    self.mount(Static(f'{marker}[{accent}]✦[/] {disp_item} [dim]{disp_desc}[/dim]', classes=classes))
 else:
     CommandPalette = None

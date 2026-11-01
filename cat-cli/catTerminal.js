@@ -59,7 +59,7 @@ class CatTerminalManager {
 			autoDetectPython: cfg.get('autoDetectPython', true),
 			reuseTerminal: cfg.get('reuseTerminal', true),
 			autoStart: cfg.get('autoStart', false),
-			terminalName: 'CAT',
+			terminalName: 'CAT CLI v0.8.9.01',
 		};
 	}
 
@@ -107,10 +107,22 @@ class CatTerminalManager {
 			return null;
 		}
 		const key = this.terminalKey(name, cwd);
-		const entry = this._terminals.get(key);
-		if (!entry) {
-			return null;
+		let entry = this._terminals.get(key);
+
+		// If entry not in map or was closed/disposed, discover any existing CAT terminal tab
+		if (!entry || !vscode.window.terminals.includes(entry.terminal)) {
+			const openTerm = vscode.window.terminals.find(
+				(t) => t.name === name || (t.name && t.name.startsWith('CAT CLI'))
+			);
+			if (openTerm) {
+				entry = { terminal: openTerm, at: Date.now() };
+				this._terminals.set(key, entry);
+			} else {
+				this._terminals.delete(key);
+				return null;
+			}
 		}
+
 		// Exit code 0 = clean exit (user quit CAT normally): terminal is
 		// stale, so forget it. Other codes mean a crash we already reported.
 		const cached = entry.terminal.exitStatus;
@@ -119,7 +131,7 @@ class CatTerminalManager {
 			return null;
 		}
 		entry.at = Date.now();
-		entry.terminal.show();
+		entry.terminal.show(false);
 		return entry.terminal;
 	}
 
@@ -204,16 +216,33 @@ class CatTerminalManager {
 		const launch = this.buildLaunchArgs(python, launcher, workspaceRoot);
 		this.log(`launching CAT: ${this.describeLaunch(launch, python)}`);
 
-		// 4. Create the terminal. VS Code runs argv through the user's
-		//    default shell profile with proper argument quoting — we never
-		//    interpolate into a shell string ourselves.
-		const terminal = vscode.window.createTerminal({
+		// 4. Create the dedicated editor terminal in Editor Group 2.
+		// Uses native VS Code Terminal API with location.viewColumn: vscode.ViewColumn.Two
+		const terminalOptions = {
 			name: config.terminalName,
 			cwd: cwd || undefined,
 			env: { CAT_VSCODE_LAUNCH: '1' },
 			isTransient: false,
-		});
-		terminal.show();
+			location: {
+				viewColumn: vscode.ViewColumn.Two,
+				preserveFocus: false,
+			},
+		};
+
+		// Terminal tab icon where supported
+		try {
+			if (this.context && this.context.extensionUri) {
+				terminalOptions.iconPath = {
+					light: vscode.Uri.joinPath(this.context.extensionUri, 'media', 'cat-open-light.svg'),
+					dark: vscode.Uri.joinPath(this.context.extensionUri, 'media', 'cat-open-dark.svg'),
+				};
+			}
+		} catch {
+			// fallback if extensionUri is not available
+		}
+
+		const terminal = vscode.window.createTerminal(terminalOptions);
+		terminal.show(false);
 		let command = launch.command;
 		if (process.platform === 'win32' && command.toLowerCase() === 'cat') {
 			command = 'cat.exe';
@@ -275,8 +304,12 @@ class CatTerminalManager {
 			const terminal = vscode.window.createTerminal({
 				name: 'Install CAT — Coding Agent Terminal',
 				cwd: cwd || undefined,
+				location: {
+					viewColumn: vscode.ViewColumn.Two,
+					preserveFocus: false,
+				},
 			});
-			terminal.show();
+			terminal.show(false);
 			const isWin = process.platform === 'win32';
 			const runCmd = isWin ? 'cat.exe' : 'cat';
 			this.log('User initiated CAT installation from official GitHub repository:');
@@ -307,6 +340,14 @@ class CatTerminalManager {
 			entry.terminal.dispose();
 			this._terminals.delete(key);
 			this.log('CAT terminal closed');
+		} else {
+			const openTerm = vscode.window.terminals.find(
+				(t) => t.name === config.terminalName || (t.name && t.name.startsWith('CAT CLI'))
+			);
+			if (openTerm) {
+				openTerm.dispose();
+				this.log('CAT terminal closed');
+			}
 		}
 	}
 

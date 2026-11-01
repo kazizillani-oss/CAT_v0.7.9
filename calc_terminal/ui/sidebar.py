@@ -40,7 +40,7 @@ def _safe_glyph(emoji: str, fallback: str) -> str:
     except Exception:
         return fallback
 
-DEFAULT_WIDTH = 32
+DEFAULT_WIDTH = 26
 COLLAPSED_WIDTH = 0
 
 # File extensions the spec's Drag & Drop section lists — used only to
@@ -95,10 +95,26 @@ if TEXTUAL_AVAILABLE:
 
         def on_button_pressed(self, event):
             classes = getattr(event.button, "classes", set())
+            bid = getattr(event.button, "id", "")
+            if bid in ("cct-sidebar-back-btn", "cct-sidebar-collapse-btn"):
+                event.stop()
+                self.post_message(SidebarToggled(False))
+                return
             if "cct-sidebar-project-del" in classes or "del" in classes:
                 event.stop()
                 if self._on_delete:
                     self._on_delete(self.path)
+
+        def on_key(self, event):
+            if event.key == "escape":
+                try:
+                    shell = self.app.query_one("#cct-workspace")
+                    if shell and hasattr(shell, "is_portrait") and shell.is_portrait():
+                        self.post_message(SidebarToggled(False))
+                        event.stop()
+                        return
+                except Exception:
+                    pass
 
         def on_click(self, event):
             w = getattr(event, "widget", None)
@@ -236,21 +252,45 @@ if TEXTUAL_AVAILABLE:
         CSS = """
         RecentWorkspacesScreen { align: center middle; background: $app-background 60%; }
         #cct-recentws-box {
-            width: 84; height: auto; max-height: 88%;
-            background: $surface; border: tall $border-active $border;
+            width: 92%; max-width: 84; height: auto; max-height: 88%;
+            background: $surface;
+            border-top: tall $surface-highlight;
+            border-left: tall $surface-highlight;
+            border-bottom: tall $border;
+            border-right: tall $border;
             padding: 0 0 1 0;
             opacity: 0; offset-y: 1;
             transition: opacity 120ms, offset 150ms;
         }
+        RecentWorkspacesScreen.is-portrait #cct-recentws-box,
+        .is-portrait #cct-recentws-box {
+            width: 94%; max-width: 52; max-height: 88%; padding: 0;
+            border-top: tall $surface-highlight;
+            border-left: tall $surface-highlight;
+            border-bottom: tall $border;
+            border-right: tall $border;
+        }
+        RecentWorkspacesScreen.is-portrait #cct-recentws-titlebar,
+        .is-portrait #cct-recentws-titlebar {
+            height: 4; min-height: 4; max-height: 4; padding: 0 1;
+        }
+        RecentWorkspacesScreen.is-portrait .cct-rws-label,
+        .is-portrait .cct-rws-label {
+            width: 1fr; min-width: 12; max-width: 100%;
+        }
+        RecentWorkspacesScreen.is-portrait .cct-rws-path,
+        .is-portrait .cct-rws-path {
+            display: none;
+        }
         #cct-recentws-box.open { opacity: 1; offset-y: 0; }
         #cct-recentws-titlebar {
-            height: 5; min-height: 5; max-height: 5; padding: 0 2;
+            height: 4; min-height: 4; max-height: 4; padding: 0 2;
             border-bottom: solid $border;
             layout: horizontal; align: center middle;
         }
         #cct-recentws-title { text-style: bold; width: 1fr; }
         #cct-recentws-close {
-            min-width: 9; max-width: 12; height: 3; min-height: 3; padding: 0 1;
+            min-width: 9; max-width: 12; height: 3; min-height: 3; max-height: 3; padding: 0 1;
         }
         #cct-recentws-search { margin: 1 2 0 2; }
         #cct-recentws-count { color: $text-faint; height: 1; padding: 0 2; margin-top: 1; }
@@ -298,17 +338,60 @@ if TEXTUAL_AVAILABLE:
         }
         .cct-rws-del:hover { color: $error; }
         #cct-recentws-btns {
-            height: 4; padding: 0 2;
+            height: auto; min-height: 4; padding: 0 2;
             margin-top: 1;
             border-top: solid $border;
-            align-horizontal: right;
-            align-vertical: middle;
+            layout: horizontal;
+            align: right middle;
         }
         #cct-recentws-btns Button {
             margin-left: 1;
-            min-width: 14;
+            min-width: 12;
             height: 3;
-            border: tall $border-active $border;
+            border-top: tall $surface-highlight;
+            border-left: tall $surface-highlight;
+            border-bottom: tall $surface-shadow;
+            border-right: tall $surface-shadow;
+            background: $surface;
+            color: $text;
+            text-style: bold;
+        }
+        #cct-recentws-btns Button:hover {
+            border-top: tall $accent-lighten-2;
+            border-left: tall $accent-lighten-2;
+            border-bottom: tall $accent;
+            border-right: tall $accent;
+            background: $surface-alt;
+            color: #ffffff;
+        }
+        #cct-recentws-open {
+            background: $accent 35%;
+            color: #ffffff;
+            border-top: tall $accent-lighten-2;
+            border-left: tall $accent-lighten-2;
+            border-bottom: tall $surface-shadow;
+            border-right: tall $surface-shadow;
+        }
+        RecentWorkspacesScreen.is-portrait #cct-recentws-btns,
+        .is-portrait #cct-recentws-btns {
+            layout: vertical;
+            height: auto;
+            min-height: 8;
+            padding: 0 1;
+            margin-top: 1;
+            border-top: solid $border;
+            align: center middle;
+        }
+        RecentWorkspacesScreen.is-portrait #cct-recentws-btns Button,
+        .is-portrait #cct-recentws-btns Button {
+            width: 100%;
+            margin: 1 0 0 0;
+            min-height: 3;
+            height: auto;
+        }
+        RecentWorkspacesScreen.is-portrait .cct-btn-spacer,
+        .is-portrait .cct-btn-spacer {
+            display: none;
         }
         .cct-btn-spacer { width: 1fr; }
         #cct-recentws-hint { color: $text-faint; height: 1; margin-top: 1; padding: 0 2; text-align: center; }
@@ -407,6 +490,12 @@ if TEXTUAL_AVAILABLE:
 
         # --------------------------------------------------------- events --
         def on_mount(self):
+            try:
+                screen_size = getattr(self.app, "size", None)
+                if screen_size and (screen_size.width < 85 or (screen_size.width / max(1, screen_size.height)) < 2.0):
+                    self.add_class("is-portrait")
+            except Exception:
+                pass
             self.call_after_refresh(lambda: self.query_one("#cct-recentws-box").add_class("open"))
             self.call_after_refresh(self._refresh)
             try:
@@ -464,20 +553,45 @@ if TEXTUAL_AVAILABLE:
         CSS = """
         OpenWorkspaceScreen { align: center middle; background: $app-background 70%; }
         #ows-box {
-            width: 70; height: auto; max-height: 36;
-            background: $surface; border: tall $border-active $border; padding: 0;
+            width: 92%; max-width: 70; height: auto; max-height: 36;
+            background: $surface;
+            border-top: tall $surface-highlight;
+            border-left: tall $surface-highlight;
+            border-bottom: tall $border;
+            border-right: tall $border;
+            padding: 0;
             opacity: 0; offset-y: 1;
             transition: opacity 150ms, offset 180ms;
         }
+        OpenWorkspaceScreen.is-portrait #ows-box,
+        .is-portrait #ows-box {
+            width: 94%; max-width: 52; max-height: 88%; padding: 0 1;
+            border-top: tall $surface-highlight;
+            border-left: tall $surface-highlight;
+            border-bottom: tall $border;
+            border-right: tall $border;
+        }
+        OpenWorkspaceScreen.is-portrait #ows-titlebar,
+        .is-portrait #ows-titlebar {
+            height: 4; min-height: 4; max-height: 4; padding: 0 1;
+        }
+        OpenWorkspaceScreen.is-portrait #ows-button-row,
+        .is-portrait #ows-button-row {
+            layout: vertical; height: auto;
+        }
+        OpenWorkspaceScreen.is-portrait #ows-button-row Button,
+        .is-portrait #ows-button-row Button {
+            width: 100%; margin: 1 0; min-height: 3; height: auto;
+        }
         #ows-box.open { opacity: 1; offset-y: 0; }
         #ows-titlebar {
-            height: 5; min-height: 5; max-height: 5; padding: 0 2;
+            height: 4; min-height: 4; max-height: 4; padding: 0 2;
             border-bottom: solid $border; margin-bottom: 0;
             layout: horizontal; align: center middle;
         }
         #ows-title { text-style: bold; width: 1fr; }
         #ows-close-btn {
-            min-width: 9; max-width: 12; height: 3; min-height: 3; padding: 0 1;
+            min-width: 9; max-width: 12; height: 3; min-height: 3; max-height: 3; padding: 0 1;
         }
         #ows-body { padding: 1 2 1 2; }
         #ows-path-label { color: $text-faint; padding-bottom: 0; height: 1; }
@@ -485,8 +599,34 @@ if TEXTUAL_AVAILABLE:
         #ows-hint { height: 1; padding: 0 0 1 0; }
         #ows-hint.ows-error { color: $error; }
         #ows-hint.ows-success { color: $success; }
-        #ows-button-row { height: 3; align: center middle; margin-top: 0; }
-        #ows-button-row Button { margin: 0 1; }
+        #ows-button-row { height: auto; min-height: 4; align: center middle; margin-top: 1; }
+        #ows-button-row Button {
+            margin: 0 1;
+            height: 3;
+            border-top: tall $surface-highlight;
+            border-left: tall $surface-highlight;
+            border-bottom: tall $surface-shadow;
+            border-right: tall $surface-shadow;
+            background: $surface;
+            color: $text;
+            text-style: bold;
+        }
+        #ows-button-row Button:hover {
+            border-top: tall $accent-lighten-2;
+            border-left: tall $accent-lighten-2;
+            border-bottom: tall $accent;
+            border-right: tall $accent;
+            background: $surface-alt;
+            color: #ffffff;
+        }
+        #ows-open-btn {
+            background: $accent 35%;
+            color: #ffffff;
+            border-top: tall $accent-lighten-2;
+            border-left: tall $accent-lighten-2;
+            border-bottom: tall $surface-shadow;
+            border-right: tall $surface-shadow;
+        }
         #ows-recent-header {
             color: $text-faint; padding-top: 1; padding-bottom: 0;
             border-top: solid $border; margin-top: 1;
@@ -540,6 +680,12 @@ if TEXTUAL_AVAILABLE:
                     yield Static("\U0001f4c1  Drop folder here", id="ows-dropzone")
 
         def on_mount(self):
+            try:
+                screen_size = getattr(self.app, "size", None)
+                if screen_size and (screen_size.width < 85 or (screen_size.width / max(1, screen_size.height)) < 2.0):
+                    self.add_class("is-portrait")
+            except Exception:
+                pass
             self.call_after_refresh(
                 lambda: self.query_one("#ows-box").add_class("open"))
             try:
@@ -820,6 +966,7 @@ if TEXTUAL_AVAILABLE:
             # sidebar — visible chevron, open/close at any time). The
             # chevron flips ▼/▶ with the panel's width state.
             with Horizontal(id="cct-sidebar-titlebar"):
+                yield Button(_safe_glyph("← Back to CAT", "<- Back"), id="cct-sidebar-back-btn", classes="cct-sidebar-back-btn", tooltip="Return to CAT Dashboard")
                 yield Static("[b]Explorer[/b]", id="cct-sidebar-title")
                 yield Button(_safe_glyph("✕", "x"), id="cct-sidebar-collapse-btn", classes="cct-sidebar-collapse-btn", tooltip="Close Sidebar (Ctrl+B)")
             yield Button("📁 Open Folder", id="cct-open-folder-btn", classes="cct-sidebar-open-btn")
@@ -915,18 +1062,40 @@ if TEXTUAL_AVAILABLE:
         def on_button_pressed(self, event):
             if event.button.id == "cct-open-folder-btn":
                 self.post_message(FileOpenRequested("__open_folder_prompt__"))
-            elif event.button.id == "cct-sidebar-collapse-btn":
+            elif event.button.id in ("cct-sidebar-back-btn", "cct-sidebar-collapse-btn"):
                 event.stop()
-                p = getattr(self, "parent", None)
-                if p is not None and hasattr(p, "toggle_sidebar"):
-                    p.toggle_sidebar()
-                elif hasattr(getattr(p, "parent", None), "toggle_sidebar"):
-                    p.parent.toggle_sidebar()
-                else:
-                    self.toggle()
-                    self.post_message(SidebarToggled(self.width > 0 and self.display))
+                self.display = False
+                self.width = 0
+                self.remove_class("is-portrait")
+                try:
+                    p = getattr(self, "parent", None)
+                    if p is not None and hasattr(p, "query_one"):
+                        main = p.query_one("#cct-workspace-main", Vertical)
+                        main.display = True
+                except Exception:
+                    pass
+                self.post_message(SidebarToggled(False))
             elif event.button.id == "cct-sidebar-menu-btn":
                 self._show_explorer_menu()
+
+        def on_key(self, event):
+            if event.key == "escape":
+                try:
+                    shell = self.app.query_one("#cct-workspace")
+                    if shell and hasattr(shell, "is_portrait") and shell.is_portrait():
+                        self.display = False
+                        self.width = 0
+                        self.remove_class("is-portrait")
+                        try:
+                            main = shell.query_one("#cct-workspace-main", Vertical)
+                            main.display = True
+                        except Exception:
+                            pass
+                        self.post_message(SidebarToggled(False))
+                        event.stop()
+                        return
+                except Exception:
+                    pass
 
         # ---------------------------------------------------- workspace --
         def open_folder(self, path):
@@ -1118,7 +1287,8 @@ if TEXTUAL_AVAILABLE:
             # place — the Folder Panel never closes when you browse
             # multiple workspaces (spec section 3).
             seen_paths = set()
-            workspaces = projects.workspaces()[:6]
+            max_ws = 2 if self._workspace_root else 5
+            workspaces = projects.workspaces()[:max_ws]
             if workspaces:
                 container.mount(Static("[b]Workspaces[/b]",
                                        classes="cct-sidebar-project-header"))
@@ -1134,7 +1304,8 @@ if TEXTUAL_AVAILABLE:
             pinned = [p for p in projects.pinned() if os.path.abspath(p) not in seen_paths]
             for p in pinned:
                 seen_paths.add(os.path.abspath(p))
-            recent = [p for p in projects.recent() if os.path.abspath(p) not in seen_paths][:6]
+            max_rec = 2 if self._workspace_root else 5
+            recent = [p for p in projects.recent() if os.path.abspath(p) not in seen_paths][:max_rec]
             if pinned:
                 container.mount(Static("[b]Pinned Workspaces[/b]", classes="cct-sidebar-project-header"))
                 for p in pinned:
