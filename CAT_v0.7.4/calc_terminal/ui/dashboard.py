@@ -132,9 +132,14 @@ if TEXTUAL_AVAILABLE:
                     pass
 
             if not w or not h:
-                if hasattr(self, "app") and self.app and getattr(self.app, "size", None):
-                    w = w or self.app.size.width
-                    h = h or max(1, self.app.size.height - 8)
+                try:
+                    if getattr(self, "is_attached", False):
+                        app = getattr(self, "app", None)
+                        if app and getattr(app, "size", None):
+                            w = w or app.size.width
+                            h = h or max(1, app.size.height - 8)
+                except Exception:
+                    pass
 
             return (max(20, int(w or 80)), max(10, int(h or 24)))
 
@@ -414,7 +419,7 @@ if TEXTUAL_AVAILABLE:
                 muted = theme_css.current_hex("text-muted")
                 faint = theme_css.current_hex("text-faint")
                 w, h = self._get_viewport_size()
-                is_portrait = (w < 92) or (w <= 105 and (w / max(1, h)) < 2.3)
+                is_portrait = (w < 55) or (w < 90 and (w / max(1, h)) < 1.30)
                 has_ws = bool(self._workspace_root)
                 col_mode = getattr(self, "_col_mode", "3col" if (w >= 92 and h >= 22 and has_ws) else ("2col" if w >= 62 else "1col"))
 
@@ -555,20 +560,28 @@ if TEXTUAL_AVAILABLE:
             except Exception:
                 pass
 
-            is_portrait = (w < 92) or (w <= 105 and (w / max(1, h)) < 2.3)
+            is_portrait = (w < 55) or (w < 90 and (w / max(1, h)) < 1.30)
+            is_compact_floating = (h <= 30) or (w <= 95)
             self.set_class(is_portrait, "is-portrait")
 
             # 2. Adjust vertical breathing room based on available height and mode
             try:
                 if is_portrait:
-                    # Part 3: Minimal portrait welcome area - remove the three lines
+                    # Part 3: Minimal portrait welcome area - remove the verbose lines
                     self.query_one("#cct-empty-version", Static).display = False
                     self.query_one("#cct-empty-tagline", Static).display = False
                     self.query_one("#cct-empty-ready", Static).display = False
                     self.query_one("#cct-empty-suggest", Static).display = False
                     self.query_one("#cct-dash-ai-status", Static).display = (h >= 32)
+                elif is_compact_floating:
+                    # Floating window / compact mode: remove verbose status header per user spec
+                    self.query_one("#cct-empty-version", Static).display = False
+                    self.query_one("#cct-empty-tagline", Static).display = False
+                    self.query_one("#cct-empty-ready", Static).display = False
+                    self.query_one("#cct-empty-suggest", Static).display = False
+                    self.query_one("#cct-dash-ai-status", Static).display = (h >= 24)
                 else:
-                    # In landscape mode: strictly preserve all three lines
+                    # In spacious landscape mode: strictly preserve all status lines
                     self.query_one("#cct-empty-version", Static).display = True
                     self.query_one("#cct-empty-tagline", Static).display = True
                     self.query_one("#cct-empty-ready", Static).display = True
@@ -622,27 +635,40 @@ if TEXTUAL_AVAILABLE:
                 col_notebooks = self.query_one("#cct-dash-col-notebooks")
 
                 if is_portrait:
-                    # Part 4: Hide Recent Projects & Project Workspace in portrait mode ONLY
+                    # Portrait mode: Single centered CAT card
                     col_projects.display = False
                     col_workspace.display = False
                     col_notebooks.display = True
                     columns.set_class(True, "mode-portrait-single")
+                    columns.set_class(False, "mode-floating-single")
                     columns.set_class(False, "mode-3col")
                     columns.set_class(False, "mode-2col")
                     columns.set_class(False, "mode-1col")
                     columns.set_class(False, "stacked")
                     col_mode = "portrait-single"
+                elif is_compact_floating:
+                    # Floating window mode: Remove recent projects and project & workspace per user spec
+                    col_projects.display = False
+                    col_workspace.display = False
+                    col_notebooks.display = True
+                    columns.set_class(True, "mode-floating-single")
+                    columns.set_class(False, "mode-portrait-single")
+                    columns.set_class(False, "mode-3col")
+                    columns.set_class(False, "mode-2col")
+                    columns.set_class(False, "mode-1col")
+                    columns.set_class(False, "stacked")
+                    col_mode = "floating-single"
                 else:
-                    # In landscape mode: preserve all three cards
+                    # Spacious landscape: Show all 3 sections!
                     col_projects.display = True
                     col_workspace.display = True
                     col_notebooks.display = True
                     columns.set_class(False, "mode-portrait-single")
+                    columns.set_class(False, "mode-floating-single")
 
-                    # 3 columns require at least 92 columns width and 22 rows height
-                    if w >= 92 and h >= 22:
+                    if w >= 70 and h >= 16:
                         col_mode = "3col"
-                    elif w >= 62 and h >= 20:
+                    elif w >= 50 and h >= 16:
                         col_mode = "2col"
                     else:
                         col_mode = "1col"

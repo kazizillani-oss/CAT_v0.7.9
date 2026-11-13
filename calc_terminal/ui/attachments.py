@@ -201,10 +201,23 @@ def _status_color(att):
 
 
 def _vision_warning(att):
-    """CAT automatically extracts OCR, multimodal features, and metadata
-    for all attached images and files across all models. Returns None so no
-    false warnings are displayed."""
-    return None
+    """v0.9.000 capability-aware image note. When the ACTIVE provider/
+    model (aicore.load_config() — the single source of truth) cannot
+    take a native image payload, the chip says so honestly right at
+    attach time: the image is never silently discarded and never faked
+    as vision — the model only receives it through the universal
+    extracted-text/OCR fallback. None when the model supports native
+    vision or the attachment is not an image (no false warnings)."""
+    try:
+        if getattr(att, "kind", "") != "image":
+            return None
+        if _core is not None:
+            caps = _core.provider_capabilities()
+            if caps and caps.get("vision"):
+                return None
+    except Exception:
+        pass
+    return "no native image input \u2014 text/OCR fallback only"
 
 
 def _chip_label(att):

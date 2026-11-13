@@ -1,0 +1,30 @@
+pkgbase = cat-cli
+	pkgdesc = CAT CLI — Coding Agent Terminal. Autonomous AI Coding Assistant, MCP Client & Terminal TUI
+	pkgver = 0.9.000
+	pkgrel = 1
+	url = https://github.com/kazizillani-oss/CAT_v0.7.9
+	arch = any
+	license = MIT
+	makedepends = python-build
+	makedepends = python-installer
+	makedepends = python-wheel
+	makedepends = python-setuptools
+	depends = python>=3.11
+	depends = python-textual
+	depends = python-rich
+	depends = python-requests
+	depends = python-pydantic
+	depends = python-fastapi
+	depends = python-uvicorn
+	optdepends = nodejs: Model Context Protocol (MCP) server execution runtime
+	optdepends = bun: Ultra-fast JavaScript and TypeScript runtime for MCP skills
+	optdepends = ollama: Local offline and private LLM inference
+	optdepends = sox: Real-time audio waveform processing in voice mode
+	provides = cat
+	provides = cat-cli
+	conflicts = cat-cli-git
+	source = cat-cli-0.9.000.tar.gz::https://github.com/kazizillani-oss/CAT_v0.7.9/archive/refs/tags/v0.9.000.tar.gz
+	sha256sums = SKIP
+
+pkgname = cat-cli
+

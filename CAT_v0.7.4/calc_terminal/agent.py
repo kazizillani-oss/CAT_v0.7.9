@@ -2454,7 +2454,58 @@ def _tool_qala_compile_latex(args):
         return f"LaTeX compilation error: {e}"
 
 
+def _tool_install_skill(args):
+    """Installs a skill or component from GitHub, catalogue, or URL."""
+    target = str(args.get("target") or args.get("repo") or args.get("skill") or "").strip()
+    if not target:
+        return "No skill or repository given. Pass {\"target\": \"owner/repo\" or \"skill_slug\"}."
+    try:
+        from . import extension_installer
+        insp = extension_installer.inspect_repository(target)
+        if not insp.valid:
+            return f"Validation failed for '{target}': {insp.error}"
+        from . import extensions as ext_mgr
+        ok, msg = ext_mgr.install_from_github(target)
+        if ok:
+            return f"Successfully installed and registered skill/component: '{insp.name}' (v{insp.version})."
+        else:
+            return f"Skill installation failed: {msg}"
+    except Exception as e:
+        return f"Error installing skill '{target}': {e}"
+
+
+def _tool_manage_skills(args):
+    """Lists, inspects, or manages Kitty skills."""
+    action = str(args.get("action") or "list").lower()
+    from .skills.registry import get_skill_registry
+    reg = get_skill_registry()
+    if action == "list":
+        skills = reg.list_skills()
+        return "\n".join(f"- {s.name} ({s.id} v{s.version}): {s.description}" for s in skills)
+    elif action == "info":
+        sid = str(args.get("skill_id") or "")
+        s = reg.get_skill(sid)
+        if not s:
+            return f"Skill '{sid}' not found."
+        return f"{s.name} ({s.id} v{s.version}):\n{s.description}\nTools: {getattr(s, 'tool_requirements', [])}"
+    return f"Unknown action: {action}"
+
+
 TOOLS = {
+    "install_skill": {
+        "run": _tool_install_skill,
+        "desc": "Install a Kitty skill, agent capability, or extension from GitHub or the component catalogue.",
+        "args": '{"target": "owner/repo or skill_slug"}',
+        "perm_key": "install_packages",
+        "describe": lambda a: ("Install Skill", str(a.get("target", "")), "Install skill from repository"),
+    },
+    "manage_skills": {
+        "run": _tool_manage_skills,
+        "desc": "List, inspect, and query registered Kitty skills and agent capabilities.",
+        "args": '{"action": "list"}',
+        "describe": lambda a: ("Manage Skills", str(a.get("action", "list")), ""),
+    },
+
     "ask_question": {
         "run": _tool_ask_question,
         "desc": "Ask the user a clarifying question with options or free text input.",
@@ -4053,6 +4104,20 @@ def run_agent(user_text, max_steps=MAX_STEPS, verbose=True, on_step=None, mode="
             return ("You already ran this exact tool call and got a result — repeating it "
                     "won't help. Use that result and move on to the NEXT step, or if every "
                     "part of the question is now answered, reply with the final JSON action.")
+
+        # Plan (Mira) mode guardrail: Mira inspects and reviews projects without altering files
+        try:
+            from . import ai_modes
+            cur_mode = mode or ai_modes.current_mode()
+            if cur_mode == "plan" and name in ("write_file", "edit_file", "delete_file", "create_file", "patch_file"):
+                _trace("TOOL_BLOCKED_PLAN_MODE", tool=name)
+                return (
+                    f"Action blocked: Mira (Plan Mode) is strictly read-only for inspecting and reviewing projects without altering files. "
+                    f"To implement changes to '{args.get('path', 'the project')}', please switch to Aria (Build mode) using /build or select Aria in Kitties."
+                )
+        except Exception:
+            pass
+
 
         _emit("tool_detected", tool=name, args=args)
         if _lifecycle_task:

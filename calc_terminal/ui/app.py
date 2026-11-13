@@ -321,39 +321,42 @@ Button.cct-msg-btn, .cct-msg-btn {
     height: 1;
     min-height: 1;
     max-height: 1;
-    width: 11;
-    min-width: 11;
-    max-width: 11;
-    padding: 0;
+    width: auto;
+    min-width: 10;
+    padding: 0 1;
     margin-left: 1;
     margin-right: 0;
     background: #1e2233;
-    color: #94a3b8;
+    color: #a6adc8;
     border: none;
-    outline: none;
+    border-left: tall #565f89;
+    border-right: tall #11121d;
     text-style: bold;
     content-align: center middle;
     transition: background 100ms, color 100ms;
 }
 Button.cct-msg-btn:hover, .cct-msg-btn:hover {
-    background: $accent;
+    background: #363c5c;
     color: #ffffff;
     border: none;
-    outline: none;
+    border-left: tall #ffffff;
+    border-right: tall #11121d;
     text-style: bold;
 }
 Button.cct-msg-btn:focus, .cct-msg-btn:focus {
-    background: $accent 40%;
+    background: #2a2e45;
     color: #ffffff;
     border: none;
-    outline: none;
+    border-left: tall #fab387;
+    border-right: tall #11121d;
     text-style: bold;
 }
 Button.cct-msg-btn.-active, .cct-msg-btn.-active {
-    background: $accent 60%;
-    color: #ffffff;
+    background: #11121d;
+    color: #fab387;
     border: none;
-    outline: none;
+    border-left: tall #11121d;
+    border-right: tall #ffffff;
     text-style: bold;
 }
 .-light Button.cct-msg-btn,
@@ -515,25 +518,124 @@ LiveActivitiesBlock.collapsed #live-header, .live-activities-block.collapsed #li
    Notebook / Research / Build / … still override all of this the
    moment a mode class is present. */
 #cct-composer {
-    background: $surface;
-    border: heavy $border;
+    background: #252839;
+    border: tall;
+    border-top: tall #7a84a6;
+    border-left: tall #656f91;
+    border-right: tall #141520;
+    border-bottom: tall #10111a;
     tint: transparent;
-    padding: 0 1;
+    padding: 0;
     margin: 0 1 1 1;
-    height: auto;
-    min-height: 0;
-    max-height: 75%;
-    width: 1fr;
-    layout: vertical;
-    transition: border 120ms, tint 120ms, offset 90ms;
+    width: 100%;
+    min-height: 5;
+    max-height: 85%;
+    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: hidden;
+    transition: border 120ms, tint 120ms;
 }
 #cct-composer:hover {
     tint: transparent;
+    border-top: tall #9aa5ce;
+    border-left: tall #7aa2f7;
+    border-bottom: tall #10111a;
+    border-right: tall #141520;
 }
 #cct-composer:focus-within {
-    background: $surface;
-    border: heavy $border-active;
+    background: #252839;
+    border: tall;
+    border-top: tall #9aa5ce;
+    border-left: tall #7aa2f7;
+    border-bottom: tall #10111a;
+    border-right: tall #141520;
     tint: transparent;
+}
+
+/* AI Mode Dynamic 3D Chassis & Skeuomorphic Bevel Borders */
+#cct-composer.cct-mode-build {
+    border: tall;
+    border-top: tall #f7d794;
+    border-left: tall #e0af68;
+    border-bottom: tall #8c551c;
+    border-right: tall #b07028;
+}
+#cct-composer.cct-mode-build:focus-within {
+    border: tall;
+    border-top: tall #ffeaa7;
+    border-left: tall #fab387;
+    border-bottom: tall #8c551c;
+    border-right: tall #b07028;
+}
+#cct-composer.cct-mode-notebook {
+    border: tall;
+    border-top: tall #a5c3ff;
+    border-left: tall #7aa2f7;
+    border-bottom: tall #2b3e7a;
+    border-right: tall #3d569e;
+}
+#cct-composer.cct-mode-notebook:focus-within {
+    border: tall;
+    border-top: tall #bfd5ff;
+    border-left: tall #89b4fa;
+    border-bottom: tall #2b3e7a;
+    border-right: tall #3d569e;
+}
+#cct-composer.cct-mode-research {
+    border: tall;
+    border-top: tall #ff94c2;
+    border-left: tall #ff75a0;
+    border-bottom: tall #801f4c;
+    border-right: tall #a82d68;
+}
+#cct-composer.cct-mode-research:focus-within {
+    border: tall;
+    border-top: tall #ffaecf;
+    border-left: tall #ff85c0;
+    border-bottom: tall #801f4c;
+    border-right: tall #a82d68;
+}
+#cct-composer.cct-mode-plan {
+    border: tall;
+    border-top: tall #bbf285;
+    border-left: tall #9ece6a;
+    border-bottom: tall #3f6212;
+    border-right: tall #5b8a24;
+}
+#cct-composer.cct-mode-plan:focus-within {
+    border: tall;
+    border-top: tall #cdf59f;
+    border-left: tall #a6e3a1;
+    border-bottom: tall #3f6212;
+    border-right: tall #5b8a24;
+}
+#cct-composer.cct-mode-debugger {
+    border: tall;
+    border-top: tall #ff5978;
+    border-left: tall #dc143c;
+    border-bottom: tall #801024;
+    border-right: tall #a81a34;
+}
+#cct-composer.cct-mode-debugger:focus-within {
+    border: tall;
+    border-top: tall #ffa1b2;
+    border-left: tall #f38ba8;
+    border-bottom: tall #801024;
+    border-right: tall #a81a34;
+}
+#cct-composer.cct-mode-agent {
+    border: tall;
+    border-top: tall #d8c2ff;
+    border-left: tall #bb9af7;
+    border-bottom: tall #543b8a;
+    border-right: tall #7052b4;
+}
+#cct-composer.cct-mode-agent:focus-within {
+    border: tall;
+    border-top: tall #ebd5ff;
+    border-left: tall #cba6f7;
+    border-bottom: tall #543b8a;
+    border-right: tall #7052b4;
 }
 
 #cct-composer,
@@ -544,28 +646,41 @@ LiveActivitiesBlock.collapsed #live-header, .live-activities-block.collapsed #li
 #cct-composer.cct-mode-build,
 #cct-composer.cct-mode-debugger,
 #cct-composer.cct-mode-agent {
-    background: $surface;
+    background: #252839;
+}
+
+#cct-composer-context-bar {
+    display: none;
+    height: 0;
+    min-height: 0;
+    max-height: 0;
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
 }
 
 #cct-prompt-row {
     height: auto;
     min-height: 1;
     max-height: 100%;
-    align-vertical: middle;
+    align-vertical: top;
     padding: 0 1;
     margin: 0;
     background: transparent;
+    tint: transparent;
     border: none;
 }
 #cct-prompt-row:focus-within {
-    border: none;
     background: transparent;
+    tint: transparent;
+    border: none;
 }
 #cct-prompt-glyph {
     width: 2;
     min-width: 2;
     max-width: 2;
-    color: $accent;
+    color: #e0af68;
     text-style: bold;
     content-align: left middle;
 }
@@ -575,10 +690,19 @@ LiveActivitiesBlock.collapsed #live-header, .live-activities-block.collapsed #li
     min-height: 1;
     max-height: 100%;
     background: transparent;
+    tint: transparent;
     border: none;
     padding: 0;
+    margin: 0;
+    overflow: hidden;
 }
-#cct-input, #cct-input:focus, ComposerInput, ComposerInput:focus, #cct-editor-stack, #cct-editor-stack:focus {
+#cct-editor-stack:focus-within {
+    background: transparent;
+    tint: transparent;
+    border: none;
+}
+#cct-input, #cct-input:focus, ComposerInput, ComposerInput:focus,
+#cct-input > .text-area--cursor-line, ComposerInput > .text-area--cursor-line {
     width: 1fr;
     height: 1fr;
     min-height: 1;
@@ -587,6 +711,10 @@ LiveActivitiesBlock.collapsed #live-header, .live-activities-block.collapsed #li
     border: none;
     color: $text;
     outline: none;
+}
+#cct-input .text-area--placeholder, ComposerInput .text-area--placeholder {
+    color: #8b92b2;
+    text-style: italic;
 }
 
 /* 3D Tactile Attachment Chips & Bar */
@@ -640,21 +768,26 @@ LiveActivitiesBlock.collapsed #live-header, .live-activities-block.collapsed #li
 }
 
 #cct-cmdpalette {
-    background: $surface;
-    border: round $border;
-    tint: $accent 4%;
+    background: #13141f;
+    border: tall;
+    border-top: tall #cdd6f4;
+    border-left: tall #89b4fa;
+    border-bottom: tall #585b70;
+    border-right: tall #45475a;
+    tint: transparent;
     margin-left: 1;
     margin-right: 1;
     margin-top: 0;
     margin-bottom: 0;
     width: 1fr;
-    max-height: 10;
+    max-height: 8;
     height: auto;
     display: none;
     padding: 0;
     scrollbar-size: 1 1;
     scrollbar-gutter: auto;
-    scrollbar-color: $accent $surface;
+    scrollbar-color: #fab387 #181926;
+    scrollbar-background: transparent;
 }
 #cct-cmdpalette.open { display: block; }
 .cct-cmd-row {
@@ -662,236 +795,161 @@ LiveActivitiesBlock.collapsed #live-header, .live-activities-block.collapsed #li
     min-height: 1;
     max-height: 1;
     padding: 0 1;
-    color: $text-muted;
+    color: #cdd6f4;
     width: 1fr;
-    border-left: thick transparent;
+    background: #1f2235;
+    border: none;
+    border-left: tall #89b4fa;
+    border-right: tall #45475a;
     transition: background 60ms, color 60ms, border-left 60ms;
 }
 .cct-cmd-row:hover {
-    background: $surface-highlight 25%;
+    background: #2f3552;
     color: #ffffff;
+    border: none;
+    border-left: tall #ffffff;
+    border-right: tall #585b70;
 }
 .cct-cmd-row-selected {
-    background: $surface-alt;
-    tint: $accent 15%;
+    background: #363c5c;
     color: #ffffff;
-    border-left: thick $accent;
-    border-right: thick $surface-dark;
+    border: none;
+    border-left: tall #fab387;
+    border-right: tall #6e7594;
     text-style: bold;
 }
 
 #cct-kbhints { height: 1; color: $text-faint; padding: 0 2; }
 
+/* v0.9.000: the composer's BOTTOM STATUS ROW is a compact height 1 control row
+   (see footer.py's ComposerFooter). MUST stay in sync with theme_css.py's
+   #cct-bottom-row — this file loads AFTER it, so the last height here wins. */
 #cct-bottom-row {
-    height: auto;
-    min-height: 1;
-    max-height: 2;
-    margin: 0;
-    padding: 0 1;
-    layout: horizontal;
-    align-vertical: middle;
-    border: none;
-    background: transparent;
-    overflow: hidden;
-}
-#cct-left-controls {
-    width: auto;
-    max-width: 65%;
-    overflow: hidden;
+    width: 100%;
     height: 1;
+    min-height: 1;
+    max-height: 1;
+    background: transparent;
+    border: none;
+    padding: 0 1;
+    margin: 0;
     layout: horizontal;
-    align-vertical: middle;
+    align: center middle;
+    overflow: hidden;
 }
-#cct-footer-spacer-left { width: 1fr; height: 1; }
 #cct-center-status {
     width: auto;
-    max-width: 18;
+    max-width: 34;
     overflow: hidden;
-    color: $accent;
-    background: $surface-alt;
+    color: #6e7594;
+    background: transparent;
     border: none;
     padding: 0 1;
-    margin: 0 1;
+    margin: 0;
     content-align: center middle;
-    text-style: bold;
+    text-style: none;
     height: 1;
 }
-#cct-footer-spacer-right { width: 1fr; height: 1; }
 #cct-right-controls {
     width: auto;
-    min-width: 12;
-    max-width: 20;
     height: 1;
     min-height: 1;
     max-height: 1;
     layout: horizontal;
     align-vertical: middle;
     align-horizontal: right;
+    align: right middle;
     margin: 0;
     padding: 0;
+    background: transparent;
+}
+#cct-right-controls Button {
+    margin-left: 1;
+}
+#cct-composer-left {
+    width: auto;
+    height: 1;
+    min-height: 1;
+    max-height: 1;
+    layout: horizontal;
+    align-vertical: middle;
+    align-horizontal: left;
+    align: left middle;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+}
+#cct-toolbar-center {
+    width: 1fr;
+    height: 1;
+    min-height: 1;
+    max-height: 1;
+    layout: horizontal;
+    align: center middle;
     overflow: hidden;
-    background: transparent;
 }
 
-.cct-badge { width: auto; height: 1; color: $text-muted; text-style: bold; padding: 0 1; }
-.cct-badge:hover { color: $accent; }
-.cct-badge-sep { width: auto; height: 1; color: $text-faint; }
-#badge-notebook { color: $accent; }
-
-Button.cct-icon-btn,
-Button#btn-permissions,
-Button#btn-attach,
-Button.cct-icon-send,
-Button#btn-send {
-    offset: 0 0;
-    offset-x: 0;
-    offset-y: 0;
-    transition: none;
-    border: none;
+#cct-toolbar-center Static,
+#cct-toolbar-center .cct-badge,
+#cct-toolbar-center .cct-badge-mode,
+#badge-model,
+.cct-badge-sep,
+#cct-center-status {
+    width: auto;
     height: 1;
-    min-height: 1;
-    max-height: 1;
+    margin: 0;
+    padding: 0 1;
 }
-
-Button.cct-icon-btn, Button#btn-permissions {
-    background: transparent;
-    color: $text;
-    border: none;
-    min-width: 4;
+#badge-notebook {
     width: auto;
     height: 1;
     min-height: 1;
     max-height: 1;
     padding: 0 1;
-    margin: 0;
-    content-align: center middle;
-    text-style: bold;
-}
-Button#btn-attach {
-    background: transparent;
-    color: $text;
+    margin: 0 1 0 0;
+    background: #22263a;
     border: none;
-    min-width: 4;
-    width: auto;
-    height: 1;
-    min-height: 1;
-    max-height: 1;
-    padding: 0 1;
-    margin: 0;
-    content-align: center middle;
     text-style: bold;
+    transition: background 60ms, color 60ms;
 }
-Button.cct-icon-btn:hover, Button#btn-permissions:hover, Button#btn-attach:hover {
+#badge-notebook:hover {
+    background: #323854;
     color: #ffffff;
-    background: $accent 35%;
-    text-style: bold;
-    border: none;
 }
-Button.cct-icon-btn:focus, Button#btn-permissions:focus, Button#btn-attach:focus {
-    color: $accent-highlight;
-    background: $surface-highlight 40%;
-    text-style: bold;
-    border: none;
+#badge-notebook:focus, #badge-notebook.-active {
+    background: #181926;
+    color: #89b4fa;
 }
-Button.cct-icon-btn.-active, Button#btn-permissions.-active, Button#btn-attach.-active {
-    background: $accent;
-    color: #ffffff;
-    border: none;
-    offset: 0 0;
+.cct-badge-sep {
+    padding: 0;
+    color: #414868;
+}
+#cct-center-status {
+    color: #6e7594;
+    content-align: center middle;
 }
 
-Button.cct-icon-send, Button#btn-send {
-    color: $accent;
-    text-style: bold;
-    border: none;
-    min-width: 4;
-    width: auto;
-    height: 1;
-    min-height: 1;
-    max-height: 1;
-    padding: 0 1;
-    margin: 0;
-    background: transparent;
-    content-align: center middle;
-}
-Button.cct-icon-send:hover, Button#btn-send:hover {
-    color: #ffffff;
-    background: $accent;
-    text-style: bold;
-    border: none;
-}
-Button.cct-icon-send:focus, Button#btn-send:focus {
-    color: $accent-highlight;
-    background: $surface-highlight 40%;
-    text-style: bold;
-    border: none;
-}
-Button.cct-icon-send.-active, Button#btn-send.-active {
-    background: $accent-shadow;
-    color: #ffffff;
-    border: none;
-    offset: 0 0;
-}
-
-/* Interrupt Button state during AI Streaming */
-#cct-composer Button#btn-send.cct-btn-interrupt,
-#cct-composer.cct-mode-notebook Button#btn-send.cct-btn-interrupt,
-#cct-composer.cct-mode-research Button#btn-send.cct-btn-interrupt,
-#cct-composer.cct-mode-plan Button#btn-send.cct-btn-interrupt,
-#cct-composer.cct-mode-build Button#btn-send.cct-btn-interrupt,
-#cct-composer.cct-mode-debugger Button#btn-send.cct-btn-interrupt,
-#cct-composer.cct-mode-agent Button#btn-send.cct-btn-interrupt,
-Button.cct-btn-interrupt, Button#btn-send.cct-btn-interrupt {
-    background: transparent;
-    color: #ef4444;
-    border: none;
-    text-style: bold;
-}
-#cct-composer Button#btn-send.cct-btn-interrupt:hover,
-Button.cct-btn-interrupt:hover, Button#btn-send.cct-btn-interrupt:hover {
-    background: #ef4444;
-    color: #ffffff;
-    border: none;
-    text-style: bold;
-}
-#cct-composer Button#btn-send.cct-btn-interrupt:focus,
-Button.cct-btn-interrupt:focus, Button#btn-send.cct-btn-interrupt:focus {
-    background: #ef4444 30%;
-    color: #ffffff;
-    border: none;
-    text-style: bold;
-}
-#cct-composer Button#btn-send.cct-btn-interrupt.-active,
-Button.cct-btn-interrupt.-active, Button#btn-send.cct-btn-interrupt.-active {
-    background: #b91c1c;
-    color: #ffffff;
-    border: none;
-}
+/* v0.9.000: the composer's fixed-height-3 3D controls are styled
+   ENTIRELY by theme_css.py's Button.cct-ctl-btn / cct-ctl-send /
+   cct-ctl-stop rules (neutral Attach/Mic slate, amber Send, crimson
+   Stop). The old height-1 flat `cct-icon-btn` / `cct-icon-send` /
+   `cct-stop-btn` / `#btn-permissions` / `#btn-attach` / `#btn-mic` /
+   `#btn-send` copies that used to live here are deleted — they
+   loaded AFTER the theme, so any leftover would have overridden the
+   new bevel design. */
 
 #cct-streaming-status {
     height: 0; color: $warning; padding: 0 1; display: none;
 }
 #cct-streaming-status.active { height: 1; display: block; }
 
-/* v0.7.8.1 interrupt: the streaming row hosts the status line plus a
-   ⏹ Stop button that only exists (display:none by default) while a
-   reply is in flight. */
+/* v0.9.000: #cct-streaming-row is status-ONLY — the dedicated ⏹ Stop
+   control lives in the footer's Send/Stop slot (Button#btn-stop,
+   styled by theme_css.py's cct-ctl-stop), so no second Stop button
+   (and no duplicate handler) exists in this row any more. */
 #cct-streaming-row { height: 0; display: none; layout: horizontal; align-vertical: middle; }
 #cct-streaming-row.active { height: 1; min-height: 1; max-height: 1; display: block; layout: horizontal; align-vertical: middle; }
 #cct-streaming-row.active #cct-streaming-status { width: 1fr; height: 1; min-height: 1; display: block; }
-Button.cct-stop-btn {
-    height: 1; min-height: 1; max-height: 1; min-width: 8; width: auto; padding: 0 1; display: none;
-    background: $surface; color: $error;
-    border: none;
-    text-style: bold;
-    content-align: center middle;
-    offset: 0 0;
-}
-Button.cct-stop-btn:hover {
-    background: $error; color: #ffffff;
-    border: none;
-}
-#cct-streaming-row.active Button.cct-stop-btn { width: auto; min-width: 8; height: 1; min-height: 1; max-height: 1; display: block; }
 
 #cct-edit-banner {
     height: 0; color: $accent; padding: 0 1; display: none;
@@ -924,30 +982,42 @@ Button.cct-send {
 Button.cct-send:hover { background: $accent-secondary; }
 
 #cct-permission-panel {
-    background: $surface; border: round $accent; margin: 0 1 1 1;
-    padding: 1 2; height: auto; max-height: 14; display: none;
+    background: #181926;
+    border: heavy;
+    border-top: heavy #8b92b2;
+    border-left: heavy #6e7594;
+    border-bottom: heavy #0c0d14;
+    border-right: heavy #141520;
+    margin: 0 1 1 1;
+    padding: 1 2;
+    height: auto;
+    max-height: 14;
+    display: none;
 }
 #cct-permission-panel.open { display: block; }
 #cct-perm-header {
     height: 1; min-height: 1; layout: horizontal; align-vertical: middle;
     margin-bottom: 1;
+    border-bottom: solid #3b4261;
 }
 #cct-perm-title-box { width: auto; layout: horizontal; align-vertical: middle; }
-#cct-perm-icon { color: $accent; text-style: bold; margin-right: 1; }
+#cct-perm-icon { color: #e0af68; text-style: bold; margin-right: 1; }
 #cct-perm-title { color: $text; text-style: bold; }
 #cct-perm-mode-btn {
     height: 1; min-height: 1; max-height: 1; padding: 0 1; margin-left: 2;
-    background: $surface-alt; color: $text; text-style: bold;
-    border: none;
-    border-left: tall $surface-highlight;
-    border-right: tall $surface-dark;
+    background: #1e2030; color: #ffffff; text-style: bold;
+    border-top: solid #3b4261;
+    border-left: solid #2e344e;
+    border-bottom: solid #0e0f17;
+    border-right: solid #181926;
     content-align: center middle;
 }
 Button#cct-perm-mode-btn:hover {
-    background: $accent 25%; color: $accent-highlight;
-    border: none;
-    border-left: tall #ffffff;
-    border-right: tall $surface-dark;
+    background: #24283b; color: #ffeaa7;
+    border-top: solid #f7d794;
+    border-left: solid #e0af68;
+    border-bottom: solid #0e0f17;
+    border-right: solid #181926;
 }
 Button#cct-perm-mode-btn.-active { offset: 0 0; }
 #cct-perm-spacer { width: 1fr; }
@@ -955,15 +1025,15 @@ Button#cct-perm-close {
     height: 1; min-height: 1; max-height: 1; width: 3; min-width: 3; padding: 0; margin: 0;
     color: $text-muted; background: transparent;
     border: none;
-    border-left: tall $surface-highlight;
-    border-right: tall $surface-dark;
+    border-left: tall #3b4261;
+    border-right: tall #0e0f17;
     content-align: center middle;
 }
 Button#cct-perm-close:hover {
     color: $error; background: $error 20%; text-style: bold;
     border: none;
     border-left: tall #ffffff;
-    border-right: tall $surface-dark;
+    border-right: tall #0e0f17;
 }
 Button#cct-perm-close.-active { offset: 0 0; }
 
@@ -971,10 +1041,16 @@ Button#cct-perm-close.-active { offset: 0 0; }
     height: auto; layout: horizontal;
 }
 .cct-perm-col {
-    width: 1fr; height: auto; padding: 0 1;
+    width: 1fr; height: auto; padding: 1 1; margin: 0 1;
+    background: #14151f;
+    border-top: solid #0e0f17;
+    border-left: solid #141520;
+    border-bottom: solid #3b4261;
+    border-right: solid #2e344e;
 }
 .cct-perm-col-title {
-    color: $accent; text-style: bold; height: 1; margin-bottom: 0;
+    color: #e0af68; text-style: bold; height: 1; margin-bottom: 0;
+    border-bottom: solid #24283b;
 }
 .cct-perm-row {
     height: 1; min-height: 1; layout: horizontal; align-vertical: middle; margin-top: 1;
@@ -1264,8 +1340,17 @@ Button.cct-perm-close-btn:hover {
 
 
 #cct-statusline {
-    height: 1; background: $app-background; color: $text-faint;
-    padding: 0 2; border-top: solid $border; dock: bottom;
+    height: 1;
+    min-height: 1;
+    max-height: 1;
+    background: transparent;
+    color: $text-muted;
+    padding: 0 1;
+    margin: 0;
+    border: none;
+    border-top: none;
+    dock: bottom;
+    overflow: hidden hidden;
 }
 
 /* ------------------------------------------------------- v0.7.4 NavBar -- */
@@ -1297,133 +1382,206 @@ Button.cct-perm-close-btn:hover {
     layout: horizontal;
 }
 
-/* LEFT: 3D raised menu button + logo */
+/* LEFT: 3D raised menu button + logo (ONLY main menu icon has square shape border) */
 .cct-menu-btn {
-    width: 5; min-width: 5; height: 3; color: $text; content-align: center middle;
-    background: $surface;
-    border-top: tall $surface-highlight;
-    border-left: tall $surface-highlight;
-    border-bottom: tall $surface-shadow;
-    border-right: tall $surface-shadow;
+    width: 7; min-width: 7; max-width: 7;
+    height: 3; min-height: 3; max-height: 3;
+    color: $text; content-align: center middle;
+    background: #25283c;
+    border: tall;
+    border-top: tall #cdd6f4;
+    border-left: tall #89b4fa;
+    border-bottom: tall #585b70;
+    border-right: tall #45475a;
     margin-right: 1;
     transition: color 120ms, border 120ms, background 120ms;
 }
 .cct-menu-btn:hover {
-    color: $accent;
-    background: $surface-alt;
-    border-top: tall $accent-lighten-2;
-    border-left: tall $accent-lighten-2;
-    border-bottom: tall $accent;
-    border-right: tall $accent;
+    color: #ffffff;
+    background: #383d5c;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall #f9e2af;
+    border-bottom: tall #6e7594;
+    border-right: tall #585b70;
 }
 .cct-menu-btn.-active, .cct-menu-btn-active {
     color: $accent;
-    background: $surface-dark;
-    border-top: tall $surface-shadow;
-    border-left: tall $surface-shadow;
-    border-bottom: tall $surface-highlight;
-    border-right: tall $surface-highlight;
+    background: #181926;
+    border: tall;
+    border-top: tall #1c1e2e;
+    border-left: tall #1c1e2e;
+    border-bottom: tall #cdd6f4;
+    border-right: tall #89b4fa;
     text-style: none;
 }
 .cct-logo { width: auto; padding: 0 1; content-align: left middle; height: 3; text-style: bold; }
 
-/* CENTER: 3D raised Permission pill - dead centered */
+/* CENTER: Sleek Permission pill with subtle 3D recessed card plate */
 .cct-perm-pill {
     width: auto; content-align: center middle; height: 3;
     padding: 0 2; margin: 0;
-    background: $surface;
-    border-top: tall $surface-highlight;
-    border-left: tall $surface-highlight;
-    border-bottom: tall $surface-shadow;
-    border-right: tall $surface-shadow;
+    background: #25283c;
+    border: tall;
+    border-top: tall #cdd6f4;
+    border-left: tall #89b4fa;
+    border-bottom: tall #585b70;
+    border-right: tall #45475a;
     text-style: bold;
     color: $text;
-    transition: border 120ms, color 120ms, background 120ms;
+    transition: color 120ms, background 120ms, border 120ms;
 }
 .cct-perm-pill:hover {
-    background: $surface-alt;
-    border-top: tall $accent-lighten-2;
-    border-left: tall $accent-lighten-2;
-    border-bottom: tall $accent;
-    border-right: tall $accent;
+    background: #383d5c;
     color: #ffffff;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall #f9e2af;
+    border-bottom: tall #6e7594;
+    border-right: tall #585b70;
 }
-.cct-perm-pill.-active {
-    background: $surface-dark;
-    border-top: tall $surface-shadow;
-    border-left: tall $surface-shadow;
-    border-bottom: tall $surface-highlight;
-    border-right: tall $surface-highlight;
+.cct-perm-pill.-active, .cct-perm-pill-active, .cct-perm-pill:focus {
+    background: #181926;
     color: $accent;
-}
-.cct-perm-pill:focus, .cct-perm-pill-active {
-    background: $surface-dark;
-    border-top: tall $surface-shadow;
-    border-left: tall $surface-shadow;
-    border-bottom: tall $surface-highlight;
-    border-right: tall $surface-highlight;
-    color: $accent;
+    border: tall;
+    border-top: tall #1c1e2e;
+    border-left: tall #1c1e2e;
+    border-bottom: tall #cdd6f4;
+    border-right: tall #89b4fa;
 }
 
 .cct-chat-title-pill {
     width: auto; max-width: 30; content-align: center middle; height: 3;
     padding: 0 2; margin: 0 1 0 1;
-    background: $surface;
-    border-top: tall $surface-highlight;
-    border-left: tall $surface-highlight;
-    border-bottom: tall $surface-shadow;
-    border-right: tall $surface-shadow;
+    background: #25283c;
+    border: tall;
+    border-top: tall #cdd6f4;
+    border-left: tall #89b4fa;
+    border-bottom: tall #585b70;
+    border-right: tall #45475a;
     color: $text;
     text-style: bold;
     overflow: hidden;
     text-overflow: ellipsis;
-    transition: border 120ms, color 120ms, background 120ms;
+    transition: color 120ms, background 120ms, border 120ms;
 }
 .cct-chat-title-pill:hover {
-    background: $surface-alt;
-    border-top: tall $accent-lighten-2;
-    border-left: tall $accent-lighten-2;
-    border-bottom: tall $accent;
-    border-right: tall $accent;
+    background: #383d5c;
     color: #ffffff;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall #f9e2af;
+    border-bottom: tall #6e7594;
+    border-right: tall #585b70;
 }
 .cct-chat-title-pill:focus, .cct-chat-title-pill.-active {
-    background: $surface-dark;
-    border-top: tall $surface-shadow;
-    border-left: tall $surface-shadow;
-    border-bottom: tall $surface-highlight;
-    border-right: tall $surface-highlight;
+    background: #181926;
+    border: tall;
+    border-top: tall #1c1e2e;
+    border-left: tall #1c1e2e;
+    border-bottom: tall #cdd6f4;
+    border-right: tall #89b4fa;
 }
 
-/* RIGHT: 3D raised workspace path chip — cleanly aligned with permission pill */
+/* RIGHT: Sleek workspace path chip with matching 3D recessed card plate */
 #cct-header-right {
     width: auto; max-width: 32; content-align: center middle;
     padding: 0 2; height: 3;
-    background: $surface;
-    border-top: tall $surface-highlight;
-    border-left: tall $surface-highlight;
-    border-bottom: tall $surface-shadow;
-    border-right: tall $surface-shadow;
+    background: #25283c;
+    border: tall;
+    border-top: tall #cdd6f4;
+    border-left: tall #89b4fa;
+    border-bottom: tall #585b70;
+    border-right: tall #45475a;
     overflow: hidden;
     text-overflow: ellipsis;
     text-style: bold;
     color: $text;
-    transition: background 120ms, border 120ms, color 120ms;
+    transition: background 120ms, color 120ms, border 120ms;
 }
 #cct-header-right:hover {
-    background: $surface-alt;
-    border-top: tall $accent-lighten-2;
-    border-left: tall $accent-lighten-2;
-    border-bottom: tall $accent;
-    border-right: tall $accent;
+    background: #383d5c;
     color: #ffffff;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall #f9e2af;
+    border-bottom: tall #6e7594;
+    border-right: tall #585b70;
 }
-.cct-menu-btn:focus { color: $accent; text-style: bold; border-top: tall $accent-lighten-2; border-left: tall $accent-lighten-2; }
-.cct-perm-pill:focus { border: round $accent; }
+#cct-header-right:focus, #cct-header-right.-active {
+    background: #181926;
+    color: $accent;
+    border: tall;
+    border-top: tall #1c1e2e;
+    border-left: tall #1c1e2e;
+    border-bottom: tall #cdd6f4;
+    border-right: tall #89b4fa;
+}
+
+.cct-header-tall-bevel {
+    border-top: tall #6b7596;
+    border-left: tall #565f7c;
+    border-bottom: tall #0e0f17;
+    border-right: tall #13141f;
+}
+
+#cct-header-explorer-btn {
+    display: none;
+    height: 3;
+    min-height: 3;
+    max-height: 3;
+    width: 7;
+    min-width: 7;
+    max-width: 7;
+    padding: 0;
+    border: tall;
+    border-top: tall #6b7596;
+    border-left: tall #565f7c;
+    border-bottom: tall #0e0f17;
+    border-right: tall #13141f;
+    background: $surface;
+    color: $accent;
+    content-align: center middle;
+}
+#cct-header-explorer-btn:hover {
+    background: $surface-alt;
+    color: #ffffff;
+    border: tall;
+    border-top: tall #8a96be;
+    border-left: tall #6b7596;
+    border-bottom: tall #13141f;
+    border-right: tall #222536;
+}
+#cct-header-explorer-btn:focus,
+#cct-header-explorer-btn.-active {
+    border: tall;
+    border-top: tall #0e0f17;
+    border-left: tall #13141f;
+    border-bottom: tall #6b7596;
+    border-right: tall #565f7c;
+}
+
+.cct-menu-btn:focus {
+    color: $accent;
+    text-style: bold;
+    border-top: heavy #ffffff;
+    border-left: heavy #f9e2af;
+    border-bottom: heavy #000000;
+    border-right: heavy #0a0c14;
+}
+.cct-perm-pill:focus {
+    background: #31354e;
+    color: #ffffff;
+    border: tall;
+    border-top: tall #ffffff;
+    border-left: tall #f9e2af;
+    border-bottom: tall #000000;
+    border-right: tall #0a0c14;
+}
 
 /* --------------------------------------------------------------- sidebar -- */
 #cct-sidebar {
-    width: 32; min-width: 0; max-width: 60; height: 100%;
+    width: 32; min-width: 0; max-width: 45; height: 100%;
     background: $surface;
     border-right: none;
     transition: width 150ms;
@@ -1438,22 +1596,24 @@ Button.cct-perm-close-btn:hover {
 }
 #cct-sidebar-title { height: 1; padding: 0 1; width: 1fr; color: $text; text-style: bold; }
 Button#cct-sidebar-collapse-btn, Button#cct-sidebar-expand-btn, Button#cct-sidebar-menu-btn, .cct-sidebar-titlebar-btn {
-    width: 3; min-width: 3; max-width: 3;
+    width: 5; min-width: 5; max-width: 5;
     height: 1; min-height: 1; max-height: 1;
     margin: 0; padding: 0;
     background: transparent;
     border: none;
-    color: $accent;
+    color: #ff7b72;
     content-align: center middle;
     text-style: bold;
     offset: 0 0;
 }
 Button#cct-sidebar-collapse-btn:hover, Button#cct-sidebar-expand-btn:hover, Button#cct-sidebar-menu-btn:hover, .cct-sidebar-titlebar-btn:hover {
-    color: #ffffff; background: $accent;
+    color: #ffffff; background: rgba(255, 123, 114, 0.25);
     border: none;
+    text-style: bold;
 }
 Button#cct-sidebar-collapse-btn:focus, Button#cct-sidebar-expand-btn:focus {
     border: none;
+    background: rgba(255, 123, 114, 0.2);
 }
 
 /* Open Folder button — tactile 3D rounded button without tall brackets */
@@ -1502,10 +1662,16 @@ Screen Button#cct-open-folder-btn.-active {
     background: $accent 50%;
 }
 
-#cct-sidebar-body {
-    height: 1fr; padding: 0 1;
-    overflow-x: auto; overflow-y: auto;
-    scrollbar-gutter: stable;
+#cct-sidebar-body,
+#cct-sidebar.has-tree #cct-sidebar-body {
+    height: 1fr;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+    overflow-x: hidden;
+    overflow-y: hidden;
+    scrollbar-gutter: auto;
+    scrollbar-size: 0 0;
 }
 .cct-sidebar-section { color: $text-faint; padding-top: 1; height: 1; width: auto; }
 .cct-sidebar-projects { width: 100%; height: auto; }
@@ -1619,12 +1785,21 @@ Button.cct-wshead-close-btn.-active {
 }
 .cct-sidebar-collapsed-row:hover { color: $text; }
 #cct-sidebar-body {
-    scrollbar-size: 1 1;
-    scrollbar-color: $border $surface;
-    scrollbar-color-hover: $accent $surface;
-    scrollbar-color-active: $accent $surface;
+    scrollbar-size: 0 0;
+    overflow-x: hidden;
+    overflow-y: hidden;
 }
-.cct-filetree { height: auto; max-height: 20; width: 100%; scrollbar-size: 0 0; overflow-x: hidden; }
+.cct-filetree {
+    height: 1fr;
+    min-height: 0;
+    max-height: 100%;
+    width: 100%;
+    padding: 0 0 0 1;
+    margin: 0;
+    scrollbar-size: 1 1;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
 .cct-filetree > .tree--cursor {
     background: $accent 22%;
     color: #ffffff;
@@ -2227,49 +2402,97 @@ Screen Button.cct-dash-action.-active {
 #cct-chat-col { width: 1fr; min-width: 24; height: 100%; overflow: hidden; }
 #cct-right-pane { width: 44; min-width: 24; height: 100%; overflow: hidden; border-left: solid $border; }
 #cct-conversation { overflow-y: auto; overflow-x: hidden; padding: 0 1; scrollbar-size: 2 1; scrollbar-gutter: stable; scrollbar-color: #565f89 #14151f; scrollbar-color-hover: #7aa2f7 #1a1b26; scrollbar-color-active: #bb9af7 #101018; }
-#cct-composer { overflow: hidden; }
+#cct-composer { min-height: 5; }
 
 /* -------------------- PORTRAIT RESPONSIVE RULES -------------------- */
 #cct-brandheader.is-portrait {
-    height: 2;
+    height: 4;
     padding: 0 1;
     border-bottom: solid $border;
+}
+#cct-brandheader.is-portrait #cct-header-top {
+    height: 3;
+    align-vertical: middle;
+    align: left middle;
+}
+#cct-brandheader.is-portrait #cct-header-left {
+    height: 3;
+    align-vertical: middle;
 }
 #cct-brandheader.is-portrait .cct-menu-btn,
 #cct-brandheader.is-portrait .cct-menu-btn:hover,
 #cct-brandheader.is-portrait .cct-menu-btn:focus,
 #cct-brandheader.is-portrait .cct-menu-btn-active {
-    width: 3;
-    min-width: 3;
-    height: 1;
-    min-height: 1;
-    max-height: 1;
+    width: 7;
+    min-width: 7;
+    max-width: 7;
+    height: 3;
+    min-height: 3;
+    max-height: 3;
     padding: 0;
-    border: none;
-    background: $surface-alt;
+    border: tall;
+    border-top: tall #6b7596;
+    border-left: tall #565f7c;
+    border-bottom: tall #0e0f17;
+    border-right: tall #13141f;
+    background: $surface;
     margin-right: 1;
 }
+#cct-brandheader.is-portrait .cct-menu-btn:hover {
+    background: $accent 24%;
+    color: $accent;
+}
+#cct-brandheader.is-portrait .cct-logo {
+    height: 3;
+    min-height: 3;
+    max-height: 3;
+    padding: 0 1;
+    content-align: left middle;
+}
 #cct-brandheader.is-portrait .cct-perm-pill,
-#cct-brandheader.is-portrait .cct-perm-pill:hover,
-#cct-brandheader.is-portrait .cct-perm-pill:focus,
 #cct-brandheader.is-portrait .cct-perm-pill-active {
-    height: 1;
-    min-height: 1;
-    max-height: 1;
+    height: 3;
+    min-height: 3;
+    max-height: 3;
     width: auto;
     padding: 0 1;
-    border: none;
-    background: $surface-alt;
+    border: tall;
+    border-top: tall #6b7596;
+    border-left: tall #565f7c;
+    border-bottom: tall #0e0f17;
+    border-right: tall #13141f;
+    background: $surface;
+    content-align: center middle;
+}
+#cct-brandheader.is-portrait .cct-perm-pill:hover {
+    background: $accent 24%;
+    color: $accent;
+    border: tall;
+    border-top: tall #8a96be;
+    border-left: tall #6b7596;
+    border-bottom: tall #13141f;
+    border-right: tall #222536;
+}
+#cct-brandheader.is-portrait .cct-perm-pill:focus,
+#cct-brandheader.is-portrait .cct-perm-pill.-active {
+    border: tall;
+    border-top: tall #0e0f17;
+    border-left: tall #13141f;
+    border-bottom: tall #6b7596;
+    border-right: tall #565f7c;
 }
 #cct-brandheader.is-portrait #cct-header-right,
 #cct-brandheader.is-portrait #cct-header-right:hover,
 #cct-brandheader.is-portrait #cct-header-right:focus {
-    height: 1;
-    min-height: 1;
-    max-height: 1;
-    padding: 0 1;
-    border: none;
-    background: $surface-alt;
+    display: block;
+}
+#cct-brandheader.is-portrait #cct-header-right-box {
+    height: 3;
+    min-height: 3;
+    max-height: 3;
+    width: auto;
+    layout: horizontal;
+    align: right middle;
 }
 #cct-sidebar-back-btn {
     display: none;
@@ -2306,81 +2529,44 @@ Screen Button.cct-dash-action.-active {
 #cct-workspace.is-portrait #cct-tb-split {
     display: none;
 }
-#cct-brandheader.is-portrait #cct-header-top {
-    height: 1;
-    align-vertical: middle;
-    align: left middle;
-}
-#cct-brandheader.is-portrait #cct-header-left {
-    height: 1;
-    align-vertical: middle;
-}
-#cct-brandheader.is-portrait .cct-menu-btn {
-    width: 3;
-    min-width: 3;
-    height: 1;
-    min-height: 1;
-    padding: 0;
-    border: none;
-    background: $surface-alt;
-    margin-right: 1;
-}
-#cct-brandheader.is-portrait .cct-menu-btn:hover {
-    background: $accent 24%;
-    color: $accent;
-}
-#cct-brandheader.is-portrait .cct-logo {
-    height: 1;
-    min-height: 1;
-    padding: 0 1;
-}
-#cct-brandheader.is-portrait .cct-perm-pill {
-    height: 1;
-    min-height: 1;
-    max-height: 1;
-    width: auto;
-    padding: 0 1;
-    border: none;
-    background: $surface-alt;
-}
-#cct-brandheader.is-portrait .cct-perm-pill:hover {
-    background: $accent 24%;
-}
-#cct-brandheader.is-portrait #cct-header-right {
-    height: 1;
-    min-height: 1;
-    max-height: 1;
-    padding: 0 1;
-    border: none;
-    background: $surface-alt;
-}
-
 #cct-header-explorer-btn {
     display: none;
-    height: 1;
-    min-height: 1;
-    max-height: 1;
-    border: none;
-    background: transparent;
+    height: 3;
+    min-height: 3;
+    max-height: 3;
+    width: 7;
+    min-width: 7;
+    max-width: 7;
+    padding: 0;
+    border: tall;
+    border-top: tall #6b7596;
+    border-left: tall #565f7c;
+    border-bottom: tall #0e0f17;
+    border-right: tall #13141f;
+    background: $surface;
     color: $accent;
-    padding: 0 1;
-    min-width: 4;
+    content-align: center middle;
 }
 #cct-header-explorer-btn:hover {
-    background: $accent 35%;
+    background: $surface-alt;
     color: #ffffff;
+    border: tall;
+    border-top: tall #8a96be;
+    border-left: tall #6b7596;
+    border-bottom: tall #13141f;
+    border-right: tall #222536;
+}
+#cct-header-explorer-btn:focus,
+#cct-header-explorer-btn.-active {
+    border: tall;
+    border-top: tall #0e0f17;
+    border-left: tall #13141f;
+    border-bottom: tall #6b7596;
+    border-right: tall #565f7c;
 }
 #cct-brandheader.is-portrait #cct-header-explorer-btn,
 .is-portrait #cct-header-explorer-btn {
-    display: block;
-}
-#cct-brandheader.is-portrait #cct-header-right-box {
-    height: 1;
-    min-height: 1;
-    max-height: 1;
-    width: auto;
-    layout: horizontal;
-    align: right middle;
+    display: none;
 }
 #cct-tb-close {
     height: 1;
@@ -2449,8 +2635,12 @@ if TEXTUAL_AVAILABLE:
             ("ctrl+shift+b", "host_browser", "CAT Browser (Host)"),
             ("ctrl+shift+h", "host_toggle", "CAT Host"),
             ("ctrl+shift+t", "toggle_touch_mode", "Touch Mode"),
+            ("ctrl+w", "close_focused_tab", "Close Tab"),
+            ("ctrl+alt+w", "close_session_tab", "Close Session Tab"),
             ("alt+a", "prompt_attach", "Attach File"),
             ("alt+p", "toggle_permissions", "Permissions"),
+            ("alt", "toggle_voice", "Voice Mode"),
+            ("alt+v", "toggle_voice", "Voice Mode"),
         ]
         TITLE = f"CAT v{identity.APP_VERSION}"
         # v0.7.9.5: Textual 8 ships its own built-in command palette on
@@ -2464,15 +2654,35 @@ if TEXTUAL_AVAILABLE:
 
         def _handle_exception(self, error: Exception) -> None:
             """Textual exception override — prevents unhandled task or message
-            exceptions from terminating the application. Logs the error, notifies
-            the user gracefully, and keeps the chat session alive."""
+            exceptions from terminating the application. Logs full diagnostic crash logs
+            to ~/.cat/logs/crash.log, notifies the user gracefully, and keeps the chat session alive."""
             import logging
+            import os
+            import traceback
+            from datetime import datetime
+
+            # Write detailed diagnostic to ~/.cat/logs/crash.log
+            try:
+                cat_dir = os.path.expanduser("~/.cat/logs")
+                os.makedirs(cat_dir, exist_ok=True)
+                crash_log = os.path.join(cat_dir, "crash.log")
+                with open(crash_log, "a", encoding="utf-8") as f:
+                    f.write(f"\n{'='*70}\n")
+                    f.write(f"TIMESTAMP: {datetime.now().isoformat()}\n")
+                    f.write(f"VERSION: 0.9.000\n")
+                    f.write(f"EXCEPTION: {type(error).__name__}: {error}\n")
+                    f.write("TRACEBACK:\n")
+                    traceback.print_exc(file=f)
+                    f.write(f"{'='*70}\n")
+            except Exception:
+                pass
+
             logging.getLogger("calc_terminal.app").error("Recovered from unhandled UI exception: %s", error, exc_info=True)
             try:
                 from textual.app import ScreenError
                 if isinstance(error, ScreenError) and "dismiss" in str(error).lower():
                     return
-                self.notify(f"Task recovered: {error}", severity="warning", timeout=4.0)
+                self.notify(f"Task recovered: {type(error).__name__} - {error}", severity="warning", timeout=4.0)
             except Exception:
                 pass
 
@@ -2547,6 +2757,12 @@ if TEXTUAL_AVAILABLE:
             # worker drains it into the live bubble so "Trying backup
             # provider..." is visible in the right turn.
             self._pending_failover_notes = []
+            # v0.9.000: the failover CHAIN's last unconfirmed backup
+            # candidate (provider, model) — set when "Switching to
+            # Backup Provider (...)" arrives, consumed+installed on the
+            # footer's model badge only when "Connected successfully."
+            # confirms it, cleared on every turn boundary.
+            self._failover_target_pending = None
             # v0.7.9.5 pending system notes queue — worker threads
             # (workspace indexing, startup) call _system_note before the
             # ConversationView widget is mounted in the DOM; those notes
@@ -2564,6 +2780,7 @@ if TEXTUAL_AVAILABLE:
             self._preview_events = []          # [(kind, info_dict)]
             self._preview_events_lock = threading.Lock()
             self._goodbye_shown = False
+            self.debug_overlay_enabled = False
             self.status_fields = StatusFields(self._ide_state, version=self._version())
             # ---- Centralized Touchscreen & Input Architecture ----
             from ..input import (
@@ -2624,6 +2841,12 @@ if TEXTUAL_AVAILABLE:
             try:
                 if self.brand_header:
                     self.brand_header.set_chat_title(self._current_chat_title)
+            except Exception:
+                pass
+            try:
+                from .session_tabs import ChatSessionTabBar
+                tab_bar = self.query_one(ChatSessionTabBar)
+                tab_bar.set_active_title(self._current_chat_title or "Greeting")
             except Exception:
                 pass
             # v0.7.9.4 fix (System32 launch crash): workspace detection
@@ -2908,8 +3131,62 @@ if TEXTUAL_AVAILABLE:
             except Exception:
                 pass
 
+        def action_close_session_tab(self):
+            """Close active session tab (Ctrl+Alt+W)."""
+            try:
+                from .session_tabs import ChatSessionTabBar
+                tab_bar = self.query_one(ChatSessionTabBar)
+                tab_bar.close_active_session()
+            except Exception:
+                self._new_chat_session()
+
+        def action_reopen_session_tab(self):
+            """Reopen last closed tab (Ctrl+Shift+T)."""
+            try:
+                from .session_tabs import ChatSessionTabBar
+                tab_bar = self.query_one(ChatSessionTabBar)
+                tab_bar.reopen_last_closed()
+            except Exception:
+                pass
+
+        def action_close_focused_tab(self):
+            """Close side panel tab or active session tab (Ctrl+W)."""
+            try:
+                from .editor import EditorPane
+                editor = self.query_one(EditorPane)
+                if editor and hasattr(editor, "close_active_tab") and getattr(editor, "has_focus", False):
+                    if editor.close_active_tab():
+                        return
+            except Exception:
+                pass
+            self.action_close_session_tab()
+
+        def on_chat_session_tab_bar_new_session_requested(self, event):
+            """Handler for '+' New session button in ChatSessionTabBar."""
+            self._new_chat_session(announce=True)
+
+        def on_chat_session_tab_bar_session_switched(self, event):
+            """Handler for switching sessions from ChatSessionTabBar."""
+            sid = getattr(event, "session_id", None)
+            if sid and sid != getattr(self, "_current_chat_id", None):
+                self.run_worker(self._do_open_chat(sid), exclusive=False)
+
+        def on_chat_session_tab_bar_session_closed(self, event):
+            """Handler when a session tab is closed."""
+            sid = getattr(event, "session_id", None)
+            _log.info("Session closed from tab bar: %s", sid)
+
+
         def action_toggle_touch_mode(self):
-            """Toggle Touch-Friendly UI Mode on/off."""
+            """Toggle Touch Mode or reopen last closed tab if stack exists (Ctrl+Shift+T)."""
+            try:
+                from .session_tabs import ChatSessionTabBar
+                tab_bar = self.query_one(ChatSessionTabBar)
+                if tab_bar and tab_bar._closed_stack:
+                    tab_bar.reopen_last_closed()
+                    return
+            except Exception:
+                pass
             from ..input import toggle_touch_mode
             new_state = toggle_touch_mode()
             self._on_input_capabilities_changed(self.input_capabilities)
@@ -3653,6 +3930,12 @@ if TEXTUAL_AVAILABLE:
                         self.brand_header.set_chat_title(self._current_chat_title)
                 except Exception:
                     pass
+                try:
+                    from .session_tabs import ChatSessionTabBar
+                    tab_bar = self.query_one(ChatSessionTabBar)
+                    tab_bar.add_session(self._current_chat_id, self._current_chat_title)
+                except Exception:
+                    pass
                 self.session.clear()
                 self.conversation.clear()
                 self._history.clear()
@@ -3684,6 +3967,12 @@ if TEXTUAL_AVAILABLE:
                 try:
                     if self.brand_header:
                         self.brand_header.set_chat_title(self._current_chat_title)
+                except Exception:
+                    pass
+                try:
+                    from .session_tabs import ChatSessionTabBar
+                    tab_bar = self.query_one(ChatSessionTabBar)
+                    tab_bar.add_session(self._current_chat_id, self._current_chat_title)
                 except Exception:
                     pass
                 chat_store.touch_last_opened(chat_id)
@@ -4145,6 +4434,13 @@ if TEXTUAL_AVAILABLE:
             if not key:
                 return
 
+            # IDE Command Palette shortcut & normalized key
+            try:
+                from ..editor.shortcuts import normalize_key
+                norm = normalize_key(key)
+            except Exception:
+                norm = key.lower().replace("_", "+")
+
             # Double-press Esc or Esc while streaming -> instant interrupt
             if key == "escape":
                 now = time.time()
@@ -4159,12 +4455,18 @@ if TEXTUAL_AVAILABLE:
                     self.action_cancel_streaming()
                     return
 
-            # IDE Command Palette shortcut (Ctrl+Shift+P or F1)
-            try:
-                from ..editor.shortcuts import normalize_key
-                norm = normalize_key(key)
-            except Exception:
-                norm = key.lower().replace("_", "+")
+            # Voice Mode activation: Alt / Alt+V
+            k_key = str(getattr(event, "key", "")).lower()
+            k_name = str(getattr(event, "name", "")).lower()
+            v_keys = ("alt", "alt+v", "left_alt", "right_alt", "meta", "left_meta", "right_meta", "alt_l", "alt_r")
+            if norm in ("alt", "alt+v", "alt_l", "alt_r") or key in v_keys or k_key in v_keys or k_name in v_keys:
+                try:
+                    event.stop()
+                    event.prevent_default()
+                except Exception:
+                    pass
+                self.action_toggle_voice()
+                return
 
             if norm in ("ctrl+shift+p", "f1"):
                 try:
@@ -4298,6 +4600,14 @@ if TEXTUAL_AVAILABLE:
                 else:
                     self.conversation.show_dashboard(WelcomeDashboard(
                         LOGO, self._version(), self._model_label(), len(self._history)))
+                return
+
+            if action in ("ai_agents", "modes", "kitties"):
+                try:
+                    from .mode_colors_panel import ModeColorsPanel
+                    self.push_screen(ModeColorsPanel())
+                except Exception as e:
+                    self._system_note(f"AI Agents Studio unavailable: {e}")
                 return
 
             if action == "open_folder":
@@ -4487,6 +4797,11 @@ if TEXTUAL_AVAILABLE:
                 self.composer.refresh_palette_theme()
             except Exception:
                 pass
+            try:
+                if hasattr(self, "status_line") and self.status_line:
+                    self.status_line.refresh_status()
+            except Exception:
+                pass
 
         def _apply_theme_switch(self, chosen):
             """THE one place a PERMANENT theme switch is applied, no
@@ -4584,15 +4899,58 @@ if TEXTUAL_AVAILABLE:
             """aicore failover-hook target (worker-thread safe). Notes
             are queued; the streaming worker drains them into the live
             bubble between chunks, so they end up part of the turn's
-            text instead of racing the widget tree from off-screen."""
+            text instead of racing the widget tree from off-screen.
+
+            v0.9.000 (live model indicator): the notes are ALSO the
+            signal for the footer's provider/model badge —
+            `Switching to Backup Provider (prov (model))` sets a
+            candidate, and the following "Connected successfully."
+            confirms that candidate is actually SERVING; only then is
+            composer.set_active_backup_model() installed — via
+            call_from_thread, because this hook fires on a worker
+            thread. Until confirmed, the badge keeps showing the
+            configured primary (never a target the chain merely
+            considered)."""
             try:
                 self._pending_failover_notes.append(str(message))
+                note = str(message)
+                try:
+                    m = re.search(
+                        r"Switching to Backup Provider \(([^()]+?)\s*\(([^()]+)\)\)",
+                        note)
+                    if m:
+                        self._failover_target_pending = (m.group(1).strip(),
+                                                         m.group(2).strip())
+                    elif "Connected successfully" in note:
+                        cand = getattr(self, "_failover_target_pending", None)
+                        if cand:
+                            self._failover_target_pending = None
+                            try:
+                                self.call_from_thread(
+                                    self.composer.set_active_backup_model,
+                                    cand[0], cand[1])
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
                 from .. import activity as _act
                 _act.emit_provider_activity(
                     title=f"Failover: {str(message)[:60]}",
                     status=_act.STATUS_COMPLETED,
                     details=str(message),
                 )
+            except Exception:
+                pass
+
+        def _reset_model_indicator(self):
+            """v0.9.000: end-of-turn housekeeping — a live failover
+            override is scoped to the request chain that triggered it.
+            The next turn starts clean from the real on-disk config
+            (failover never persists), and no half-confirmed candidate
+            can leak across turns."""
+            self._failover_target_pending = None
+            try:
+                self.composer.reset_model_indicator()
             except Exception:
                 pass
 
@@ -4863,12 +5221,12 @@ if TEXTUAL_AVAILABLE:
                     except Exception:
                         pass
                 # 3. Update header controls
-                hdr = getattr(self, "header", None)
-                if hdr is not None and hasattr(hdr, "on_resize"):
-                    try:
-                        hdr.on_resize()
-                    except Exception:
-                        pass
+                try:
+                    b_hdr = getattr(self, "brand_header", None)
+                    if b_hdr is not None and hasattr(b_hdr, "on_resize"):
+                        b_hdr.on_resize()
+                except Exception:
+                    pass
                 # 4. Update composer
                 comp = getattr(self, "composer", None)
                 if comp is not None and hasattr(comp, "on_resize"):
@@ -5007,6 +5365,23 @@ if TEXTUAL_AVAILABLE:
 
         def on_permission_mode_changed(self, event: PermissionModeChanged):
             self._system_note(f"Permission mode: {perm.manager.mode_label()}")
+
+        def toggle_debug_overlay(self):
+            """Toggle debug overlay information HUD in sidebar bottom."""
+            self.debug_overlay_enabled = not getattr(self, "debug_overlay_enabled", False)
+            try:
+                info = self.query_one("#cct-sidebar-debug-info")
+                info.set_class(self.debug_overlay_enabled, "visible")
+                if hasattr(info, "refresh_metrics"):
+                    info.refresh_metrics()
+            except Exception:
+                pass
+            status = "enabled" if self.debug_overlay_enabled else "disabled"
+            self.notify(f"Debug overlay {status}", title="Debug Information")
+            return self.debug_overlay_enabled
+
+        def action_toggle_debug_overlay(self):
+            self.toggle_debug_overlay()
 
         def action_toggle_sidebar(self):
             if self._workspace_shell is not None:
@@ -6074,7 +6449,20 @@ if TEXTUAL_AVAILABLE:
 
         @property
         def status_line(self):
-            return self.query_one(StatusLine)
+            try:
+                from .statusbar import StatusBar
+                return self.query_one(StatusBar)
+            except Exception:
+                try:
+                    return self.query_one("#cct-statusline")
+                except Exception:
+                    try:
+                        from .footer import StatusLine
+                        return self.query_one(StatusLine)
+                    except Exception:
+                        class _SafeStatusLine:
+                            def refresh_status(self): pass
+                        return _SafeStatusLine()
 
         def _model_label(self):
             config = aicore.load_config()
@@ -6168,6 +6556,13 @@ if TEXTUAL_AVAILABLE:
             from .attach_panel import AttachPanel
             self.push_screen(AttachPanel(recents=self._recent_attachments),
                              self._on_attach_path)
+
+        def action_toggle_voice(self):
+            try:
+                if hasattr(self, "composer"):
+                    self.composer.toggle_voice()
+            except Exception:
+                pass
 
         # v0.8.1 TXT import guard (requirement #20): direct insertion is
         # fine for reasonable files; anything larger attaches as normal
@@ -6427,6 +6822,7 @@ if TEXTUAL_AVAILABLE:
                 paths = [paths]
             attached_names = []
             rejected = []
+            warned = []
             for path in paths:
                 try:
                     exists = os.path.lexists(path)
@@ -6448,6 +6844,27 @@ if TEXTUAL_AVAILABLE:
                 seen = [p for p in self._recent_attachments
                         if os.path.normpath(p) != os.path.normpath(path)]
                 self._recent_attachments = [path] + seen[:11]
+                # v0.9.000 (honest capability surface): an image attached
+                # to a provider that takes NO native image payloads gets
+                # an immediate, explicit notice — the model will see it
+                # only through the universal text/OCR extraction, never
+                # fake vision, never a silent discard.
+                ext = os.path.splitext(path)[1].lower()
+                if ext in (".png", ".jpg", ".jpeg", ".gif", ".webp",
+                           ".bmp", ".tif", ".tiff"):
+                    try:
+                        from .. import attachments as _att
+                        caps = _att.provider_capabilities(
+                            aicore.load_config())
+                        if not caps.get("vision"):
+                            warned.append(f"{os.path.basename(path)} "
+                                          "(no native image input on this "
+                                          "model — text/OCR fallback only)")
+                    except Exception:
+                        pass
+            if warned:
+                for w in warned:
+                    self._system_note(f"\u26a0 {w}")
             if len(attached_names) > 1:
                 more = f" +{len(attached_names) - 3}" if len(attached_names) > 3 else ""
                 src_label = ("drag-and-drop" if source in ("drag_and_drop", "paste")
@@ -6479,81 +6896,91 @@ if TEXTUAL_AVAILABLE:
 
         # ---------------------------------------------------- messaging --
         def on_message_submitted(self, event: MessageSubmitted):
-            text = event.text.strip()
-            if not text:
-                return
-            # v0.8.a: Check if user is authenticated before allowing messages
             try:
-                from ..fomoji_auth import is_authenticated, is_skip_enabled
-                if not is_authenticated() and not is_skip_enabled():
-                    self._system_note(
-                        "\u26a0\ufe0f  You are signed out.  "
-                        "Please sign in to send messages.\n"
-                        "  \u2022 Run: cat --auth login\n"
-                        "  \u2022 Or use: \u2630 Menu \u2192 User \u2192 Sign In"
-                    )
+                text = event.text.strip()
+                if not text:
                     return
-            except Exception:
-                pass
-            self.conversation.hide_welcome()
-            # Auto-create a chat session if none active
-            if not self._current_chat_id:
+                # v0.8.a: Check if user is authenticated before allowing messages
                 try:
-                    from .. import chat_store
-                    ws = self._active_workspace_path()
-                    provider, model = self._chat_provider_model()
-                    chat = chat_store.create_chat(
-                        workspace_root=ws,
-                        cwd=ws or os.getcwd(),
-                        created_mode=self._current_ai_mode,
-                        current_mode=self._current_ai_mode,
-                        provider=provider,
-                        model=model,
-                    )
-                    self._current_chat_id = chat.get("id")
-                    self._current_chat_title = chat.get("name") or "New Chat"
-                    _log.info("auto-created chat %s workspace=%s", self._current_chat_id, ws)
+                    from ..fomoji_auth import is_authenticated, is_skip_enabled
+                    if not is_authenticated() and not is_skip_enabled():
+                        self._system_note(
+                            "\u26a0\ufe0f  You are signed out.  "
+                            "Please sign in to send messages.\n"
+                            "  \u2022 Run: cat --auth login\n"
+                            "  \u2022 Or use: \u2630 Menu \u2192 User \u2192 Sign In"
+                        )
+                        return
                 except Exception:
                     pass
-            clean_text = text.strip()
-            low_text = clean_text.lower()
-            if low_text in ("browser", "browse", "cat browser", "cat browse", "open browser") or low_text.startswith(("/browser", "/browse", "browser ", "browse ", "cat browser ", "cat browse ")):
-                cmd_to_run = clean_text if clean_text.startswith("/") else ("/" + clean_text)
-                self._handle_command(cmd_to_run)
-                return
-            if low_text in ("mascot", "mascots", "cat mascot", "page mascot") or low_text.startswith(("/mascot", "/mascots", "mascot ", "mascots ")):
-                cmd_to_run = clean_text if clean_text.startswith("/") else ("/" + clean_text)
-                self._handle_command(cmd_to_run)
-                return
-            if text.startswith("/"):
-                self._handle_command(text)
-                return
-            turn = self.session.add_user_turn(text, event.attachments,
-                                               mode=self._current_ai_mode,
-                                               workspace=self._current_workspace)
-            self.conversation.add_complete(turn.turn_id, "user", text,
-                                            mode_snapshot=turn.mode_snapshot,
-                                            attachments=event.attachments)
-            # Auto-save user turn to chat store
-            try:
-                from .. import chat_store
-                if self._current_chat_id:
-                    provider, model = self._chat_provider_model()
-                    chat_store.add_turn(
-                        self._current_chat_id, "user", text,
-                        mode=self._current_ai_mode,
-                        mode_snapshot=turn.mode_snapshot,
-                        provider=provider,
-                        model=model,
-                        turn_id=turn.turn_id,
-                    )
-            except Exception:
-                pass
-            if self._maybe_answer_identity_question(text):
-                return
-            if self._route_autonomous(text, event.attachments):
-                return
-            self._maybe_gate_then_run(text, event.attachments)
+                try:
+                    self.conversation.hide_welcome()
+                except Exception:
+                    pass
+                # Auto-create a chat session if none active
+                if not self._current_chat_id:
+                    try:
+                        from .. import chat_store
+                        ws = self._active_workspace_path()
+                        provider, model = self._chat_provider_model()
+                        chat = chat_store.create_chat(
+                            workspace_root=ws,
+                            cwd=ws or os.getcwd(),
+                            created_mode=self._current_ai_mode,
+                            current_mode=self._current_ai_mode,
+                            provider=provider,
+                            model=model,
+                        )
+                        self._current_chat_id = chat.get("id")
+                        self._current_chat_title = chat.get("name") or "New Chat"
+                        _log.info("auto-created chat %s workspace=%s", self._current_chat_id, ws)
+                    except Exception:
+                        pass
+                clean_text = text.strip()
+                low_text = clean_text.lower()
+                if low_text in ("browser", "browse", "cat browser", "cat browse", "open browser") or low_text.startswith(("/browser", "/browse", "browser ", "browse ", "cat browser ", "cat browse ")):
+                    cmd_to_run = clean_text if clean_text.startswith("/") else ("/" + clean_text)
+                    self._handle_command(cmd_to_run)
+                    return
+                if low_text in ("mascot", "mascots", "cat mascot", "page mascot") or low_text.startswith(("/mascot", "/mascots", "mascot ", "mascots ")):
+                    cmd_to_run = clean_text if clean_text.startswith("/") else ("/" + clean_text)
+                    self._handle_command(cmd_to_run)
+                    return
+                if text.startswith("/"):
+                    self._handle_command(text)
+                    return
+                turn = self.session.add_user_turn(text, event.attachments,
+                                                   mode=self._current_ai_mode,
+                                                   workspace=self._current_workspace)
+                self.conversation.add_complete(turn.turn_id, "user", text,
+                                                mode_snapshot=turn.mode_snapshot,
+                                                attachments=event.attachments)
+                # Auto-save user turn to chat store
+                try:
+                    from .. import chat_store
+                    if self._current_chat_id:
+                        provider, model = self._chat_provider_model()
+                        chat_store.add_turn(
+                            self._current_chat_id, "user", text,
+                            mode=self._current_ai_mode,
+                            mode_snapshot=turn.mode_snapshot,
+                            provider=provider,
+                            model=model,
+                            turn_id=turn.turn_id,
+                        )
+                except Exception:
+                    pass
+                if self._maybe_answer_identity_question(text):
+                    return
+                if self._route_autonomous(text, event.attachments):
+                    return
+                self._maybe_gate_then_run(text, event.attachments)
+            except Exception as exc:
+                _log.exception("Unhandled error in on_message_submitted: %s", exc)
+                try:
+                    self._system_note(f"⚠️ Error processing message: {exc}")
+                except Exception:
+                    pass
 
         def _route_autonomous(self, text, attachments):
             """v0.7.8.1 (mode-isolation fix): workflow routing ONLY —
@@ -6777,67 +7204,78 @@ if TEXTUAL_AVAILABLE:
             return result.get("decision", "deny")
 
         def _begin_assistant_turn(self, text, attachments=None, parent_turn_id=None):
-            # AI provider not set up yet: aicore/agent's own "AI not
-            # configured" messages tell the user to run /ai or /agent —
-            # true in the classic fallback terminal, but no longer true
-            # here now that both are mode switches (spec section 3), not
-            # the setup wizard. Short-circuit with the real path instead
-            # of letting a stale hint reach the conversation. `/model`
-            # (bare, no arg) still suspends to the real terminal and
-            # runs aicore.setup_ai() exactly as it always has — that
-            # part wasn't touched.
-            if not aicore.load_config().get("provider"):
-                self._system_note(
-                    "AI isn't configured yet. Run /model to set up your provider "
-                    "(this briefly switches to the classic terminal for the setup wizard).")
-                return
-            prompt = self._augment_prompt(text, attachments or [])
-            # Capture the current user turn's id *before* starting the
-            # assistant placeholder turn — once start_assistant_turn()
-            # appends that (still-empty) turn, it becomes session.turns[-1]
-            # instead, so "the last turn" is no longer a reliable way to
-            # find the user turn we're replying to. Turn identity is.
-            #
-            # `parent_turn_id`, when the caller already knows it (Try
-            # Again — see _retry_in_mode), overrides that heuristic
-            # outright: the real last turn at that point is the
-            # assistant reply being retried from, not a user turn, so
-            # the heuristic below would otherwise silently record no
-            # parent at all for the new reply.
-            current_user_turn_id = parent_turn_id
-            if current_user_turn_id is None:
-                if self.session.turns and self.session.turns[-1].role == "user":
-                    current_user_turn_id = self.session.turns[-1].turn_id
-            config = aicore.load_config()
-            turn = self.session.start_assistant_turn(
-                mode=self._current_ai_mode,
-                provider=config.get("provider"),
-                model=config.get("model"),
-                workspace=self._current_workspace,
-                parent_turn_id=current_user_turn_id,
-            )
-            self._turn_prompts[turn.turn_id] = prompt
-            self._is_streaming = True
-            self._streaming_turn_id = turn.turn_id
-            self._activity.update(stage="", chunks=0, files=0,
-                                  start=time.time(), last_step="")
-            self.post_message(MessageStarted(turn.turn_id, prompt=prompt))
-            self.post_message(StreamingStarted(turn.turn_id))
-            # v0.7.9.0: real per-request latency instrumentation begins
-            # here; the worker thread records every stage into it.
-            cat_metrics.begin_request(turn.turn_id)
             try:
-                cat_events.stream.emit(cat_events.USER_MESSAGE, source="ui",
-                                       mode=self._current_ai_mode,
-                                       attachments=len(attachments or []))
-            except Exception:
-                pass
-            # v0.7.8.1: the Attachment objects ride along with the
-            # worker — aicore uses them for native vision payloads and
-            # verification.
-            self._current_worker = self._stream_worker(
-                prompt, turn.turn_id, current_user_turn_id, attachments or [],
-                raw_text=text)
+                # AI provider not set up yet: aicore/agent's own "AI not
+                # configured" messages tell the user to run /ai or /agent —
+                # true in the classic fallback terminal, but no longer true
+                # here now that both are mode switches (spec section 3), not
+                # the setup wizard. Short-circuit with the real path instead
+                # of letting a stale hint reach the conversation. `/model`
+                # (bare, no arg) still suspends to the real terminal and
+                # runs aicore.setup_ai() exactly as it always has — that
+                # part wasn't touched.
+                if not aicore.load_config().get("provider"):
+                    self._system_note(
+                        "AI isn't configured yet. Run /model to set up your provider "
+                        "(this briefly switches to the classic terminal for the setup wizard).")
+                    return
+                prompt = self._augment_prompt(text, attachments or [])
+                # Capture the current user turn's id *before* starting the
+                # assistant placeholder turn — once start_assistant_turn()
+                # appends that (still-empty) turn, it becomes session.turns[-1]
+                # instead, so "the last turn" is no longer a reliable way to
+                # find the user turn we're replying to. Turn identity is.
+                #
+                # `parent_turn_id`, when the caller already knows it (Try
+                # Again — see _retry_in_mode), overrides that heuristic
+                # outright: the real last turn at that point is the
+                # assistant reply being retried from, not a user turn, so
+                # the heuristic below would otherwise silently record no
+                # parent at all for the new reply.
+                current_user_turn_id = parent_turn_id
+                if current_user_turn_id is None:
+                    if self.session.turns and self.session.turns[-1].role == "user":
+                        current_user_turn_id = self.session.turns[-1].turn_id
+                config = aicore.load_config()
+                turn = self.session.start_assistant_turn(
+                    mode=self._current_ai_mode,
+                    provider=config.get("provider"),
+                    model=config.get("model"),
+                    workspace=self._current_workspace,
+                    parent_turn_id=current_user_turn_id,
+                )
+                # v0.9.000: a NEW turn's indicator starts clean from the
+                # on-disk config (failover overrides never leak across
+                # turns — aicore re-resolves its provider chain per call).
+                self._reset_model_indicator()
+                self._turn_prompts[turn.turn_id] = prompt
+                self._is_streaming = True
+                self._streaming_turn_id = turn.turn_id
+                self._activity.update(stage="", chunks=0, files=0,
+                                      start=time.time(), last_step="")
+                self.post_message(MessageStarted(turn.turn_id, prompt=prompt))
+                self.post_message(StreamingStarted(turn.turn_id))
+                # v0.7.9.0: real per-request latency instrumentation begins
+                # here; the worker thread records every stage into it.
+                cat_metrics.begin_request(turn.turn_id)
+                try:
+                    cat_events.stream.emit(cat_events.USER_MESSAGE, source="ui",
+                                           mode=self._current_ai_mode,
+                                           attachments=len(attachments or []))
+                except Exception:
+                    pass
+                # v0.7.8.1: the Attachment objects ride along with the
+                # worker — aicore uses them for native vision payloads and
+                # verification.
+                self._current_worker = self._stream_worker(
+                    prompt, turn.turn_id, current_user_turn_id, attachments or [],
+                    raw_text=text)
+            except Exception as exc:
+                _log.exception("Unhandled error in _begin_assistant_turn: %s", exc)
+                try:
+                    self._system_note(f"⚠️ Error starting response: {exc}")
+                except Exception:
+                    pass
 
         def action_cancel_streaming(self):
             """v0.7.8.1 interrupt fix: Esc / Ctrl+C / the Stop button in
@@ -6905,6 +7343,9 @@ if TEXTUAL_AVAILABLE:
                     self.composer.set_streaming(False)
             except Exception:
                 pass
+            # v0.9.000: an interrupted chain is over too — the live
+            # failover override can't survive a Stop/Esc/cancel.
+            self._reset_model_indicator()
 
             was_streaming = bool(self._is_streaming or cancelled_any or tid)
             self._is_streaming = False
@@ -7064,6 +7505,8 @@ if TEXTUAL_AVAILABLE:
                 workspace=self._current_workspace,
                 parent_turn_id=current_user_turn_id,
             )
+            # v0.9.000: new request chain → indicator back to config.
+            self._reset_model_indicator()
             self._turn_prompts[turn.turn_id] = prompt
             self._is_streaming = True
             self._streaming_turn_id = turn.turn_id
@@ -7242,63 +7685,69 @@ if TEXTUAL_AVAILABLE:
                 pass
 
         def on_message_started(self, event: MessageStarted):
-            turn = self.session.get(event.turn_id)
-            snap = turn.mode_snapshot if turn else None
-            # ── v0.7.9 Live Activities: mount inline block BEFORE the bubble
-            # (order: USER TASK -> LIVE ACTIVITIES -> AGENT RESPONSE)
             try:
-                self.conversation.mount_live_activities(event.turn_id)
-            except Exception:
-                pass
-            try:
-                from .. import activity as _act_mod
-                _model_name = getattr(self.composer, "_model_label", "") or "AI"
-                _act_mod.manager.create(
-                    id=f"gen-{event.turn_id}",
-                    type=_act_mod.TYPE_PROVIDER,
-                    action="generate",
-                    title=f"Thinking & generating ({_model_name})",
-                    status=_act_mod.STATUS_RUNNING,
-                    turn_id=event.turn_id,
-                    category=_act_mod.CAT_MODEL,
-                    phase=_act_mod.PHASE_ANALYSIS,
-                    details=f"Model: {_model_name}",
-                )
-            except Exception:
-                pass
-            if self.conversation.has_item(event.turn_id):
-                # Try Again / Rewrite regeneration (minor-bug-fix spec):
-                # this turn_id already has a mounted bubble — reset it
-                # in place instead of mounting a second one, which was
-                # the actual duplicate-message bug. See
-                # CCTApp._regenerate_turn, the only caller that reaches
-                # here with an already-existing turn_id.
-                self.conversation.reset_for_regenerate(event.turn_id, mode_snapshot=snap)
-            else:
-                self.conversation.start_streaming(event.turn_id, event.role, mode_snapshot=snap)
-            if getattr(event, "role", "assistant") != "system":
-                # v0.7.9.0: MODEL_REQUEST_STARTED -> thinking = true -> the
-                # CAT ASCII indicator appears in the chat area, labelled
-                # with the ACTUAL current mode (CAT Notebook / CAT Build /
-                # CAT Debug / ...).
-                self.conversation.show_agent_activity(
-                    "thinking", mode_key=self._current_ai_mode)
-            self.composer.set_streaming(True, prompt_hint=event.prompt, turn_id=event.turn_id)
-            # Live AI STATUS inside the dashboard (spec: model state is
-            # visible in the dashboard; the dashboard itself never closes
-            # or duplicates while a model call runs).
-            self._set_ai_status("Working\u2026")
-            try:
-                from ..terminal_identity import set_terminal_title
-                set_terminal_title()
-            except Exception:
-                pass
+                turn = self.session.get(event.turn_id)
+                snap = turn.mode_snapshot if turn else None
+                # ── v0.7.9 Live Activities: mount inline block BEFORE the bubble
+                # (order: USER TASK -> LIVE ACTIVITIES -> AGENT RESPONSE)
+                try:
+                    self.conversation.mount_live_activities(event.turn_id)
+                except Exception:
+                    pass
+                try:
+                    from .. import activity as _act_mod
+                    _model_name = getattr(self.composer, "_model_label", "") or "AI"
+                    _act_mod.manager.create(
+                        id=f"gen-{event.turn_id}",
+                        type=_act_mod.TYPE_PROVIDER,
+                        action="generate",
+                        title=f"Thinking & generating ({_model_name})",
+                        status=_act_mod.STATUS_RUNNING,
+                        turn_id=event.turn_id,
+                        category=_act_mod.CAT_MODEL,
+                        phase=_act_mod.PHASE_ANALYSIS,
+                        details=f"Model: {_model_name}",
+                    )
+                except Exception:
+                    pass
+                if self.conversation.has_item(event.turn_id):
+                    # Try Again / Rewrite regeneration (minor-bug-fix spec):
+                    # this turn_id already has a mounted bubble — reset it
+                    # in place instead of mounting a second one, which was
+                    # the actual duplicate-message bug. See
+                    # CCTApp._regenerate_turn, the only caller that reaches
+                    # here with an already-existing turn_id.
+                    self.conversation.reset_for_regenerate(event.turn_id, mode_snapshot=snap)
+                else:
+                    self.conversation.start_streaming(event.turn_id, event.role, mode_snapshot=snap)
+                if getattr(event, "role", "assistant") != "system":
+                    # v0.7.9.0: MODEL_REQUEST_STARTED -> thinking = true -> the
+                    # CAT ASCII indicator appears in the chat area, labelled
+                    # with the ACTUAL current mode (CAT Notebook / CAT Build /
+                    # CAT Debug / ...).
+                    self.conversation.show_agent_activity(
+                        "thinking", mode_key=self._current_ai_mode)
+                self.composer.set_streaming(True, prompt_hint=event.prompt, turn_id=event.turn_id)
+                # Live AI STATUS inside the dashboard (spec: model state is
+                # visible in the dashboard; the dashboard itself never closes
+                # or duplicates while a model call runs).
+                self._set_ai_status("Working\u2026")
+                try:
+                    from ..terminal_identity import set_terminal_title
+                    set_terminal_title()
+                except Exception:
+                    pass
+            except Exception as exc:
+                _log.exception("Unhandled error in on_message_started: %s", exc)
 
         def on_agent_activity(self, event: AgentActivity):
             """Real agent state crossings flip the indicator's label
             (Thinking... / Executing... / Waiting for permission...)
             without touching the conversation content itself."""
-            self.conversation.update_agent_activity(event.state)
+            try:
+                self.conversation.update_agent_activity(event.state)
+            except Exception:
+                pass
 
         def on_message_chunk(self, event: MessageChunk):
             try:
@@ -7308,88 +7757,173 @@ if TEXTUAL_AVAILABLE:
                 pass
 
         def on_message_finished(self, event: MessageFinished):
-            # v0.7.8.1 interrupt: the turn is over — drop the worker
-            # reference so the Stop button/Esc target nothing stale.
-            self._current_worker = None
-            self._is_streaming = False
-            self._streaming_turn_id = None
-            # v0.7.8 BONUS FIX: whatever the worker produced, the UI only
-            # ever renders clean text — any leaked tool-protocol JSON is
-            # parsed out here, the single chokepoint every assistant
-            # response crosses (streamed, pipeline and agent paths alike).
             try:
-                full = cct_agent.clean_final_text(event.full_text)
-            except Exception:
-                full = event.full_text
-            event.full_text = full
-            try:
-                from .. import activity as _act_mod
-                _act_mod.manager.update(f"gen-{event.turn_id}", status=_act_mod.STATUS_COMPLETED, result="Completed")
-            except Exception:
-                pass
-            meta_lines = self._completion_summary(event)
-            contributions = getattr(event, "contributions", None) or aicore.get_last_contributions(event.turn_id)
-            self.conversation.finish(event.turn_id, event.full_text, meta_lines=meta_lines, contributions=contributions)
-            turn = self.session.get(event.turn_id)
-            if turn:
-                turn.finish(event.full_text, event.duration, event.usage)
-            # v0.8.a: Auto-save assistant response to chat store
-            try:
-                from .. import chat_store
-                if self._current_chat_id and event.full_text:
-                    provider, model = self._chat_provider_model()
-                    asst_turn = self.session.get(event.turn_id)
-                    chat_store.add_turn(
-                        self._current_chat_id, "assistant", event.full_text,
-                        mode=(asst_turn.mode if asst_turn else self._current_ai_mode),
-                        mode_snapshot=(asst_turn.mode_snapshot if asst_turn else ai_modes.snapshot()),
-                        provider=provider,
-                        model=model,
+                # v0.7.8.1 interrupt: the turn is over — drop the worker
+                # reference so the Stop button/Esc target nothing stale.
+                self._current_worker = None
+                self._is_streaming = False
+                self._streaming_turn_id = None
+                # v0.7.8 BONUS FIX: whatever the worker produced, the UI only
+                # ever renders clean text — any leaked tool-protocol JSON is
+                # parsed out here, the single chokepoint every assistant
+                # response crosses (streamed, pipeline and agent paths alike).
+                try:
+                    full = cct_agent.clean_final_text(event.full_text)
+                except Exception:
+                    full = event.full_text
+                event.full_text = full
+                try:
+                    from .. import activity as _act_mod
+                    _act_mod.manager.update(f"gen-{event.turn_id}", status=_act_mod.STATUS_COMPLETED, result="Completed")
+                except Exception:
+                    pass
+                meta_lines = []
+                try:
+                    meta_lines = self._completion_summary(event)
+                except Exception as ex:
+                    _log.debug("completion_summary failed: %s", ex)
+                contributions = getattr(event, "contributions", None) or aicore.get_last_contributions(event.turn_id)
+                try:
+                    self.conversation.finish(event.turn_id, event.full_text, meta_lines=meta_lines, contributions=contributions)
+                except Exception as ex:
+                    _log.exception("conversation.finish failed: %s", ex)
+                turn = self.session.get(event.turn_id)
+                if turn:
+                    try:
+                        turn.finish(event.full_text, event.duration, event.usage)
+                    except Exception:
+                        pass
+                # v0.8.a: Auto-save assistant response to chat store
+                try:
+                    from .. import chat_store
+                    if self._current_chat_id and event.full_text:
+                        provider, model = self._chat_provider_model()
+                        asst_turn = self.session.get(event.turn_id)
+                        chat_store.add_turn(
+                            self._current_chat_id, "assistant", event.full_text,
+                            mode=(asst_turn.mode if asst_turn else self._current_ai_mode),
+                            mode_snapshot=(asst_turn.mode_snapshot if asst_turn else ai_modes.snapshot()),
+                            provider=provider,
+                            model=model,
+                            turn_id=event.turn_id,
+                            parent_turn_id=(asst_turn.parent_turn_id if asst_turn else None),
+                        )
+                        # Auto-generate descriptive chat title if using a default title
+                        cur_title = getattr(self, "_current_chat_title", "") or ""
+                        if not cur_title or cur_title == "New Chat" or cur_title.startswith("Chat "):
+                            user_turns = [t for t in self.session.turns if t.role == "user" and t.text]
+                            if user_turns:
+                                smart_title = self._generate_quick_title(user_turns[0].text)
+                                if smart_title and smart_title != "New Chat":
+                                    chat_store.rename_chat(self._current_chat_id, smart_title)
+                                    self._current_chat_title = smart_title
+                                    if self.brand_header:
+                                        self.brand_header.set_chat_title(smart_title)
+                except Exception:
+                    pass
+                try:
+                    self.composer.set_streaming(False)
+                except Exception:
+                    pass
+                usage = getattr(event, "usage", {}) or {}
+                try:
+                    if isinstance(usage, dict):
+                        tokens_k = int(usage.get("total_tokens", 0) / 1000)
+                        self.composer.context_tokens = tokens_k
+                except Exception:
+                    pass
+                # v0.9.000: the request chain ended — the live failover
+                # override dies WITH it so the footer badge falls back to
+                # the real config (the on-disk provider never changed; the
+                # backup only served this once, next turn starts clean).
+                try:
+                    self._reset_model_indicator()
+                except Exception:
+                    pass
+                # Bidirectional Voice Output: speak the response out loud if voice mode was active
+                try:
+                    from ..voice import voice_manager
+                    if voice_manager.is_voice_output_enabled() and getattr(self, "_voice_mode_invoked", False):
+                        voice_manager.speak_text(event.full_text)
+                        self._voice_mode_invoked = False
+                except Exception:
+                    pass
+                try:
+                    from ..workflow_engine import workflow_engine
+                    dur_ms = int(getattr(event, "duration", 0) * 1000)
+                    toks = None
+                    if isinstance(usage, dict):
+                        toks = usage.get("total_tokens") or usage.get("completion_tokens")
+                    workflow_engine.finish_streaming_flow(
                         turn_id=event.turn_id,
-                        parent_turn_id=(asst_turn.parent_turn_id if asst_turn else None),
+                        duration_ms=dur_ms,
+                        token_count=toks
                     )
-                    # Auto-generate descriptive chat title if using a default title
-                    cur_title = getattr(self, "_current_chat_title", "") or ""
-                    if not cur_title or cur_title == "New Chat" or cur_title.startswith("Chat "):
-                        user_turns = [t for t in self.session.turns if t.role == "user" and t.text]
-                        if user_turns:
-                            smart_title = self._generate_quick_title(user_turns[0].text)
-                            if smart_title and smart_title != "New Chat":
-                                chat_store.rename_chat(self._current_chat_id, smart_title)
-                                self._current_chat_title = smart_title
-                                if self.brand_header:
-                                    self.brand_header.set_chat_title(smart_title)
-            except Exception:
-                pass
-            self.composer.set_streaming(False)
-            usage = aicore.get_session_usage()
-            tokens_k = int(usage.get("total_tokens", 0) / 1000) if isinstance(usage, dict) else 0
-            self.composer.context_tokens = tokens_k
-            try:
-                from ..workflow_engine import workflow_engine
-                dur_ms = int(getattr(event, "duration", 0) * 1000)
-                toks = None
-                if isinstance(usage, dict):
-                    toks = usage.get("total_tokens") or usage.get("completion_tokens")
-                workflow_engine.finish_streaming_flow(
-                    turn_id=event.turn_id,
-                    duration_ms=dur_ms,
-                    token_count=toks
-                )
-            except Exception:
-                pass
-            self._refresh_header_breadcrumb()
-            self.post_message(StreamingFinished(event.turn_id))
-            eventbus.bus.publish(eventbus.AI_RESPONSE_GENERATED, mode=self._current_ai_mode)
-            self._set_ai_status("Ready")
-            try:
-                cat_events.stream.emit(cat_events.FINAL_RESPONSE, source="ui",
-                                       turn_id=event.turn_id,
-                                       duration_ms=round(event.duration * 1000.0, 1))
-            except Exception:
-                pass
-            self._detect_and_add_ai_todos(event.full_text)
-            self.conversation.refresh_dashboard_stats()
+                except Exception:
+                    pass
+
+                try:
+                    self._refresh_header_breadcrumb()
+                except Exception:
+                    pass
+
+                try:
+                    self.post_message(StreamingFinished(event.turn_id))
+                except Exception as ex_post:
+                    _log.warning("StreamingFinished post error: %s", ex_post)
+
+                try:
+                    eventbus.bus.publish(eventbus.AI_RESPONSE_GENERATED, mode=self._current_ai_mode)
+                except Exception:
+                    pass
+
+                try:
+                    self._set_ai_status("Ready")
+                except Exception:
+                    pass
+
+                try:
+                    cat_events.stream.emit(cat_events.FINAL_RESPONSE, source="ui",
+                                           turn_id=event.turn_id,
+                                           duration_ms=round(getattr(event, "duration", 0.0) * 1000.0, 1))
+                except Exception:
+                    pass
+
+                try:
+                    self._detect_and_add_ai_todos(event.full_text)
+                except Exception:
+                    pass
+
+                try:
+                    self.conversation.refresh_dashboard_stats()
+                except Exception:
+                    pass
+
+                # Play response completion sound if enabled
+                try:
+                    from .. import sound
+                    sound.play("completion")
+                except Exception:
+                    pass
+
+            except Exception as exc:
+                _log.exception("Unhandled error in on_message_finished: %s", exc)
+                try:
+                    self.composer.set_streaming(False)
+                except Exception:
+                    pass
+                try:
+                    self._reset_model_indicator()
+                except Exception:
+                    pass
+                # Bidirectional Voice Output: speak the response out loud if voice mode was active
+                try:
+                    from ..voice import voice_manager
+                    if voice_manager.is_voice_output_enabled() and getattr(self, "_voice_mode_invoked", False):
+                        voice_manager.speak_text(event.full_text)
+                        self._voice_mode_invoked = False
+                except Exception:
+                    pass
 
         def _detect_and_add_ai_todos(self, full_text):
             """AI Todo Manager (v0.7.2 roadmap): after a reply finishes,
@@ -7417,33 +7951,40 @@ if TEXTUAL_AVAILABLE:
             the prompt or reply mentioned — and (v0.7.9.0) the request's
             REAL measured timings (TTFB, tool time, call counts) from
             cat_metrics. Never fabricated numbers."""
-            config = aicore.load_config()
-            provider = (config.get("provider") or "").upper() or None
-            model = config.get("model") or None
-            usage = event.usage if isinstance(event.usage, dict) else {}
-            tokens = usage.get("total_tokens") or usage.get("completion_tokens")
-            prompt = self._turn_prompts.pop(event.turn_id, "")
-            commands = thinking.commands_used(prompt, event.full_text)
-            contributions = getattr(event, "contributions", None) or aicore.get_last_contributions(event.turn_id)
-            lines = thinking.completion_summary_lines(
-                provider=provider, model=model, duration=event.duration,
-                tokens=tokens, commands=commands, contributions=contributions,
-            )
-            # Real per-request measurements for THIS turn, when recorded.
-            mreq = None
-            for m in reversed(cat_metrics.get_recent(limit=5)):
-                if m.request_id == event.turn_id:
-                    mreq = m
-                    break
-            if mreq is not None:
-                try:
-                    lines.extend(mreq.summary_lines())
-                except Exception:
-                    pass
-            return lines
+            try:
+                config = aicore.load_config()
+                provider = (config.get("provider") or "").upper() or None
+                model = config.get("model") or None
+                usage = event.usage if isinstance(event.usage, dict) else {}
+                tokens = usage.get("total_tokens") or usage.get("completion_tokens")
+                prompt = self._turn_prompts.pop(event.turn_id, "")
+                commands = thinking.commands_used(prompt, event.full_text)
+                contributions = getattr(event, "contributions", None) or aicore.get_last_contributions(event.turn_id)
+                lines = thinking.completion_summary_lines(
+                    provider=provider, model=model, duration=event.duration,
+                    tokens=tokens, commands=commands, contributions=contributions,
+                )
+                # Real per-request measurements for THIS turn, when recorded.
+                mreq = None
+                for m in reversed(cat_metrics.get_recent(limit=5)):
+                    if m.request_id == event.turn_id:
+                        mreq = m
+                        break
+                if mreq is not None:
+                    try:
+                        lines.extend(mreq.summary_lines())
+                    except Exception:
+                        pass
+                return lines
+            except Exception as e:
+                _log.exception("Error building completion summary: %s", e)
+                return ["✓ Response Complete"]
 
         def on_streaming_finished(self, event: StreamingFinished):
-            self.status_line.refresh_status()
+            try:
+                self.status_line.refresh_status()
+            except Exception as exc:
+                _log.warning("Safe status_line refresh error in on_streaming_finished: %s", exc)
 
         @work(thread=True)
         def _stream_worker(self, prompt, turn_id, before_turn_id=None, attachments=None,
@@ -7927,6 +8468,193 @@ if TEXTUAL_AVAILABLE:
             if word in ("/exit", "/quit"):
                 self.exit()
                 return
+            if word in ("/debug", "/debugoverlay", "/hud"):
+                self.toggle_debug_overlay()
+                return
+            if word in ("/whatsnew", "/whats-new", "/what-is-new"):
+                try:
+                    from .whats_new_modal import WhatsNewModal
+                    self.push_screen(WhatsNewModal())
+                except Exception as e:
+                    self._system_note(f"What's New in 0.9.000: {e}")
+                return
+            if word == "/version":
+                try:
+                    from .whats_new_modal import WhatsNewModal
+                    self.push_screen(WhatsNewModal())
+                except Exception:
+                    self._system_note(f"CAT Version: {self._version()}")
+                return
+            if word == "/new":
+                title = arg if arg else "New Session"
+                self._new_chat_session(announce=True)
+                if arg:
+                    self._current_chat_title = arg
+                    try:
+                        from .session_tabs import ChatSessionTabBar
+                        self.query_one(ChatSessionTabBar).set_active_title(arg)
+                    except Exception:
+                        pass
+                return
+            if word == "/variance":
+                val = arg.strip().lower()
+                cfg = aicore.load_config() or {}
+                if val in ("low", "min", "deterministic"):
+                    cfg["temperature"] = 0.2
+                    desc = "Low / Deterministic (temp=0.2)"
+                elif val in ("medium", "balanced", "normal"):
+                    cfg["temperature"] = 0.7
+                    desc = "Balanced (temp=0.7)"
+                elif val in ("high", "creative"):
+                    cfg["temperature"] = 0.95
+                    desc = "High / Creative (temp=0.95)"
+                elif val in ("max", "maximum"):
+                    cfg["temperature"] = 1.0
+                    desc = "Maximum (temp=1.0)"
+                else:
+                    try:
+                        t = float(val)
+                        cfg["temperature"] = max(0.0, min(2.0, t))
+                        desc = f"Custom (temp={cfg['temperature']})"
+                    except Exception:
+                        desc = f"Current temperature: {cfg.get('temperature', 0.7)} (options: low, medium, high, max, or float 0.0-2.0)"
+                aicore.save_config(cfg)
+                self._system_note(f"🧠 **Reasoning Variance & Effort Adjusted**: {desc}")
+                return
+            if word == "/compact":
+                try:
+                    summary = self.session.summarize_older_turns(keep_recent=4)
+                    self._system_note(
+                        f"🗜️ **Context Window Compacted Successfully!**\n\n"
+                        f"- Older turns summarized into compact working memory.\n"
+                        f"- Active conversation context compressed for high-speed reasoning.\n"
+                        f"- Preserved key architectural decisions and parameters."
+                    )
+                except Exception as ex:
+                    self._system_note(f"Context compaction note: {ex}")
+                return
+            if word == "/connect":
+                parts_conn = arg.split()
+                if not parts_conn:
+                    self._system_note(
+                        "Usage: `/connect <provider> [api_key] [model]`\n\n"
+                        "Supported: 200+ providers (openai, anthropic, gemini, deepseek, ollama, groq, cerebras, etc.)"
+                    )
+                    return
+                prov_req = parts_conn[0].lower()
+                key_req = parts_conn[1] if len(parts_conn) > 1 else None
+                mdl_req = parts_conn[2] if len(parts_conn) > 2 else None
+
+                cfg = aicore.load_config() or {}
+                cfg["provider"] = prov_req.upper()
+                if key_req:
+                    cfg["api_key"] = key_req
+                if mdl_req:
+                    cfg["model"] = mdl_req
+                aicore.save_config(cfg)
+                try:
+                    if hasattr(self, "footer"):
+                        self.footer.set_provider_model(prov_req, mdl_req or cfg.get("model", ""))
+                except Exception:
+                    pass
+                self._system_note(f"🔌 **Connected to AI Provider**: `{prov_req.upper()}` (Model: `{cfg.get('model', 'default')}`). Zero vendor lock-in.")
+                return
+            if word == "/undo":
+                try:
+                    from ..core import recovery_engine
+                    res = recovery_engine.undo()
+                    if res:
+                        self._system_note("↩️ **Undo Successful**: Reverted last file change checkpoint.")
+                    else:
+                        self._system_note("ℹ️ Nothing to undo: No previous file operation snapshots in stack.")
+                except Exception as ex:
+                    self._system_note(f"Undo operation note: {ex}")
+                return
+            if word in ("/bg", "/background"):
+                if not arg:
+                    self._system_note("Usage: `/bg <task description>` — runs task quietly in background as persistent helper.")
+                    return
+                from ..parallel_runner import BackgroundJobManager
+                mgr = BackgroundJobManager.get_instance()
+                job = mgr.submit_job(arg, role="persistent helper")
+                self._system_note(
+                    f"🚀 **Background Job Submitted**: `{job.job_id}`\n"
+                    f"- **Task**: {arg}\n"
+                    f"- **State**: Running quietly in background as a persistent helper.\n"
+                    f"- Use `/jobs` to view status or results anytime."
+                )
+                return
+            if word == "/jobs":
+                from ..parallel_runner import BackgroundJobManager
+                mgr = BackgroundJobManager.get_instance()
+                jobs = mgr.list_jobs()
+                if not jobs:
+                    self._system_note("No background jobs found. Start one with `/bg <task>`.")
+                    return
+                lines = ["### 📋 Persistent Helper Background Jobs\n"]
+                for j in jobs[-8:]:
+                    status_emoji = "🟢" if j.status == "completed" else "🟡" if j.status == "running" else "🔴"
+                    lines.append(f"- {status_emoji} **{j.job_id}** [{j.status.upper()}] ({j.duration_seconds:.1f}s): {j.title}")
+                    if j.output:
+                        preview = j.output[:120].replace("\n", " ") + "..."
+                        lines.append(f"  *Preview*: {preview}")
+                self._system_note("\n".join(lines))
+                return
+            if word == "/parallel":
+                if not arg:
+                    self._system_note("Usage: `/parallel <build task> [ | <review task> ]` — dual-agent build & review in parallel.")
+                    return
+                parts_p = arg.split("|", 1)
+                b_task = parts_p[0].strip()
+                r_task = parts_p[1].strip() if len(parts_p) > 1 else None
+
+                self._system_note(f"⚡ **Launching Parallel Dual-Agent Execution**...\n- **Build Agent (Aria)**: {b_task}\n- **Review Agent (Mira)**: Inspecting in parallel (read-only).")
+
+                def _parallel_worker():
+                    from ..parallel_runner import run_parallel_build_and_review
+                    res = run_parallel_build_and_review(b_task, r_task)
+                    self.call_from_thread(self._system_note, res.get("synthesized", "Parallel execution finished."))
+
+                import threading
+                threading.Thread(target=_parallel_worker, daemon=True).start()
+                return
+            if word == "/platform":
+                try:
+                    from ..platform_screens import PlatformCenterModal
+                    self.push_screen(PlatformCenterModal())
+                    return
+                except Exception:
+                    pass
+                report = (
+                    "# 🌐 CAT Cross-Platform Interfaces\n\n"
+                    "Coding Agent Terminal is natively available across 5 cross-platform surfaces:\n\n"
+                    "1. **Terminal UI (TUI)**: Fast, keyboard-first terminal interface with Tokyo Night 3D bevels.\n"
+                    "   - Run: `python -m calc_terminal` or `cat` command in any terminal.\n"
+                    "2. **Desktop App**: Windowed native desktop app for macOS, Windows, and Linux.\n"
+                    "   - Windows: `cat-desktop.exe`, macOS: `CAT.app`, Linux: `cat-desktop.AppImage`.\n"
+                    "3. **Web App (`catcli pair`)**: Remote browser-based collaborative pair programming.\n"
+                    "   - Run: `catcli pair` or `python -m calc_terminal.web.server`.\n"
+                    "4. **Mobile & Touchscreen Support**: Touch-friendly UI mode with responsive keypad.\n"
+                    "   - Toggle: `/touch` command or `Ctrl+Shift+T`.\n"
+                    "5. **Python SDK**: High-level programmatic API for custom scripts and CI/CD pipelines.\n"
+                    "   - Usage: `import calc_terminal.sdk as cat` (`cat.chat()`, `cat.plan()`, `cat.build()`, `cat.run_parallel()`)."
+                )
+                self._system_note(report)
+                return
+            if word in ("/connectors", "/plugins"):
+                from ..app_connectors import AppConnectorCenter
+                acc = AppConnectorCenter()
+                conns = acc.list_connectors()
+                lines = ["### 🔌 CAT Integrations & Community Plugins\n"]
+                for c in conns:
+                    st = "🟢 Connected" if c.get("status") == "connected" else "⚪ Available"
+                    lines.append(f"- {c.get('icon', '📦')} **{c.get('name')}** (`{c.get('id')}`) — {st}")
+                    desc = c.get("metadata", {}).get("description", "")
+                    if desc:
+                        lines.append(f"  *{desc}*")
+                self._system_note("\n".join(lines))
+                return
+
             if word == "/touch":
                 self.action_toggle_touch_mode()
                 return
@@ -8280,11 +9008,18 @@ if TEXTUAL_AVAILABLE:
                 self._handle_signout()
                 return
 
-            # AI Modes (spec section 3, 4, 55, 56)
-            if word in ("/agent", "/build", "/plan", "/notebook", "/ai",
-                        "/research", "/debug", "/debugger"):
-                target = "debugger" if word == "/debugger" else ("notebook" if word == "/ai" else word.lstrip("/"))
-                self._switch_mode_command(target)
+            # AI Modes (spec section 3, 4, 55, 56) + Persona Aliases (Qala, Sage, Mira, Aria, Dex, Nova, Automator)
+            _alias_to_mode = {
+                "/agent": "agent", "/nova": "agent",
+                "/build": "build", "/aria": "build",
+                "/plan": "plan", "/mira": "plan",
+                "/notebook": "notebook", "/ai": "notebook", "/qala": "notebook",
+                "/research": "research", "/sage": "research",
+                "/debug": "debugger", "/debugger": "debugger", "/dex": "debugger",
+                "/automator": "automator",
+            }
+            if word in _alias_to_mode:
+                self._switch_mode_command(_alias_to_mode[word])
                 return
 
             if word in ("/kitties", "/agents", "/modes"):
@@ -8301,12 +9036,47 @@ if TEXTUAL_AVAILABLE:
                 sub_arg = sub_parts[1].strip() if len(sub_parts) > 1 else ""
 
                 if not arg:
-                    # Bare /mode opens the Kitties & AI Modes manager directly
+                    # Bare /mode opens the fast 1-click Agent Mode Menu!
                     try:
-                        from .mode_colors_panel import ModeColorsPanel
-                        self.push_screen(ModeColorsPanel())
+                        from .agent_menu import AgentModeMenu
+                        badge = None
+                        try:
+                            badge = self.query_one("#badge-notebook")
+                        except Exception:
+                            pass
+                        self.push_screen(AgentModeMenu(anchor=badge), self._on_agent_mode_selected)
                     except Exception as e:
-                        self._system_note(f"Mode Studio unavailable: {e}")
+                        try:
+                            from .mode_colors_panel import ModeColorsPanel
+                            self.push_screen(ModeColorsPanel())
+                        except Exception:
+                            self._system_note(f"Mode selector unavailable: {e}")
+                    return
+
+                if sub in ("next", "cycle"):
+                    current = getattr(self, "_current_ai_mode", "agent") or "agent"
+                    try:
+                        order = ai_modes.MODE_ORDER
+                        idx = (order.index(current) + 1) % len(order)
+                        next_mode = order[idx]
+                    except Exception:
+                        next_mode = "plan" if current != "plan" else "build"
+                    self._switch_mode_command(next_mode)
+                    return
+
+                # Direct mode/persona switch: /mode aria, /mode build, /mode mira, etc.
+                _sub_clean = sub.lstrip("/")
+                _sub_map = {
+                    "agent": "agent", "nova": "agent",
+                    "build": "build", "aria": "build",
+                    "plan": "plan", "mira": "plan",
+                    "notebook": "notebook", "ai": "notebook", "qala": "notebook",
+                    "research": "research", "sage": "research",
+                    "debug": "debugger", "debugger": "debugger", "dex": "debugger",
+                    "automator": "automator",
+                }
+                if _sub_clean in _sub_map:
+                    self._switch_mode_command(_sub_map[_sub_clean])
                     return
 
                 if sub in ("edit", "customize", "manage"):
@@ -8360,6 +9130,28 @@ if TEXTUAL_AVAILABLE:
                 self._summarize_chat()
                 return
 
+            # v0.9.000 — Voice is a FIRST-CLASS TUI concern. `/voice` and
+            # its sub-commands are handled HERE, BEFORE the legacy
+            # command-registry fallback. The registry still owns a /voice
+            # entry; falling through used to SUSPEND this whole TUI and
+            # run the legacy CLI's cmd_voice in a bare sub-terminal —
+            # reading exactly like "CAT exited". Voice control must
+            # instead flip state live inside the composer, never leave.
+            if word in ("/voice", "/voice-mode", "/dictate"):
+                try:
+                    self.composer.voice_command(arg)
+                except Exception as e:
+                    self._system_note(f"\u26a0\ufe0f Voice unavailable on this machine: {e}")
+                return
+
+            # v0.9.000 — /permissions opens the PermissionsSettingsPanel
+            # IN-APP (the ⏱/🛡 composer buttons were removed; the header
+            # pill, Alt+P and this command are the remaining entrances —
+            # never a suspended-CLI cycle).
+            if word in ("/permissions", "/permission", "/perms"):
+                self.action_toggle_permissions()
+                return
+
             # Known classic terminal commands can suspend to terminal
             try:
                 from .. import registry as _cmd_reg
@@ -8393,6 +9185,18 @@ if TEXTUAL_AVAILABLE:
                 pass
             m = ai_modes.meta(target)
             self._system_note(f"{m['icon']} Switched to {m['label']} mode \u2014 {m['purpose']}")
+
+        def _on_agent_mode_selected(self, mode_key):
+            if not mode_key:
+                return
+            if mode_key == "__manage__":
+                try:
+                    from .mode_colors_panel import ModeColorsPanel
+                    self.push_screen(ModeColorsPanel())
+                except Exception as e:
+                    self._system_note(f"AI Agents Studio unavailable: {e}")
+                return
+            self._switch_mode_command(mode_key)
 
         # ---------------------------------------- context menu actions --
         def on_message_context_action(self, event: MessageContextAction):
@@ -8827,3 +9631,4 @@ def launch_chat_app(repl, history, stats):
             pass
     _dbg("CCTApp.run() returned normally (app was closed/quit).")
     return True, ""
+

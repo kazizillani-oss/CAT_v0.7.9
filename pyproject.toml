@@ -12,8 +12,8 @@ build-backend = "setuptools.build_meta"
 # Bare `cat` is TAKEN (unrelated project).
 # NEVER publish under `cot-ai-ide` (typo) — branding is CAT.
 name = "cct-cli"
-version = "0.8.0b1"
-description = "CAT CLI v0.8.0b1 [beta] - Coding Agent Terminal / terminal AI coding agent"
+version = "0.9.000"
+description = "CAT CLI v0.9.000 - Coding Agent Terminal / terminal AI coding agent"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }

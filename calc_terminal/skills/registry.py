@@ -131,6 +131,158 @@ BUILTIN_SKILLS: List[SkillDefinition] = [
         tags=["planning", "decomposition", "milestones", "dependencies"],
         builtin=True,
     ),
+    SkillDefinition(
+        id="tdd-workflow",
+        name="Structured Test-Driven Development (TDD) Workflow",
+        version="1.3.0",
+        description="Rigorous Red-Green-Refactor development cycle: author failing test first, verify failure, implement minimal code, verify green pass, and refactor cleanly.",
+        category="testing",
+        required_tools=["run_tests", "read_file", "edit_file", "write_file"],
+        permission_scope={"read_files": True, "write_files": True, "shell_commands": True, "execute_python": True},
+        instructions=(
+            "When executing TDD Workflows:\n"
+            "1. RED PHASE: Write an automated test that defines the desired improvement or new function. Run test suite to verify it FAILS for the expected reason.\n"
+            "2. GREEN PHASE: Implement the minimal production code necessary to make the test pass. Run test suite to verify 0 failures.\n"
+            "3. REFACTOR PHASE: Clean up code, remove duplication, and optimize structure while maintaining 100% test pass rate.\n"
+            "4. NEVER consider work done without verifying tests directly via execution."
+        ),
+        tags=["tdd", "testing", "red-green-refactor", "pytest", "unit-tests"],
+        builtin=True,
+    ),
+    SkillDefinition(
+        id="brainstorming-workflow",
+        name="Structured Architectural Brainstorming Workflow",
+        version="1.2.0",
+        description="Structured design ideation: problem framing, divergent requirement exploration, design trade-off matrix evaluation, security impact analysis, and converging into an executable technical RFC.",
+        category="planning",
+        required_tools=["read_file", "list_directory"],
+        permission_scope={"read_files": True, "write_files": False, "shell_commands": False},
+        instructions=(
+            "When executing Brainstorming Workflows:\n"
+            "1. Problem Framing: Define the core goals, non-goals, and technical constraints.\n"
+            "2. Divergent Exploration: Generate 3+ distinct architectural approaches with pros/cons.\n"
+            "3. Trade-off Matrix: Compare options across complexity, scalability, security, and developer ergonomics.\n"
+            "4. Convergence: Select recommended architecture and draft concrete implementation roadmap."
+        ),
+        tags=["brainstorming", "ideation", "architecture", "rfc", "planning", "design"],
+        builtin=True,
+    ),
+    SkillDefinition(
+        id="rea",
+        name="REA — Reasoning & Execution Architecture",
+        version="1.2.0",
+        description="Autonomous dual-track reasoning and stepwise execution architecture for complex coding agents. Formulates hypotheses, verifies edge cases, and audits outcomes. Highly credited to Morluto (@morluto).",
+        category="planning",
+        required_tools=["read_file", "edit_file", "write_file", "run_terminal"],
+        permission_scope={"read_files": True, "write_files": True, "shell_commands": True, "execute_python": True},
+        instructions=(
+            "# REA — Reasoning & Execution Architecture (Created by Morluto — https://github.com/morluto/rea)\n"
+            "When executing complex coding and algorithmic requests:\n"
+            "1. Formulation: Explicitly state requirements, technical invariants, and potential failure modes.\n"
+            "2. Dual-Track Hypotheses: Propose at least two competing implementation or bugfix approaches.\n"
+            "3. Empirical Verification: Validate assumptions with targeted file reads or test executions before writing code.\n"
+            "4. Surgical Execution: Apply minimal, high-precision code modifications.\n"
+            "5. Outcome Audit: Re-test all acceptance criteria to guarantee zero regressions."
+        ),
+        tags=["rea", "reasoning", "execution", "planning", "agent", "morluto"],
+        builtin=True,
+    ),
+    SkillDefinition(
+        id="archify",
+        name="Archify — Codebase Architecture & Blueprinting",
+        version="1.0.4",
+        description="Comprehensive codebase architecture analysis, modular system design blueprinting, and architectural constraint enforcement. Highly credited to tt-a1i (@tt-a1i).",
+        category="architecture",
+        required_tools=["read_file", "list_directory"],
+        permission_scope={"read_files": True, "write_files": False, "shell_commands": False},
+        instructions=(
+            "# Archify — Architecture & Blueprinting (Created by tt-a1i — https://github.com/tt-a1i/archify)\n"
+            "When evaluating or refactoring system architecture:\n"
+            "1. Domain Boundaries: Identify decoupled subsystems, contracts, and public entrypoints.\n"
+            "2. Dependency Mapping: Graph module import chains and detect circular dependencies.\n"
+            "3. Layering Discipline: Strictly enforce separation between presentation, logic, and persistence.\n"
+            "4. Blueprinting: Provide clear structural blueprints and architectural trade-off evaluations."
+        ),
+        tags=["archify", "architecture", "system-design", "blueprints", "modularity", "tt-a1i"],
+        builtin=True,
+    ),
+    SkillDefinition(
+        id="remotion",
+        name="Remotion — Programmatic Video & Motion Graphics",
+        version="4.0.0",
+        description="Programmatic video creation, React motion graphics, audio synchronization, and MP4 rendering with Remotion. Highly credited to Jonny Burger & the Remotion team (@remotion-dev).",
+        category="media",
+        required_tools=["read_file", "write_file", "run_terminal"],
+        permission_scope={"read_files": True, "write_files": True, "shell_commands": True, "network": True},
+        instructions=(
+            "# Remotion — Video & Motion Graphics (Created by Jonny Burger & Remotion — https://github.com/remotion-dev/skills)\n"
+            "When authoring programmatic video compositions:\n"
+            "1. Component Compositions: Structure video frames as deterministic React components parameterized by frame number.\n"
+            "2. Smooth Interpolation: Use `interpolate()` and `spring()` physics curves for fluid 60fps animations.\n"
+            "3. Audio Layering: Synchronize background scores and sound effects with `<Audio>` frame offsets.\n"
+            "4. High-Fidelity Rendering: Verify assets, fonts, and dimensions before CLI bundling into MP4/WebM."
+        ),
+        tags=["remotion", "video", "motion-graphics", "react", "rendering", "media", "jonnyburger"],
+        builtin=True,
+    ),
+    SkillDefinition(
+        id="skillopt",
+        name="SkillOpt — Agent Skill & Context Optimizer",
+        version="1.1.0",
+        description="Algorithmic skill selection, context pruning, prompt optimization, and tool execution cost minimization for AI agents. Highly credited to Microsoft Research (@microsoft).",
+        category="optimization",
+        required_tools=["read_file"],
+        permission_scope={"read_files": True, "write_files": False, "shell_commands": False},
+        instructions=(
+            "# SkillOpt — Skill & Context Optimizer (Created by Microsoft Research — https://github.com/microsoft/skillopt)\n"
+            "When optimizing agent workflows and LLM context windows:\n"
+            "1. Intent Routing: Select only relevant tools/skills to minimize cognitive overhead.\n"
+            "2. Context Compression: Strip redundant chat turns, verbose logs, and unneeded instructions.\n"
+            "3. Argument Pruning: Pass minimal required payloads to tool calls.\n"
+            "4. Efficiency Metrics: Monitor prompt tokens and latency to maximize task throughput."
+        ),
+        tags=["skillopt", "optimization", "context-pruning", "token-reduction", "microsoft", "performance"],
+        builtin=True,
+    ),
+    SkillDefinition(
+        id="page-mascot",
+        name="Page Mascot — Interactive Cursor Companion",
+        version="1.0.2",
+        description="Interactive cursor-tracking mascot, sprite animation controller, and companion reactivity widget for TUIs and web dashboards. Highly credited to nilbuild (@nilbuild).",
+        category="design",
+        required_tools=["read_file", "write_file"],
+        permission_scope={"read_files": True, "write_files": True, "shell_commands": False},
+        instructions=(
+            "# Page Mascot — Interactive Cursor Companion (Created by nilbuild — https://github.com/nilbuild/page-mascot)\n"
+            "When integrating interactive companions and mascots:\n"
+            "1. Pointer Tracking: Calculate angle and vector from mouse cursor to mascot eye centers.\n"
+            "2. Sprite Sheet Alignment: Manage discrete head-turn atlases to prevent visual jitter.\n"
+            "3. Micro-Reactions: Fire blink, purr, and startled reactions on hover and click events.\n"
+            "4. Non-Blocking Render: Maintain 60fps tracking without consuming excess CPU cycles."
+        ),
+        tags=["page-mascot", "mascot", "companion", "cursor-tracking", "interactive", "nilbuild", "sprites"],
+        builtin=True,
+    ),
+    SkillDefinition(
+        id="frontend-design",
+        name="Frontend Design — Modern UI/UX & Responsive Systems",
+        version="2.1.0",
+        description="Production-grade frontend design system: tactile 3D tall bevels, WCAG AA color science, fluid responsive layouts, and polished micro-interactions. Highly credited to Anthropic Quickstarts & Antigravity Design (@anthropic).",
+        category="design",
+        required_tools=["read_file", "edit_file", "write_file"],
+        permission_scope={"read_files": True, "write_files": True, "shell_commands": False},
+        instructions=(
+            "# Frontend Design — Modern UI/UX & Responsive Systems (Anthropic Quickstarts Standards)\n"
+            "When crafting user interfaces and visual designs:\n"
+            "1. Hierarchy: Create unambiguous visual hierarchy with clean titlebars, content canvases, and action bars.\n"
+            "2. Tactile 3D Bevels: Apply skeuomorphic tall bevels with realistic light source highlights and shadows.\n"
+            "3. Zero Dead Space: Guarantee containers expand or shrink dynamically to eliminate awkward voids.\n"
+            "4. Typography & Contrast: Ensure text passes WCAG AA contrast rules across all dark surfaces.\n"
+            "5. Responsive Layouts: Design gracefully for Ultrawide, Desktop, Tablet, and Portrait screen dimensions."
+        ),
+        tags=["frontend-design", "design", "ui", "ux", "responsive", "typography", "tall-bevel", "anthropic"],
+        builtin=True,
+    ),
 ]
 
 

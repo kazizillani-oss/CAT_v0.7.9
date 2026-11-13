@@ -119,6 +119,88 @@ def remove_server(server_id: str):
 
 
 # ---------------------------------------------------------------------------
+# Built-in Preset Templates for External Tools, Databases & Context Streams
+
+MCP_BUILTIN_PRESETS: list[dict] = [
+    {
+        "id": "mcp-sqlite",
+        "name": "SQLite Database MCP",
+        "kind": "local",
+        "command": "npx -y @modelcontextprotocol/server-sqlite --db workspace.db",
+        "description": "Direct SQLite querying, schema inspection, and data manipulation.",
+        "tools": ["read_query", "write_query", "list_tables", "describe_table"],
+        "category": "database",
+        "enabled": True,
+    },
+    {
+        "id": "mcp-postgres",
+        "name": "PostgreSQL Database MCP",
+        "kind": "local",
+        "command": "npx -y @modelcontextprotocol/server-postgres postgresql://localhost/mydb",
+        "description": "Postgres schema mapping, relational queries, and transactional updates.",
+        "tools": ["query", "schema", "explain"],
+        "category": "database",
+        "enabled": True,
+    },
+    {
+        "id": "mcp-filesystem",
+        "name": "Filesystem Tools MCP",
+        "kind": "local",
+        "command": "npx -y @modelcontextprotocol/server-filesystem .",
+        "description": "Secure scoped filesystem operations and workspace directories.",
+        "tools": ["read_file", "write_file", "list_directory", "move_file"],
+        "category": "tools",
+        "enabled": True,
+    },
+    {
+        "id": "mcp-git",
+        "name": "Git Repository Engine MCP",
+        "kind": "local",
+        "command": "npx -y @modelcontextprotocol/server-git",
+        "description": "Version control diffs, commits, branches, and status inspection.",
+        "tools": ["git_status", "git_diff", "git_log", "git_commit"],
+        "category": "vcs",
+        "enabled": True,
+    },
+    {
+        "id": "mcp-brave",
+        "name": "Brave Web Search MCP",
+        "kind": "remote",
+        "url": "https://api.search.brave.com/res/v1/web/search",
+        "description": "Privacy-preserving live web search and rich context extraction.",
+        "tools": ["brave_web_search", "brave_local_search"],
+        "category": "web",
+        "enabled": True,
+    },
+    {
+        "id": "mcp-context-stream",
+        "name": "Context Streams MCP",
+        "kind": "local",
+        "command": "cat-mcp-context-stream",
+        "description": "Continuous live telemetry, log streaming, and dynamic external context injection.",
+        "tools": ["stream_context", "ingest_stream", "subscribe_channel"],
+        "category": "context",
+        "enabled": True,
+    },
+]
+
+
+def list_presets() -> list[dict]:
+    """Returns built-in preset configurations for MCP servers."""
+    return list(MCP_BUILTIN_PRESETS)
+
+
+def install_preset(preset_id: str) -> Optional[str]:
+    """Installs a built-in MCP preset into the active server registry."""
+    preset = next((p for p in MCP_BUILTIN_PRESETS if p["id"] == preset_id), None)
+    if not preset:
+        return None
+    rec = dict(preset)
+    return add_server(rec)
+
+
+
+# ---------------------------------------------------------------------------
 # JSON-RPC helpers
 
 def _rpc_request(req_id: int, method: str, params: dict) -> str:
@@ -384,3 +466,109 @@ def server_status(server: dict) -> dict:
 def call_server_tool(server: dict, name: str, arguments: dict | None = None) -> str:
     session = get_session(server)
     return session.call_tool(name, arguments)
+
+
+
+def cmd_mcp(arg: str) -> str:
+    """Handles /mcp slash command operations."""
+    parts = arg.strip().split(None, 1)
+    sub = parts[0].lower() if parts else "list"
+    rest = parts[1].strip() if len(parts) > 1 else ""
+
+    if sub in ("help", "--help", "-h"):
+        return (
+            "🔌 **Model Context Protocol (MCP) Server Commands:**\n"
+            "- `/mcp list` — List configured MCP servers and connection status\n"
+            "- `/mcp tools <server>` — Inspect tools provided by an MCP server\n"
+            "- `/mcp connect <server>` — Connect to a configured MCP server\n"
+            "- `/mcp disconnect <server>` — Disconnect from an MCP server\n"
+            "- `/mcp test <server>` — Test latency and connection to an MCP server"
+        )
+
+    servers = load_servers()
+
+    if sub in ("list", "ls"):
+        if not servers:
+            return "ℹ️ No MCP servers configured. Open Main Menu → MCP Servers to add one."
+        lines = [
+            f"🔌 **Configured MCP Servers ({len(servers)} total):**\n",
+            "| ID | Name | Transport | Status | Tools |",
+            "| :--- | :--- | :--- | :--- | :--- |",
+        ]
+        for s in servers:
+            st = server_status(s)
+            status_glyph = "🟢 Connected" if st["status"] == "connected" else ("🟡 Connecting" if st["status"] == "connecting" else "🔴 Offline")
+            tools_cnt = len(st["tools"])
+            kind = s.get("kind", "stdio")
+            name = s.get("name") or s.get("id")
+            lines.append(f"| `{s.get('id')}` | {name} | {kind} | {status_glyph} | {tools_cnt} tools |")
+        return "\n".join(lines)
+
+    if sub == "tools":
+        if not rest:
+            return "Usage: `/mcp tools <server_id_or_name>`"
+        target = None
+        for s in servers:
+            if s.get("id") == rest or s.get("name", "").lower() == rest.lower():
+                target = s
+                break
+        if not target:
+            return f"❌ Server `{rest}` not found."
+        st = server_status(target)
+        tools = st.get("tools") or []
+        if not tools:
+            return f"ℹ️ No tools exposed by server `{rest}` (server may be offline)."
+        lines = [f"🔌 **Tools exposed by `{target.get('name')}`:**\n"]
+        for t in tools:
+            lines.append(f"- **`{t.get('name')}`**: {t.get('description', 'No description')}")
+        return "\n".join(lines)
+
+    if sub == "connect":
+        if not rest:
+            return "Usage: `/mcp connect <server_id_or_name>`"
+        target = None
+        for s in servers:
+            if s.get("id") == rest or s.get("name", "").lower() == rest.lower():
+                target = s
+                break
+        if not target:
+            return f"❌ Server `{rest}` not found."
+        ok, msg = connect_server(target)
+        if ok:
+            return f"✅ **Connected to MCP Server:** `{target.get('name')}`"
+        else:
+            return f"❌ Connection failed: {msg}"
+
+    if sub == "disconnect":
+        if not rest:
+            return "Usage: `/mcp disconnect <server_id_or_name>`"
+        target = None
+        for s in servers:
+            if s.get("id") == rest or s.get("name", "").lower() == rest.lower():
+                target = s
+                break
+        if not target:
+            return f"❌ Server `{rest}` not found."
+        disconnect_server(target.get("id"))
+        return f"🔌 Disconnected from `{target.get('name')}`."
+
+    if sub == "test":
+        if not rest:
+            return "Usage: `/mcp test <server_id>`"
+        target = None
+        for s in servers:
+            if s.get("id") == rest or s.get("name", "").lower() == rest.lower():
+                target = s
+                break
+        if not target:
+            return f"❌ Server `{rest}` not found."
+        ok, msg = connect_server(target)
+        st = server_status(target)
+        lat = st.get("latency_ms")
+        lat_txt = f"{lat}ms" if lat is not None else "N/A"
+        if ok:
+            return f"✅ **MCP Server Test Passed:** `{target.get('name')}` (latency: {lat_txt})"
+        else:
+            return f"❌ Connection test failed: {msg}"
+
+    return f"Unknown mcp subcommand `{sub}`. Type `/mcp help` for available options."

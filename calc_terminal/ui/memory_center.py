@@ -83,7 +83,7 @@ if TEXTUAL_AVAILABLE:
         }
 
         #cct-mem-controls {
-            height: 3; padding: 1 2; gap: 1;
+            height: 3; padding: 1 2; 
             border-bottom: solid $border;
         }
         #cct-mem-controls Label { color: $text-faint; width: auto; height: 1; padding-top: 1; }
@@ -95,7 +95,7 @@ if TEXTUAL_AVAILABLE:
         #cct-mem-table > DataTable { height: 1fr; }
 
         .cct-mem-actions {
-            height: 3; padding: 0 2; gap: 1;
+            height: 3; padding: 0 2; 
             border-top: solid $border;
             align-horizontal: right;
         }
@@ -107,7 +107,7 @@ if TEXTUAL_AVAILABLE:
         }
 
         .cct-mem-edit-row {
-            height: 3; padding: 0 2; gap: 1;
+            height: 3; padding: 0 2; 
             border-top: solid $border;
         }
         .cct-mem-edit-row Input { width: 1fr; }

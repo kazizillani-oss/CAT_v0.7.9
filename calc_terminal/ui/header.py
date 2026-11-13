@@ -93,6 +93,7 @@ _NAV_ITEMS_BASE = (
     ("open_folder", "\U0001f4c1", "Open Folder"),
     ("recent_workspaces", "\U0001f553", "Recent Workspaces"),
     ("chats", "\U0001f4ac", "Chats"),
+    ("ai_agents", "🐱", "Kitties (AI Agents)"),
     ("sep1", "", ""),
     ("mcp_servers", "\U0001f50c", "MCP Servers"),
     ("backup_providers", "\U0001f4e1", "Backup Providers"),
@@ -295,7 +296,14 @@ if TEXTUAL_AVAILABLE:
             text_color = theme_css.current_hex("text")
             self.update(f"[{text_color}]{self._icon}  {self._label}[/]")
 
+        def on_mouse_down(self, event):
+            self.add_class("-active")
+
+        def on_mouse_up(self, event):
+            self.remove_class("-active")
+
         def on_click(self, event):
+            self.remove_class("-active")
             # v0.7.6 Patch 1: only act while the panel is still the
             # active screen (see _PermMenuRow.on_click for the
             # re-delivered-click explanation).
@@ -324,83 +332,102 @@ if TEXTUAL_AVAILABLE:
         # Destinations that keep the menu open instead of dismissing.
         _KEEP_OPEN = {"open_folder", "recent_workspaces"}
 
-        CSS = """
-        NavPanel { align: left top; background: $app-background 0%; }
-        NavPanel.is-portrait { align: center top; background: $app-background 60%; }
+        DEFAULT_CSS = """
+        NavPanel { align: left top; background: transparent; }
+        NavPanel.is-portrait { align: center top; background: rgba(0, 0, 0, 0.65); }
         #cct-navmenu-box {
             margin-top: 3; margin-left: 1;
-            width: 42; height: auto;
+            width: 44; height: auto;
             max-height: 88%;
-            background: $surface;
-            border-top: tall $surface-highlight;
-            border-left: tall $surface-highlight;
-            border-bottom: tall $surface-dark;
-            border-right: tall $surface-dark;
+            background: #141624;
+            border: tall;
+            border-top: tall #8b92b2;
+            border-left: tall #6e7594;
+            border-bottom: tall #585b70;
+            border-right: tall #45475a;
             padding: 1 0;
             opacity: 1; offset-y: 0;
             overflow-y: auto;
             scrollbar-gutter: stable;
             scrollbar-size: 1 1;
-            scrollbar-color: $border $surface;
+            scrollbar-color: #fab387 #181926;
+            scrollbar-color-hover: #f9e2af #24283b;
         }
         NavPanel.is-portrait #cct-navmenu-box,
         #cct-navmenu-box.is-portrait {
             margin-top: 2; margin-left: 0; margin-right: 0;
             width: 92%; max-width: 46;
-            border: heavy $border;
+            border: tall;
+            border-top: tall #8b92b2;
+            border-left: tall #6e7594;
+            border-bottom: tall #585b70;
+            border-right: tall #45475a;
         }
         .cct-navmenu-header {
-            height: 2; background: $surface-alt; color: $accent;
+            height: 3; background: #1c1e2d; color: #fab387;
             text-style: bold; padding: 0 2; content-align: left middle;
-            border-bottom: solid $border;
+            border-top: tall #fab387;
+            border-left: tall #fab387;
+            border-bottom: tall #585b70;
+            border-right: tall #45475a;
+            margin: 0 1 1 1;
         }
         #cct-navmenu-box.open { opacity: 1; offset-y: 0; }
         .cct-navmenu-row {
-            height: 1; padding: 0 2;
-            background: $surface;
+            height: 1; padding: 0 2; margin: 0 1;
+            background: transparent;
             color: $text;
-            border-left: thick $surface;
-            border-right: thick $surface;
+            border: none;
+            transition: background 60ms, color 60ms;
         }
         .cct-navmenu-row:hover {
-            background: $surface-alt;
-            color: $text;
-            border-left: thick $accent;
-            border-right: thick $surface-alt;
-            text-style: none;
+            background: #25283c;
+            color: #ffffff;
+            border: none;
+            border-left: tall #89b4fa;
+            border-right: tall #585b70;
         }
         .cct-navmenu-row-selected {
-            background: $surface-highlight;
-            color: $text;
-            border-left: thick $accent;
-            border-right: thick $surface-highlight;
-            text-style: none;
+            background: #2f3552;
+            color: #fab387;
+            border: none;
+            border-left: tall #fab387;
+            border-right: tall #6e7594;
+            text-style: bold;
+        }
+        .cct-navmenu-row.-active {
+            background: #161826;
+            border: none;
+            border-left: tall #3b4261;
+            border-right: tall #fab387;
+            color: #fab387;
         }
         .cct-navmenu-sep {
-            height: 1; background: $surface; color: $border; padding: 0 2;
-            border-left: thick $surface; border-right: thick $surface;
+            height: 1; background: transparent; color: #3b4261; padding: 0 1; margin: 0 1;
+            border: none;
         }
         .cct-navmenu-section {
-            height: 1; color: $accent; text-style: bold; padding: 0 2;
-            background: $surface-alt;
-            border-bottom: solid $border;
-            border-left: thick $surface-alt; border-right: thick $surface-alt;
+            height: 1; color: #fab387; text-style: bold; padding: 0 2; margin: 1 1 0 1;
+            background: #1c1e2d;
+            border: none;
+            border-bottom: tall #3b4261;
         }
         .cct-navmenu-placeholder {
-            height: 1; background: $surface; color: $text-muted; padding: 0 2; text-style: italic;
-            border-left: thick $surface; border-right: thick $surface;
+            height: 1; background: transparent; color: #a6adc8; padding: 0 2; margin: 0 1; text-style: italic;
+            border: none;
         }
         .cct-navmenu-hint {
-            height: 1; background: $surface; color: $text-faint; padding: 0 2;
-            border-left: thick $surface; border-right: thick $surface;
+            height: 1; background: transparent; color: #6c7086; padding: 0 2; margin: 0 1;
+            border: none;
         }
         .cct-touch-mode .cct-navmenu-row { min-height: 2; height: 2; content-align: left middle; }
         .cct-touch-mode .cct-navmenu-row:hover,
         .cct-touch-mode .cct-navmenu-row:focus {
             background: $surface-alt; color: $text;
-            border-left: thick $accent; border-right: thick $surface-alt;
+            border-left: tall $accent; border-right: tall $surface-alt;
         }
         """
+        CSS = DEFAULT_CSS
 
         def __init__(self):
             super().__init__()
@@ -636,7 +663,14 @@ if TEXTUAL_AVAILABLE:
             check = " \u2713" if self.mode == perm.manager.mode else ""
             self.update(f"[{color} b]{icon} {plain_label}{check}[/]\n  [{faint}]{desc}[/]")
 
+        def on_mouse_down(self, event):
+            self.add_class("-active")
+
+        def on_mouse_up(self, event):
+            self.remove_class("-active")
+
         def on_click(self, event):
+            self.remove_class("-active")
             # v0.7.6 Patch 1: guard against a click being delivered to
             # this menu after it was already dismissed (the same click
             # that closed it can be re-delivered to the popped screen —
@@ -671,50 +705,80 @@ if TEXTUAL_AVAILABLE:
         CSS = """
         PermissionModeMenu {
             align: left top;
-            background: $app-background 60%;
+            background: rgba(0, 0, 0, 0.65);
         }
         #cct-permmenu-box {
             width: auto;
             max-width: 48;
             height: auto;
-            background: $surface;
-            border: round $accent;
+            background: #13141f;
+            border: tall;
+            border-top: tall #8b92b2;
+            border-left: tall #6e7594;
+            border-bottom: tall #585b70;
+            border-right: tall #45475a;
             padding: 1 1;
             opacity: 1; offset-y: 0;
         }
         #cct-permmenu-box.open { opacity: 1; offset-y: 0; }
         .cct-permmenu-title {
-            color: $accent;
+            color: #fab387;
             text-style: bold;
-            padding: 0 1 1 1;
-            border-bottom: solid $border;
+            padding: 0 1;
+            height: 3;
+            content-align: left middle;
+            background: #1c1e2d;
+            border-top: tall #fab387;
+            border-left: tall #fab387;
+            border-bottom: tall #585b70;
+            border-right: tall #45475a;
             margin-bottom: 1;
         }
         .cct-permmenu-row {
-            height: 3;
+            height: 4;
             padding: 0 1;
-            background: $surface;
-            border-left: thick $surface;
-            border-right: thick $surface;
+            margin: 0 0 1 0;
+            background: #25283c;
+            border-top: tall #cdd6f4;
+            border-left: tall #89b4fa;
+            border-bottom: tall #585b70;
+            border-right: tall #45475a;
+            transition: background 60ms, border 60ms;
         }
         .cct-permmenu-row:hover {
-            background: $surface-alt;
-            color: $accent;
-            border-left: thick $accent;
-            border-right: thick $surface-alt;
+            background: #383d5c;
+            border-top: tall #ffffff;
+            border-left: tall #f9e2af;
+            border-bottom: tall #6e7594;
+            border-right: tall #585b70;
+            color: #ffffff;
         }
         .cct-permmenu-row-selected {
-            background: $surface-highlight;
-            border-left: thick $accent;
-            border-right: thick $surface-highlight;
+            background: #31354e;
+            border-top: tall #f9e2af;
+            border-left: tall #fab387;
+            border-bottom: tall #6e7594;
+            border-right: tall #585b70;
+            color: #ffffff;
             text-style: bold;
         }
         .cct-permmenu-row-focused {
-            background: $surface-alt;
-            border-left: thick $accent;
-            border-right: thick $surface-alt;
+            background: #383d5c;
+            border-top: tall #ffffff;
+            border-left: tall #fab387;
+            border-bottom: tall #6e7594;
+            border-right: tall #585b70;
+            color: #ffffff;
+        }
+        .cct-permmenu-row.-active {
+            border-top: tall #1c1e2e;
+            border-left: tall #1c1e2e;
+            border-bottom: tall #cdd6f4;
+            border-right: tall #89b4fa;
+            background: #161724;
         }
         """
+        DEFAULT_CSS = CSS
 
         _BOX_WIDTH = 48
         # Fallback estimate for the box's height before Textual has had
@@ -855,7 +919,8 @@ if TEXTUAL_AVAILABLE:
             # otherwise the new menu screen can receive the same click
             # as a backdrop hit and instantly close itself.
             event.stop()
-            if self._open:
+            if self._open and isinstance(self.app.screen, PermissionModeMenu):
+                self.app.screen.dismiss(None)
                 return
             self._open = True
             self.add_class("cct-perm-pill-active")
@@ -943,6 +1008,14 @@ if TEXTUAL_AVAILABLE:
 
         def _show_workspace_info(self):
             try:
+                # In portrait mode: clicking header workspace button toggles Explorer in full screen
+                is_portrait = self.has_class("is-portrait") or (hasattr(self.app, "has_class") and self.app.has_class("is-portrait"))
+                if is_portrait:
+                    try:
+                        self.app.action_toggle_sidebar()
+                        return
+                    except Exception:
+                        pass
                 if not self._workspace_path or self._workspace_path == "No workspace open":
                     self.post_message(NavAction("open_folder"))
                     return
@@ -996,9 +1069,7 @@ if TEXTUAL_AVAILABLE:
                 with Horizontal(id="cct-header-left"):
                     yield MenuButton()
                     yield Logo()
-                yield Static("", id="cct-header-spacer-left")
                 yield PermissionPill()
-                yield Static("", id="cct-header-spacer-right")
                 with Horizontal(id="cct-header-right-box"):
                     yield Button(_safe_glyph("📁", "Exp"), id="cct-header-explorer-btn", classes="cct-header-explorer-btn", tooltip="Toggle Explorer (Ctrl+B)")
                     yield _Clickable("", widget_id="cct-header-right", on_click=self._show_workspace_info)
@@ -1030,10 +1101,7 @@ if TEXTUAL_AVAILABLE:
                 from .. import customization as _cust
                 if not _cust.is_active():
                     self.display = True
-                    if not self.has_class("is-portrait"):
-                        self.styles.height = 4
-                    else:
-                        self.styles.height = 2
+                    self.styles.height = 4
                     try:
                         logo = self.query_one(Logo)
                         if logo:
@@ -1150,7 +1218,7 @@ if TEXTUAL_AVAILABLE:
             self.set_class(is_portrait, "is-portrait")
 
             if is_portrait:
-                self.styles.height = 2
+                self.styles.height = 4
                 compact = True
                 ultra_compact = (w < 45)
             else:
@@ -1165,21 +1233,18 @@ if TEXTUAL_AVAILABLE:
             try:
                 exp_btn = self.query_one("#cct-header-explorer-btn", Button)
                 w_right = self.query_one("#cct-header-right", Static)
-                if is_portrait:
-                    exp_btn.display = True
+                # In portrait mode: do not show separate explorer button, keep header workspace button visible
+                exp_btn.display = False
+                if ultra_compact:
                     w_right.display = False
                 else:
-                    exp_btn.display = False
-                    if ultra_compact:
-                        w_right.display = False
-                    else:
-                        w_right.display = True
-                    # Re-truncate for new width
-                    raw_name = os.path.basename(str(self._workspace_path).rstrip("\\/")) if self._workspace_path and self._workspace_path != "No workspace open" else "No workspace"
-                    max_len = 10 if w < 75 else (16 if w < 105 else 26)
-                    short_name = (raw_name[:max_len - 1] + "…") if len(raw_name) > max_len else raw_name
-                    accent = theme_css.current_hex("accent")
-                    w_right.update(f"[{accent}]\U0001f4c1[/] [b]{short_name}[/b]")
+                    w_right.display = True
+                # Re-truncate for new width
+                raw_name = os.path.basename(str(self._workspace_path).rstrip("\\/")) if self._workspace_path and self._workspace_path != "No workspace open" else "No workspace"
+                max_len = 10 if w < 75 else (16 if w < 105 else 26)
+                short_name = (raw_name[:max_len - 1] + "…") if len(raw_name) > max_len else raw_name
+                accent = theme_css.current_hex("accent")
+                w_right.update(f"[{accent}]\U0001f4c1[/] [b]{short_name}[/b]")
             except Exception:
                 pass
             try:

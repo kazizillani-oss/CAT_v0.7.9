@@ -14,7 +14,7 @@
 
 <!-- Tier 1 · Project health -->
 [![PyPI](https://img.shields.io/pypi/v/cct-cli.svg?style=flat-square&color=blue&label=PyPI%20cct-cli)](https://pypi.org/project/cct-cli/0.8.0b1/)
-[![Version](https://img.shields.io/badge/version-0.8.0b1-blue.svg?style=flat-square)](https://github.com/kazizillani-oss/CAT_v0.7.9)
+[![Version](https://img.shields.io/badge/version-0.9.000-blue.svg?style=flat-square)](https://github.com/kazizillani-oss/CAT_v0.7.9)
 [![VS Code Extension](https://img.shields.io/badge/VS%20Code%20Extension-v0.8.6-blue.svg?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=KaziZillani.cat-cli)
 [![CI](https://img.shields.io/github/actions/workflow/status/kazizillani-oss/CAT_v0.7.9/ci.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white&label=CI)](https://github.com/kazizillani-oss/CAT_v0.7.9/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)

@@ -1,0 +1,121 @@
+/* LEFT: 3D raised menu button + logo */
+.cct-menu-btn {
+    width: 5; min-width: 5; height: 3; color: $text; content-align: center middle;
+    background: $surface;
+    border-top: solid #7a7f9a;
+    border-left: solid #6c7086;
+    border-bottom: solid #11111b;
+    border-right: solid #181825;
+    margin-right: 1;
+    transition: color 120ms, border 120ms, background 120ms;
+}
+.cct-menu-btn:hover {
+    color: $accent;
+    background: $surface-alt;
+    border-top: solid #ffffff;
+    border-left: solid $accent-highlight;
+    border-bottom: solid #11111b;
+    border-right: solid #181825;
+}
+.cct-menu-btn.-active, .cct-menu-btn-active, .cct-menu-btn:focus {
+    color: $accent;
+    background: $surface-dark;
+    border-top: solid #11111b;
+    border-left: solid #181825;
+    border-bottom: solid #7a7f9a;
+    border-right: solid #6c7086;
+    text-style: none;
+}
+.cct-logo { width: auto; padding: 0 1; content-align: left middle; height: 3; text-style: bold; }
+
+/* CENTER: 3D raised Permission pill - dead centered */
+.cct-perm-pill {
+    width: auto; content-align: center middle; height: 3;
+    padding: 0 2; margin: 0;
+    background: $surface;
+    border-top: solid #7a7f9a;
+    border-left: solid #6c7086;
+    border-bottom: solid #11111b;
+    border-right: solid #181825;
+    text-style: bold;
+    color: $text;
+    transition: border 120ms, color 120ms, background 120ms;
+}
+.cct-perm-pill:hover {
+    background: $surface-alt;
+    border-top: solid #ffffff;
+    border-left: solid $accent-highlight;
+    border-bottom: solid #11111b;
+    border-right: solid #181825;
+    color: #ffffff;
+}
+.cct-perm-pill.-active, .cct-perm-pill:focus, .cct-perm-pill-active {
+    background: $surface-dark;
+    border-top: solid #11111b;
+    border-left: solid #181825;
+    border-bottom: solid #7a7f9a;
+    border-right: solid #6c7086;
+    color: $accent;
+}
+
+.cct-chat-title-pill {
+    width: auto; max-width: 30; content-align: center middle; height: 3;
+    padding: 0 2; margin: 0 1 0 1;
+    background: $surface;
+    border-top: solid #7a7f9a;
+    border-left: solid #6c7086;
+    border-bottom: solid #11111b;
+    border-right: solid #181825;
+    color: $text;
+    text-style: bold;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: border 120ms, color 120ms, background 120ms;
+}
+.cct-chat-title-pill:hover {
+    background: $surface-alt;
+    border-top: solid #ffffff;
+    border-left: solid $accent-highlight;
+    border-bottom: solid #11111b;
+    border-right: solid #181825;
+    color: #ffffff;
+}
+.cct-chat-title-pill:focus, .cct-chat-title-pill.-active {
+    background: $surface-dark;
+    border-top: solid #11111b;
+    border-left: solid #181825;
+    border-bottom: solid #7a7f9a;
+    border-right: solid #6c7086;
+}
+
+/* RIGHT: 3D raised workspace path chip — cleanly aligned with permission pill */
+#cct-header-right {
+    width: auto; max-width: 32; content-align: center middle;
+    padding: 0 2; height: 3;
+    background: $surface;
+    border-top: solid #7a7f9a;
+    border-left: solid #6c7086;
+    border-bottom: solid #11111b;
+    border-right: solid #181825;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-style: bold;
+    color: $text;
+    transition: background 120ms, border 120ms, color 120ms;
+}
+#cct-header-right:hover {
+    background: $surface-alt;
+    border-top: solid #ffffff;
+    border-left: solid $accent-highlight;
+    border-bottom: solid #11111b;
+    border-right: solid #181825;
+    color: #ffffff;
+}
+#cct-header-right:focus, #cct-header-right.-active {
+    background: $surface-dark;
+    border-top: solid #11111b;
+    border-left: solid #181825;
+    border-bottom: solid #7a7f9a;
+    border-right: solid #6c7086;
+}
+

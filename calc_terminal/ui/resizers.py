@@ -27,6 +27,7 @@ if __name__ == "__main__":
 
 import json
 import os
+import time
 
 TEXTUAL_AVAILABLE = True
 try:
@@ -38,14 +39,14 @@ except Exception:
 LAYOUT_PATH = os.path.join(os.path.expanduser("~"), ".cct_ui_layout.json")
 
 # ---- Explorer width bounds ------------------------------------------------
-EXPLORER_MIN_WIDTH = 20      # legible filenames without immediate clipping
-EXPLORER_MAX_FRACTION = 0.30 # never wider than ~30% of the shell (preserves main dashboard)
-EXPLORER_MAX_WIDTH = 34      # absolute ceiling on wide desktop monitors
+EXPLORER_MIN_WIDTH = 14      # allow compact exploration without clipping
+EXPLORER_MAX_FRACTION = 0.60 # allow stretching up to 60% of the shell
+EXPLORER_MAX_WIDTH = 80      # expanded ceiling for wide inspection
 EXPLORER_DEFAULT_WIDTH = 26
 
 # ---- Composer height bounds ----------------------------------------------
-COMPOSER_MIN_HEIGHT = 4      # compact chatbox: 1-line input + footer stay usable
-COMPOSER_MAX_FRACTION = 0.35 # compact bounds — chat history keeps majority of shell
+COMPOSER_MIN_HEIGHT = 6      # compact chatbox: chassis (2) + prompt deck (2) + divider (1) + footer (1) stay visible
+COMPOSER_MAX_FRACTION = 0.65 # allow expanding up to 65% of main column while keeping chat history visible
 COMPOSER_MARGIN_ROWS = 2     # composer's vertical margin rows (1 top + 1 bottom)
 # v0.7.9.15 fix: the persisted dragged height was rejected above 14 rows
 # and the drag handle capped at 8 — resizing the composer "did nothing"
@@ -167,6 +168,25 @@ if TEXTUAL_AVAILABLE:
         def __init__(self, shell, **kwargs):
             super().__init__(id="cct-explorer-resizer", **kwargs)
             self._shell = shell
+            self._last_click = 0.0
+
+        def reset_to_default(self):
+            """Reset explorer to default width."""
+            try:
+                self._shell.explorer.set_width(EXPLORER_DEFAULT_WIDTH)
+                self._shell.sync_resizer()
+                self._persist()
+                if not self._shell._fullscreen:
+                    self._shell._relayout()
+            except Exception:
+                pass
+
+        def on_click(self, event):
+            now = time.time()
+            if now - self._last_click < 0.35:
+                event.stop()
+                self.reset_to_default()
+            self._last_click = now
 
         def _clamp(self, width):
             total = max(10, self._shell.size.width) if self._shell.is_attached \
@@ -274,14 +294,9 @@ if TEXTUAL_AVAILABLE:
                 available = max(20, main.region.height)
             except Exception:
                 available = 20
-            # v0.7.9.15 fix (composer resize dead-ended too early): the
-            # old hard cap of 8 rows made dragging feel broken — on a
-            # real desktop-sized column the grip stopped moving after
-            # three rows. Scale the ceiling with the ACTUAL column
-            # height instead: the composer may now take just over half
-            # of it, while the chat column above always keeps ≥ 12 rows
-            # so a small chat/dashboard area always remains visible.
-            ceiling = max(COMPOSER_MIN_HEIGHT + 2, min(available - 10, int(available * 0.35)))
+            # Allow composer to take up to 65% of available space or available - 8 rows,
+            # keeping at least 8 rows for the conversation history above.
+            ceiling = max(COMPOSER_MIN_HEIGHT + 3, min(available - 8, int(available * COMPOSER_MAX_FRACTION)))
             return COMPOSER_MIN_HEIGHT, max(COMPOSER_MIN_HEIGHT, ceiling)
 
         def _apply(self, event):
@@ -304,7 +319,7 @@ if TEXTUAL_AVAILABLE:
             # the composer's bottom margin. Height grows as the handle
             # is dragged up, shrinks as it is dragged down.
             target = int(main_bottom - COMPOSER_MARGIN_ROWS - event.screen_y)
-            if target <= lo + 1:
+            if target <= lo:
                 composer.set_explicit_height(None)
             else:
                 target = max(lo, min(hi, target))

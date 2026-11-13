@@ -536,19 +536,6 @@ class CatRuntime:
                 out += f"  {e.get('name', e.get('id')):<30} {status}\n"
             return {"command": base, "output": out}
 
-        if base in ("/atomsim", "/atom", "atomsim"):
-            from calc_terminal.agent import _tool_simulate_atom_2d
-            return {"command": base, "output": _tool_simulate_atom_2d({"element": arg or "H"})}
-
-        if base in ("/orbitals", "orbitals"):
-            from calc_terminal.agent import _tool_simulate_orbital
-            return {"command": base, "output": _tool_simulate_orbital({"n": 2, "l": 1, "m": 0})}
-
-        if base in ("/graph", "graph"):
-            from calc_terminal.agent import _tool_plot_preset
-            preset_name = arg or "first_order_kinetics"
-            return {"command": base, "output": _tool_plot_preset({"preset": preset_name})}
-
         if base in ("/model", "model"):
             cfg = aicore.load_config()
             if arg:
@@ -614,10 +601,6 @@ class CatRuntime:
         if base in ("/bloch", "bloch"):
             from calc_terminal.agent import _tool_simulate_bloch
             return {"command": base, "output": _tool_simulate_bloch({"state": arg or "|+>"})}
-
-        if base in ("/bonding", "bonding"):
-            from calc_terminal.agent import _tool_simulate_bonding
-            return {"command": base, "output": _tool_simulate_bonding({"molecule": arg or "H2O"})}
 
         if base in ("/todos", "/todo", "todos", "todo"):
             from calc_terminal import todos as _todos

@@ -76,44 +76,62 @@ if TEXTUAL_AVAILABLE:
             max-width: 94;
             max-height: 100%;
             min-width: 38;
-            background: $surface;
-            border-top: tall $surface-highlight;
-            border-bottom: tall $surface-dark;
-            border-left: tall $surface-highlight;
-            border-right: tall $surface-dark;
+            background: #13141f;
+            border: heavy;
+            border-top: heavy #cdd6f4;
+            border-left: heavy #89b4fa;
+            border-bottom: heavy #585b70;
+            border-right: heavy #45475a;
             padding: 0;
             layout: vertical;
         }
         #chats-titlebar {
-            height: 3;
-            min-height: 3;
-            max-height: 3;
+            height: 4;
+            min-height: 4;
+            max-height: 4;
             padding: 0 1 0 2;
-            border-bottom: solid $border;
+            border-top: tall #fab387;
+            border-left: tall #e0af68;
+            border-bottom: tall #45475a;
+            border-right: tall #3b4261;
             layout: horizontal;
             align-vertical: middle;
+            background: #1c1e2d;
+            color: #fab387;
         }
         #chats-title { text-style: bold; width: 1fr; align-vertical: middle; }
         #chats-close, .chats-close-btn {
             width: 5;
             min-width: 5;
             max-width: 5;
-            height: 1;
-            min-height: 1;
-            max-height: 1;
+            height: 3;
+            min-height: 3;
+            max-height: 3;
             padding: 0;
             margin: 0;
-            background: $surface-alt;
-            color: $accent;
-            border: none;
+            background: #3e1f27;
+            color: #ff99a8;
+            border-top: tall #eba0ac;
+            border-left: tall #f38ba8;
+            border-bottom: tall #4d1822;
+            border-right: tall #5c1e2a;
             content-align: center middle;
             text-style: bold;
-            transition: background 100ms, color 100ms;
         }
         #chats-close:hover, .chats-close-btn:hover {
-            background: $error;
+            background: #522734;
+            border-top: tall #ffffff;
+            border-left: tall #ffa0a0;
+            border-bottom: tall #5c1e2a;
+            border-right: tall #4d1822;
             color: #ffffff;
-            text-style: bold;
+        }
+        #chats-close:focus, #chats-close.-active {
+            border-top: tall #1c1e2e;
+            border-left: tall #1c1e2e;
+            border-bottom: tall #eba0ac;
+            border-right: tall #f38ba8;
+            background: #2e141a;
         }
         #chats-workspace-bar {
             height: auto;
@@ -155,13 +173,13 @@ if TEXTUAL_AVAILABLE:
         #chats-search {
             width: 1fr;
             min-height: 3;
-            background: $surface-dark;
-            border: heavy $surface-dark;
+            background: #0e0f17;
+            border: solid #090a10 #3b4261 #3b4261 #090a10;
             color: $text;
         }
         #chats-search:focus {
-            border: heavy $accent;
-            background: $surface-dark;
+            border: solid #090a10 #89b4fa #89b4fa #090a10;
+            background: #0e0f17;
         }
         #chats-scope {
             min-width: 14;
@@ -193,14 +211,11 @@ if TEXTUAL_AVAILABLE:
             margin-top: 0;
             margin-bottom: 0;
             offset: 0 0;
-            offset-x: 0;
-            offset-y: 0;
-            border: heavy;
-            border-top: heavy $surface-highlight;
-            border-left: heavy $surface-highlight;
-            border-bottom: heavy $surface-dark;
-            border-right: heavy $surface-dark;
-            background: $surface-alt;
+            border-top: tall #cdd6f4;
+            border-left: tall #89b4fa;
+            border-bottom: tall #3b4261;
+            border-right: tall #31354e;
+            background: #25283c;
             color: $text;
             text-style: bold;
             padding: 0 1;
@@ -209,28 +224,22 @@ if TEXTUAL_AVAILABLE:
             margin-right: 0;
         }
         .chats-filter-btn:hover {
-            background: $surface-highlight;
-            border-top: heavy #ffffff 60%;
-            border-left: heavy #ffffff 60%;
-            offset: 0 0;
-            offset-y: 0;
+            background: #383d5c;
+            border-top: tall #ffffff;
+            border-left: tall #f9e2af;
+            border-bottom: tall #45475a;
+            border-right: tall #3b4261;
         }
         .chats-filter-btn.-active,
         .chats-filter-btn.-active:focus,
         .chats-filter-btn.-active:hover {
-            background: $accent 35%;
-            color: #ffffff;
-            border: heavy;
-            border-top: heavy #ffffff 70%;
-            border-left: heavy #ffffff 70%;
-            border-bottom: heavy $surface-dark;
-            border-right: heavy $surface-dark;
+            background: #161724;
+            color: #fab387;
+            border-top: tall #1c1e2e;
+            border-left: tall #1c1e2e;
+            border-bottom: tall #cdd6f4;
+            border-right: tall #89b4fa;
             text-style: bold;
-            offset: 0 0;
-            offset-x: 0;
-            offset-y: 0;
-            margin-top: 0;
-            margin-bottom: 0;
         }
         #chats-list {
             height: 1fr;
@@ -251,11 +260,13 @@ if TEXTUAL_AVAILABLE:
             min-height: 3;
             padding: 0 1;
             margin-top: 1;
-            border-top: solid $border 40%;
-            border-left: thick $accent 50%;
-            background: $surface-alt 30%;
+            border-top: tall #cdd6f4;
+            border-left: thick #fab387;
+            border-bottom: tall #3b4261;
+            border-right: tall #31354e;
+            background: #1e2030;
         }
-        .chats-ws-header:hover { background: $surface-highlight 40%; }
+        .chats-ws-header:hover { background: #282a3e; border-top: tall #ffffff; }
         .chats-ws-header.-collapsed { opacity: 0.85; }
         .chats-date-label {
             color: $text-faint;
@@ -266,18 +277,36 @@ if TEXTUAL_AVAILABLE:
         .chats-row {
             height: auto;
             min-height: 3;
-            border-left: thick transparent;
+            background: #1f2235;
+            border-top: tall #cdd6f4;
+            border-left: tall #89b4fa;
+            border-bottom: tall #585b70;
+            border-right: tall #45475a;
             padding: 0 1 0 2;
-            margin: 0 0 0 2;
-            transition: background 100ms, color 100ms, border 100ms;
+            margin: 0 1 1 0;
+            transition: background 60ms, color 60ms, border 60ms;
         }
         .chats-row:hover {
-            background: $surface-highlight 40%;
+            background: #2f3552;
+            border-top: tall #ffffff;
+            border-left: tall #f9e2af;
+            border-bottom: tall #6e7594;
+            border-right: tall #585b70;
         }
         .chats-row-sel {
-            background: $surface-alt;
-            border-left: thick $accent;
+            background: #363c5c;
+            border-top: tall #fab387;
+            border-left: tall #fab387;
+            border-bottom: tall #6e7594;
+            border-right: tall #585b70;
             text-style: bold;
+        }
+        .chats-row.-active {
+            border-top: tall #1c1e2e;
+            border-left: tall #1c1e2e;
+            border-bottom: tall #cdd6f4;
+            border-right: tall #89b4fa;
+            background: #161724;
         }
         .chats-row-pin { color: $warning; }
         #chats-empty {
@@ -290,7 +319,7 @@ if TEXTUAL_AVAILABLE:
             height: auto;
             min-height: 7;
             padding: 1 1 0 1;
-            border-top: solid $border;
+            border-top: tall #585b70;
         }
         #chats-btns-row1, #chats-btns-row2 {
             height: 3;
@@ -305,12 +334,11 @@ if TEXTUAL_AVAILABLE:
             min-width: 8;
             height: 3;
             min-height: 3;
-            border: heavy;
-            border-top: heavy $surface-highlight;
-            border-left: heavy $surface-highlight;
-            border-bottom: heavy $surface-dark;
-            border-right: heavy $surface-dark;
-            background: $surface-alt;
+            border-top: tall #cdd6f4;
+            border-left: tall #89b4fa;
+            border-bottom: tall #585b70;
+            border-right: tall #45475a;
+            background: #26293f;
             color: $text;
             text-style: bold;
             padding: 0 1;
@@ -319,33 +347,47 @@ if TEXTUAL_AVAILABLE:
             margin-right: 0;
         }
         #chats-btns Button:hover {
-            background: $surface-highlight;
-            border-top: heavy #ffffff 60%;
-            border-left: heavy #ffffff 60%;
+            background: #383e60;
+            border-top: tall #ffffff;
+            border-left: tall #f9e2af;
+            border-bottom: tall #6e7594;
+            border-right: tall #585b70;
+        }
+        #chats-btns Button.-active, #chats-btns Button:focus {
+            border-top: tall #1c1e2e;
+            border-left: tall #1c1e2e;
+            border-bottom: tall #cdd6f4;
+            border-right: tall #89b4fa;
+            background: #161724;
         }
         #chats-btns Button.cct-btn-primary {
-            background: $accent 35%;
+            background: #182c1e;
             color: #ffffff;
-            border: heavy;
-            border-top: heavy #ffffff 70%;
-            border-left: heavy #ffffff 70%;
-            border-bottom: heavy $surface-dark;
-            border-right: heavy $surface-dark;
+            border-top: tall #b9f27c;
+            border-left: tall #a6e3a1;
+            border-bottom: tall #45784f;
+            border-right: tall #45784f;
         }
         #chats-btns Button.cct-btn-primary:hover {
-            background: $accent 45%;
+            background: #26422d;
+            border-top: tall #ffffff;
+            border-left: tall #d4ff9c;
+            border-bottom: tall #599965;
+            border-right: tall #599965;
         }
         #chats-btns Button.cct-btn-danger {
-            background: $error 25%;
-            color: #ffffff;
-            border: heavy;
-            border-top: heavy #fca5a5 60%;
-            border-left: heavy #fca5a5 60%;
-            border-bottom: heavy $surface-dark;
-            border-right: heavy $surface-dark;
+            background: #3a1820;
+            color: #ff99a8;
+            border-top: solid #eba0ac;
+            border-left: solid #f38ba8;
+            border-bottom: solid #4d1822;
+            border-right: solid #5c1e2a;
         }
         #chats-btns Button.cct-btn-danger:hover {
-            background: $error 35%;
+            background: #52222d;
+            border-top: solid #ffffff;
+            border-left: solid #ffa0a0;
+            color: #ffffff;
         }
         #chats-hint {
             color: $text-faint;

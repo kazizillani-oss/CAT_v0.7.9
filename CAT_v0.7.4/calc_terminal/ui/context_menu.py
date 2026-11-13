@@ -43,12 +43,12 @@ AI_MENU_ITEMS = [
     ("copy", "\U0001f4cb  Copy Text"),
     ("summarize", "\U0001f4dc  Summarize Full Chat"),
     ("new_session", "\u2795  New Chat Session"),
-    ("retry:build", "\U0001f501  Try Again in Build Mode"),
-    ("retry:plan", "\U0001f501  Try Again in Plan Mode"),
-    ("retry:notebook", "\U0001f501  Try Again in Notebook Mode"),
-    ("retry:agent", "\U0001f501  Try Again in Agent Mode"),
-    ("retry:research", "\U0001f501  Try Again in Research Mode"),
-    ("retry:debugger", "\U0001f501  Try Again in Debugger Mode"),
+    ("retry:build", "\U0001f501  Try Again in Aria (Build)"),
+    ("retry:plan", "\U0001f501  Try Again in Mira (Plan Mode)"),
+    ("retry:notebook", "\U0001f501  Try Again in Qala (Notebook)"),
+    ("retry:agent", "\U0001f501  Try Again in Nova (Agent)"),
+    ("retry:research", "\U0001f501  Try Again in Sage (Research)"),
+    ("retry:debugger", "\U0001f501  Try Again in Dex (Debugger)"),
 ]
 
 # spec: "User Message Context Menu"
@@ -70,7 +70,7 @@ FILE_MENU_ITEMS = [
     ("new_folder", "\U0001f4c1  New Folder"),
 ]
 
-MENU_WIDTH = 36
+MENU_WIDTH = 44
 
 
 if TEXTUAL_AVAILABLE:
@@ -109,36 +109,36 @@ if TEXTUAL_AVAILABLE:
         """
 
         CSS = """
-        MessageContextMenu { align: left top; background: $app-background 0%; }
+        MessageContextMenu { align: left top; background: rgba(0, 0, 0, 0.45); }
         #cct-ctxmenu-box {
-            width: 36; height: auto;
-            background: $surface;
-            border-top: tall $surface-highlight;
-            border-left: tall $surface-highlight;
-            border-bottom: tall $surface-dark;
-            border-right: tall $surface-dark;
+            width: 44; height: auto;
+            background: #1e1f2e;
+            border-top: tall #8b92b2;
+            border-left: tall #6e7594;
+            border-bottom: tall #141520;
+            border-right: tall #1c1e2d;
             padding: 1 0;
             opacity: 1; offset-y: 0;
         }
         #cct-ctxmenu-box.open { opacity: 1; offset-y: 0; }
         .cct-ctxmenu-row {
-            height: 1; padding: 0 2; color: $text;
-            background: $surface;
-            border-left: thick $surface;
-            border-right: thick $surface;
+            height: 1; padding: 0 1; color: #cdd6f4;
+            background: #1e1f2e;
+            border-left: thick transparent;
+            border-right: thick transparent;
         }
         .cct-ctxmenu-row:hover {
-            background: $surface-alt;
-            color: $accent;
-            border-left: thick $accent;
-            border-right: thick $surface-alt;
+            background: #2a2d42;
+            color: #89b4fa;
+            border-left: thick #89b4fa;
+            border-right: thick #2a2d42;
             text-style: bold;
         }
         .cct-ctxmenu-row-selected {
-            background: $surface-highlight;
-            color: $accent;
-            border-left: thick $accent;
-            border-right: thick $surface-highlight;
+            background: #343852;
+            color: #fab387;
+            border-left: thick #fab387;
+            border-right: thick #343852;
             text-style: bold;
         }
         """

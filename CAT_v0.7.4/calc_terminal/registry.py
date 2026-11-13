@@ -50,14 +50,10 @@ CATEGORY_MAP = {
     "/permissions": "general", "/browser": "general", "/browse": "general", "/cat": "general",
     "/mascot": "general", "/mascots": "general",
     "/calculator": "calculation", "/solve": "calculation", "/formulas": "calculation",
-    "/kinetics": "calculation", "/electrochemistry": "calculation", "/random": "calculation",
     "/derive": "calculation",
-    "/atomsim": "simulation", "/orbitals": "simulation", "/orbitalgrid": "simulation",
-    "/bonding": "simulation", "/bloch": "simulation", "/sim3d": "simulation", "/gpu3d": "simulation", "/graph": "simulation",
-    "/ai": "ai", "/agent": "ai", "/ai-verify": "ai",
+    "/bloch": "simulation", "/ai": "ai", "/agent": "ai", "/ai-verify": "ai",
     "/mode": "ai", "/notebook": "ai", "/build": "ai", "/plan": "ai",
-    "/game": "misc",
-}
+    }
 
 # hand-authored rich metadata for the commands that most need it right
 # now (the ones this session touched, plus the highest-traffic core
@@ -65,30 +61,6 @@ CATEGORY_MAP = {
 # CommandSpec via bootstrap(), just without hand-tuned icon/shortcut/
 # examples yet. That gap is intentional and tracked, not hidden.
 RICH_METADATA = {
-    "/atomsim": dict(
-        icon="\u269b", aliases=["/at"], permissions=["execute_python"],
-        ai_modes=["notebook", "agent", "build"],
-        examples=["/atomsim Fe", "/atomsim 26"],
-        autocomplete_keywords=["atom", "nucleus", "proton", "neutron", "bohr", "element"],
-    ),
-    "/orbitals": dict(
-        icon="\u2601", aliases=["/o"], permissions=["execute_python"],
-        ai_modes=["notebook", "agent", "build"],
-        examples=["/orbitals 2p", "/orbitals 3d"],
-        autocomplete_keywords=["orbital", "electron cloud", "probability density", "psi"],
-    ),
-    "/orbitalgrid": dict(
-        icon="\U0001f4ca", permissions=["execute_python"],
-        ai_modes=["notebook", "agent", "build"],
-        examples=["/orbitalgrid"],
-        autocomplete_keywords=["orbital grid", "hydrogen wave function", "reference chart"],
-    ),
-    "/bonding": dict(
-        icon="\U0001f9ea", permissions=["execute_python"],
-        ai_modes=["notebook", "agent", "build"],
-        examples=["/bonding furan", "/bonding water"],
-        autocomplete_keywords=["elf", "electron localization", "bonding", "molecule density"],
-    ),
     "/bloch": dict(
         icon="\u269b", permissions=["execute_python"],
         ai_modes=["notebook", "agent", "build"],
@@ -227,12 +199,10 @@ RICH_METADATA = {
 # mapping itself hasn't changed, only where it's defined.
 ALIAS_TABLE = {
     "/h": "/help", "/c": "/calculator", "/s": "/solve", "/f": "/formulas",
-    "/k": "/kinetics", "/d": "/derive", "/g": "/graph", "/a": "/about",
-    "/gm": "/game", "/pg": "/game",
-    "/e": "/electrochemistry", "/r": "/random", "/x": "/exit",
-    "/o": "/orbitals", "/u": "/upload", "/v": "/voice", "/3": "/sim3d",
+    "/d": "/derive", "/a": "/about", "/x": "/exit",
+    "/u": "/upload", "/v": "/voice",
     "/ag": "/agent", "/y": "/history", "/st": "/settings", "/sh": "/shortcuts",
-    "/at": "/atomsim", "/vf": "/verify", "/?": "/help", "/m": "/memory",
+    "/vf": "/verify", "/?": "/help", "/m": "/memory",
     "/cp": "/codepad", "/tk": "/tokens", "/th": "/theme", "/ws": "/websearch",
     "/rs": "/research", "/im": "/import", "/pt": "/pet", "/cc": "/copycode",
     "/rx": "/react", "/ex": "/export", "/tu": "/tui", "/co": "/composer",

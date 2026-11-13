@@ -45,32 +45,52 @@ class CommandPaletteModal(ModalScreen):
         width: 76;
         height: auto;
         max-height: 24;
-        background: $surface;
-        border: round $accent;
+        background: #13141f;
+        border: tall;
+        border-top: tall #cdd6f4;
+        border-left: tall #89b4fa;
+        border-bottom: tall #585b70;
+        border-right: tall #45475a;
         padding: 0;
     }
     #cct-cmd-modal-input {
         dock: top;
-        border: none;
-        border-bottom: solid $border;
-        background: $surface-alt;
+        border: tall;
+        border-top: tall #1e2030;
+        border-left: tall #1e2030;
+        border-bottom: tall #585b70;
+        border-right: tall #45475a;
+        background: #0e0f17;
+        color: #ffffff;
         padding: 0 1;
-        margin: 0;
+        margin: 1 1 0 1;
     }
     #cct-cmd-modal-scroll {
         height: auto;
         max-height: 18;
-        padding: 0;
+        padding: 1 0 1 0;
     }
     .cct-cmd-modal-row {
         height: 1;
         padding: 0 1;
-        background: transparent;
-        color: $text;
+        margin: 0 1 1 1;
+        background: #1f2235;
+        color: #cdd6f4;
+        border-left: tall #89b4fa;
+        border-right: tall #45475a;
+        transition: background 60ms, color 60ms, border-left 60ms;
+    }
+    .cct-cmd-modal-row:hover {
+        background: #2f3552;
+        color: #ffffff;
+        border-left: tall #ffffff;
+        border-right: tall #585b70;
     }
     .cct-cmd-modal-row-selected {
-        background: $accent;
-        color: $app-background;
+        background: #363c5c;
+        color: #ffffff;
+        border-left: tall #fab387;
+        border-right: tall #6e7594;
         text-style: bold;
     }
     """
@@ -129,12 +149,12 @@ class CommandPaletteModal(ModalScreen):
                 is_sel = (i == self._selected_index)
                 prefix = "▶ " if is_sel else "  "
                 cat_tag = f"[{cmd.category}] " if cmd.category else ""
-                badge = f"  [dim]{key_str}[/dim]" if key_str else ""
+                badge = f"  [#89b4fa on #1c2035 b]{key_str}[/]" if key_str else ""
                 
                 if is_sel:
-                    lines.append(f"[reverse bold]{prefix}{cat_tag}{cmd.title}{badge}[/reverse bold]")
+                    lines.append(f"[#fab387 on #2a2e48 b]{prefix}[/][#ffffff on #2a2e48 b]{cat_tag}{cmd.title}[/]{badge}")
                 else:
-                    lines.append(f"{prefix}[cyan]{cat_tag}[/cyan]{cmd.title}{badge}")
+                    lines.append(f"{prefix}[#7aa2f7]{cat_tag}[/][#cdd6f4]{cmd.title}[/]{badge}")
 
             list_widget.update("\n".join(lines))
         except Exception:

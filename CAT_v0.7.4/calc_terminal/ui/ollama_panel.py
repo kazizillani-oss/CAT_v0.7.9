@@ -106,7 +106,7 @@ if TEXTUAL_AVAILABLE:
         #ollama-search Input { width: 1fr; height: 1; background: transparent; border: none; }
         #ollama-filters { height: 3; min-height: 3; padding: 0 1; overflow-x: auto; }
         #ollama-filters Button { margin-right: 1; }
-        #ollama-pcspec { height: auto; max-height: 4; padding: 1 1; border-bottom: solid $border; color: $text-faint; font-size: 85%; }
+        #ollama-pcspec { height: auto; max-height: 4; padding: 1 1; border-bottom: solid $border; color: $text-faint; }
         #ollama-list { height: 1fr; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
         .ollama-row { height: 1; min-height: 1; padding: 0 1; }
         .ollama-row:hover { background: $accent 8%; }

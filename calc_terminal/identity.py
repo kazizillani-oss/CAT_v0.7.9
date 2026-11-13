@@ -33,7 +33,7 @@ import re
 APP_NAME = "Coding Agent Terminal"
 SHORT_NAME = "CAT"
 APP_TAGLINE = "a terminal-based AI-powered coding and scientific workspace"
-APP_VERSION = "0.8.9.01"
+APP_VERSION = "0.9.000"
 
 CLI_TITLE = "CAT CLI"
 CLI_EMOJI = "🐱"

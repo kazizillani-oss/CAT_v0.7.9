@@ -1,0 +1,12 @@
+{
+  "id": "code_refactor_skill",
+  "name": "Code Refactoring Skill",
+  "version": "1.0.0",
+  "description": "Deterministic procedures for automated Python code refactoring and clean-up.",
+  "instructions": "1. Parse AST of target Python module.\n2. Identify dead code or unused imports.\n3. Create checkpoint before modification.\n4. Apply formatting and clean-ups.\n5. Run test suite to verify zero regressions.",
+  "tools": [
+    "filesystem",
+    "checkpoint"
+  ]
+}
+

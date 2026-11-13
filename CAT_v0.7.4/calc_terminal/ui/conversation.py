@@ -155,6 +155,15 @@ def _remember_code_blocks(text):
         code_editor.remember_block(code.rstrip("\n"), lang)
 
 
+def _safe_float(val, default=0.0) -> float:
+    if val is None:
+        return default
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return default
+
+
 def _format_timestamp(epoch):
     try:
         return time.strftime("%H:%M", time.localtime(epoch))
@@ -619,10 +628,10 @@ if TEXTUAL_AVAILABLE:
                     contribs.append({
                         "model": raw_c_attr.get("main_model", model or "main"),
                         "is_backup": False,
-                        "percent": float(raw_c_attr.get("pct_main", 0.0)),
+                        "percent": _safe_float(raw_c_attr.get("pct_main", 0.0)),
                         "tokens": raw_c_attr.get("main_tokens", 0),
                     })
-                pct_b = float(raw_c_attr.get("pct_backup", 0.0))
+                pct_b = _safe_float(raw_c_attr.get("pct_backup", 0.0))
                 if pct_b > 0 or (raw_c_attr.get("is_backup") and raw_c_attr.get("backup_model")):
                     contribs.append({
                         "model": raw_c_attr.get("backup_model", "backup"),
@@ -652,8 +661,8 @@ if TEXTUAL_AVAILABLE:
             if contribs:
                 main_items = [c for c in contribs if not c.get("is_backup")]
                 backup_items = [c for c in contribs if c.get("is_backup")]
-                main_pct = sum(c.get("percent", 0.0) for c in main_items)
-                backup_pct = sum(c.get("percent", 0.0) for c in backup_items)
+                main_pct = sum(_safe_float(c.get("percent", 0.0)) for c in main_items)
+                backup_pct = sum(_safe_float(c.get("percent", 0.0)) for c in backup_items)
                 main_m = short_model_name(main_items[0].get("model") if main_items else "")
                 backup_m = short_model_name(backup_items[0].get("model") if backup_items else "")
 
@@ -1175,14 +1184,26 @@ if TEXTUAL_AVAILABLE:
             last = getattr(self, "_last_chunk_update", 0.0)
             if now - last >= 0.065:  # ~15 FPS max update rate while streaming for smooth UI thread responsiveness
                 self._last_chunk_update = now
-                self.update(self._build_content())
+                try:
+                    self.update(self._build_content())
+                except Exception as e_build:
+                    try:
+                        self.update(self._text)
+                    except Exception:
+                        pass
             else:
                 if not getattr(self, "_pending_chunk_timer", False):
                     self._pending_chunk_timer = True
                     def _delayed_update():
                         self._pending_chunk_timer = False
                         self._last_chunk_update = time.monotonic()
-                        self.update(self._build_content())
+                        try:
+                            self.update(self._build_content())
+                        except Exception as e_build:
+                            try:
+                                self.update(self._text)
+                            except Exception:
+                                pass
                     self.set_timer(0.065, _delayed_update)
 
         def set_text(self, text, attachments=None):
@@ -1197,7 +1218,13 @@ if TEXTUAL_AVAILABLE:
             if attachments is not None:
                 self._attachments = list(attachments)
             self._timestamp = time.time()
-            self.update(self._build_content())
+            try:
+                self.update(self._build_content())
+            except Exception as e_build:
+                try:
+                    self.update(self._text)
+                except Exception:
+                    pass
 
         def reset_for_regenerate(self, mode_snapshot=None):
             """Try Again / Rewrite regeneration (minor-bug-fix spec):
@@ -1217,7 +1244,13 @@ if TEXTUAL_AVAILABLE:
             self._show_timestamp = False
             if mode_snapshot is not None:
                 self._mode_snapshot = mode_snapshot
-            self.update(self._build_content())
+            try:
+                self.update(self._build_content())
+            except Exception as e_build:
+                try:
+                    self.update(self._text)
+                except Exception:
+                    pass
 
         def finalize(self, full_text=None, meta_lines=None, contributions=None):
             if full_text is not None:
@@ -1239,7 +1272,13 @@ if TEXTUAL_AVAILABLE:
                 if latex_errors:
                     self._meta_lines = list(self._meta_lines) + [
                         f"[dim yellow]\u26a0 LaTeX: {'; '.join(latex_errors)}[/]"]
-            self.update(self._build_content())
+            try:
+                self.update(self._build_content())
+            except Exception as e_build:
+                try:
+                    self.update(self._text)
+                except Exception:
+                    pass
             if self.role == "assistant":
                 _remember_code_blocks(self._text)
                 self._freeze_mode_style()
@@ -1270,7 +1309,13 @@ if TEXTUAL_AVAILABLE:
             backgrounds in light mode ('components styled with the
             previous theme' glitch)."""
             self._freeze_mode_style()
-            self.update(self._build_content())
+            try:
+                self.update(self._build_content())
+            except Exception as e_build:
+                try:
+                    self.update(self._text)
+                except Exception:
+                    pass
 
     class MessageRow(Horizontal):
         """Full-width flow container for a message card with bubble and useful action buttons."""
@@ -1576,7 +1621,13 @@ if TEXTUAL_AVAILABLE:
                                     attachments=attachments)
             self._items[turn_id] = item
             self._mount_row(item)
-            self.scroll_end(animate=True, duration=0.2)
+            try:
+                self.scroll_end(animate=True, duration=0.2)
+            except Exception:
+                try:
+                    self.scroll_end(animate=False)
+                except Exception:
+                    pass
             return item
 
         def start_streaming(self, turn_id, role="assistant", mode_snapshot=None):
@@ -1590,7 +1641,10 @@ if TEXTUAL_AVAILABLE:
                     row.display = False
                 except Exception:
                     pass
-            self.scroll_end(animate=False)
+            try:
+                self.scroll_end(animate=False)
+            except Exception:
+                pass
             return item
 
         def append_chunk(self, turn_id, fragment):
@@ -1707,7 +1761,10 @@ if TEXTUAL_AVAILABLE:
                     pass
 
         def finish(self, turn_id, full_text=None, meta_lines=None, contributions=None):
-            self.hide_agent_activity()
+            try:
+                self.hide_agent_activity()
+            except Exception:
+                pass
             # mark live block completed (keeps history but allows collapse)
             try:
                 self.mark_live_completed(turn_id)
@@ -1721,8 +1778,14 @@ if TEXTUAL_AVAILABLE:
                 row.display = True
             except Exception:
                 pass
-            item.finalize(full_text, meta_lines=meta_lines, contributions=contributions)
-            self.scroll_end(animate=False)
+            try:
+                item.finalize(full_text, meta_lines=meta_lines, contributions=contributions)
+            except Exception:
+                pass
+            try:
+                self.scroll_end(animate=False)
+            except Exception:
+                pass
 
         # ------------------------------------------- agent activity (UI) --
         def show_agent_activity(self, state="thinking", mode_key=None):

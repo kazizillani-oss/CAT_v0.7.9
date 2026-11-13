@@ -454,6 +454,57 @@ if TEXTUAL_AVAILABLE:
         .cct-compact #mcc-create-row1 Input { width: 100%; margin-bottom: 1; }
         .cct-compact #mcc-create-row2 { layout: vertical; height: auto; }
         .cct-compact #mcc-create-row2 Input { width: 100%; margin-bottom: 1; }
+
+        /* Portrait Mode and Ultra-Responsive Styling */
+        .is-portrait .mcc-row,
+        ModeColorsPanel.is-portrait .mcc-row {
+            layout: vertical;
+            height: auto;
+            min-height: 7;
+            padding: 1;
+        }
+        .is-portrait .mcc-actions,
+        ModeColorsPanel.is-portrait .mcc-actions {
+            width: 100%;
+            layout: horizontal;
+            align: center middle;
+            margin-top: 1;
+        }
+        .is-portrait .mcc-actions Button,
+        ModeColorsPanel.is-portrait .mcc-actions Button {
+            width: 1fr;
+            min-width: 10;
+            margin: 0 1;
+        }
+        .is-portrait #mcc-box,
+        ModeColorsPanel.is-portrait #mcc-box {
+            width: 96%;
+            max-width: 98%;
+            max-height: 94%;
+            padding: 0;
+        }
+        .is-portrait #mcc-spawners,
+        ModeColorsPanel.is-portrait #mcc-spawners {
+            height: auto;
+            min-height: 3;
+            padding: 0 1;
+            layout: horizontal;
+        }
+        .is-portrait .mcc-spawner-btn,
+        ModeColorsPanel.is-portrait .mcc-spawner-btn {
+            width: 1fr;
+            min-width: 6;
+            margin: 0 1 0 0;
+            padding: 0;
+        }
+        .is-portrait #mcc-spawners-label,
+        ModeColorsPanel.is-portrait #mcc-spawners-label {
+            display: none;
+        }
+        .is-portrait #mcc-presets,
+        ModeColorsPanel.is-portrait #mcc-presets {
+            display: none;
+        }
         """
 
         BINDINGS = [Binding("escape", "cancel", "Cancel")]
@@ -461,6 +512,23 @@ if TEXTUAL_AVAILABLE:
         def __init__(self, initial_edit=None):
             super().__init__()
             self.initial_edit = (initial_edit or "").strip().lower()
+
+        def on_mount(self):
+            self._check_portrait()
+            if self.initial_edit:
+                self.call_after_refresh(self._open_initial_edit)
+
+        def on_resize(self, event=None):
+            self._check_portrait()
+
+        def _check_portrait(self):
+            try:
+                w = getattr(self.app.size, "width", 80)
+                h = getattr(self.app.size, "height", 25)
+                is_portrait = (w < 86) or (w < h * 1.30)
+                self.set_class(is_portrait, "is-portrait")
+            except Exception:
+                pass
 
         def compose(self):
             with Vertical(id="mcc-box"):

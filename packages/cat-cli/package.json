@@ -1,0 +1,54 @@
+{
+  "name": "@cat/cli",
+  "version": "0.9.0",
+  "description": "CAT CLI — Coding Agent Terminal. Autonomous AI Coding Assistant, MCP Server Client, and Terminal TUI.",
+  "keywords": [
+    "cat",
+    "cat-cli",
+    "coding-agent",
+    "ai",
+    "terminal",
+    "tui",
+    "mcp",
+    "skills",
+    "bun",
+    "ollama",
+    "autonomous-agent",
+    "developer-tools"
+  ],
+  "homepage": "https://github.com/kazizillani-oss/CAT_v0.7.9",
+  "bugs": {
+    "url": "https://github.com/kazizillani-oss/CAT_v0.7.9/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kazizillani-oss/CAT_v0.7.9.git"
+  },
+  "license": "MIT",
+  "author": "Kazi Zillani",
+  "type": "commonjs",
+  "main": "./bin/cat.js",
+  "bin": {
+    "cat": "./bin/cat.js",
+    "cat-cli": "./bin/cat.js"
+  },
+  "files": [
+    "bin",
+    "scripts",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "start": "node ./bin/cat.js",
+    "postinstall": "node ./scripts/postinstall.js",
+    "test": "node ./bin/cat.js --version"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "bun": ">=1.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
+

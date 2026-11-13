@@ -1,0 +1,18 @@
+{
+  "id": "sample_devtools",
+  "name": "Sample DevTools",
+  "version": "1.0.0",
+  "description": "Demonstration extension built with CAT Developer SDK showcasing commands, events, and hooks.",
+  "author": "Google Deepmind CAT Team",
+  "entry_point": "extension.py",
+  "min_cat_version": "0.7.0",
+  "permissions": [
+    "filesystem:read"
+  ],
+  "tags": [
+    "devtools",
+    "sample",
+    "sdk"
+  ]
+}
+

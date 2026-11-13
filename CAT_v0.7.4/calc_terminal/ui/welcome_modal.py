@@ -281,6 +281,19 @@ if TEXTUAL_AVAILABLE:
             except Exception:
                 pass
 
+        def _render_fomoji_line(self) -> str:
+            try:
+                from ..fomoji_manager import get_fomoji_runtime_state
+                state = get_fomoji_runtime_state()
+                if state.get("ready"):
+                    return f"● Fomoji Server Online (Port {state.get('port', 3000)})"
+                elif state.get("status") == "starting":
+                    step = state.get("step") or "starting"
+                    return f"⟳ Fomoji Server: {step} (Port {state.get('port', 3000)})"
+            except Exception:
+                pass
+            return "○ Fomoji Server Offline"
+
         def _render_bar(self, fraction: float) -> str:
             fraction = max(0.0, min(1.0, fraction))
             total_width = 28

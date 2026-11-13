@@ -78,6 +78,31 @@
       "default_model": "jamba-1.5-large"
     },
     {
+      "id": "ai71",
+      "name": "AI71 (Falcon)",
+      "country": "UAE",
+      "api_endpoint": "https://api.ai71.ai/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": false,
+      "supports_embeddings": true,
+      "supports_audio": false,
+      "supports_reasoning": false,
+      "openai_compatible": true,
+      "free_models_available": false,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "TII Falcon open weights enterprise inference hosted by AI71",
+      "fallback_models": [
+        "falcon-180b-chat",
+        "falcon-40b-instruct",
+        "falcon-11b"
+      ],
+      "default_model": "falcon-180b-chat",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
+    },
+    {
       "id": "airtop",
       "name": "Airtop",
       "country": "United States",
@@ -172,6 +197,33 @@
       "default_model": "luminous-base"
     },
     {
+      "id": "alicloud-model-studio",
+      "name": "Alibaba Cloud Model Studio",
+      "country": "China",
+      "api_endpoint": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": true,
+      "supports_audio": true,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "International DashScope portal hosting Qwen 2.5 and specialized multimodal models",
+      "fallback_models": [
+        "qwen-max",
+        "qwen-plus",
+        "qwen-turbo",
+        "qwen-vl-max",
+        "qwen2.5-coder-32b-instruct"
+      ],
+      "default_model": "qwen-max",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
+    },
+    {
       "id": "alibaba-qwen",
       "name": "Alibaba Qwen",
       "country": "China",
@@ -225,6 +277,31 @@
         "molmo-72b-instruct"
       ],
       "default_model": "olmo-2-13b-instruct"
+    },
+    {
+      "id": "amazon-nova",
+      "name": "Amazon Nova (AWS Bedrock)",
+      "country": "United States",
+      "api_endpoint": "https://bedrock-runtime.us-east-1.amazonaws.com",
+      "api_style": "aws",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": false,
+      "supports_audio": false,
+      "supports_reasoning": true,
+      "openai_compatible": false,
+      "free_models_available": false,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "Amazon flagship Nova Pro, Lite, and Micro reasoning foundation models",
+      "fallback_models": [
+        "amazon.nova-pro-v1:0",
+        "amazon.nova-lite-v1:0",
+        "amazon.nova-micro-v1:0"
+      ],
+      "default_model": "amazon.nova-pro-v1:0",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
     },
     {
       "id": "aws-bedrock",
@@ -321,6 +398,30 @@
       "default_model": "llama3-70b"
     },
     {
+      "id": "apex-ai",
+      "name": "Apex AI Engine",
+      "country": "United States",
+      "api_endpoint": "https://api.apexai.dev/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": false,
+      "supports_embeddings": true,
+      "supports_audio": false,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "Autonomous low-latency developer coding and code refactoring engine",
+      "fallback_models": [
+        "apex-coder-v1",
+        "apex-reasoner-70b"
+      ],
+      "default_model": "apex-coder-v1",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
+    },
+    {
       "id": "aphrodite_hosted",
       "name": "Aphrodite Engine (Local / Remote)",
       "country": "International",
@@ -344,6 +445,102 @@
         "mythomax-l2-13b"
       ],
       "default_model": "default"
+    },
+    {
+      "id": "aphrodite-engine",
+      "name": "Aphrodite Engine Local",
+      "country": "United States",
+      "api_endpoint": "http://localhost:2242/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": true,
+      "supports_audio": false,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": false,
+      "needs_key": false,
+      "description": "High-performance Pygmalion/vLLM derivative for diverse model serving",
+      "fallback_models": [
+        "aphrodite-loaded-model"
+      ],
+      "default_model": "aphrodite-loaded-model",
+      "last_updated": "2026-11-13T05:49:33.490417+00:00"
+    },
+    {
+      "id": "apify-models",
+      "name": "Apify Model Hub",
+      "country": "Czech Republic",
+      "api_endpoint": "https://api.apify.com/v2/acts",
+      "api_style": "custom",
+      "supports_model_listing": true,
+      "supports_streaming": false,
+      "supports_vision": true,
+      "supports_embeddings": false,
+      "supports_audio": false,
+      "supports_reasoning": false,
+      "openai_compatible": false,
+      "free_models_available": true,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "Apify Actor integration for live web scraping and extraction LLMs",
+      "fallback_models": [
+        "apify-web-extractor",
+        "apify-rag-agent"
+      ],
+      "default_model": "apify-web-extractor",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
+    },
+    {
+      "id": "arcee-ai",
+      "name": "Arcee AI",
+      "country": "United States",
+      "api_endpoint": "https://api.arcee.ai/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": false,
+      "supports_embeddings": true,
+      "supports_audio": false,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": false,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "Small, specialized domain-adapted foundation models and SLMs",
+      "fallback_models": [
+        "supernova-medius",
+        "arcee-agent",
+        "arcee-spark"
+      ],
+      "default_model": "supernova-medius",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
+    },
+    {
+      "id": "artificial-analysis",
+      "name": "Artificial Analysis API",
+      "country": "United Kingdom",
+      "api_endpoint": "https://api.artificialanalysis.ai/v1",
+      "api_style": "custom",
+      "supports_model_listing": true,
+      "supports_streaming": false,
+      "supports_vision": false,
+      "supports_embeddings": false,
+      "supports_audio": false,
+      "supports_reasoning": false,
+      "openai_compatible": false,
+      "free_models_available": true,
+      "paid_models_available": false,
+      "needs_key": false,
+      "description": "Independent benchmarks, quality scores, latency, and pricing index across 200+ models",
+      "fallback_models": [
+        "benchmark-index",
+        "quality-index"
+      ],
+      "default_model": "benchmark-index",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
     },
     {
       "id": "assemblyai",
@@ -615,6 +812,31 @@
       "default_model": "flux-dev"
     },
     {
+      "id": "blackbox-ai",
+      "name": "Blackbox AI",
+      "country": "United States",
+      "api_endpoint": "https://api.blackbox.ai/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": false,
+      "supports_audio": false,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "AI coding copilot tailored for real-time repository search and code creation",
+      "fallback_models": [
+        "blackbox-coder-pro",
+        "blackbox-v4",
+        "blackbox-deepseek-r1"
+      ],
+      "default_model": "blackbox-coder-pro",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
+    },
+    {
       "id": "bytedance-doubao",
       "name": "ByteDance Doubao",
       "country": "China",
@@ -640,6 +862,32 @@
         "doubao-pro-32k"
       ],
       "default_model": "doubao-pro-256k"
+    },
+    {
+      "id": "byteplus",
+      "name": "BytePlus (ByteDance Global)",
+      "country": "Singapore",
+      "api_endpoint": "https://api.byteplus.com/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": true,
+      "supports_audio": true,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "ByteDance international cloud services hosting Doubao Pro & Doubao Lite",
+      "fallback_models": [
+        "doubao-pro-32k",
+        "doubao-pro-128k",
+        "doubao-lite-32k",
+        "doubao-vision-pro"
+      ],
+      "default_model": "doubao-pro-32k",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
     },
     {
       "id": "cartesia",
@@ -714,6 +962,31 @@
         "cerebrium-qwen-2.5-72b"
       ],
       "default_model": "cerebrium-llama-3.1-70b"
+    },
+    {
+      "id": "chutes-ai",
+      "name": "Chutes AI",
+      "country": "United States",
+      "api_endpoint": "https://api.chutes.ai/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": false,
+      "supports_embeddings": false,
+      "supports_audio": false,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "Decentralized serverless compute hosting un-throttled open source reasoning models",
+      "fallback_models": [
+        "chutes-deepseek-r1",
+        "chutes-llama-3.3-70b",
+        "chutes-qwen-2.5-72b"
+      ],
+      "default_model": "chutes-deepseek-r1",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
     },
     {
       "id": "chutes",
@@ -842,6 +1115,31 @@
       "default_model": "command-r-plus"
     },
     {
+      "id": "cohere-compass",
+      "name": "Cohere Enterprise Platform",
+      "country": "Canada",
+      "api_endpoint": "https://api.cohere.com/v2",
+      "api_style": "custom",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": false,
+      "supports_embeddings": true,
+      "supports_audio": false,
+      "supports_reasoning": true,
+      "openai_compatible": false,
+      "free_models_available": true,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "Command R+ and enterprise RAG & reasoning agents with multilingual fluency",
+      "fallback_models": [
+        "command-r-plus-08-2024",
+        "command-r-08-2024",
+        "command-light"
+      ],
+      "default_model": "command-r-plus-08-2024",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
+    },
+    {
       "id": "coreweave",
       "name": "CoreWeave",
       "country": "United States",
@@ -938,6 +1236,31 @@
       "default_model": "cursor-large"
     },
     {
+      "id": "cursor-ai",
+      "name": "Cursor Model Gateway",
+      "country": "United States",
+      "api_endpoint": "https://api.cursor.com/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": false,
+      "supports_audio": false,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": false,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "Specialized fast low-latency models tuned for agentic code edits and diff application",
+      "fallback_models": [
+        "cursor-fast",
+        "cursor-small",
+        "cursor-sonnet"
+      ],
+      "default_model": "cursor-fast",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
+    },
+    {
       "id": "databricks",
       "name": "Databricks",
       "country": "United States",
@@ -960,6 +1283,30 @@
         "llama-3-70b-chat"
       ],
       "default_model": "databricks-dbrx-instruct"
+    },
+    {
+      "id": "databricks-dbrx",
+      "name": "Databricks Mosaic AI",
+      "country": "United States",
+      "api_endpoint": "https://adb-mosaic.databricks.com/serving-endpoints",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": false,
+      "supports_embeddings": true,
+      "supports_audio": false,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": false,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "High-performance DBRX and fine-tuned enterprise open models on Mosaic AI",
+      "fallback_models": [
+        "databricks-dbrx-instruct",
+        "databricks-meta-llama-3-70b-instruct"
+      ],
+      "default_model": "databricks-dbrx-instruct",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
     },
     {
       "id": "deepgram",
@@ -1009,6 +1356,56 @@
         "Qwen/Qwen2.5-72B-Instruct"
       ],
       "default_model": "meta-llama/Meta-Llama-3.1-70B-Instruct"
+    },
+    {
+      "id": "deepinfra-r1",
+      "name": "DeepInfra Specialized Engines",
+      "country": "United States",
+      "api_endpoint": "https://api.deepinfra.com/v1/openai",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": true,
+      "supports_audio": true,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "Dedicated serverless GPU endpoints hosting DeepSeek R1 & V3 at high tokens/sec",
+      "fallback_models": [
+        "deepseek-ai/DeepSeek-R1",
+        "deepseek-ai/DeepSeek-V3",
+        "meta-llama/Llama-3.3-70B-Instruct"
+      ],
+      "default_model": "deepseek-ai/DeepSeek-R1",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
+    },
+    {
+      "id": "deepmind-alpha",
+      "name": "DeepMind Research Models",
+      "country": "United Kingdom",
+      "api_endpoint": "https://generativelanguage.googleapis.com/v1beta",
+      "api_style": "gemini",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": true,
+      "supports_audio": true,
+      "supports_reasoning": true,
+      "openai_compatible": false,
+      "free_models_available": true,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "Google DeepMind experimental reasoning, mathematics, and multimodal frontiers",
+      "fallback_models": [
+        "gemini-2.0-flash-thinking-exp",
+        "gemini-2.5-pro",
+        "gemini-2.0-pro-exp"
+      ],
+      "default_model": "gemini-2.0-flash-thinking-exp",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
     },
     {
       "id": "deepseek",
@@ -1134,6 +1531,29 @@
       "default_model": "eleven_multilingual_v2"
     },
     {
+      "id": "exllamav2-local",
+      "name": "ExLlamaV2 Local TabbyAPI",
+      "country": "United States",
+      "api_endpoint": "http://localhost:5000/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": false,
+      "supports_embeddings": false,
+      "supports_audio": false,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": false,
+      "needs_key": false,
+      "description": "Extreme-speed local quantized EXL2 inference server",
+      "fallback_models": [
+        "exllamav2-loaded-model"
+      ],
+      "default_model": "exllamav2-loaded-model",
+      "last_updated": "2026-11-13T05:49:33.490417+00:00"
+    },
+    {
       "id": "exllamav2_hosted",
       "name": "ExLlamaV2 Server (Local)",
       "country": "International",
@@ -1183,6 +1603,30 @@
       "default_model": "flux-pro-1.1"
     },
     {
+      "id": "fal-ai",
+      "name": "fal.ai Inference Engine",
+      "country": "United States",
+      "api_endpoint": "https://queue.fal.run",
+      "api_style": "custom",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": false,
+      "supports_audio": true,
+      "supports_reasoning": false,
+      "openai_compatible": false,
+      "free_models_available": false,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "Ultra-fast media, vision, and real-time inference serverless platform",
+      "fallback_models": [
+        "fal-llm-fast",
+        "fal-vision-v2"
+      ],
+      "default_model": "fal-llm-fast",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
+    },
+    {
       "id": "featherless",
       "name": "Featherless AI",
       "country": "United States",
@@ -1230,6 +1674,31 @@
         "accounts/fireworks/models/deepseek-v3"
       ],
       "default_model": "accounts/fireworks/models/llama-v3p3-70b-instruct"
+    },
+    {
+      "id": "fireworks-r1",
+      "name": "Fireworks Fast Inference",
+      "country": "United States",
+      "api_endpoint": "https://api.fireworks.ai/inference/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": true,
+      "supports_audio": true,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "Compound AI system platform delivering 100+ tokens/sec on DeepSeek R1 and Llama 3.3",
+      "fallback_models": [
+        "accounts/fireworks/models/deepseek-r1",
+        "accounts/fireworks/models/deepseek-v3",
+        "accounts/fireworks/models/llama-v3p3-70b-instruct"
+      ],
+      "default_model": "accounts/fireworks/models/deepseek-r1",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
     },
     {
       "id": "forefront",
@@ -1327,6 +1796,30 @@
         "o1-preview"
       ],
       "default_model": "gpt-4o"
+    },
+    {
+      "id": "glhf-chat",
+      "name": "glhf.chat Community Hub",
+      "country": "United States",
+      "api_endpoint": "https://glhf.chat/api/openai/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": false,
+      "supports_embeddings": false,
+      "supports_audio": false,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": false,
+      "needs_key": true,
+      "description": "Community developer access point for open research checkpoints and fine-tunes",
+      "fallback_models": [
+        "hf:meta-llama/Llama-3.3-70B-Instruct",
+        "hf:deepseek-ai/DeepSeek-R1"
+      ],
+      "default_model": "hf:meta-llama/Llama-3.3-70B-Instruct",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
     },
     {
       "id": "gemini",
@@ -1497,6 +1990,32 @@
       "default_model": "llama-3.3-70b-versatile"
     },
     {
+      "id": "groq-r1",
+      "name": "Groq Ultra-Fast LPU",
+      "country": "United States",
+      "api_endpoint": "https://api.groq.com/openai/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": false,
+      "supports_audio": true,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "Hardware Language Processing Unit (LPU) delivering 300+ tok/s response speeds",
+      "fallback_models": [
+        "deepseek-r1-distill-llama-70b",
+        "llama-3.3-70b-versatile",
+        "qwen-2.5-coder-32b",
+        "llama-3.1-8b-instant"
+      ],
+      "default_model": "deepseek-r1-distill-llama-70b",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
+    },
+    {
       "id": "h2o",
       "name": "H2O.ai",
       "country": "United States",
@@ -1594,6 +2113,29 @@
       "default_model": "tgi"
     },
     {
+      "id": "text-generation-inference",
+      "name": "HuggingFace TGI Server",
+      "country": "United States",
+      "api_endpoint": "http://localhost:8080/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": true,
+      "supports_audio": false,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": false,
+      "needs_key": false,
+      "description": "Hugging Face Text Generation Inference production serving container",
+      "fallback_models": [
+        "tgi-loaded-model"
+      ],
+      "default_model": "tgi-loaded-model",
+      "last_updated": "2026-11-13T05:49:33.490417+00:00"
+    },
+    {
       "id": "hyperbolic",
       "name": "Hyperbolic",
       "country": "United States",
@@ -1618,6 +2160,31 @@
         "deepseek-ai/DeepSeek-V3"
       ],
       "default_model": "llama3-70b"
+    },
+    {
+      "id": "hyperbolic-r1",
+      "name": "Hyperbolic Decentralized AI",
+      "country": "United States",
+      "api_endpoint": "https://api.hyperbolic.xyz/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": false,
+      "supports_embeddings": false,
+      "supports_audio": false,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "Decentralized GPU cloud network delivering affordable verifiable open-source AI",
+      "fallback_models": [
+        "deepseek-ai/DeepSeek-R1",
+        "deepseek-ai/DeepSeek-V3",
+        "meta-llama/Llama-3.3-70B-Instruct"
+      ],
+      "default_model": "deepseek-ai/DeepSeek-R1",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
     },
     {
       "id": "ibm-watsonx",
@@ -1766,6 +2333,30 @@
       "default_model": "inflection-2.5"
     },
     {
+      "id": "inflection-pi",
+      "name": "Inflection AI (Pi)",
+      "country": "United States",
+      "api_endpoint": "https://api.inflection.ai/v1",
+      "api_style": "custom",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": false,
+      "supports_embeddings": false,
+      "supports_audio": false,
+      "supports_reasoning": false,
+      "openai_compatible": false,
+      "free_models_available": false,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "Emotionally intelligent and empathetic conversational models (Inflection-3)",
+      "fallback_models": [
+        "inflection-3-productivity",
+        "inflection-3-pi"
+      ],
+      "default_model": "inflection-3-productivity",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
+    },
+    {
       "id": "internlm",
       "name": "InternLM (Shanghai AI Lab)",
       "country": "China",
@@ -1789,6 +2380,31 @@
         "internlm-xcomposer2d5-7b"
       ],
       "default_model": "internlm2_5-20b-chat"
+    },
+    {
+      "id": "jan-local",
+      "name": "Jan AI Local Assistant",
+      "country": "Singapore",
+      "api_endpoint": "http://localhost:1337/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": false,
+      "supports_embeddings": true,
+      "supports_audio": false,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": false,
+      "needs_key": false,
+      "description": "100% private, offline open-source desktop local AI assistant runtime on port 1337",
+      "fallback_models": [
+        "jan-deepseek-r1-7b",
+        "jan-llama-3.2-3b",
+        "jan-mistral-7b"
+      ],
+      "default_model": "jan-deepseek-r1-7b",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
     },
     {
       "id": "jan_ai",
@@ -1959,6 +2575,30 @@
       "default_model": "default"
     },
     {
+      "id": "kunlun-skywork",
+      "name": "Kunlun Skywork AI",
+      "country": "China",
+      "api_endpoint": "https://api.skywork.cn/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": false,
+      "supports_embeddings": true,
+      "supports_audio": false,
+      "supports_reasoning": false,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "Skywork bilingual reasoning and mathematical foundation models",
+      "fallback_models": [
+        "skywork-13b",
+        "skywork-coder"
+      ],
+      "default_model": "skywork-13b",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
+    },
+    {
       "id": "kyutai",
       "name": "Kyutai (Moshi)",
       "country": "France",
@@ -2009,6 +2649,30 @@
         "llama3-70b"
       ],
       "default_model": "llama-3.1-70b-instruct"
+    },
+    {
+      "id": "lambda-labs-inference",
+      "name": "Lambda Labs Cloud Inference",
+      "country": "United States",
+      "api_endpoint": "https://api.lambdalabs.com/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": false,
+      "supports_embeddings": false,
+      "supports_audio": false,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": false,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "Lambda GPU Cloud hosting massive open-weights checkpoints like Hermes 3 Llama 405B",
+      "fallback_models": [
+        "hermes-3-llama-3.1-405b",
+        "llama-3.3-70b-instruct"
+      ],
+      "default_model": "hermes-3-llama-3.1-405b",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
     },
     {
       "id": "lepton",
@@ -2132,6 +2796,31 @@
       "default_model": "local-model"
     },
     {
+      "id": "lmstudio-local",
+      "name": "LM Studio Local Server",
+      "country": "United States",
+      "api_endpoint": "http://localhost:1234/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": true,
+      "supports_audio": false,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": false,
+      "needs_key": false,
+      "description": "LM Studio local LLM runtime and discovery server on port 1234",
+      "fallback_models": [
+        "local-model",
+        "deepseek-r1-qwen-7b",
+        "llama-3.2-3b-instruct"
+      ],
+      "default_model": "local-model",
+      "last_updated": "2026-11-13T05:49:33.490417+00:00"
+    },
+    {
       "id": "lmdeploy_hosted",
       "name": "LMDeploy Server (Shanghai AI Lab)",
       "country": "China",
@@ -2226,6 +2915,29 @@
         "ray-1-6"
       ],
       "default_model": "dream-machine"
+    },
+    {
+      "id": "magic-dev",
+      "name": "Magic Dev LTM",
+      "country": "United States",
+      "api_endpoint": "https://api.magic.dev/v1",
+      "api_style": "custom",
+      "supports_model_listing": false,
+      "supports_streaming": true,
+      "supports_vision": false,
+      "supports_embeddings": false,
+      "supports_audio": false,
+      "supports_reasoning": true,
+      "openai_compatible": false,
+      "free_models_available": false,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "Ultra-long context Ultra-Reasoning models built specifically for whole-repo software engineering",
+      "fallback_models": [
+        "magic-ltm-2-mini"
+      ],
+      "default_model": "magic-ltm-2-mini",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
     },
     {
       "id": "maritaca",
@@ -2324,6 +3036,31 @@
       "default_model": "abab6.5-chat"
     },
     {
+      "id": "minimax-abab6",
+      "name": "MiniMax Abab 6.5",
+      "country": "China",
+      "api_endpoint": "https://api.minimax.chat/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": true,
+      "supports_audio": true,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "MiniMax MoE architecture model series with high reasoning and multi-turn capabilities",
+      "fallback_models": [
+        "abab6.5s-chat",
+        "abab6.5-chat",
+        "abab6.5g-chat"
+      ],
+      "default_model": "abab6.5s-chat",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
+    },
+    {
       "id": "mistral",
       "name": "Mistral AI",
       "country": "France",
@@ -2379,6 +3116,30 @@
         "llama3-70b"
       ],
       "default_model": "llama3-70b"
+    },
+    {
+      "id": "modal-labs",
+      "name": "Modal Labs Serverless AI",
+      "country": "United States",
+      "api_endpoint": "https://api.modal.com/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": true,
+      "supports_audio": true,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": false,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "Cloud-native Python containers running custom fine-tuned weights on H100s",
+      "fallback_models": [
+        "modal-deepseek-r1",
+        "modal-llama-3.3-70b"
+      ],
+      "default_model": "modal-deepseek-r1",
+      "last_updated": "2026-11-13T05:49:33.490417+00:00"
     },
     {
       "id": "monsterapi",
@@ -2438,6 +3199,31 @@
       "default_model": "kimi-latest"
     },
     {
+      "id": "moonshot-kimi",
+      "name": "Moonshot AI Kimi 1.5",
+      "country": "China",
+      "api_endpoint": "https://api.moonshot.cn/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": false,
+      "supports_audio": false,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "Kimi 1.5 multimodal long-context models with 200K+ token analysis windows",
+      "fallback_models": [
+        "kimi-k1.5",
+        "moonshot-v1-128k",
+        "moonshot-v1-32k"
+      ],
+      "default_model": "kimi-k1.5",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
+    },
+    {
       "id": "ncloud",
       "name": "Naver Cloud (HyperCLOVA X)",
       "country": "South Korea",
@@ -2484,6 +3270,30 @@
         "qwen2-72b"
       ],
       "default_model": "llama3-70b"
+    },
+    {
+      "id": "nebius-r1",
+      "name": "Nebius AI Studio Enterprise",
+      "country": "Netherlands",
+      "api_endpoint": "https://api.studio.nebius.ai/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": true,
+      "supports_audio": false,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "European enterprise AI cloud with dedicated GPU clusters running DeepSeek R1 and Llama 3.1",
+      "fallback_models": [
+        "deepseek-ai/DeepSeek-R1",
+        "meta-llama/Meta-Llama-3.1-70B-Instruct"
+      ],
+      "default_model": "deepseek-ai/DeepSeek-R1",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
     },
     {
       "id": "neets",
@@ -2602,6 +3412,31 @@
         "mistralai/mixtral-8x7b-instruct"
       ],
       "default_model": "meta-llama/llama-3.1-70b-instruct"
+    },
+    {
+      "id": "novita-r1",
+      "name": "Novita AI Elastic Cloud",
+      "country": "United States",
+      "api_endpoint": "https://api.novita.ai/v3/openai",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": true,
+      "supports_audio": false,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "Cost-effective serverless API hosting high-performance open LLMs & R1 reasoning models",
+      "fallback_models": [
+        "deepseek/deepseek-r1",
+        "meta-llama/llama-3.3-70b-instruct",
+        "qwen/qwen-2.5-72b-instruct"
+      ],
+      "default_model": "deepseek/deepseek-r1",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
     },
     {
       "id": "nvidia",
@@ -2755,6 +3590,33 @@
       "default_model": "llama3.3:70b"
     },
     {
+      "id": "ollama-local",
+      "name": "Ollama Local Daemon",
+      "country": "United States",
+      "api_endpoint": "http://localhost:11434/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": true,
+      "supports_audio": false,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": false,
+      "needs_key": false,
+      "description": "Ollama local inference daemon running DeepSeek R1, Llama 3.3, and Qwen 2.5 Coder",
+      "fallback_models": [
+        "deepseek-r1:8b",
+        "llama3.3:70b",
+        "qwen2.5-coder:32b",
+        "phi4:14b",
+        "gemma2:27b"
+      ],
+      "default_model": "deepseek-r1:8b",
+      "last_updated": "2026-11-13T05:49:33.490417+00:00"
+    },
+    {
       "id": "openai",
       "name": "OpenAI",
       "country": "United States",
@@ -2854,6 +3716,32 @@
         "openai/gpt-4o-mini"
       ],
       "default_model": "google/gemini-2.0-flash"
+    },
+    {
+      "id": "openrouter-r1",
+      "name": "OpenRouter Unified Router",
+      "country": "United States",
+      "api_endpoint": "https://openrouter.ai/api/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": true,
+      "supports_audio": true,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "Universal aggregator routing across 200+ models with automatic failover and pricing parity",
+      "fallback_models": [
+        "deepseek/deepseek-r1",
+        "anthropic/claude-3.7-sonnet",
+        "openai/gpt-4.5-preview",
+        "google/gemini-2.0-flash-thinking-exp"
+      ],
+      "default_model": "deepseek/deepseek-r1",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
     },
     {
       "id": "oracle-oci",
@@ -3296,6 +4184,31 @@
       "default_model": "llama3.1-8b"
     },
     {
+      "id": "sambanova-r1",
+      "name": "SambaNova DataScale SN40L",
+      "country": "United States",
+      "api_endpoint": "https://api.sambanova.ai/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": false,
+      "supports_audio": false,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "Custom Reconfigurable Dataflow Unit (RDU) silicon hosting full DeepSeek R1 at unmatched throughput",
+      "fallback_models": [
+        "DeepSeek-R1",
+        "Meta-Llama-3.3-70B-Instruct",
+        "Qwen2.5-Coder-32B-Instruct"
+      ],
+      "default_model": "DeepSeek-R1",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
+    },
+    {
       "id": "scale_ai",
       "name": "Scale AI (SEAL)",
       "country": "United States",
@@ -3344,6 +4257,30 @@
         "qwen2.5-coder-32b-instruct"
       ],
       "default_model": "llama-3.1-70b-instruct"
+    },
+    {
+      "id": "scaleway-inference",
+      "name": "Scaleway Managed Inference",
+      "country": "France",
+      "api_endpoint": "https://api.scaleway.com/ai/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": false,
+      "supports_embeddings": true,
+      "supports_audio": false,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": false,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "European data-sovereign serverless AI hosting Mistral Large and open foundation models",
+      "fallback_models": [
+        "meta/llama-3.3-70b-instruct",
+        "mistral/mistral-large-2407"
+      ],
+      "default_model": "meta/llama-3.3-70b-instruct",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
     },
     {
       "id": "sensetime",
@@ -3594,6 +4531,31 @@
       "default_model": "step-2-16k"
     },
     {
+      "id": "stepfun-step2",
+      "name": "StepFun Step-2 Reasoning",
+      "country": "China",
+      "api_endpoint": "https://api.stepfun.com/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": false,
+      "supports_audio": true,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "Step-2 multimodal trillion-parameter model series with deep logical deduction",
+      "fallback_models": [
+        "step-2-16k",
+        "step-1-8k",
+        "step-1v-8k"
+      ],
+      "default_model": "step-2-16k",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
+    },
+    {
       "id": "stochastic",
       "name": "Stochastic AI",
       "country": "United States",
@@ -3664,6 +4626,30 @@
         "mistral-large-2407-exl2"
       ],
       "default_model": "current"
+    },
+    {
+      "id": "tabby-ml",
+      "name": "TabbyML Self-Hosted Coder",
+      "country": "United States",
+      "api_endpoint": "http://localhost:8080/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": false,
+      "supports_embeddings": true,
+      "supports_audio": false,
+      "supports_reasoning": false,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": false,
+      "needs_key": false,
+      "description": "Self-hosted AI coding assistant server designed for local git repository completions",
+      "fallback_models": [
+        "tabby-starcoder",
+        "tabby-qwen2.5-coder"
+      ],
+      "default_model": "tabby-starcoder",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
     },
     {
       "id": "tabnine",
@@ -3862,6 +4848,31 @@
       "default_model": "solar-10.7b-instruct"
     },
     {
+      "id": "upstage-solar",
+      "name": "Upstage Solar Pro",
+      "country": "South Korea",
+      "api_endpoint": "https://api.upstage.ai/v1/solar",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": true,
+      "supports_audio": false,
+      "supports_reasoning": false,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "Solar Pro and specialized document processing & information extraction LLMs",
+      "fallback_models": [
+        "solar-pro",
+        "solar-mini",
+        "solar-doc-layout"
+      ],
+      "default_model": "solar-pro",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
+    },
+    {
       "id": "vllm",
       "name": "vLLM",
       "country": "International",
@@ -3887,6 +4898,29 @@
         "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B"
       ],
       "default_model": "llama3"
+    },
+    {
+      "id": "vllm-local",
+      "name": "vLLM High-Throughput Server",
+      "country": "United States",
+      "api_endpoint": "http://localhost:8000/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": true,
+      "supports_audio": false,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": false,
+      "needs_key": false,
+      "description": "High-throughput PagedAttention local serving engine for state-of-the-art open models",
+      "fallback_models": [
+        "vllm-loaded-model"
+      ],
+      "default_model": "vllm-loaded-model",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
     },
     {
       "id": "voiceflow",
@@ -4014,6 +5048,31 @@
       "default_model": "grok-3"
     },
     {
+      "id": "xai-grok",
+      "name": "xAI Grok Platform",
+      "country": "United States",
+      "api_endpoint": "https://api.x.ai/v1",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": false,
+      "supports_audio": false,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": false,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "xAI frontier Grok 2, Grok 2 Vision, and real-time reasoning intelligence",
+      "fallback_models": [
+        "grok-2-1212",
+        "grok-2-vision-1212",
+        "grok-beta"
+      ],
+      "default_model": "grok-2-1212",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
+    },
+    {
       "id": "xenova",
       "name": "Xenova (Transformers.js)",
       "country": "Canada",
@@ -4063,6 +5122,32 @@
       "default_model": "glm-4-air"
     },
     {
+      "id": "zhipu-glm4",
+      "name": "Zhipu AI GLM-4 Series",
+      "country": "China",
+      "api_endpoint": "https://open.bigmodel.cn/api/paas/v4",
+      "api_style": "openai",
+      "supports_model_listing": true,
+      "supports_streaming": true,
+      "supports_vision": true,
+      "supports_embeddings": true,
+      "supports_audio": true,
+      "supports_reasoning": true,
+      "openai_compatible": true,
+      "free_models_available": true,
+      "paid_models_available": true,
+      "needs_key": true,
+      "description": "Tsinghua KEG GLM-4 Plus frontier models with native Chinese-English bilingual excellence",
+      "fallback_models": [
+        "glm-4-plus",
+        "glm-4-air",
+        "glm-4-flash",
+        "glm-4v-plus"
+      ],
+      "default_model": "glm-4-plus",
+      "last_updated": "2026-11-13T05:49:13.532886+00:00"
+    },
+    {
       "id": "zilliz",
       "name": "Zilliz Cloud",
       "country": "United States",
@@ -4085,5 +5170,7 @@
       ],
       "default_model": "default"
     }
-  ]
+  ],
+  "total_providers": 206,
+  "last_updated": "2026-11-13T05:49:13.532886+00:00"
 }

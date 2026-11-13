@@ -32,7 +32,8 @@ from .events import MessageSubmitted, MessageRewritten, CommandExecuted, PasteEx
 from .command_palette import CommandPalette, TEXTUAL_AVAILABLE as _PALETTE_OK
 from .attachments import (AttachmentBar, PASTE_COLLAPSE_THRESHOLD, PASTE_WORD_THRESHOLD,
                            TEXTUAL_AVAILABLE as _ATTACH_OK)
-from .footer import ComposerFooter, TEXTUAL_AVAILABLE as _FOOTER_OK
+from .footer import ComposerFooter, _Badge, _hex_blend, TEXTUAL_AVAILABLE as _FOOTER_OK
+from .. import aicore, ai_modes
 from .permission_panel import PermissionsSettingsPanel, TEXTUAL_AVAILABLE as _PERM_OK
 from .. import mathtext
 
@@ -189,6 +190,20 @@ if TEXTUAL_AVAILABLE:
             self.highlight_cursor_line = False
 
         async def _on_key(self, event):
+            # Voice Mode activation: Alt / Alt+V shortcut
+            k_key = str(getattr(event, "key", "")).lower()
+            k_name = str(getattr(event, "name", "")).lower()
+            voice_keys = ("alt", "alt+v", "left_alt", "right_alt", "meta", "left_meta", "right_meta", "alt_l", "alt_r")
+            if k_key in voice_keys or k_name in voice_keys:
+                event.stop()
+                try:
+                    event.prevent_default()
+                except Exception:
+                    pass
+                if self._composer:
+                    self._composer.toggle_voice()
+                return
+
             palette = self._composer.palette if self._composer else None
             # Only intercept keys for palette if palette is open and user is typing a slash command
             if palette is not None and palette.is_open() and self.text.strip().startswith("/"):
@@ -380,6 +395,20 @@ if TEXTUAL_AVAILABLE:
                 return
 
             if event.key in ("escape", "ctrl+c") and self._composer is not None:
+                # If voice is actively recording/processing, Esc cancels voice immediately
+                if event.key == "escape":
+                    try:
+                        from ..voice import voice_manager, VoiceState
+                        if voice_manager.state != VoiceState.IDLE:
+                            event.stop()
+                            try:
+                                event.prevent_default()
+                            except Exception:
+                                pass
+                            self._composer.voice_cancel()
+                            return
+                    except Exception:
+                        pass
                 # If text is selected and user hits ctrl+c, preserve normal copy
                 if event.key == "ctrl+c" and getattr(self, "selected_text", None):
                     pass
@@ -578,6 +607,9 @@ if TEXTUAL_AVAILABLE:
         def __init__(self, id="cct-composer", model_label="no model"):
             super().__init__(id=id)
             self._model_label = model_label
+            self._voice_timer = None
+            self._backup_override = None
+            self._current_mode_key = "agent"
             self._sent_history = []
             self._history_index = None
             self._stream_start = None
@@ -621,9 +653,17 @@ if TEXTUAL_AVAILABLE:
             return self.query_one(PromptIndicator)
 
         def compose(self):
+            with Horizontal(id="cct-composer-context-bar"):
+                yield _Badge("AGENT", "badge-top-mode", self._toggle_notebook, classes="cct-badge-mode")
+                yield Static("·", classes="cct-badge-sep")
+                yield _Badge("OLLAMA", "badge-provider", self._open_provider, classes="cct-badge-prov")
+                yield Static("·", classes="cct-badge-sep")
+                yield _Badge(self._model_label or "deepseek-r1:latest", "badge-model-top", self._open_model, classes="cct-badge-model")
+                yield Static("", classes="cct-badge-spacer")
+                yield Static("● Ready", id="badge-status", classes="cct-badge-status")
+
             with Horizontal(id="cct-streaming-row"):
                 yield Static("", id="cct-streaming-status")
-                yield Button(_safe_glyph("■ Stop", "Stop"), id="btn-stop", classes="cct-stop-btn", tooltip="Stop response (Esc)")
             yield Static("", id="cct-edit-banner")
             yield Static("", id="cct-latex-preview")
             with Horizontal(id="cct-prompt-row"):
@@ -633,11 +673,13 @@ if TEXTUAL_AVAILABLE:
                     editor.show_line_numbers = False
                     editor.highlight_cursor_line = False
                     yield editor
-            # Sibling of the prompt row, not nested in cct-editor-stack (which
-            # is height-capped for the input alone) so the palette's own rows
-            # aren't clipped by the editor's height cap.
+            with Horizontal(id="cct-voice-strip"):
+                yield Static("", id="cct-voice-status")
+                yield Button("Done", id="btn-voice-done", classes="cct-ctl-btn")
+                yield Button("Cancel", id="btn-voice-cancel", classes="cct-ctl-btn")
             yield CommandPalette()
             yield AttachmentBar()
+            yield Static("", id="cct-composer-divider")
             yield ComposerFooter(model_label=self._model_label)
             yield PermissionsSettingsPanel()
 
@@ -645,6 +687,228 @@ if TEXTUAL_AVAILABLE:
             self.query_one("#cct-input", ComposerInput).focus()
             self._apply_compact_height()
             self.set_explicit_height(None)
+            try:
+                self.query_one("#btn-stop", Button).display = False
+                self.query_one("#cct-voice-strip").display = False
+                self.query_one("#cct-streaming-row").display = False
+                self.query_one("#cct-edit-banner").display = False
+                self.query_one("#cct-latex-preview").display = False
+            except Exception:
+                pass
+            try:
+                from .. import ai_modes
+                self.set_ai_mode(ai_modes.current_mode())
+            except Exception:
+                pass
+            self._update_context_bar()
+
+        def _toggle_notebook(self):
+            self.post_message(CommandExecuted("/mode"))
+
+        def _open_provider(self):
+            self.post_message(CommandExecuted("/provider"))
+
+        def _open_model(self):
+            self.post_message(CommandExecuted("/model"))
+
+        def set_active_backup_model(self, provider, model):
+            self._backup_override = (provider, model)
+            try:
+                footer = self.query_one(ComposerFooter)
+                footer.set_provider_model(provider, model, is_backup=True)
+            except Exception:
+                pass
+            self._update_context_bar()
+
+        def reset_model_indicator(self):
+            self._backup_override = None
+            try:
+                footer = self.query_one(ComposerFooter)
+                from .. import aicore
+                cfg = aicore.load_config() or {}
+                prov = cfg.get("provider", "")
+                mdl = cfg.get("model", "")
+                footer.set_provider_model(prov, mdl, is_backup=False)
+            except Exception:
+                pass
+            self._update_context_bar()
+
+        def _update_context_bar(self):
+            try:
+                from .. import aicore, ai_modes
+                mode_key = getattr(self, "_current_mode_key", None) or ai_modes.current_mode() or "agent"
+                try:
+                    badge_top = self.query_one("#badge-top-mode", _Badge)
+                    badge_top.update(mode_key.upper())
+                except Exception:
+                    pass
+
+                try:
+                    footer = self.query_one(ComposerFooter)
+                    footer.notebook_mode = mode_key
+                    footer.query_one("#badge-notebook", _Badge).update(footer._mode_badge_markup(mode_key))
+                except Exception:
+                    pass
+
+                if self._backup_override:
+                    prov, mdl = self._backup_override
+                else:
+                    cfg = aicore.load_config() or {}
+                    prov = cfg.get("provider", "OLLAMA")
+                    mdl = cfg.get("model", "deepseek-r1:latest")
+
+                badge_prov = self.query_one("#badge-provider", _Badge)
+                badge_prov.update((prov or "OLLAMA").upper())
+
+                badge_mdl = self.query_one("#badge-model-top", _Badge)
+                badge_mdl.update(mdl or "deepseek-r1:latest")
+
+                try:
+                    footer = self.query_one(ComposerFooter)
+                    if not footer._prov and not footer._mdl:
+                        footer.set_provider_model(prov, mdl, is_backup=False)
+                except Exception:
+                    pass
+            except Exception:
+                pass
+
+        def toggle_voice(self):
+            """Toggle real microphone input and waveform visualization."""
+            from ..voice import voice_manager, VoiceState
+            from .. import sound
+            if voice_manager.state in (VoiceState.IDLE, VoiceState.ERROR):
+                try:
+                    sound.play("wake_kitty")
+                except Exception:
+                    pass
+                if not voice_manager.check_permission():
+                    try:
+                        self.app.notify("Microphone access restricted.", title="Voice Mode", severity="warning")
+                    except Exception:
+                        pass
+                    return
+                success = voice_manager.start_recording()
+                try:
+                    strip = self.query_one("#cct-voice-strip")
+                    strip.display = True
+                    mic_btn = self.query_one("#btn-mic", Button)
+                    mic_btn.set_class(True, "cct-mic-active")
+                except Exception:
+                    pass
+                self._start_voice_refresh_timer()
+            elif voice_manager.state == VoiceState.LISTENING:
+                self.voice_done()
+            else:
+                self.voice_cancel()
+
+        def _start_voice_refresh_timer(self):
+            if getattr(self, "_voice_timer", None) is not None:
+                return
+            self._voice_timer = self.set_interval(0.08, self._refresh_voice_ui)
+
+        def _refresh_voice_ui(self):
+            from ..voice import voice_manager, VoiceState
+            if voice_manager.state == VoiceState.LISTENING:
+                dur = voice_manager.get_duration_str()
+                rich_wf = voice_manager.get_rich_waveform(width=22)
+                lang_name = voice_manager.get_language_info().get("name", "Voice")
+                try:
+                    status = self.query_one("#cct-voice-status", Static)
+                    status.update(f"[bold #f472b6]● REC[/] [bold #38bdf8][{dur}][/] {rich_wf} [bold #a855f7]({lang_name})[/]")
+                except Exception:
+                    pass
+            elif voice_manager.state == VoiceState.ERROR:
+                try:
+                    status = self.query_one("#cct-voice-status", Static)
+                    err = voice_manager._error_message or "Microphone error"
+                    rich_wf = voice_manager.get_rich_waveform(width=16)
+                    status.update(f"[bold #f87171]⚠ MIC ERROR:[/] [dim]{err}[/] {rich_wf}")
+                except Exception:
+                    pass
+            elif voice_manager.state in (VoiceState.PROCESSING, VoiceState.TRANSCRIBING, VoiceState.THINKING):
+                try:
+                    status = self.query_one("#cct-voice-status", Static)
+                    status.update("[bold #e0af68]⏳ Thinking...[/] [dim]Processing voice context[/]")
+                except Exception:
+                    pass
+            elif voice_manager.state == VoiceState.SPEAKING:
+                rich_wf = voice_manager.get_rich_waveform(width=20)
+                try:
+                    status = self.query_one("#cct-voice-status", Static)
+                    status.update(f"[bold #a6e3a1]🔊 Speaking...[/] {rich_wf}")
+                except Exception:
+                    pass
+            elif voice_manager.state == VoiceState.READY_TO_SUBMIT:
+                text = voice_manager._transcribed_text
+                voice_manager.cancel_recording()
+                self._stop_voice_refresh_timer()
+                if text:
+                    editor = self.query_one("#cct-input", ComposerInput)
+                    current = (editor.text or "").strip()
+                    editor.text = (current + " " + text).strip() if current else text
+                    editor.focus()
+                    try:
+                        if hasattr(self, "app") and self.app:
+                            self.app._voice_mode_invoked = True
+                    except Exception:
+                        pass
+                    try:
+                        self.app.notify(f"Transcribed: \"{text}\"", title="🎙 Voice", timeout=2.5)
+                    except Exception:
+                        pass
+                try:
+                    self.query_one("#cct-voice-strip").display = False
+                    self.query_one("#btn-mic", Button).set_class(False, "cct-mic-active")
+                except Exception:
+                    pass
+            elif voice_manager.state in (VoiceState.IDLE, VoiceState.ERROR):
+                if voice_manager.state == VoiceState.ERROR:
+                    try:
+                        self.app.notify(f"Voice: {voice_manager._error_message}", title="Voice Error", severity="error")
+                    except Exception:
+                        pass
+                self.voice_cancel()
+
+        def _stop_voice_refresh_timer(self):
+            if getattr(self, "_voice_timer", None) is not None:
+                try:
+                    self._voice_timer.stop()
+                except Exception:
+                    pass
+                self._voice_timer = None
+
+        def voice_done(self):
+            from ..voice import voice_manager
+            voice_manager.stop_and_transcribe()
+
+        def voice_cancel(self):
+            from ..voice import voice_manager
+            voice_manager.cancel_recording()
+            self._stop_voice_refresh_timer()
+            try:
+                self.query_one("#cct-voice-strip").display = False
+                self.query_one("#btn-mic", Button).set_class(False, "cct-mic-active")
+            except Exception:
+                pass
+
+        def voice_command(self, arg=None):
+            from ..voice import voice_manager, VoiceState
+            arg = (arg or "").strip().lower().lstrip("-").lstrip("/")
+            if not arg or arg in ("toggle", "t"):
+                self.toggle_voice()
+                return True
+            if arg in ("on", "start", "rec", "record"):
+                if voice_manager.state == VoiceState.IDLE:
+                    self.toggle_voice()
+                return True
+            if arg in ("off", "stop", "cancel", "abort"):
+                self.voice_cancel()
+                return True
+            if arg in ("done", "finish", "submit"):
+                if voice_manager.state != VoiceState.IDLE:
+                    self.voice_done()
+                return True
+            return False
 
         def on_unmount(self):
             # The 100ms streaming ticker is owned by this widget: stop
@@ -671,7 +935,7 @@ if TEXTUAL_AVAILABLE:
                     self._explicit_height = None
                     self.styles.height = "auto"
                     self.styles.min_height = COMPOSER_MIN_HEIGHT
-                    self.styles.max_height = "32%"
+                    self.styles.max_height = "65%"
                     try:
                         editor = self.query_one("#cct-input", ComposerInput)
                         stack = self.query_one("#cct-editor-stack", Container)
@@ -680,26 +944,17 @@ if TEXTUAL_AVAILABLE:
                         editor.styles.height = line_count
                         stack.styles.height = line_count
                         row.styles.height = "auto"
+                        row.styles.min_height = 2
                     except Exception:
                         pass
                     return
-                # v0.7.9.15 fix (drag ceiling too low): the old min(…, 8)
-                # cap dead-ended the drag after a few rows on any real
-                # desktop terminal. Mirror the resize handle's bounds
-                # math — the explicit height may now reach just over
-                # half the screen height.
-                hi = max(COMPOSER_MIN_HEIGHT + 4,
-                         min(int(self.screen.size.height * 0.60), 20))
+                screen_h = getattr(getattr(self, "screen", None), "size", None)
+                sh = screen_h.height if screen_h else 24
+                hi = max(COMPOSER_MIN_HEIGHT + 4, min(int(sh * 0.70), 24))
                 height = max(COMPOSER_MIN_HEIGHT, min(hi, int(height)))
                 self._explicit_height = height
                 self.styles.height = height
                 self.styles.min_height = height
-                # v0.7.9.15 fix (clamp fought the drag): "32%" won over
-                # the dragged height on anything smaller than a full
-                # screen, so nothing moved. The dragged height is a
-                # floor for this session; the column's own 1fr chat
-                # area above already keeps the composer from
-                # swallowing the screen.
                 self.styles.max_height = "100%"
                 try:
                     editor = self.query_one("#cct-input", ComposerInput)
@@ -708,6 +963,7 @@ if TEXTUAL_AVAILABLE:
                     editor.styles.height = "1fr"
                     stack.styles.height = "1fr"
                     row.styles.height = "1fr"
+                    row.styles.min_height = 2
                 except Exception:
                     pass
             except Exception:
@@ -728,34 +984,22 @@ if TEXTUAL_AVAILABLE:
                 editor = self.query_one("#cct-input", ComposerInput)
                 stack = self.query_one("#cct-editor-stack", Container)
                 row = self.query_one("#cct-prompt-row")
+                row.styles.min_height = 2
+                editor.styles.min_height = 1
+                stack.styles.min_height = 1
                 if getattr(self, "_explicit_height", None):
-                    # v0.7.9.15 fix: keep the dragged height intact —
-                    # a resize event must never re-clamp it to a
-                    # percentage or clear the fixed editor row (the old
-                    # fall-through let on_resize erase the user's drag
-                    # whenever the window moved). Only the emergency
-                    # short-screen path below overrides it.
                     if short:
-                        stack.styles.min_height = 1
-                        row.styles.min_height = 1
-                        editor.styles.min_height = 1
-                        editor.styles.max_height = self._explicit_height
+                        editor.styles.max_height = max(2, self._explicit_height - 3)
                     return
                 if short:
-                    editor.styles.min_height = 1
                     editor.styles.max_height = 4
-                    stack.styles.min_height = 1
                     stack.styles.max_height = 4
-                    row.styles.min_height = 1
                     self.styles.max_height = "100%"
                 else:
-                    editor.styles.min_height = 1
                     avail = int(self.screen.size.height * 0.6) - 5
                     editor_max = max(2, min(10, avail))
                     editor.styles.max_height = editor_max
-                    stack.styles.min_height = 1
                     stack.styles.max_height = editor_max
-                    row.styles.min_height = 1
                     try:
                         from .permission_panel import PermissionsSettingsPanel
                         panel = self.query_one(PermissionsSettingsPanel)
@@ -780,10 +1024,16 @@ if TEXTUAL_AVAILABLE:
             `/build`, `/plan`, or `/notebook` command switches mode —
             keeps the clickable badge and the typed command in lock
             step without either one owning the other's state twice."""
+            self._current_mode_key = mode_key
             try:
                 footer = self.query_one(ComposerFooter)
                 footer.notebook_mode = mode_key
                 footer.query_one("#badge-notebook").update(footer._mode_badge_markup(mode_key))
+            except Exception:
+                pass
+            try:
+                badge_top = self.query_one("#badge-top-mode", _Badge)
+                badge_top.update(mode_key.upper())
             except Exception:
                 pass
             all_mode_classes = ["cct-mode-notebook", "cct-mode-research", "cct-mode-plan",
@@ -809,20 +1059,19 @@ if TEXTUAL_AVAILABLE:
                 self._stream_turn_id = None
             try:
                 send_btn = self.query_one("#btn-send", Button)
+                stop_btn = self.query_one("#btn-stop", Button)
                 if value:
-                    send_btn.label = _safe_glyph("⏸", "||")
-                    send_btn.tooltip = "Interrupt response (Click || / Esc)"
-                    send_btn.disabled = False
-                    send_btn.set_class(True, "cct-btn-interrupt")
+                    send_btn.display = False
+                    stop_btn.display = True
+                    stop_btn.disabled = False
+                    stop_btn.label = _safe_glyph("■", "Stop")
+                    stop_btn.tooltip = "Stop response (Esc)"
                 else:
+                    stop_btn.display = False
+                    send_btn.display = True
+                    send_btn.disabled = False
                     send_btn.label = _safe_glyph("➤", ">")
                     send_btn.tooltip = "Send message (Enter)"
-                    send_btn.disabled = False
-                    send_btn.set_class(False, "cct-btn-interrupt")
-            except Exception:
-                pass
-            try:
-                self.query_one("#btn-stop", Button).display = value
             except Exception:
                 pass
             bar = self.query_one("#cct-streaming-status", Static)
@@ -1093,24 +1342,38 @@ if TEXTUAL_AVAILABLE:
                 else:
                     self.submit()
             elif bid == "btn-stop":
-                # v0.7.8.1 interrupt: the ⏹ button next to the streaming
-                # status line — same path as Esc / Ctrl+C.
                 try:
                     self.app.action_cancel_streaming()
                 except Exception:
                     pass
             elif bid == "btn-permissions":
-                panel = self.query_one(PermissionsSettingsPanel)
-                is_now_open = not panel.has_class("open")
-                panel.set_class(is_now_open, "open")
-                if is_now_open:
-                    panel.refresh_rows()
-                self._on_permission_panel_toggled(is_now_open)
+                try:
+                    panel = self.query_one(PermissionsSettingsPanel)
+                    is_now_open = not panel.has_class("open")
+                    panel.set_class(is_now_open, "open")
+                    if is_now_open:
+                        panel.refresh_rows()
+                    self._on_permission_panel_toggled(is_now_open)
+                except Exception:
+                    pass
+            elif bid == "btn-security":
+                try:
+                    from .. import permissions as perm
+                    perm.manager.cycle_mode()
+                    self.app.notify(f"Security: {perm.manager.mode_label()}", title="Security Mode")
+                except Exception:
+                    pass
             elif bid == "btn-attach":
                 try:
                     self.app.action_prompt_attach()
                 except Exception:
                     pass
+            elif bid == "btn-mic":
+                self.toggle_voice()
+            elif bid == "btn-voice-done":
+                self.voice_done()
+            elif bid == "btn-voice-cancel":
+                self.voice_cancel()
 
         def on_click(self, event) -> None:
             target = getattr(event, "widget", None)
@@ -1135,6 +1398,11 @@ if TEXTUAL_AVAILABLE:
                 editor = self.query_one("#cct-input", ComposerInput)
                 if target != editor and not editor.has_focus:
                     editor.focus()
+                    try:
+                        if hasattr(self, "app") and self.app:
+                            self.app._voice_mode_invoked = True
+                    except Exception:
+                        pass
             except Exception:
                 pass
 
@@ -1161,11 +1429,28 @@ if TEXTUAL_AVAILABLE:
                 editor = self.query_one("#cct-input", ComposerInput)
                 if target != editor and not editor.has_focus:
                     editor.focus()
+                    try:
+                        if hasattr(self, "app") and self.app:
+                            self.app._voice_mode_invoked = True
+                    except Exception:
+                        pass
             except Exception:
                 pass
 
         def on_key(self, event) -> None:
             if event.key == "escape":
+                try:
+                    from ..voice import voice_manager, VoiceState
+                    if voice_manager.state != VoiceState.IDLE:
+                        event.stop()
+                        try:
+                            event.prevent_default()
+                        except Exception:
+                            pass
+                        self.voice_cancel()
+                        return
+                except Exception:
+                    pass
                 try:
                     panel = self.query_one(PermissionsSettingsPanel)
                     if panel.is_open:
@@ -1179,6 +1464,12 @@ if TEXTUAL_AVAILABLE:
                     pass
 
         def submit(self):
+            if getattr(self.prompt_indicator, "is_streaming", False):
+                try:
+                    self.app.action_cancel_streaming()
+                except Exception:
+                    pass
+                return
             editor = self.query_one("#cct-input", ComposerInput)
             text = editor.text.strip()
             att_bar = self.query_one(AttachmentBar)
@@ -1191,14 +1482,24 @@ if TEXTUAL_AVAILABLE:
                     text = pasted_block
 
             if not text:
+                try:
+                    self.app.notify("Please enter a message.", title="Composer", severity="warning")
+                except Exception:
+                    pass
                 return
             # v0.7.8.1: real Attachment objects (not bare paths) travel
             # with the message — see AttachmentBar.pop_attachment_objects.
             attachments = att_bar.pop_attachment_objects()
             editing_turn_id = self._editing_turn_id
             self._editing_turn_id = None
-            self.query_one("#cct-edit-banner", Static).remove_class("active")
-            self.query_one("#cct-latex-preview", Static).remove_class("active")
+            try:
+                self.query_one("#cct-edit-banner", Static).remove_class("active")
+            except Exception:
+                pass
+            try:
+                self.query_one("#cct-latex-preview", Static).remove_class("active")
+            except Exception:
+                pass
             self._sent_history.append(text)
             self._history_index = None
             editor.text = ""
@@ -1207,19 +1508,28 @@ if TEXTUAL_AVAILABLE:
                 self.query_one("#cct-editor-stack", Container).styles.height = 2
             except Exception:
                 pass
-            self.palette.close()
+            try:
+                self.palette.close()
+            except Exception:
+                pass
             try:
                 self.query_one(PermissionsSettingsPanel).close_panel()
             except Exception:
                 pass
-            if editing_turn_id is not None:
-                self.post_message(MessageRewritten(editing_turn_id, text, attachments=attachments))
-            else:
-                self.post_message(MessageSubmitted(text, attachments=attachments))
-            # Deployed into the conversation above — the composer itself
-            # never becomes part of that history. Keep focus/cursor here
-            # so the next prompt can be typed immediately.
-            editor.focus()
+            try:
+                if editing_turn_id is not None:
+                    self.post_message(MessageRewritten(editing_turn_id, text, attachments=attachments))
+                else:
+                    self.post_message(MessageSubmitted(text, attachments=attachments))
+            except Exception as e:
+                try:
+                    self.app.notify(f"Submit error: {e}", title="Composer", severity="error")
+                except Exception:
+                    pass
+            try:
+                editor.focus()
+            except Exception:
+                pass
 
         def history_active(self):
             return self._history_index is not None
@@ -1236,13 +1546,38 @@ if TEXTUAL_AVAILABLE:
             )
 
         def _on_palette_state_changed(self, is_open):
+            try:
+                editor = self.query_one("#cct-input", ComposerInput)
+                stack = self.query_one("#cct-editor-stack", Container)
+                row = self.query_one("#cct-prompt-row")
+            except Exception:
+                editor = stack = row = None
+
             if is_open:
-                if self._explicit_height is None:
-                    self.styles.height = "auto"
-                    self.styles.max_height = "80%"
+                self.styles.min_height = 0
+                self.styles.height = "auto"
+                self.styles.max_height = "42%"
+                if editor is not None:
+                    editor.styles.height = 1
+                if stack is not None:
+                    stack.styles.height = 1
+                if row is not None:
+                    row.styles.height = 1
             else:
-                if self._explicit_height is None:
+                if self._explicit_height is not None:
+                    self.styles.height = self._explicit_height
+                    self.styles.min_height = self._explicit_height
+                    self.styles.max_height = "100%"
+                    if editor is not None:
+                        editor.styles.height = "1fr"
+                    if stack is not None:
+                        stack.styles.height = "1fr"
+                    if row is not None:
+                        row.styles.height = "1fr"
+                else:
+                    from .resizers import COMPOSER_MIN_HEIGHT
                     self.styles.height = "auto"
+                    self.styles.min_height = COMPOSER_MIN_HEIGHT
                     self.styles.max_height = "75%"
 
         def _on_permission_panel_toggled(self, is_open):

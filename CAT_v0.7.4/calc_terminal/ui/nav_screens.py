@@ -514,8 +514,8 @@ if TEXTUAL_AVAILABLE:
             text-style: bold;
         }
         .user-quick Button:hover {
-            border-top: tall $accent-lighten-2;
-            border-left: tall $accent-lighten-2;
+            border-top: tall $accent-light;
+            border-left: tall $accent-light;
             border-bottom: tall $accent;
             border-right: tall $accent;
             background: $surface-alt;
@@ -533,8 +533,8 @@ if TEXTUAL_AVAILABLE:
             text-style: bold;
         }
         .user-actions Button:hover {
-            border-top: tall $accent-lighten-2;
-            border-left: tall $accent-lighten-2;
+            border-top: tall $accent-light;
+            border-left: tall $accent-light;
             border-bottom: tall $accent;
             border-right: tall $accent;
             background: $surface-alt;
@@ -552,8 +552,8 @@ if TEXTUAL_AVAILABLE:
             text-style: bold;
         }
         .user-prefs Button:hover {
-            border-top: tall $accent-lighten-2;
-            border-left: tall $accent-lighten-2;
+            border-top: tall $accent-light;
+            border-left: tall $accent-light;
             border-bottom: tall $accent;
             border-right: tall $accent;
             background: $surface-alt;
@@ -580,6 +580,9 @@ if TEXTUAL_AVAILABLE:
                     with Horizontal(classes="user-prefs"):
                         yield Button("  Model / Provider  ", id="user-modelcfg", classes="cct-btn cct-btn-sm")
                         yield Button("  Permissions  ", id="user-perms", classes="cct-btn cct-btn-sm")
+                    with Horizontal(classes="user-prefs"):
+                        yield Button("  🔌 MCP Servers  ", id="user-mcp", classes="cct-btn cct-btn-sm")
+                        yield Button("  📡 Backup Providers  ", id="user-backup", classes="cct-btn cct-btn-sm")
                     yield Static("🐱 Kitties", classes="user-section")
                     yield Static("", id="user-modecolors-preview", classes="user-detail")
                     with Horizontal(classes="user-prefs"):
@@ -724,6 +727,10 @@ if TEXTUAL_AVAILABLE:
                 self.dismiss("model")
             elif event.button.id == "user-perms":
                 self.dismiss("permissions")
+            elif event.button.id == "user-mcp":
+                self.dismiss("mcp_servers")
+            elif event.button.id == "user-backup":
+                self.dismiss("backup_providers")
             elif event.button.id == "user-workspace":
                 self.dismiss("workspace")
             elif event.button.id == "user-themes":
@@ -801,7 +808,7 @@ if TEXTUAL_AVAILABLE:
         }
         #delete-title { text-style: bold; color: $error; margin-bottom: 1; }
         #delete-msg { margin-bottom: 1; }
-        #delete-note { color: $text-faint; font-style: italic; margin-bottom: 1; }
+        #delete-note { color: $text-faint; text-style: italic; margin-bottom: 1; }
         #delete-btns { height: 3; align: right middle; }
         #delete-btns Button { margin-left: 1; min-height: 3; }
         """

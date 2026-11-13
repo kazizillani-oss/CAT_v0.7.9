@@ -107,6 +107,19 @@ class StartupLoadingOverlay(Container):
 
         self._timer = self.set_interval(0.14, self._tick_loader)
 
+    def _render_fomoji_badge(self) -> str:
+        try:
+            from ..fomoji_manager import get_fomoji_runtime_state
+            state = get_fomoji_runtime_state()
+            if state.get("ready"):
+                return f"[#a6e3a1]● Fomoji Server Online (Port {state.get('port', 3000)})[/]"
+            elif state.get("status") == "starting":
+                step = state.get("step") or "starting"
+                return f"[#f9e2af]⟳ Fomoji Server: {step} (Port {state.get('port', 3000)})[/]"
+        except Exception:
+            pass
+        return "[dim]○ Fomoji Server Offline[/dim]"
+
     def _render_bar(self, fraction: float) -> str:
         fraction = max(0.0, min(1.0, fraction))
         total_width = 30

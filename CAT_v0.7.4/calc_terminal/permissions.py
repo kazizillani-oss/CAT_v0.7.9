@@ -60,7 +60,7 @@ PERMISSION_DEFS = [
     ("shell_commands", "Shell Commands", True),
     ("install_packages", "Install Packages", True),
     ("device_control", "Device Control", False),
-    ("internet", "Internet", False),
+    ("internet", "Internet", True),
     ("browser_automation", "Browser Automation", False),
     ("formula_library", "Formula Library", True),
     ("notebook", "Notebook", True),

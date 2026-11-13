@@ -100,10 +100,7 @@ _KEYWORD_STAGES = [
     (("/install", "/packages", "install ", "pip install", "npm install", "setup "), "installing"),
     (("/debug", "debug this", "fix this bug", "error message", "traceback", "why is this failing"), "debugging"),
     (("/pipeline", "build me a", "build us an", "build a full"), "building"),
-    (("/orbitals", "orbital", "quantum library", "electron cloud"), "quantum_lib"),
-    (("/atomsim", "/sim3d", "3d simulation", "atomic simulation"), "sim3d"),
     (("/react", "reaction sim", "kinetics ode", "equilibrium ode", "simulate"), "simulation"),
-    (("/graph", "plot ", "plot a", "graph of", "draw a graph"), "graph"),
     (("/codepad", "```", "write code", "generate code", "run python"), "code"),
     (("render html", "generate html", "html report"), "html"),
     (("/formulas", "formula database", "formula library"), "formula_db"),
@@ -213,17 +210,25 @@ def completion_summary_lines(*, provider=None, model=None, duration=None,
     if isinstance(contributions, dict):
         c_list = []
         if contributions.get("main_model") or contributions.get("pct_main") is not None:
+            try:
+                pct_m = float(contributions.get("pct_main") or 0.0)
+            except Exception:
+                pct_m = 0.0
             c_list.append({
                 "model": contributions.get("main_model", model or "main"),
                 "is_backup": False,
-                "percent": float(contributions.get("pct_main", 0.0)),
+                "percent": pct_m,
                 "tokens": contributions.get("main_tokens", 0),
             })
         if contributions.get("backup_model") or contributions.get("pct_backup") is not None or contributions.get("is_backup"):
+            try:
+                pct_b = float(contributions.get("pct_backup") or 0.0)
+            except Exception:
+                pct_b = 0.0
             c_list.append({
                 "model": contributions.get("backup_model", "backup"),
                 "is_backup": True,
-                "percent": float(contributions.get("pct_backup", 0.0)),
+                "percent": pct_b,
                 "tokens": contributions.get("backup_tokens", 0),
                 "success": True,
             })
@@ -238,7 +243,10 @@ def completion_summary_lines(*, provider=None, model=None, duration=None,
         for c in contributions:
             role = "Backup" if c.get("is_backup") else "Main"
             m = c.get("model", "")
-            pct = c.get("percent", 0.0)
+            try:
+                pct = float(c.get("percent") or 0.0)
+            except Exception:
+                pct = 0.0
             c_parts.append(f"{role} {pct:.0f}%: {m}")
         meta.append(f"Contribution: {' · '.join(c_parts)}")
         active = next((c.get("model") for c in reversed(contributions) if c.get("chars", 0) > 0 or c.get("success")), model)
@@ -248,7 +256,10 @@ def completion_summary_lines(*, provider=None, model=None, duration=None,
         c = contributions[0]
         role = "Backup" if c.get("is_backup") else "Main"
         m = c.get("model", "") or model
-        pct = c.get("percent", 100.0)
+        try:
+            pct = float(c.get("percent") if c.get("percent") is not None else 100.0)
+        except Exception:
+            pct = 100.0
         meta.append(f"Model: {m}")
         meta.append(f"Contribution: {role} {pct:.0f}%")
     elif model:

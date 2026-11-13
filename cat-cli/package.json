@@ -3,7 +3,7 @@
   "displayName": "CAT — Coding Agent Terminal",
   "description": "CAT — Coding Agent Terminal (also known as CCT) is an AI CLI and AI coding assistant for VS Code — a terminal AI and coding agent for terminal-first development, coding, debugging, research and planning. Launches the real CAT terminal assistant inside the VS Code integrated terminal.",
   "publisher": "KaziZillani",
-  "version": "0.8.10",
+  "version": "0.9.000",
   "engines": {
     "vscode": "^1.100.0"
   },

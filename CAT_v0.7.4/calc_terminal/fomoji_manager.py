@@ -32,6 +32,77 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 
+_FOMOJI_RUNTIME_STATE: Dict[str, Any] = {
+    "status": "idle",
+    "running": False,
+    "ready": False,
+    "port": 3000,
+    "step": "",
+    "progress": 0.0,
+}
+
+def get_fomoji_runtime_state() -> Dict[str, Any]:
+    global _FOMOJI_RUNTIME_STATE
+    return dict(_FOMOJI_RUNTIME_STATE)
+
+def update_fomoji_runtime_state(**kwargs) -> Dict[str, Any]:
+    global _FOMOJI_RUNTIME_STATE
+    _FOMOJI_RUNTIME_STATE.update(kwargs)
+    return dict(_FOMOJI_RUNTIME_STATE)
+
+class CLIProgressAnimation:
+    def __init__(self, title: str = "", bar_width: int = 20, enabled: bool = True):
+        self.title = title
+        self.bar_width = bar_width
+        self.enabled = enabled
+        self._progress = 0.0
+        self._running = False
+
+    def _render_bar(self, progress: float) -> str:
+        progress = max(0.0, min(1.0, progress))
+        filled_len = int(round(self.bar_width * progress))
+        empty_len = self.bar_width - filled_len
+        percent = int(round(progress * 100))
+        bar = "█" * filled_len + "░" * empty_len
+        return f"{bar} {percent}%"
+
+    def start(self):
+        self._running = True
+
+    def update(self, title: Optional[str] = None, progress: Optional[float] = None):
+        if title is not None:
+            self.title = title
+        if progress is not None:
+            self._progress = progress
+
+    def finish(self, success: bool = True, message: Optional[str] = None):
+        self._running = False
+        icon = "✓" if success else "✗"
+        msg = message or self.title
+        sys.stdout.write(f"{icon} {msg}\n")
+        sys.stdout.flush()
+
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None:
+            self.finish(success=False, message=str(exc_val) or self.title)
+        else:
+            self.finish(success=True, message=self.title)
+
+def start_fomoji_server_background(server_dir: Optional[Path] = None, node_path: Optional[str] = None) -> None:
+    import threading
+    def _run():
+        try:
+            start_fomoji_server(server_dir=server_dir, node_path=node_path)
+        except Exception:
+            pass
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+
+
 @dataclass
 class NodeEnvironment:
     installed: bool
@@ -460,6 +531,7 @@ def start_fomoji_server(
     server_dir: Path,
     node_path: str,
     timeout: int = 35,
+    progress_anim: Optional[Any] = None,
 ) -> Tuple[bool, str]:
     """Spawn the Node.js Fomoji server and verify it becomes reachable.
     Captures stdout/stderr for diagnostics if startup fails."""
@@ -512,6 +584,11 @@ def start_fomoji_server(
     # Poll server reachability with process liveness detection
     deadline = time.time() + timeout
     while time.time() < deadline:
+        if progress_anim:
+            try:
+                progress_anim.update(title="Starting Fomoji server...", progress=0.75)
+            except Exception:
+                pass
         if proc.poll() is not None:
             # Process terminated early!
             diagnostic = ""
@@ -526,6 +603,12 @@ def start_fomoji_server(
                 f"Fomoji server process exited unexpectedly with code {proc.returncode}.\n"
                 f"Diagnostic:\n{diagnostic or 'No log output captured.'}"
             )
+
+        if progress_anim:
+            try:
+                progress_anim.update(title=f"Starting Fomoji server on port {port}...", progress=0.75)
+            except Exception:
+                pass
 
         if check_server_reachable(timeout=1.0):
             return True, "Fomoji server ready"
@@ -556,7 +639,10 @@ def start_fomoji_server(
 # Master Startup Coordinator
 # ---------------------------------------------------------------------------
 
-def initialize_fomoji_subsystem(interactive: bool = True) -> bool:
+def initialize_fomoji_subsystem(interactive: bool = True, background: bool = False, animate: bool = True) -> bool:
+    if background:
+        start_fomoji_server_background()
+        return True
     """Master Fomoji initialization flow for CAT startup:
       ✓ CAT core initialized
       ✓ Checking Node.js...

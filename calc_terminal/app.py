@@ -15,16 +15,11 @@ import time
 from . import theme
 from . import fallback_cli
 from . import solver
-from . import atomsim
-from . import graphs
-from . import sim3d
-from . import gpu3d
 from . import aicore
 from . import agent
 from . import sound
 from . import code_editor
 from . import engine
-from . import game
 from . import easter_eggs
 from . import memory
 from . import pet
@@ -160,13 +155,7 @@ class App:
             "/help": self.cmd_help,
             "/calculator": self.cmd_calculator,
             "/formulas": self.cmd_formulas,
-            "/kinetics": self.cmd_kinetics,
-            "/electrochemistry": self.cmd_electrochemistry,
             "/solve": self.cmd_solve,
-            "/atomsim": self.cmd_atomsim,
-            "/orbitals": self.cmd_orbitals,
-            "/orbitalgrid": self.cmd_orbitalgrid,
-            "/graph": self.cmd_graph,
             "/shortcuts": self.cmd_shortcuts,
             "/history": self.cmd_history,
             "/settings": self.cmd_settings,
@@ -191,12 +180,9 @@ class App:
             # nothing else happening in between.
             "/upload": self.cmd_upload,
             "/voice": self.cmd_voice,
-            "/sim3d": self.cmd_sim3d,
-            "/gpu3d": self.cmd_gpu3d,
             "/ai": self.cmd_ai,
             "/agent": self.cmd_agent,
             "/ai-verify": self.cmd_ai_verify,
-            "/game": self.cmd_game,
             "/codepad": self.cmd_codepad,
             "/edit": self.cmd_textedit,
             "/tokens": self.cmd_tokens,
@@ -436,9 +422,6 @@ class App:
         if low == "/formulas":
             self.cmd_formulas()
             return
-        if low == "/kinetics":
-            self.cmd_kinetics()
-            return
         if low in ("/derive", "/derivation", "/derivations"):
             self.cmd_derive()
             return
@@ -454,31 +437,12 @@ class App:
             else:
                 self.cmd_derive()
             return
-        if low == "/electrochemistry":
-            self.cmd_electrochemistry()
-            return
         if low == "/solve":
             self.cmd_solve()
-            return
-        if low == "/atomsim":
-            self.cmd_atomsim()
-            return
-        if low == "/orbitals":
-            self.cmd_orbitals()
-            return
-        if low == "/orbitalgrid":
-            self.cmd_orbitalgrid()
-            return
-        if low == "/bonding" or low.startswith("/bonding "):
-            arg = raw.split(" ", 1)[1] if " " in raw else ""
-            self.cmd_bonding(arg)
             return
         if low == "/bloch" or low.startswith("/bloch "):
             arg = raw.split(" ", 1)[1] if " " in raw else ""
             self.cmd_bloch(arg)
-            return
-        if low == "/graph":
-            self.cmd_graph()
             return
         if low == "/shortcuts":
             self.cmd_shortcuts()
@@ -523,20 +487,11 @@ class App:
             arg = raw.split(" ", 1)[1] if " " in raw else ""
             self.cmd_sudo(arg)
             return
-        if low == "/random":
-            self.solve(random.choice(list(GENERATORS.keys())))
-            return
         if low == "/upload":
             self.cmd_upload()
             return
         if low == "/voice":
             self.cmd_voice()
-            return
-        if low == "/sim3d":
-            self.cmd_sim3d()
-            return
-        if low == "/gpu3d":
-            self.cmd_gpu3d()
             return
         if low == "/ai":
             self.cmd_ai()
@@ -552,9 +507,6 @@ class App:
             return
         if low.startswith("/memory "):
             self.cmd_memory(raw.split(" ", 1)[1].strip().lower())
-            return
-        if low in ("/game", "/quiz", "/play"):
-            self.cmd_game()
             return
         if low == "/codepad":
             self.cmd_codepad()
@@ -790,7 +742,7 @@ class App:
             return
 
         print(theme.orange("\n  I couldn't match that to a supported topic yet."))
-        print(theme.dim("  Try /kinetics, /formulas, keywords like \"first order\", \"mole concept\","))
+        print(theme.dim("  Try /formulas, /solve, keywords like \"first order\", \"mole concept\","))
         print(theme.dim("  or run /agent (or /ai) to configure a provider for general questions,"))
         print(theme.dim("  live simulations, and custom graphs.\n"))
 
@@ -859,21 +811,12 @@ class App:
         lines.append(theme.dim("Type things like \"first order\", \"half life\", \"mole concept\","))
         lines.append(theme.dim("and calc_terminal will detect the topic and solve a numerical."))
         lines.append("")
-        lines.append(theme.purple("LIVE SIMULATIONS", bold=True))
-        lines.append(theme.dim("/atomsim  — animated Bohr atom with real proton/neutron/electron counts"))
-        lines.append(theme.dim("/orbitals — live Monte-Carlo quantum electron-cloud (1s..3d)"))
-        lines.append(theme.dim("/sim3d    — real-time rotatable 3D atom/electron/proton simulation"))
-        lines.append(theme.dim("Type /shortcuts for the full key reference inside those views."))
         lines.append("")
         lines.append(theme.purple("CHEMISTRY AGENTIC AI", bold=True))
         lines.append(theme.dim("/agent      — AI that actually solves, plots & simulates via tools,"))
         lines.append(theme.dim("              not just prose (needs a provider — API key or Ollama)"))
         lines.append(theme.dim("/ai-verify  — test your configured provider/model connection"))
         lines.append(theme.dim("Once configured, plain questions are also routed through the agent."))
-        lines.append("")
-        lines.append(theme.purple("LEARN BY PLAYING", bold=True))
-        lines.append(theme.dim("/game — a multiple-choice Element Quiz: symbols, names, atomic"))
-        lines.append(theme.dim("numbers & shell structure, with streaks, lives and a speed bonus."))
         lines.append("")
         lines.append(theme.purple("SOUND", bold=True))
         lines.append(theme.dim("Short terminal chimes play on startup, solved results, errors, and"))
@@ -1027,79 +970,6 @@ class App:
         return known
 
     # ------------------------------------------------------- atom sim ----
-    def cmd_atomsim(self):
-        print()
-        print(theme.panel([
-            theme.text("Live Bohr atom & electron simulation", bold=True),
-            theme.dim("Enter an element symbol or atomic number (H..Kr, Z=1-36)."),
-        ], title="atomsim", color=theme.CYAN, width=WIDTH))
-        raw = input(theme.dim("  element \u25b8 ")).strip() or "C"
-        z = atomsim.resolve_element(raw)
-        if z is None:
-            print(theme.red(f"  Unknown element '{raw}'."))
-            sound.play("error")
-            return
-        sound.play("sim_start")
-        atomsim.atom_simulation(z)
-        self.print_home()
-
-    def cmd_orbitals(self):
-        print()
-        print(theme.panel([
-            theme.text("Live quantum orbital (electron cloud) simulation", bold=True),
-            theme.dim("Choose an orbital: " + ", ".join(atomsim.ORBITALS.keys())),
-            theme.dim("Real |psi|\u00b2 Monte-Carlo sampling — watch the cloud build up live."),
-        ], title="orbitals", color=theme.PURPLE, width=WIDTH))
-        raw = input(theme.dim("  orbital \u25b8 ")).strip().lower() or "1s"
-        sound.play("sim_start")
-        atomsim.orbital_simulation(raw)
-        self.print_home()
-
-    def cmd_orbitalgrid(self):
-        print()
-        print(theme.panel([
-            theme.text("Hydrogen orbital reference chart", bold=True),
-            theme.dim("Exports a multi-panel PNG of |\u03c8|\u00b2 for a spread of (n,l,m) orbitals,"),
-            theme.dim("the same style as the classic textbook probability-density chart."),
-        ], title="orbitalgrid", color=theme.PURPLE, width=WIDTH))
-        sound.play("sim_start")
-        try:
-            path = atomsim.snapshot_orbital_grid()
-        except Exception as e:
-            path = None
-        if path:
-            print(theme.green(f"  Saved: {path}"))
-        else:
-            print(theme.red("  matplotlib/numpy/scipy not installed \u2014 export skipped."))
-        self.print_home()
-
-    def cmd_bonding(self, arg=""):
-        from . import scires
-        print()
-        names = ", ".join(sorted(scires.MOLECULES.keys()))
-        raw = arg.strip().lower()
-        if not raw:
-            print(theme.panel([
-                theme.text("Chemical bonding density map (ELF-style)", bold=True),
-                theme.dim(f"Available: {names}"),
-                theme.dim("Stylized illustration, not an ab-initio DFT calculation."),
-            ], title="bonding", color=theme.GREEN, width=WIDTH))
-            raw = input(theme.dim("  molecule \u25b8 ")).strip().lower() or "furan"
-        if raw not in scires.MOLECULES:
-            print(theme.red(f"  Unknown molecule '{raw}'. Try: {names}"))
-            self.print_home()
-            return
-        sound.play("sim_start")
-        try:
-            path = scires.render_bonding(raw)
-        except Exception:
-            path = None
-        if path:
-            print(theme.green(f"  Saved: {path}"))
-        else:
-            print(theme.red("  matplotlib/numpy/scipy not installed \u2014 export skipped."))
-        self.print_home()
-
     def cmd_bloch(self, arg=""):
         from . import scires
         print()
@@ -1445,7 +1315,7 @@ class App:
         rows = ws.summary()
         lines = [theme.purple("GENERATED FILES", bold=True), ""]
         if not rows:
-            lines.append(theme.faint("Nothing generated yet. Try /atomsim, /orbitals, /bonding, or /export."))
+            lines.append(theme.faint("Nothing generated yet. Try /formulas, /solve, or /export."))
         else:
             for cat_name, count, newest, when in rows:
                 lines.append(f"{theme.cyan(cat_name):<28} {count} file(s)  \u00b7  newest: {newest} ({when})")
@@ -1454,40 +1324,11 @@ class App:
         print(theme.panel(lines, title="generated files", color=theme.PURPLE, width=WIDTH))
         print()
 
-    def cmd_graph(self):
-        print()
-        lines = [theme.purple("CHEMISTRY GRAPHS", bold=True), ""]
-        for i, (key, desc) in enumerate(graphs.PRESETS, 1):
-            lines.append(f"{theme.cyan(str(i)+'.')} {theme.text(desc)}")
-        lines.append("")
-        lines.append(theme.faint("Type a number for an animated terminal graph."))
-        print(theme.panel(lines, title="graph", color=theme.CYAN, width=WIDTH))
-        choice = input(theme.dim("  \u25b8 ")).strip()
-        if not (choice.isdigit() and 1 <= int(choice) <= len(graphs.PRESETS)):
-            self.print_home()
-            return
-        key, _ = graphs.PRESETS[int(choice) - 1]
-        xs, ys, title, xlabel, ylabel = graphs.preset_curve(key)
-        print()
-        graphs.ascii_plot(xs, ys, title, xlabel, ylabel)
-        export = input(theme.dim("\n  Export a high-quality PNG too? [y/N] \u25b8 ")).strip().lower()
-        if export == "y":
-            try:
-                path = graphs.export_2d(xs, ys, title, xlabel, ylabel)
-                print(theme.green(f"  Saved: {path}"))
-                if key in ("radial_prob_1s",):
-                    path3d = graphs.export_3d_surface("orbital_3d")
-                    print(theme.green(f"  Saved 3D: {path3d}"))
-            except Exception as e:
-                print(theme.red(f"  Export failed (is matplotlib installed?): {e}"))
-        input(theme.faint("\n  Press Enter to continue\u2026"))
-        self.print_home()
-
     # -------------------------------------------------------- shortcuts --
     def cmd_shortcuts(self):
         from . import keys as _keys
         lines = [theme.purple("SHORTCUT KEYS", bold=True), "",
-                 theme.cyan("Inside /atomsim and /orbitals live views:", bold=True)]
+                 theme.cyan("Inside live views:", bold=True)]
         for k, desc in _keys.SHORTCUTS_HELP:
             lines.append(f"  {theme.badge(k, theme.BG_INFO)}  {theme.dim(desc)}")
         lines.append("")
@@ -1543,50 +1384,7 @@ class App:
         input(theme.faint("  Press Enter to continue\u2026"))
 
     # --------------------------------------------------------- kinetics --
-    def cmd_kinetics(self):
-        labels = {
-            "zero": ("Zero Order", "R = R0 - kt"),
-            "first": ("First Order", "k = (2.303/t) log(R0/R)"),
-            "second": ("Second Order", "1/R = 1/R0 + kt"),
-            "third": ("Third Order", "1/R\u00b2 = 1/R\u2080\u00b2 + 2kt"),
-            "halflife": ("Half-Life", "t1/2 = 0.693/k"),
-            "arrhenius": ("Arrhenius Equation", "k = A e^(-Ea/RT)"),
-        }
-        lines = [theme.purple("CHEMICAL KINETICS", bold=True), ""]
-        for i, key in enumerate(KINETICS_ORDER, 1):
-            name, formula = labels[key]
-            lines.append(f"{theme.cyan(str(i)+'.')} {theme.text(name.ljust(24))} {theme.faint(formula)}")
-        lines.append("")
-        lines.append(theme.faint(f"{len(KINETICS_ORDER)+1}. Random kinetics numerical"))
-        print()
-        print(theme.panel(lines, title="kinetics", color=theme.PURPLE, width=WIDTH))
-        choice = input(theme.dim("  \u25b8 ")).strip()
-        if choice.isdigit():
-            idx = int(choice)
-            if 1 <= idx <= len(KINETICS_ORDER):
-                self.solve(KINETICS_ORDER[idx - 1])
-                return
-            if idx == len(KINETICS_ORDER) + 1:
-                self.solve(random.choice(KINETICS_ORDER))
-                return
-        self.print_home()
-
     # ---------------------------------------------------- electrochemistry --
-    def cmd_electrochemistry(self):
-        keys = [k for k, v in solver.FORMULA_LIBRARY.items() if v[1] == "Electrochemistry"]
-        lines = [theme.purple("ELECTROCHEMISTRY", bold=True), ""]
-        for i, key in enumerate(keys, 1):
-            name, cat, formula_str, _ = solver.FORMULA_LIBRARY[key]
-            lines.append(f"{theme.cyan(str(i)+'.')} {theme.text(name.ljust(28))} {theme.faint(mathify(formula_str))}")
-        lines.append("")
-        lines.append(theme.faint("Solved symbolically for any unknown, just like /solve."))
-        print()
-        print(theme.panel(lines, title="electrochemistry", color=theme.PURPLE, width=WIDTH))
-        choice = input(theme.dim("  \u25b8 ")).strip()
-        if choice.isdigit() and 1 <= int(choice) <= len(keys):
-            self._solve_library(keys[int(choice) - 1])
-        self.print_home()
-
     # ----------------------------------------------------------- history --
     def cmd_history(self):
         print()
@@ -2645,89 +2443,61 @@ class App:
 
     # -------------------------------------------------------------- voice --
     def cmd_voice(self):
-        sys.stdout.write("  " + theme.red("\u25cf Listening"))
-        sys.stdout.flush()
-        for _ in range(3):
-            time.sleep(0.35)
-            sys.stdout.write(theme.red("."))
-            sys.stdout.flush()
+        """v0.9.000: Real voice mode with live microphone audio, amplitude waveform & STT."""
+        from .voice import voice_manager, VoiceState
+        if not voice_manager.check_permission():
+            print(theme.red("  Microphone access denied in current security mode."))
+            return
+
         print()
-        run_steps(["Processing..."], step_time=0.3)
-        recognized = "first order half life numerical"
-        print(theme.dim("  Recognized: ") + theme.text(f"\"{recognized}\""))
-        self.handle_question(recognized)
+        print(theme.panel([
+            theme.badge("VOICE MODE", theme.BG_CYAN) + " " + theme.text("Real-Time Microphone Input", bold=True),
+            theme.dim("Live audio capture & speech-to-text transcription powered by CAT Voice."),
+            theme.dim("Press Enter to stop and submit to active agent, or Ctrl+C / Esc to cancel."),
+        ], title="voice", color=theme.CYAN, width=WIDTH))
+
+        if not voice_manager.start_recording():
+            print(theme.red(f"  Failed to start microphone: {voice_manager._error_message}"))
+            return
+
+        try:
+            while voice_manager.state == VoiceState.LISTENING:
+                dur = voice_manager.get_duration_str()
+                wf = "".join(voice_manager._waveform_buffer[-16:])
+                sys.stdout.write(f"\r  {theme.red('\u25cf REC')} [{dur}] {theme.cyan(wf)}  (Press Enter to Stop)  ")
+                sys.stdout.flush()
+                time.sleep(0.08)
+                if sys.platform == "win32":
+                    import msvcrt
+                    if msvcrt.kbhit():
+                        key = msvcrt.getch()
+                        if key in (b'\r', b'\n', b' '):
+                            break
+                        elif key in (b'\x1b', b'\x03'):
+                            voice_manager.cancel_recording()
+                            print("\n" + theme.dim("  Voice recording cancelled."))
+                            return
+        except KeyboardInterrupt:
+            voice_manager.cancel_recording()
+            print("\n" + theme.dim("  Voice recording cancelled."))
+            return
+
+        print("\n  " + theme.cyan("Transcribing speech..."))
+        voice_manager.stop_and_transcribe()
+        while voice_manager.state in (VoiceState.PROCESSING, VoiceState.TRANSCRIBING):
+            time.sleep(0.05)
+
+        if voice_manager.state == VoiceState.READY_TO_SUBMIT:
+            text_result = voice_manager._transcribed_text
+            print(theme.green("  \u2714 Recognized: ") + theme.text(f"\"{text_result}\"", bold=True))
+            voice_manager.cancel_recording()
+            self.handle_question(text_result)
+        else:
+            print(theme.red(f"  Voice transcription: {voice_manager._error_message or 'No speech recognized.'}"))
+            voice_manager.cancel_recording()
 
     # --------------------------------------------------------------- game --
-    def cmd_game(self):
-        game.run_game(self)
-        self.print_home()
-
     # ------------------------------------------------------- beta features ---
-    def cmd_sim3d(self):
-        print()
-        print(theme.panel([
-            theme.badge("BETA", theme.BG_WARN) + " " + theme.text("Real-time 3D Atomic Simulation", bold=True),
-            theme.dim("Real-time calculation of atom, electron, and proton simulation."),
-            theme.dim("Includes 3D graphs and real-time consequence mapping."),
-            "",
-            theme.dim("Enter an element symbol or Z (1-36)."),
-        ], title="sim3d", color=theme.CYAN, width=WIDTH))
-        raw = input(theme.dim("  element \u25b8 ")).strip() or "C"
-        z = atomsim.resolve_element(raw)
-        if z is None:
-            print(theme.red(f"  Unknown element '{raw}'."))
-            sound.play("error")
-            return
-        sound.play("sim_start")
-        sim3d.atom_simulation_3d(z)
-        ans = input(theme.dim(
-            "  Open a real GPU-rendered 3D view of this atom in your browser? [y/N] "
-        )).strip().lower()
-        if ans == "y":
-            path, err = gpu3d.export_atom_view(z)
-            if err:
-                print(theme.red(f"  {err}"))
-            else:
-                print(theme.dim(f"  Opened in browser (also saved: {path})"))
-        self.print_home()
-
-    def cmd_gpu3d(self):
-        print()
-        print(theme.panel([
-            theme.badge("BETA", theme.BG_WARN) + " " + theme.text("GPU-Accelerated 3D (opens in browser)", bold=True),
-            theme.dim("The terminal itself has no GPU access — this generates a real"),
-            theme.dim("WebGL scene (three.js) and opens it in your default browser,"),
-            theme.dim("rendered by your actual GPU with mouse orbit/pan/zoom."),
-            "",
-            theme.cyan("1", bold=True) + theme.dim("  Atom — nucleus + orbiting shell electrons"),
-            theme.cyan("2", bold=True) + theme.dim("  Graph — 3D surface for z = f(x, z)"),
-            theme.cyan("3", bold=True) + theme.dim("  Scale ladder — Planck length \u2192 observable universe"),
-        ], title="gpu3d", color=theme.CYAN, width=WIDTH))
-        choice = input(theme.dim("  choice \u25b8 ")).strip()
-
-        if choice == "1":
-            raw = input(theme.dim("  element \u25b8 ")).strip() or "C"
-            z = atomsim.resolve_element(raw)
-            if z is None:
-                print(theme.red(f"  Unknown element '{raw}'."))
-                sound.play("error")
-                self.print_home()
-                return
-            path, err = gpu3d.export_atom_view(z)
-        elif choice == "2":
-            expr = input(theme.dim(
-                "  z = f(x, z) in JS syntax, e.g. Math.sin(Math.sqrt(x*x+z*z)) \u25b8 ")).strip()
-            path, err = gpu3d.export_graph_view(expr or "Math.sin(Math.sqrt(x*x+z*z))")
-        else:
-            path, err = gpu3d.export_scale_view()
-
-        if err:
-            print(theme.red(f"  {err}"))
-        else:
-            sound.play("sim_start")
-            print(theme.green(f"  \u2713 Opened in browser (also saved: {path})"))
-        self.print_home()
-
     def cmd_ai(self):
         # NEW: Run the same agentic loop as /agent, but with AI branding
         config = aicore.load_config()

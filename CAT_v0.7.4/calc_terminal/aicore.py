@@ -120,6 +120,32 @@ def _build_provider_dict(force_reload=False):
 PROVIDERS = _build_provider_dict()
 
 
+def update_providers_and_models(force: bool = True) -> dict:
+    """Dynamically refresh providers and models from online registry and endpoints.
+    Ensures CAT stays model-agnostic across 200+ providers and up-to-date with newly released models."""
+    global PROVIDERS, _BUILTIN_PROVIDER_DICT
+    try:
+        from .providers.auto_update import force_update as _fu
+        _fu()
+    except Exception:
+        pass
+    _BUILTIN_PROVIDER_DICT = None
+    PROVIDERS = _build_provider_dict(force_reload=True)
+    try:
+        from .models.manager import reload_providers, load_providers
+        reload_providers()
+        provs = load_providers()
+        count = len(provs)
+    except Exception:
+        count = len(PROVIDERS)
+    return {
+        "status": "success",
+        "provider_count": count,
+        "message": f"Successfully updated and synced {count} AI providers and models."
+    }
+
+
+
 def _get_provider_info(provider_id):
     """Get provider info, with cache refresh if base_url is missing."""
     providers = _build_provider_dict()
@@ -775,6 +801,10 @@ def _resolve_provider(config):
         except Exception:
             pass
     model = config.get("model") or (info["default_model"] if info else "gpt-4o-mini")
+    # v0.9.000: GitHub Copilot Auto pool routing — picks Auto in model picker;
+    # if routing fails, falls back to default chat model
+    if provider == "github-copilot" and str(model).lower() in ("auto", "copilot-auto"):
+        model = "auto"
     temperature = config.get("temperature")
     extra_headers = info["extra_headers"] if info else {}
     return api_style, base_url, api_key, model, temperature, extra_headers

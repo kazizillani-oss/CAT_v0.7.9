@@ -45,6 +45,7 @@ import os
 from .sidebar import Explorer
 from .editor import EditorPane
 from .preview_panel import PreviewPanel
+from .session_tabs import ChatSessionTabBar
 from .resizers import (ExplorerResizeHandle, ComposerResizeHandle,
                        RightPaneResizeHandle, SplitPreviewResizer,
                        load_layout, save_layout,
@@ -83,7 +84,7 @@ if TEXTUAL_AVAILABLE:
             s = getattr(self.app, "size", None) or getattr(self.screen, "size", None) or self.size
             w = s.width if s else 80
             h = s.height if s else 40
-            return (w < 92) or (w <= 105 and (w / max(1, h)) < 2.3)
+            return (w < 48) or (h > 0 and (w / max(1, h)) < 1.0)
 
         def __init__(self, conversation_view, composer=None, id="cct-workspace"):
             super().__init__(id=id)
@@ -108,6 +109,7 @@ if TEXTUAL_AVAILABLE:
                     with Vertical(id="cct-chat-col"):
                         with Horizontal(id="cct-chat-nav"):
                             yield Button(_safe_glyph("▶ Explorer", "> Explorer"), id="cct-chat-sidebar-toggle", classes="cct-chat-nav-btn", tooltip="Open Sidebar (Ctrl+B)")
+                            yield ChatSessionTabBar(id="cct-session-tab-bar")
                         yield self._conversation_view
                         if self._composer is not None:
                             yield ComposerResizeHandle(self)
@@ -156,15 +158,20 @@ if TEXTUAL_AVAILABLE:
                 ch = saved.get("composer_height")
                 if ch:
                     from .composer import StickyComposer
+                    from .resizers import COMPOSER_MIN_HEIGHT
                     try:
                         composer = self._composer or self.query_one(StickyComposer)
                         total_h = self.size.height or 24
-                        # Never let restored height exceed 32% of window height in floating/compact view
-                        max_allowed = max(5, int(total_h * 0.32))
-                        safe_ch = min(int(ch), max_allowed)
-                        self.call_after_refresh(
-                            lambda comp=composer, h=safe_ch:
-                            comp.set_explicit_height(h))
+                        if int(ch) <= COMPOSER_MIN_HEIGHT:
+                            self.call_after_refresh(
+                                lambda comp=composer:
+                                comp.set_explicit_height(None))
+                        else:
+                            max_allowed = max(COMPOSER_MIN_HEIGHT, int(total_h * 0.40))
+                            safe_ch = max(COMPOSER_MIN_HEIGHT, min(int(ch), max_allowed))
+                            self.call_after_refresh(
+                                lambda comp=composer, h=safe_ch:
+                                comp.set_explicit_height(h))
                     except Exception:
                         pass
             except Exception:
@@ -257,7 +264,9 @@ if TEXTUAL_AVAILABLE:
 
         def on_sidebar_toggled(self, event):
             """Explorer collapse/expand crossed through here on its way
-            up to CCTApp — keep the divider in lockstep."""
+            up to CCTApp — keep the divider in lockstep.
+            In portrait mode: full screen explorer (only and only in portrait).
+            In landscape mode: side-by-side coexistence."""
             is_port = self.is_portrait()
             main = self.query_one("#cct-workspace-main", Vertical)
             if event.visible:
@@ -268,7 +277,11 @@ if TEXTUAL_AVAILABLE:
                     main.display = False
                 else:
                     self.explorer.remove_class("is-portrait")
+                    self.explorer.display = True
                     main.display = True
+                    w = self.size.width or 80
+                    target_w = min(32, max(20, int(w * 0.30)))
+                    self.explorer.set_width(target_w)
             else:
                 self.explorer.remove_class("is-portrait")
                 self.explorer.display = False
@@ -474,14 +487,22 @@ if TEXTUAL_AVAILABLE:
             self.set_class(is_port, "is-portrait")
             if self.explorer:
                 self.explorer.set_class(is_port, "is-portrait")
-                if is_port and self.explorer.display and self.explorer.width > 0:
-                    self.explorer.styles.width = "100%"
-                    main.display = False
-                    return
+                if is_port:
+                    if self.explorer.display and self.explorer.width > 0:
+                        self.explorer.styles.width = "100%"
+                        main.display = False
+                        self.sync_resizer()
+                        self._sync_sidebar_toggle()
+                        return
+                    else:
+                        main.display = True
                 else:
+                    self.explorer.remove_class("is-portrait")
+                    if self.explorer.display and self.explorer.width > 0:
+                        max_w = max(20, int(self.size.width * 0.40)) if self.size.width else 32
+                        if self.explorer.width > max_w:
+                            self.explorer.set_width(max_w)
                     main.display = True
-            else:
-                main.display = True
 
             editor_disabled = False
             try:
@@ -667,25 +688,27 @@ if TEXTUAL_AVAILABLE:
                     else:
                         self.explorer.remove_class("is-portrait")
                         main.display = True
-                        target_w = min(28, max(20, int(self.size.width * 0.28))) if self.size.width else 26
+                        w = self.size.width or 80
+                        target_w = min(30, max(20, int(w * 0.30)))
                         restore_w = getattr(self.explorer, "_restore_width", None) or target_w
-                        self.explorer.set_width(min(32, max(restore_w, 20)))
+                        self.explorer.set_width(min(34, max(restore_w, 20)))
                 else:
                     self._explorer_manually_opened = False
                     self.explorer.display = False
                     self.explorer.width = 0
-                    main.display = True
                     self.explorer.remove_class("is-portrait")
+                    main.display = True
                 self.sync_resizer()
                 self._relayout()
                 self._sync_sidebar_toggle()
 
         def _sync_sidebar_toggle(self):
+            is_port = self.is_portrait()
             try:
                 collapsed = (not self.explorer.display or self.explorer.width == 0)
                 nav = self.query_one("#cct-chat-nav", Horizontal)
                 btn = self.query_one("#cct-chat-sidebar-toggle", Button)
-                if self.is_portrait():
+                if is_port:
                     nav.display = False
                 else:
                     nav.display = collapsed
@@ -697,7 +720,10 @@ if TEXTUAL_AVAILABLE:
             try:
                 exp_btn = self.query_one("#cct-sidebar-expand-btn", Button)
                 collapsed = (not self.explorer.display or self.explorer.width == 0)
-                exp_btn.display = collapsed
+                if is_port:
+                    exp_btn.display = False
+                else:
+                    exp_btn.display = collapsed
             except Exception:
                 pass
 

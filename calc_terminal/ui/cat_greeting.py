@@ -475,17 +475,22 @@ def get_cat_routine_display(
 
     short_greeting = data["numbered"].split(">", 1)[-1].strip() if ">" in data["numbered"] else data["numbered"]
 
-    # Portrait mode: Display CAT 3D ASCII greeting art
+    art = "\n".join(f"[{accent_hex} b]{line}[/]" for line in data["art_lines"])
+    mode_part = f"[{accent_hex} b]{mode_icon} {mode_label} Mode[/] · " if mode_label else ""
+
+    # Portrait mode: Display CAT 3D ASCII greeting art + full status
     if is_portrait:
-        mode_part = f"[{accent_hex} b]{mode_icon} {mode_label} Mode[/] · " if mode_label else ""
         badge = f"  {mode_part}[{accent_hex}]⚡[/] [b]{data['period_icon']} {data['time_str']}[/] · [{text_faint_hex}]{data['period_name']}[/]"
         greeting = f"  [{accent_hex} b]{data['numbered']}[/]"
         sub_greeting = f"  [{text_muted_hex}]{data['feline']}[/]"
-        art = "\n".join(f"[{accent_hex} b]{line}[/]" for line in data["art_lines"])
         return f"{art}\n\n{badge}\n{greeting}\n{sub_greeting}"
 
-    # Landscape mode: clean compact 2-line greeting WITHOUT 3D ASCII block art
-    # and WITHOUT awkward truncation (e.g. no slicing words into '...')
-    line1 = f"  [{accent_hex} b]/\\_/\\ [/] [b]{data['period_icon']} {data['time_str']}[/]  [{text_faint_hex}]{data['period_name']}[/]"
+    line1 = f"  [{accent_hex} b]/\\_/\\ [/] {mode_part}[b]{data['period_icon']} Routine {data['time_str']}[/]  [{text_faint_hex}]{data['period_name']}[/]"
     line2 = f"  [{accent_hex} b](o.o)[/] [{accent_hex} b]{short_greeting}[/]"
+
+    # Wide landscape mode / fullscreen terminal: Always show the 3D ASCII greeting art!
+    # Only omit in ultra-constrained compact cards (width < 22).
+    if card_width >= 22:
+        return f"{art}\n\n{line1}\n{line2}"
+
     return f"{line1}\n{line2}"

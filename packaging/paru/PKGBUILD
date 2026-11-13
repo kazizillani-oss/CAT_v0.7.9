@@ -1,0 +1,59 @@
+# Maintainer: Kazi Zillani <kazi@cat-cli.dev>
+# Contributor: CAT Ecosystem Team
+pkgname=cat-cli
+pkgver=0.9.000
+pkgrel=1
+pkgdesc="CAT CLI — Coding Agent Terminal. Autonomous AI Coding Assistant, MCP Client & Terminal TUI"
+arch=('any')
+url="https://github.com/kazizillani-oss/CAT_v0.7.9"
+license=('MIT')
+depends=(
+    'python>=3.11'
+    'python-textual'
+    'python-rich'
+    'python-requests'
+    'python-pydantic'
+    'python-fastapi'
+    'python-uvicorn'
+)
+makedepends=(
+    'python-build'
+    'python-installer'
+    'python-wheel'
+    'python-setuptools'
+)
+optdepends=(
+    'nodejs: Model Context Protocol (MCP) server execution runtime'
+    'bun: Ultra-fast JavaScript and TypeScript runtime for MCP skills'
+    'ollama: Local offline and private LLM inference'
+    'sox: Real-time audio waveform processing in voice mode'
+)
+provides=('cat' 'cat-cli')
+conflicts=('cat-cli-git')
+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/kazizillani-oss/CAT_v0.7.9/archive/refs/tags/v${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+    cd "$srcdir/CAT_v0.7.9-${pkgver}" 2>/dev/null || cd "$srcdir/${pkgname}-${pkgver}" 2>/dev/null || cd "$srcdir"
+    python -m build --wheel --no-isolation
+}
+
+package() {
+    cd "$srcdir/CAT_v0.7.9-${pkgver}" 2>/dev/null || cd "$srcdir/${pkgname}-${pkgver}" 2>/dev/null || cd "$srcdir"
+    python -m installer --destdir="$pkgdir" dist/*.whl
+
+    # Symlink canonical binary names
+    install -d "$pkgdir/usr/bin"
+    if [ -f "$pkgdir/usr/bin/cat-cli" ] && [ ! -f "$pkgdir/usr/bin/cat" ]; then
+        ln -sf cat-cli "$pkgdir/usr/bin/cat"
+    fi
+
+    # Documentation and License
+    if [ -f LICENSE ]; then
+        install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+    fi
+    if [ -f README.md ]; then
+        install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+    fi
+}
+

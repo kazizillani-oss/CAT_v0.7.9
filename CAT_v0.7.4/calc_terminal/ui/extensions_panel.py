@@ -2,18 +2,15 @@
 CCT UI — ExtensionsPanel (VS Code-style).
 
 Full VS Code-inspired marketplace and component manager for Gestures, Personalize,
-Skills, Custom Commands, and Integrations.
+Agent Skills, MCP Servers, Custom Commands, and Integrations.
 
 Features:
-- Categories/filters: All, Extensions, Skills, Commands, Integrations
-- Search: name, creator, category, keywords
-- Cards: icon, name, type badge, description, creator, verified, size, version,
-  category, trusted, published date, Install/Enable/Disable/Uninstall
-- Details page with rich metadata: Type, Original Published Date, Installed Date,
-  Source URL, Permissions required, Dependencies, Compatibility, Check for Updates
-- GitHub Installation Modal: inspect before installing, path traversal validation,
-  instant subsystem registration
-- Preserves Gestures & Personalize built-ins (Publisher: Kazi Zillani ✓ Verified)
+- 4 Top-Level Categories: Built-in, Installed, MCP Servers, Discover
+- Sub-filters: All, My Extensions, Community, Imported Skills, Updates
+- Progressive disclosure integration with SkillsEngine and MCP Server registry
+- Cards: Tactile 3D tall-bevels, creator @handles, repository attribution, non-clipping action buttons
+- GitHub Installation Modal: inspect before installing, path traversal validation
+- Preservation of built-ins: Gestures & Personalize (Publisher: Kazi Zillani)
 """
 
 if __name__ == "__main__":
@@ -43,6 +40,10 @@ if TEXTUAL_AVAILABLE:
     except Exception:
         extension_installer = None
     try:
+        from ..skills import engine as skills_engine_mod
+    except Exception:
+        skills_engine_mod = None
+    try:
         from . import theme_css
     except Exception:
         theme_css = None
@@ -54,7 +55,7 @@ if TEXTUAL_AVAILABLE:
             return "#888"
 
     class _ExtCard(Horizontal):
-        """VS Code-style card: icon | info | actions"""
+        """VS Code-style card: icon | info | actions with non-clipping tall bevels."""
         def __init__(self, ext):
             super().__init__(classes="ext-card")
             self.ext = ext
@@ -66,12 +67,16 @@ if TEXTUAL_AVAILABLE:
             desc = ext.get("description", "")
             icon = ext.get("icon", "▣")
             creator = ext.get("publisher") or ext.get("creator") or "Unknown"
+            creator_handle = ext.get("publisher_id") or ext.get("github_username") or ""
+            creator_str = f"{creator} ({creator_handle})" if creator_handle and not creator.endswith(creator_handle) else creator
             verified = bool(ext.get("publisher_verified") or ext.get("verified"))
             trusted = bool(ext.get("trusted"))
             version = ext.get("version", "1.0.0")
             category = ext.get("category", "General")
             size = ext.get("size_display") or ext.get("size", "?")
             ctype = str(ext.get("type", "ext")).upper()
+            license_name = ext.get("license", "MIT")
+
             state = ext.get("state") or (
                 "INSTALLED_ENABLED" if ext.get("enabled") and ext.get("installed")
                 else "NOT_INSTALLED" if not ext.get("installed")
@@ -86,7 +91,7 @@ if TEXTUAL_AVAILABLE:
 
             busy = None
             try:
-                busy = getattr(self.screen, "_busy", {}).get(self.ext_id)  # type: ignore
+                busy = getattr(self.screen, "_busy", {}).get(self.ext_id)
             except Exception:
                 busy = None
             if busy:
@@ -98,7 +103,7 @@ if TEXTUAL_AVAILABLE:
                 }
                 state = _busy_map.get(busy, "INSTALLING")
 
-            # Left icon
+            # Left icon with 3D tactile box
             with Vertical(classes="ext-card-icon"):
                 if state in ("INSTALLING", "UNINSTALLING"):
                     if LoadingIndicator:
@@ -110,19 +115,23 @@ if TEXTUAL_AVAILABLE:
 
             # Center info
             with Vertical(classes="ext-card-info"):
-                # Title row: name + type badge + verified + trusted
+                # Title row: Name + Badge + Verified/Trusted
                 with Horizontal(classes="ext-title-row"):
                     yield Static(name, classes="ext-name")
                     yield Static(f"[{ctype}]", classes="ext-type-badge")
-                    if verified:
+                    if ext.get("kind") == "builtin":
+                        yield Static("✓ Official Skill", classes="ext-verified")
+                    elif verified and trusted:
+                        yield Static("✓ Verified Trusted", classes="ext-verified")
+                    elif verified:
                         yield Static("✓ Verified", classes="ext-verified")
-                    if trusted:
+                    elif trusted:
                         yield Static("Trusted", classes="ext-trusted")
+
+                # Description
                 yield Static(desc, classes="ext-desc")
-                # Meta row: creator, size, version, category, published date
-                pub_meta = f"  ·  pub: {ext['published_at']}" if ext.get("published_at") else ""
-                yield Static(f"{creator}  ·  {size}  ·  v{version}  ·  {category}{pub_meta}", classes="ext-meta")
-                # Status row
+
+                # Clean metadata: Creator (@handle) • vVersion • Category • License • Status
                 status_map = {
                     "NOT_INSTALLED": ("○ Not Installed", "text-faint"),
                     "INSTALLED_ENABLED": ("● Enabled", "success"),
@@ -133,10 +142,14 @@ if TEXTUAL_AVAILABLE:
                     "DISABLING": ("⟳ Disabling…", "warning"),
                 }
                 status_text, tone = status_map.get(state, ("Unknown", "text-faint"))
-                yield Static(f"[{_hex(tone)}]{status_text}[/]", classes="ext-status" + (" ext-busy-label" if busy else ""), markup=True)
+                yield Static(
+                    f"{creator_str}  •  v{version}  •  {category}  •  {license_name}  •  [{_hex(tone)}]{status_text}[/]",
+                    classes="ext-meta",
+                    markup=True
+                )
 
-            # Right actions
-            with Vertical(classes="ext-card-actions"):
+            # Right actions (3 rows tall, never clipped)
+            with Horizontal(classes="ext-card-actions"):
                 if busy:
                     if busy == "install":
                         yield Button("⟳ Installing…", id=f"ext-busy-{self.ext_id}", variant="primary", classes="cct-btn-sm", disabled=True)
@@ -172,7 +185,7 @@ if TEXTUAL_AVAILABLE:
         CSS = """
         _DetailsPanel { align: center middle; background: $surface-darken-2 70%; }
         #det-box { width: 76; max-width: 96%; height: auto; max-height: 48; background: $surface; border: tall $border; padding: 0; layout: vertical; overflow: hidden; }
-        #det-titlebar { height: 5; min-height: 5; max-height: 5; padding: 0 2; border-bottom: solid $border; layout: horizontal; align: center middle; }
+        #det-titlebar { height: 3; min-height: 3; max-height: 3; padding: 0 2; border-bottom: solid $border; layout: horizontal; align-vertical: middle; background: $surface-dark; }
         #det-title { width: 1fr; text-style: bold; }
         #det-body { height: 1fr; overflow-y: auto; padding: 1 2; }
         .det-icon { width: 100%; height: 3; text-align: center; text-style: bold; }
@@ -182,8 +195,8 @@ if TEXTUAL_AVAILABLE:
         .det-meta { width: 100%; height: auto; color: $text-faint; text-align: center; padding: 1 0; }
         .det-desc { width: 100%; height: auto; color: $text; padding: 1 0; }
         .det-section { width: 100%; height: 1; color: $text-faint; text-style: bold; padding-top: 1; border-top: solid $border; margin-top: 1; }
-        #det-actions { height: auto; padding: 1 2; border-top: solid $border; layout: horizontal; }
-        #det-actions Button { margin-right: 1; }
+        #det-actions { height: 4; min-height: 4; max-height: 4; padding: 0 2; border-top: solid $border; layout: horizontal; align: center middle; }
+        #det-actions Button { margin-right: 1; height: 3; min-height: 3; }
         """
 
         def __init__(self, ext_id):
@@ -211,7 +224,7 @@ if TEXTUAL_AVAILABLE:
             with Vertical(id="det-box"):
                 with Horizontal(id="det-titlebar"):
                     yield Static(f"{icon}  {name}  [{ctype}]", id="det-title")
-                    yield Button("✕ Close", id="det-close", classes="cct-modal-close-btn")
+                    yield Button("✕", id="det-close", classes="cct-modal-close-btn")
                 with VerticalScroll(id="det-body"):
                     if state in ("INSTALLING", "UNINSTALLING") and LoadingIndicator:
                         yield LoadingIndicator(classes="det-loading")
@@ -230,6 +243,10 @@ if TEXTUAL_AVAILABLE:
                     yield Static("Publisher & Attribution", classes="det-section")
                     pub_type = ext.get("publisher_type", "individual")
                     yield Static(f"Publisher: {creator} ({pub_type})", classes="det-desc")
+                    if ext.get("repository") or ext.get("url"):
+                        yield Static(f"Repository: {ext.get('repository') or ext.get('url')}", classes="det-desc")
+                    if ext.get("credits"):
+                        yield Static(f"Attribution: {ext.get('credits')}", classes="det-desc")
                     if ext.get("published_at"):
                         yield Static(f"Original Publication: {ext['published_at']}", classes="det-desc")
                     if ext.get("install_time"):
@@ -246,7 +263,7 @@ if TEXTUAL_AVAILABLE:
                         yield Static(f"Requires: {', '.join(ext['dependencies'])}", classes="det-desc")
 
                     yield Static("Compatibility", classes="det-section")
-                    compat = ext.get("cat_compatibility", ">=0.7.0")
+                    compat = ext.get("cat_compatibility", ">=0.9.0")
                     yield Static(f"CAT Version: {compat}", classes="det-desc")
 
                 with Horizontal(id="det-actions"):
@@ -329,7 +346,7 @@ if TEXTUAL_AVAILABLE:
             background: $surface; border: tall $border; padding: 0;
             layout: vertical; overflow: hidden;
         }
-        #gh-titlebar { height: 5; min-height: 5; padding: 0 2; border-bottom: solid $border; layout: horizontal; align: center middle; }
+        #gh-titlebar { height: 3; min-height: 3; max-height: 3; padding: 0 2; border-bottom: solid $border; layout: horizontal; align-vertical: middle; background: $surface-dark; }
         #gh-title { width: 1fr; text-style: bold; color: $text; }
         #gh-body { height: auto; padding: 1 2; layout: vertical; }
         .gh-label { width: 100%; height: 1; color: $text-muted; margin-top: 1; }
@@ -338,7 +355,7 @@ if TEXTUAL_AVAILABLE:
         #input-gh-url:focus { border: tall $accent; }
         #gh-cat-row { height: auto; layout: horizontal; margin-bottom: 1; }
         .gh-cat-btn { margin-right: 1; height: 3; min-width: 15; padding: 0 1; }
-        #gh-preview { width: 100%; height: auto; min-height: 4; border: tall $border; background: $surface-darken-1; padding: 1; margin-top: 1; color: $text; }
+        #gh-preview { width: 100%; height: auto; min-height: 4; border: tall $border; background: $surface-darken-2; padding: 1; margin-top: 1; color: $text; }
         #gh-error { width: 100%; height: 1; color: $error; display: none; margin-top: 1; }
         #gh-error.show { display: block; }
         #gh-actions { height: 4; min-height: 4; padding: 0 2; border-top: solid $border; background: $surface; layout: horizontal; align: right middle; }
@@ -353,7 +370,7 @@ if TEXTUAL_AVAILABLE:
             with Vertical(id="gh-box"):
                 with Horizontal(id="gh-titlebar"):
                     yield Static("↓  Install from GitHub / Catalogue", id="gh-title")
-                    yield Button("✕ Close", id="gh-close", classes="cct-modal-close-btn")
+                    yield Button("✕", id="gh-close", classes="cct-modal-close-btn")
                 with Vertical(id="gh-body"):
                     yield Static("GitHub Repository URL or Slug *", classes="gh-label")
                     yield Input(placeholder="e.g. owner/repo or https://github.com/owner/repo", id="input-gh-url")
@@ -372,7 +389,6 @@ if TEXTUAL_AVAILABLE:
         def on_button_pressed(self, event):
             bid = event.button.id or ""
             inp = self.query_one("#input-gh-url", Input)
-            prev = self.query_one("#gh-preview", Static)
             err = self.query_one("#gh-error", Static)
 
             if bid in ("gh-close", "gh-cancel"):
@@ -457,7 +473,7 @@ if TEXTUAL_AVAILABLE:
             background: $surface; border: tall $border; padding: 0;
             layout: vertical; overflow: hidden;
         }
-        #create-ext-titlebar { height: 5; min-height: 5; max-height: 5; padding: 0 2; border-bottom: solid $border; layout: horizontal; align: center middle; }
+        #create-ext-titlebar { height: 3; min-height: 3; max-height: 3; padding: 0 2; border-bottom: solid $border; layout: horizontal; align-vertical: middle; background: $surface-dark; }
         #create-ext-title { width: 1fr; text-style: bold; color: $text; }
         #create-ext-body { height: auto; padding: 1 2; layout: vertical; }
         .create-field-label { width: 100%; height: 1; color: $text-muted; margin-top: 1; }
@@ -477,7 +493,7 @@ if TEXTUAL_AVAILABLE:
             with Vertical(id="create-ext-box"):
                 with Horizontal(id="create-ext-titlebar"):
                     yield Static("⚡  Create Custom Extension", id="create-ext-title")
-                    yield Button("✕ Close", id="create-close", classes="cct-modal-close-btn")
+                    yield Button("✕", id="create-close", classes="cct-modal-close-btn")
                 with Vertical(id="create-ext-body"):
                     yield Static("Extension Name *", classes="create-field-label")
                     yield Input(placeholder="e.g. Code Formatter Pro", id="input-ext-name")
@@ -546,61 +562,342 @@ if TEXTUAL_AVAILABLE:
                 self.dismiss(None)
 
     class ExtensionsPanel(Screen):
-        """VS Code-style Extensions marketplace — with category filters and GitHub installer."""
+        """Redesigned Extensions & Component Manager with 4 categories, sub-filters, and tall bevels."""
 
         CSS = """
-        ExtensionsPanel { align: center middle; background: $surface-darken-2 60%; }
+        ExtensionsPanel { align: center middle; background: rgba(0, 0, 0, 0.72); }
         #ext-box {
-            width: 86; max-width: 96%; height: auto; max-height: 80%;
-            background: $surface; border: tall $border; padding: 0;
-            layout: vertical; overflow: hidden;
+            width: 94; max-width: 96%; height: auto; max-height: 90%;
+            background: $surface;
+            border: tall;
+            border-top: tall $surface-highlight;
+            border-left: tall $surface-highlight;
+            border-bottom: tall $surface-shadow;
+            border-right: tall $surface-shadow;
+            padding: 0;
+            layout: vertical;
+            overflow: hidden;
         }
-        #ext-titlebar { height: 5; min-height: 5; max-height: 5; padding: 0 2; border-bottom: solid $border; layout: horizontal; align: center middle; }
-        #ext-title { width: 1fr; text-style: bold; color: $text; }
-        #ext-search { height: 3; padding: 0 2; margin: 0; }
-        #ext-search Input { width: 1fr; height: 3; border: tall $border; background: $surface; }
-        #ext-search Input:focus { border: tall $accent; }
-        #ext-filters { height: 3; min-height: 3; padding: 0 2; margin: 0 0 1 0; layout: horizontal; }
-        .ext-filter-btn { height: 3; min-width: 11; margin-right: 1; padding: 0 1; }
-        .ext-filter-btn.active { background: $accent; color: $surface; text-style: bold; }
-        #ext-subtitle { color: $text-muted; height: 1; padding: 0 2; display: none; }
-        #ext-list { height: 1fr; min-height: 4; max-height: 60%; overflow-y: auto; scrollbar-gutter: stable; scrollbar-size: 1 1; scrollbar-color: $border $surface; scrollbar-color-hover: $accent $surface; margin: 0 1; padding: 1 0 0 0; }
-        .ext-card { height: auto; min-height: 6; padding: 1 2; border: tall $border; background: $surface; margin: 0 0 1 0; layout: horizontal; overflow: hidden; }
-        .ext-card:hover { border: tall $accent; }
-        .ext-card.ext-busy { background: $surface; border: tall $accent; }
-        .ext-card-icon { width: 6; height: auto; text-align: center; text-style: bold; content-align: center middle; background: $accent 8%; border: tall $border; margin-right: 1; padding: 1 0; }
-        .ext-icon { width: 100%; height: 1; text-align: center; content-align: center middle; }
-        .ext-loading { width: 6; height: 3; color: $accent; content-align: center middle; }
-        .ext-card-info { width: 1fr; height: auto; min-width: 16; }
-        .ext-title-row { height: 1; layout: horizontal; }
-        .ext-name { width: auto; height: 1; text-style: bold; margin-right: 1; color: $text; }
-        .ext-type-badge { width: auto; height: 1; color: $accent; text-style: bold; margin-right: 1; }
-        .ext-verified { width: auto; height: 1; color: $success; }
-        .ext-trusted { width: auto; height: 1; color: $success; margin-left: 1; }
-        .ext-desc { width: 100%; height: auto; color: $text-muted; max-height: 2; overflow: hidden; }
-        .ext-meta { width: 100%; height: 1; color: $text-muted; }
-        .ext-status { width: 100%; height: 1; }
-        .ext-busy { color: $accent; }
-        .ext-busy-label { color: $warning; text-style: bold; }
-        .ext-card-actions { width: auto; min-width: 28; height: auto; layout: horizontal; align: center middle; }
-        .ext-card-actions Button { min-width: 12; height: 3; min-height: 3; padding: 0 1; margin-left: 1; }
-        .ext-card-actions Button:first-child { margin-left: 0; }
-        .ext-card-actions Button:disabled { opacity: 0.7; }
-        #ext-actions { height: 4; min-height: 4; padding: 0 2; border-top: solid $border; background: $surface; layout: horizontal; align: center middle; overflow: hidden; }
-        #ext-actions-left { width: 1fr; height: auto; layout: horizontal; align: center middle; }
-        #ext-actions-left Button { margin-right: 1; min-width: 11; height: 3; min-height: 3; padding: 0 1; }
-        #ext-actions Button { min-width: 9; height: 3; min-height: 3; padding: 0 1; }
+        #ext-titlebar {
+            height: 3; min-height: 3; max-height: 3;
+            padding: 0 1;
+            border-bottom: solid $border;
+            layout: horizontal;
+            align-vertical: middle;
+            background: $surface-dark;
+        }
+        #ext-title { width: 1fr; text-style: bold; color: $accent; align-vertical: middle; }
+
+        /* Top Category Navigation Tabs — 1fr fluid non-wrapping */
+        #ext-tabs-bar {
+            height: 3; min-height: 3; max-height: 3;
+            width: 100%;
+            padding: 0 1;
+            border-bottom: solid $border;
+            layout: horizontal;
+            align: center middle;
+            background: $surface-dark;
+            overflow: hidden;
+        }
+        .ext-tab {
+            height: 3; min-height: 3; max-height: 3;
+            width: 1fr;
+            min-width: 6;
+            padding: 0 1;
+            margin: 0;
+            border: none;
+            background: transparent;
+            color: $text-muted;
+            text-style: bold;
+            text-align: center;
+            content-align: center middle;
+        }
+        .ext-tab:hover {
+            color: $text;
+            background: $surface-alt;
+        }
+        .ext-tab.active {
+            color: $accent;
+            background: $surface;
+            border-bottom: tall $accent;
+            text-style: bold;
+        }
+
+        /* Search Row */
+        #ext-search-row {
+            height: 3; min-height: 3; max-height: 3;
+            padding: 0 1;
+            margin-top: 1;
+            layout: horizontal;
+        }
+        #ext-search-input {
+            width: 1fr; height: 3; min-height: 3; max-height: 3;
+            border: tall;
+            border-top: tall $surface-shadow;
+            border-left: tall $surface-shadow;
+            border-bottom: tall $surface-highlight;
+            border-right: tall $surface-highlight;
+            background: $surface-alt;
+            color: $text;
+        }
+        #ext-search-input:focus {
+            border: tall;
+            border-top: tall $accent-dark;
+            border-left: tall $accent-dark;
+            border-bottom: tall $accent-highlight;
+            border-right: tall $accent-highlight;
+        }
+
+        /* Sub-filter Chips Bar — fluid 4 chips */
+        #ext-subfilters-bar {
+            height: 3; min-height: 3; max-height: 3;
+            width: 100%;
+            padding: 0 1;
+            margin: 1 0;
+            layout: horizontal;
+            align: center middle;
+            overflow: hidden;
+        }
+        .ext-subfilter {
+            height: 3; min-height: 3; max-height: 3;
+            width: 1fr;
+            min-width: 6;
+            padding: 0 1;
+            margin-right: 1;
+            border: tall;
+            border-top: tall $surface-highlight;
+            border-left: tall $surface-highlight;
+            border-bottom: tall $surface-shadow;
+            border-right: tall $surface-shadow;
+            background: $surface-dark;
+            color: $text-faint;
+            text-style: bold;
+            content-align: center middle;
+            text-align: center;
+        }
+        .ext-subfilter:last-child {
+            margin-right: 0;
+        }
+        .ext-subfilter:hover {
+            border-top: tall #ffffff;
+            color: $text;
+            background: $surface-alt;
+        }
+        .ext-subfilter.active {
+            border: tall $accent;
+            background: $surface-active;
+            color: $accent;
+            text-style: bold;
+        }
+
         #ext-error { color: $error; background: $surface; height: 1; padding: 0 2; display: none; }
         #ext-error.show { display: block; }
-        .cct-compact #ext-box { width: 96; max-height: 88%; }
-        .cct-compact #ext-titlebar { height: 5; min-height: 5; }
-        .cct-compact #ext-list { min-height: 6; }
-        .cct-compact .ext-card { layout: vertical; min-height: 7; }
-        .cct-compact .ext-card-info { width: 100%; }
-        .cct-compact .ext-card-actions { width: 100%; layout: horizontal; align: center middle; margin-top: 1; }
-        .cct-compact .ext-card-actions Button { width: 1fr; min-width: 10; padding: 0 1; margin-top: 0; margin-right: 1; margin-left: 0; }
-        .cct-compact .ext-card-actions Button:last-child { margin-right: 0; }
-        .cct-compact #ext-actions { padding: 0 1; }
+
+        /* Card Scroll Container */
+        #ext-list {
+            height: auto; min-height: 8; max-height: 22;
+            overflow-y: auto; scrollbar-gutter: stable; scrollbar-size: 1 1;
+            margin: 0 1; padding: 0;
+        }
+        .ext-card {
+            height: auto; min-height: 7; max-height: 8; padding: 1 2;
+            border: tall;
+            border-top: tall $surface-highlight;
+            border-left: tall $surface-highlight;
+            border-bottom: tall $surface-shadow;
+            border-right: tall $surface-shadow;
+            background: $surface-alt;
+            margin: 0 0 1 0;
+            layout: horizontal;
+            align-vertical: middle;
+            overflow: hidden;
+            transition: border 120ms, background 120ms;
+        }
+        .ext-card:hover {
+            border-top: tall #ffffff;
+            border-left: tall $surface-highlight;
+            border-bottom: tall $surface-shadow;
+            border-right: tall $surface-shadow;
+            background: $surface-active;
+        }
+        .ext-card.ext-busy { background: $surface-active; border: round $accent; }
+
+        /* Icon Container */
+        .ext-card-icon {
+            width: 6; min-width: 6; height: 5; text-align: center; text-style: bold;
+            content-align: center middle; align: center middle; background: $surface-dark;
+            border: tall;
+            border-top: tall $surface-shadow;
+            border-left: tall $surface-shadow;
+            border-bottom: tall $surface-highlight;
+            border-right: tall $surface-highlight;
+            color: $accent;
+            margin-right: 2; padding: 0;
+        }
+        .ext-icon { width: 100%; height: 100%; text-align: center; content-align: center middle; }
+        .ext-loading { width: 6; height: 3; color: $accent; content-align: center middle; }
+
+        /* Card Info */
+        .ext-card-info { width: 1fr; height: auto; min-width: 20; }
+        .ext-title-row { height: 1; layout: horizontal; align-vertical: middle; }
+        .ext-name { width: auto; height: 1; text-style: bold; margin-right: 1; color: $text; }
+        .ext-type-badge { width: auto; height: 1; color: $accent; text-style: bold; margin-right: 1; }
+        .ext-verified { width: auto; height: 1; color: #5af78e; text-style: bold; }
+        .ext-trusted { width: auto; height: 1; color: #5af78e; text-style: bold; margin-left: 1; }
+        .ext-desc { width: 100%; height: auto; color: $text-muted; max-height: 2; overflow: hidden; margin-top: 0; }
+        .ext-meta { width: 100%; height: 1; color: $text-faint; margin-top: 0; }
+
+        /* Actions Container — strictly non-clipping with tall bevels */
+        .ext-card-actions {
+            width: auto; min-width: 14; height: 3; min-height: 3; max-height: 3;
+            layout: horizontal; align: right middle; margin-left: 1;
+        }
+        .ext-card-actions Button {
+            min-width: 12; height: 3; min-height: 3; max-height: 3; padding: 0 1; margin-left: 1;
+            border: tall;
+            border-top: tall $surface-highlight;
+            border-left: tall $surface-highlight;
+            border-bottom: tall $surface-shadow;
+            border-right: tall $surface-shadow;
+            background: $surface;
+            color: $accent;
+            text-style: bold;
+        }
+        .ext-card-actions Button:hover {
+            border-top: tall #ffffff;
+            background: $surface-active;
+            color: #ffffff;
+        }
+        .ext-card-actions Button.-active, .ext-card-actions Button:focus {
+            border-top: tall $surface-shadow;
+            border-left: tall $surface-shadow;
+            border-bottom: tall $surface-highlight;
+            border-right: tall $surface-highlight;
+            background: $surface-dark;
+        }
+        .ext-card-actions Button:first-child { margin-left: 0; }
+        .ext-card-actions Button:disabled { opacity: 0.7; }
+
+        /* Bottom Action Bar */
+        #ext-actions {
+            height: 4; min-height: 4; max-height: 4; padding: 0 1; margin: 0;
+            border-top: solid $border;
+            background: $surface;
+            layout: horizontal;
+            align: center middle;
+            overflow: hidden;
+        }
+        #ext-actions-left { width: 1fr; height: 3; layout: horizontal; align: left middle; }
+        #ext-actions-left Button, #ext-actions Button {
+            margin-right: 1; min-width: 12; height: 3; min-height: 3; max-height: 3; padding: 0 1;
+            border: tall;
+            border-top: tall $surface-highlight;
+            border-left: tall $surface-highlight;
+            border-bottom: tall $surface-shadow;
+            border-right: tall $surface-shadow;
+            background: $surface-alt;
+            color: $text;
+            text-style: bold;
+        }
+        #ext-actions-left Button:hover, #ext-actions Button:hover {
+            border-top: tall #ffffff;
+            background: $surface-active;
+            color: #ffffff;
+        }
+        #ext-actions #ext-close2 {
+            border: tall;
+            border-top: tall #ffa0a0;
+            border-left: tall #f38ba8;
+            border-bottom: tall #7a2d3b;
+            border-right: tall #7a2d3b;
+            background: #4a1e27;
+            color: #ff99a8;
+            text-style: bold;
+            min-width: 12;
+            height: 3; min-height: 3; max-height: 3;
+            content-align: center middle;
+        }
+        #ext-actions #ext-close2:hover {
+            border-top: tall #ffffff;
+            border-left: tall #ffc2c2;
+            border-bottom: tall #9c3b4d;
+            border-right: tall #9c3b4d;
+            background: #6b2434;
+            color: #ffffff;
+        }
+
+        /* Portrait Mode and Responsive Scaling */
+        ExtensionsPanel.is-portrait #ext-box,
+        .is-portrait #ext-box {
+            width: 96%; max-width: 98%; max-height: 94%; padding: 0;
+        }
+        ExtensionsPanel.is-portrait .ext-tab,
+        .is-portrait .ext-tab {
+            min-width: 4; padding: 0;
+        }
+        ExtensionsPanel.is-portrait .ext-subfilter,
+        .is-portrait .ext-subfilter {
+            min-width: 4; padding: 0;
+        }
+        ExtensionsPanel.is-portrait .ext-card,
+        .is-portrait .ext-card {
+            layout: vertical;
+            height: auto;
+            min-height: 9;
+            padding: 1;
+            align-vertical: top;
+        }
+        ExtensionsPanel.is-portrait .ext-card-icon,
+        .is-portrait .ext-card-icon {
+            display: none;
+        }
+        ExtensionsPanel.is-portrait .ext-card-info,
+        .is-portrait .ext-card-info {
+            width: 100%;
+        }
+        ExtensionsPanel.is-portrait .ext-card-actions,
+        .is-portrait .ext-card-actions {
+            width: 100%;
+            layout: horizontal;
+            align: center middle;
+            margin-top: 1;
+            margin-left: 0;
+        }
+        ExtensionsPanel.is-portrait .ext-card-actions Button,
+        .is-portrait .ext-card-actions Button {
+            width: 1fr;
+            min-width: 8;
+            height: 3; min-height: 3;
+            margin: 0 1;
+        }
+        ExtensionsPanel.is-portrait #ext-actions,
+        .is-portrait #ext-actions {
+            height: auto;
+            min-height: 7;
+            padding: 1;
+            layout: vertical;
+            align: center middle;
+        }
+        ExtensionsPanel.is-portrait #ext-actions-left,
+        .is-portrait #ext-actions-left {
+            width: 100%;
+            height: 3;
+            layout: horizontal;
+            align: center middle;
+            margin-bottom: 1;
+        }
+        ExtensionsPanel.is-portrait #ext-actions-left Button,
+        .is-portrait #ext-actions-left Button {
+            width: 1fr;
+            min-width: 6;
+            height: 3; min-height: 3;
+            margin: 0 1;
+        }
+        ExtensionsPanel.is-portrait #ext-actions #ext-close2,
+        .is-portrait #ext-actions #ext-close2 {
+            width: 100%;
+            height: 3; min-height: 3;
+        }
         """
 
         BINDINGS = [Binding("escape", "cancel", "Cancel")]
@@ -610,78 +907,110 @@ if TEXTUAL_AVAILABLE:
             self._busy: dict = {}
             self._spinner_index: int = 0
             self._search_query: str = ""
-            self._current_filter: str = "all"
-            self._busy_timer = None
+            self._active_tab: str = "builtin"
+            self._active_subfilter: str = "all"
+            self._spin_timer = None
 
         def compose(self):
             with Vertical(id="ext-box"):
+                # Titlebar (top cross button removed as requested; only bottom Close button)
                 with Horizontal(id="ext-titlebar"):
                     yield Static("▣  Extensions & Component Manager", id="ext-title")
-                    yield Button("✕ Close", id="ext-close", classes="cct-modal-close-btn")
-                with Vertical(id="ext-search"):
-                    yield Input(placeholder="Search extensions, skills, commands...", id="ext-search-input")
-                with Horizontal(id="ext-filters"):
-                    yield Button("All", id="filter-all", classes="ext-filter-btn active")
-                    yield Button("Extensions", id="filter-extension", classes="ext-filter-btn")
-                    yield Button("Skills", id="filter-skill", classes="ext-filter-btn")
-                    yield Button("Commands", id="filter-command", classes="ext-filter-btn")
-                    yield Button("Integrations", id="filter-integration", classes="ext-filter-btn")
+
+                # Top-level Tabs (4 categories, fluid non-overlapping)
+                with Horizontal(id="ext-tabs-bar"):
+                    yield Button("⭐ Built-in", id="tab-builtin", classes="ext-tab active")
+                    yield Button("📦 Installed", id="tab-installed", classes="ext-tab")
+                    yield Button("🔌 MCP Servers", id="tab-mcp", classes="ext-tab")
+                    yield Button("🌐 Discover", id="tab-discover", classes="ext-tab")
+
+                # Search row
+                with Horizontal(id="ext-search-row"):
+                    yield Input(placeholder="Search extensions, skills, commands, authors...", id="ext-search-input")
+
+                # Sub-filter chips (4 subfilters, Updates button removed as requested)
+                with Horizontal(id="ext-subfilters-bar"):
+                    yield Button("All", id="sub-all", classes="ext-subfilter active")
+                    yield Button("My Extensions", id="sub-my-ext", classes="ext-subfilter")
+                    yield Button("Community", id="sub-community", classes="ext-subfilter")
+                    yield Button("Imported Skills", id="sub-skills", classes="ext-subfilter")
+
                 yield Static("", id="ext-error")
+
+                # List of cards
                 with VerticalScroll(id="ext-list"):
                     for ext in self._filtered():
                         yield _ExtCard(ext)
+
+                # Bottom actions
                 with Horizontal(id="ext-actions"):
                     with Horizontal(id="ext-actions-left"):
                         yield Button("↓ GitHub Install", id="ext-gh-install-btn", classes="cct-btn-sm")
                         yield Button("＋ Create Extension", id="ext-create-btn", classes="cct-btn-sm")
                         yield Button("Enable All", id="ext-enable-all", classes="cct-btn-sm")
-                        yield Button("Disable All", id="ext-disable-all", classes="cct-btn-sm")
                     yield Button("Close", id="ext-close2", variant="primary", classes="cct-btn-sm")
 
         def on_mount(self):
-            try:
-                self.query_one("#ext-box").add_class("open")
-            except Exception:
-                pass
-            if self.size.width < 86:
-                try:
-                    self.query_one("#ext-box").add_class("cct-compact")
-                except Exception:
-                    pass
+            self._check_portrait()
             try:
                 self.query_one("#ext-search-input", Input).focus()
             except Exception:
                 pass
-            try:
-                from . import design_system
-                design_system.stop_timer(getattr(self, "_spin_timer", None))
-                self._spin_timer = self.set_interval(0.12, self._tick_spinner)
-            except Exception:
-                try:
-                    self._spin_timer = self.set_interval(0.12, self._tick_spinner)
-                except Exception:
-                    self._spin_timer = None
 
-        def on_unmount(self):
+        def on_resize(self, event=None):
+            self._check_portrait()
+
+        def _check_portrait(self):
             try:
-                from . import design_system
-                design_system.stop_timer(getattr(self, "_spin_timer", None))
+                w = getattr(self.app.size, "width", 80)
+                h = getattr(self.app.size, "height", 25)
+                is_portrait = (w < 86) or (w < h * 1.30)
+                self.set_class(is_portrait, "is-portrait")
             except Exception:
                 pass
-            self._spin_timer = None
+
+        def on_unmount(self):
+            if self._spin_timer:
+                try:
+                    self._spin_timer.stop()
+                except Exception:
+                    pass
+                self._spin_timer = None
 
         def _filtered(self):
             try:
-                query = ""
-                try:
-                    query = self.query_one("#ext-search-input", Input).value.strip().lower()
-                except Exception:
-                    query = getattr(self, "_search_query", "") or ""
+                all_exts = ext_mgr.list_extensions(component_type=None) if ext_mgr else []
 
-                ftype = None if self._current_filter == "all" else self._current_filter
-                all_exts = ext_mgr.list_extensions(component_type=ftype) if ext_mgr else []
+                # Tab filtering
+                if self._active_tab == "builtin":
+                    all_exts = [
+                        e for e in all_exts
+                        if e.get("kind") == "builtin" or e.get("install_source") == "builtin" or str(e.get("publisher", "")).lower() in ("kazi zillani", "morluto", "tt-a1i", "remotion team", "microsoft research", "nilbuild", "anthropic & antigravity design", "cat skill system")
+                    ]
+                elif self._active_tab == "installed":
+                    all_exts = [e for e in all_exts if e.get("installed")]
+                elif self._active_tab == "mcp":
+                    all_exts = [
+                        e for e in all_exts
+                        if str(e.get("type", "")).lower() in ("mcp", "mcp_component") or e.get("kind") == "mcp" or "mcp" in str(e.get("category", "")).lower()
+                    ]
+                # Discover tab shows all discoverable extensions
+
+                # Sub-filter filtering
+                if self._active_subfilter == "my-ext":
+                    all_exts = [e for e in all_exts if e.get("kind") == "custom" or "custom" in str(e.get("category", "")).lower() or e.get("publisher") == "You (Custom)"]
+                elif self._active_subfilter == "community":
+                    all_exts = [e for e in all_exts if not e.get("publisher_verified") and e.get("kind") != "builtin"]
+                elif self._active_subfilter == "skills":
+                    all_exts = [e for e in all_exts if str(e.get("type", "")).lower() == "skill"]
+                elif self._active_subfilter == "updates":
+                    all_exts = [e for e in all_exts if e.get("has_update") or e.get("update_available")]
+
+                # Search query filtering
+                query = self._search_query.strip().lower()
                 if not query:
                     return all_exts
+
                 out = []
                 for ext in all_exts:
                     hay = " ".join([
@@ -689,6 +1018,8 @@ if TEXTUAL_AVAILABLE:
                         str(ext.get("display_name", "")),
                         str(ext.get("type", "")),
                         str(ext.get("publisher", "")),
+                        str(ext.get("publisher_id", "")),
+                        str(ext.get("github_username", "")),
                         str(ext.get("creator", "")),
                         str(ext.get("category", "")),
                         str(ext.get("description", "")),
@@ -701,20 +1032,11 @@ if TEXTUAL_AVAILABLE:
                 return ext_mgr.list_extensions() if ext_mgr else []
 
         def _refresh(self, msg=None):
-            _saved_y = 0
             try:
                 lst = self.query_one("#ext-list", VerticalScroll)
-                try:
-                    _saved_y = lst.scroll_y
-                except Exception:
-                    _saved_y = 0
                 lst.remove_children()
                 for ext in self._filtered():
                     lst.mount(_ExtCard(ext))
-                try:
-                    lst.scroll_y = _saved_y
-                except Exception:
-                    pass
             except Exception:
                 pass
             if msg:
@@ -741,29 +1063,20 @@ if TEXTUAL_AVAILABLE:
                 self._show_error(str(e))
 
         def _tick_spinner(self):
-            if not getattr(self, "_busy", None) or not self._busy:
+            if not getattr(self, "_busy", None):
                 return
             self._spinner_index = (self._spinner_index + 1) % 4
 
         def _start_busy(self, ext_id: str, action: str):
             self._busy[ext_id] = action
             self._refresh()
-            try:
-                for card in self.query("#ext-list _ExtCard"):
-                    if getattr(card, "ext_id", None) == ext_id:
-                        card.add_class("ext-busy")
-            except Exception:
-                pass
 
         def _finish_busy(self, ext_id: str):
             try:
                 self._busy.pop(ext_id, None)
             except Exception:
                 pass
-            try:
-                self._refresh()
-            except Exception:
-                pass
+            self._refresh()
 
         def _do_install(self, ext_id: str):
             try:
@@ -837,12 +1150,22 @@ if TEXTUAL_AVAILABLE:
                 self.dismiss(None)
                 return
 
-            # Filter buttons
-            if bid.startswith("filter-"):
-                ftype = bid.replace("filter-", "")
-                self._current_filter = ftype
-                for b in self.query(".ext-filter-btn"):
-                    b.remove_class("active")
+            # Top Tab Clicks
+            if bid.startswith("tab-"):
+                tab_name = bid.replace("tab-", "")
+                self._active_tab = tab_name
+                for btn in self.query(".ext-tab"):
+                    btn.remove_class("active")
+                event.button.add_class("active")
+                self._refresh()
+                return
+
+            # Sub-filter Clicks
+            if bid.startswith("sub-"):
+                sub_name = bid.replace("sub-", "")
+                self._active_subfilter = sub_name
+                for btn in self.query(".ext-subfilter"):
+                    btn.remove_class("active")
                 event.button.add_class("active")
                 self._refresh()
                 return
@@ -861,14 +1184,6 @@ if TEXTUAL_AVAILABLE:
                         if ext.get("installed") and not ext.get("enabled"):
                             ext_mgr.enable(ext["id"])
                 self._refresh("✓ All extensions enabled")
-                return
-
-            if bid == "ext-disable-all":
-                if ext_mgr:
-                    for ext in ext_mgr.list_extensions():
-                        if ext.get("enabled"):
-                            ext_mgr.disable(ext["id"])
-                self._refresh("✓ All extensions disabled")
                 return
 
             if bid.startswith("ext-install-"):

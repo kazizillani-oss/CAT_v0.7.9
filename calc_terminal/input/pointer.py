@@ -97,7 +97,7 @@ class TouchHitZone:
             control_ids = (
                 "cct-tb-run", "cct-tb-split", "cct-tb-close", "cct-tb-preview",
                 "cct-bv-split", "cct-bv-close", "cct-bv-fullscreen", "cct-bv-reload",
-                "btn-send", "btn-attach", "btn-permissions"
+                "btn-send", "btn-stop", "btn-attach", "btn-mic",
             )
             for cid in control_ids:
                 matches = screen.query(f"#{cid}")
