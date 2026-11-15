@@ -514,7 +514,8 @@ def agent_inspect_page(url: str, timeout: float = 12.0, html_content: str | None
         itype = type_m.group(1) if type_m else "text"
         iname = name_m.group(1) if name_m else "input"
         ival = val_m.group(1) if val_m else ""
-        elements_text.append(f"  [Input:{itype}] name=\"{iname}\"{f' value=\"{ival}\"' if ival else ''}")
+        val_str = f' value="{ival}"' if ival else ""
+        elements_text.append(f'  [Input:{itype}] name="{iname}"{val_str}')
         elements_data.append({"tag": "input", "type": itype, "name": iname, "value": ival})
 
     tree_lines = [

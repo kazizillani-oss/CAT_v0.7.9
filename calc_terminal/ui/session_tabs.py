@@ -170,7 +170,23 @@ class ChatSessionTabBar(Horizontal if TEXTUAL_AVAILABLE else object):
         self.refresh_tabs()
 
     def refresh_tabs(self):
+        if not getattr(self, "is_mounted", False):
+            return
         try:
+            # In-place update when tab structure matches, avoiding unmounted widget leaks in event pump
+            existing_tabs = {b.id: b for b in self.query(".cct-session-tab")}
+            session_ids = [s["id"] for s in self.sessions]
+            expected_tab_ids = [f"cct-stab-{sid}" for sid in session_ids]
+            if list(existing_tabs.keys()) == expected_tab_ids:
+                for s in self.sessions:
+                    sid = s["id"]
+                    bid = f"cct-stab-{sid}"
+                    btn = existing_tabs[bid]
+                    dot = "● " if s.get("unread") else ""
+                    btn.label = f"{dot}{s['title']}"
+                    is_active = (sid == self.active_id)
+                    btn.set_class(is_active, "cct-session-tab-active")
+                return
             self.remove_children()
             for widget in self._render_tabs():
                 self.mount(widget)

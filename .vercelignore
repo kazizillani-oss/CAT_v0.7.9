@@ -14,3 +14,5 @@ release/
 .coverage
 htmlcov/
 *.log
+index.py
+app.py

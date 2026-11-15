@@ -138,8 +138,8 @@ def get_optimal_chromium_flags() -> str:
         flags.append("--renderer-process-limit=1")
         flags.append("--num-raster-threads=1")
     else:
-        flags.append("--renderer-process-limit=6")
-        flags.append("--num-raster-threads=4")
+        flags.append("--renderer-process-limit=4")
+        flags.append("--num-raster-threads=2")
 
     return " ".join(flags)
 

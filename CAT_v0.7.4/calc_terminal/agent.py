@@ -1196,7 +1196,7 @@ def _kill_proc_tree(proc):
                 si.wShowWindow = 0  # SW_HIDE
                 subprocess.run(
                     ["taskkill", "/F", "/T", "/PID", str(pid)],
-                    capture_output=True, timeout=5,
+                    capture_output=True, timeout=2,
                     creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000),
                     startupinfo=si,
                 )
@@ -1215,11 +1215,12 @@ def _kill_proc_tree(proc):
                     proc.kill()
                 except Exception:
                     pass
-        try:
-            if proc.stdout and not proc.stdout.closed:
-                proc.stdout.close()
-        except Exception:
-            pass
+        for pipe in (getattr(proc, "stdout", None), getattr(proc, "stderr", None)):
+            if pipe:
+                try:
+                    pipe.close()
+                except Exception:
+                    pass
         try:
             proc.wait(timeout=1.0)
         except Exception:
@@ -1370,6 +1371,12 @@ def _tool_run_terminal(args):
     raw_cmd = str(args.get("command", "")).strip()
     if not raw_cmd:
         return "No command given."
+
+    if bool(_CURRENT_AGENT_SHOULD_CANCEL and _CURRENT_AGENT_SHOULD_CANCEL()):
+        return (
+            f"$ {raw_cmd}\n"
+            f"\u26a0 Interrupted by user."
+        )
 
     try:
         from .automation.platform_automation import is_emergency_stopped, get_platform_automation_manager, AutomationSafetyLevel
