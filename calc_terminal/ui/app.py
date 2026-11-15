@@ -2673,7 +2673,6 @@ if TEXTUAL_AVAILABLE:
             ("ctrl+alt+w", "close_session_tab", "Close Session Tab"),
             ("alt+a", "prompt_attach", "Attach File"),
             ("alt+p", "toggle_permissions", "Permissions"),
-            ("alt", "toggle_voice", "Voice Mode"),
             ("alt+v", "toggle_voice", "Voice Mode"),
         ]
         TITLE = f"CAT v{identity.APP_VERSION}"
@@ -2714,7 +2713,7 @@ if TEXTUAL_AVAILABLE:
             logging.getLogger("calc_terminal.app").error("Recovered from unhandled UI exception: %s", error, exc_info=True)
             try:
                 from textual.app import ScreenError
-                if isinstance(error, ScreenError) and "dismiss" in str(error).lower():
+                if isinstance(error, ScreenError):
                     return
                 self.notify(f"Task recovered: {type(error).__name__} - {error}", severity="warning", timeout=4.0)
             except Exception:
@@ -3042,101 +3041,104 @@ if TEXTUAL_AVAILABLE:
 
         # ----------------------------------------------- touch / events --
         async def on_event(self, event: events.Event) -> None:
-            # Let Textual process all events natively first
-            down_before_up = getattr(self, "_mouse_down_widget", None)
+            try:
+                # Let Textual process all events natively first
+                down_before_up = getattr(self, "_mouse_down_widget", None)
 
-            # Resizer hit zone expansion for touch
-            if isinstance(event, events.MouseDown) and TouchHitZone is not None:
-                screen_x = getattr(event, "screen_x", event.x)
-                screen_y = getattr(event, "screen_y", event.y)
-                nearby_resizer = TouchHitZone.find_nearby_resizer(self, screen_x, screen_y)
-                if nearby_resizer is not None and not getattr(nearby_resizer, "_dragging", False):
-                    try:
-                        nearby_resizer.on_mouse_down(event)
+                # Resizer hit zone expansion for touch
+                if isinstance(event, events.MouseDown) and TouchHitZone is not None:
+                    screen_x = getattr(event, "screen_x", event.x)
+                    screen_y = getattr(event, "screen_y", event.y)
+                    nearby_resizer = TouchHitZone.find_nearby_resizer(self, screen_x, screen_y)
+                    if nearby_resizer is not None and not getattr(nearby_resizer, "_dragging", False):
+                        try:
+                            nearby_resizer.on_mouse_down(event)
+                            return
+                        except Exception:
+                            pass
+
+                # Handle active drag-to-scroll on Move
+                if isinstance(event, events.MouseMove):
+                    if hasattr(self, "_touch_scroll_handler") and self._touch_scroll_handler.is_scrolling:
+                        self._touch_scroll_handler.on_mouse_move(event)
                         return
-                    except Exception:
-                        pass
+                    elif (getattr(event, "button", 0) == 1 or getattr(event, "buttons", 0) & 1):
+                        if hasattr(self, "_touch_scroll_handler") and self._touch_scroll_handler.on_mouse_move(event):
+                            if hasattr(self, "_touch_tap_recognizer"):
+                                self._touch_tap_recognizer.cancel()
+                            self._mouse_down_widget = None
+                            return
 
-            # Handle active drag-to-scroll on Move
-            if isinstance(event, events.MouseMove):
-                if hasattr(self, "_touch_scroll_handler") and self._touch_scroll_handler.is_scrolling:
-                    self._touch_scroll_handler.on_mouse_move(event)
-                    return
-                elif (getattr(event, "button", 0) == 1 or getattr(event, "buttons", 0) & 1):
-                    if hasattr(self, "_touch_scroll_handler") and self._touch_scroll_handler.on_mouse_move(event):
-                        if hasattr(self, "_touch_tap_recognizer"):
-                            self._touch_tap_recognizer.cancel()
+                # Always invoke Textual's default event processing
+                await super().on_event(event)
+
+                # Touch tracking hooks (non-blocking post-processing)
+                if isinstance(event, events.MouseDown):
+                    try:
+                        down_target, _ = self.get_widget_at(*event.screen_offset)
+                    except Exception:
+                        down_target = getattr(self, "_mouse_down_widget", None)
+                    self._mouse_down_widget = down_target
+
+                    if hasattr(self, "_touch_scroll_handler"):
+                        self._touch_scroll_handler.on_mouse_down(down_target, event)
+                    if hasattr(self, "_touch_tap_recognizer"):
+                        self._touch_tap_recognizer.on_mouse_down(down_target, event)
+                    if hasattr(self, "_touch_focus_mgr"):
+                        self._touch_focus_mgr.on_touch_tap_widget(down_target)
+
+                elif isinstance(event, events.MouseUp):
+                    was_scrolling = False
+                    if hasattr(self, "_touch_scroll_handler"):
+                        was_scrolling = self._touch_scroll_handler.on_mouse_up(event)
+
+                    if not was_scrolling and hasattr(self, "_touch_tap_recognizer"):
+                        try:
+                            up_widget, _ = self.get_widget_at(*event.screen_offset)
+                        except Exception:
+                            up_widget = None
+
+                        is_tap, chain, resolved_target = self._touch_tap_recognizer.on_mouse_up(up_widget, event)
+                        if is_tap and resolved_target is not None:
+                            # Auto-promote touch mode on first real touch interaction
+                            if auto_promote_touch_mode is not None:
+                                try:
+                                    auto_promote_touch_mode()
+                                except Exception:
+                                    pass
+
+                            # If Textual dropped the click (because up_widget != down_before_up or subtle jitter),
+                            # activate the target directly!
+                            if down_before_up is not None and up_widget is not down_before_up and Button is not None:
+                                btn = resolved_target if isinstance(resolved_target, Button) else None
+                                if btn is None:
+                                    cur = getattr(resolved_target, "parent", None)
+                                    while cur is not None:
+                                        if isinstance(cur, Button):
+                                            btn = cur
+                                            break
+                                        cur = getattr(cur, "parent", None)
+                                if btn is not None and not getattr(btn, "disabled", False):
+                                    try:
+                                        btn.press()
+                                    except Exception:
+                                        pass
+
+                                if getattr(resolved_target, "can_focus", False):
+                                    try:
+                                        resolved_target.focus()
+                                    except Exception:
+                                        pass
+
+                                try:
+                                    click_ev = events.Click.from_event(resolved_target, event, chain=chain)
+                                    resolved_target.post_message(click_ev)
+                                except Exception:
+                                    pass
+
                         self._mouse_down_widget = None
-                        return
-
-            # Always invoke Textual's default event processing
-            await super().on_event(event)
-
-            # Touch tracking hooks (non-blocking post-processing)
-            if isinstance(event, events.MouseDown):
-                try:
-                    down_target, _ = self.get_widget_at(*event.screen_offset)
-                except Exception:
-                    down_target = getattr(self, "_mouse_down_widget", None)
-                self._mouse_down_widget = down_target
-
-                if hasattr(self, "_touch_scroll_handler"):
-                    self._touch_scroll_handler.on_mouse_down(down_target, event)
-                if hasattr(self, "_touch_tap_recognizer"):
-                    self._touch_tap_recognizer.on_mouse_down(down_target, event)
-                if hasattr(self, "_touch_focus_mgr"):
-                    self._touch_focus_mgr.on_touch_tap_widget(down_target)
-
-            elif isinstance(event, events.MouseUp):
-                was_scrolling = False
-                if hasattr(self, "_touch_scroll_handler"):
-                    was_scrolling = self._touch_scroll_handler.on_mouse_up(event)
-
-                if not was_scrolling and hasattr(self, "_touch_tap_recognizer"):
-                    try:
-                        up_widget, _ = self.get_widget_at(*event.screen_offset)
-                    except Exception:
-                        up_widget = None
-
-                    is_tap, chain, resolved_target = self._touch_tap_recognizer.on_mouse_up(up_widget, event)
-                    if is_tap and resolved_target is not None:
-                        # Auto-promote touch mode on first real touch interaction
-                        if auto_promote_touch_mode is not None:
-                            try:
-                                auto_promote_touch_mode()
-                            except Exception:
-                                pass
-
-                        # If Textual dropped the click (because up_widget != down_before_up or subtle jitter),
-                        # activate the target directly!
-                        if down_before_up is not None and up_widget is not down_before_up and Button is not None:
-                            btn = resolved_target if isinstance(resolved_target, Button) else None
-                            if btn is None:
-                                cur = getattr(resolved_target, "parent", None)
-                                while cur is not None:
-                                    if isinstance(cur, Button):
-                                        btn = cur
-                                        break
-                                    cur = getattr(cur, "parent", None)
-                            if btn is not None and not getattr(btn, "disabled", False):
-                                try:
-                                    btn.press()
-                                except Exception:
-                                    pass
-
-                            if getattr(resolved_target, "can_focus", False):
-                                try:
-                                    resolved_target.focus()
-                                except Exception:
-                                    pass
-
-                            try:
-                                click_ev = events.Click.from_event(resolved_target, event, chain=chain)
-                                resolved_target.post_message(click_ev)
-                            except Exception:
-                                pass
-
-                    self._mouse_down_widget = None
+            except Exception as exc:
+                self._handle_exception(exc)
 
         def _on_touch_tap_resolved(self, widget, event, chain):
             """Called when a clean touch tap is resolved."""
@@ -4489,11 +4491,10 @@ if TEXTUAL_AVAILABLE:
                     self.action_cancel_streaming()
                     return
 
-            # Voice Mode activation: Alt / Alt+V
+            # Voice Mode activation: Alt+V exclusively (never bare Alt/Meta modifiers)
             k_key = str(getattr(event, "key", "")).lower()
             k_name = str(getattr(event, "name", "")).lower()
-            v_keys = ("alt", "alt+v", "left_alt", "right_alt", "meta", "left_meta", "right_meta", "alt_l", "alt_r")
-            if norm in ("alt", "alt+v", "alt_l", "alt_r") or key in v_keys or k_key in v_keys or k_name in v_keys:
+            if norm == "alt+v" or key == "alt+v" or k_key == "alt+v" or k_name == "alt+v":
                 try:
                     event.stop()
                     event.prevent_default()

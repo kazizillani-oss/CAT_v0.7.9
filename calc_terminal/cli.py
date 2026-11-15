@@ -1681,16 +1681,32 @@ def _launch_cat_terminal():
                 boot_thread.join(timeout=0.3)
             sys.stdout.write("\r\033[K\033[?25h")
             sys.stdout.flush()
-        ok, msg = launch_chat_app(repl, repl.history, stats)
-        if not ok:
+        while True:
+            ok, msg = launch_chat_app(repl, repl.history, stats)
+            if ok:
+                break
             try:
                 from . import theme
                 theme.enable_windows_ansi()
-                print(theme.orange(f"  {msg}"))
+                print(theme.orange(f"\n  ⚠ {msg}"))
+                print(theme.cyan("  ✦ CAT CLI Auto-Recovery Guard engaged."))
             except Exception:
-                print(f"  {msg}")
-            print("  Falling back to terminal REPL...")
-            repl.run()
+                print(f"\n  ⚠ {msg}")
+                print("  ✦ CAT CLI Auto-Recovery Guard engaged.")
+
+            if sys.stdin.isatty() and sys.stdout.isatty():
+                try:
+                    choice = input("\n  Press [Enter] to restart CAT CLI, or 'q' + [Enter] to exit: ").strip().lower()
+                    if choice in ("q", "quit", "exit"):
+                        break
+                    print("  Restarting CAT CLI runtime...\n")
+                    continue
+                except (EOFError, KeyboardInterrupt):
+                    break
+            else:
+                print("  Falling back to terminal REPL...")
+                repl.run()
+                break
         return 0
     finally:
         if boot_stop is not None:

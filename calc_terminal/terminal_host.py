@@ -344,10 +344,43 @@ def install_terminal_guard() -> None:
     def _sanitizing_excepthook(exc_type, exc_value, exc_tb):
         try:
             sanitize_terminal()
+            cat_dir = os.path.expanduser("~/.cat/logs")
+            os.makedirs(cat_dir, exist_ok=True)
+            crash_log = os.path.join(cat_dir, "crash.log")
+            import datetime, traceback
+            with open(crash_log, "a", encoding="utf-8") as f:
+                f.write(f"\n{'='*70}\n")
+                f.write(f"UNHANDLED ROOT EXCEPTION\n")
+                f.write(f"TIMESTAMP: {datetime.datetime.now().isoformat()}\n")
+                f.write(f"EXCEPTION: {exc_type.__name__ if exc_type else 'Exception'}: {exc_value}\n")
+                if exc_tb:
+                    traceback.print_tb(exc_tb, file=f)
+                f.write(f"{'='*70}\n")
         except Exception:
             pass
         if orig_excepthook and orig_excepthook is not _sanitizing_excepthook:
             orig_excepthook(exc_type, exc_value, exc_tb)
 
     sys.excepthook = _sanitizing_excepthook
+
+    # Background thread exception guard - prevents worker threads from killing the CLI
+    def _sanitizing_threading_excepthook(args):
+        try:
+            cat_dir = os.path.expanduser("~/.cat/logs")
+            os.makedirs(cat_dir, exist_ok=True)
+            crash_log = os.path.join(cat_dir, "crash.log")
+            import datetime, traceback
+            with open(crash_log, "a", encoding="utf-8") as f:
+                f.write(f"\n{'='*70}\n")
+                f.write(f"THREAD EXCEPTION: {getattr(args.thread, 'name', 'unknown')}\n")
+                f.write(f"TIMESTAMP: {datetime.datetime.now().isoformat()}\n")
+                f.write(f"EXCEPTION: {args.exc_type.__name__ if args.exc_type else 'Exception'}: {args.exc_value}\n")
+                if args.exc_traceback:
+                    traceback.print_tb(args.exc_traceback, file=f)
+                f.write(f"{'='*70}\n")
+        except Exception:
+            pass
+
+    import threading
+    threading.excepthook = _sanitizing_threading_excepthook
 
