@@ -81,10 +81,20 @@ if TEXTUAL_AVAILABLE:
         SPLIT_MIN_WIDTH = 68
 
         def is_portrait(self) -> bool:
-            s = getattr(self.app, "size", None) or getattr(self.screen, "size", None) or self.size
+            s = None
+            try:
+                app = getattr(self, "_app", None) or self.app
+                s = getattr(app, "size", None)
+            except Exception:
+                s = None
+            if not s:
+                try:
+                    s = getattr(self.screen, "size", None) or getattr(self, "size", None)
+                except Exception:
+                    s = getattr(self, "size", None)
             w = s.width if s else 80
             h = s.height if s else 40
-            return (w < 48) or (h > 0 and (w / max(1, h)) < 1.0)
+            return (w < 86) or (w < h * 1.30)
 
         def __init__(self, conversation_view, composer=None, id="cct-workspace"):
             super().__init__(id=id)
@@ -273,6 +283,8 @@ if TEXTUAL_AVAILABLE:
                 if is_port:
                     self.explorer.add_class("is-portrait")
                     self.explorer.styles.width = "100%"
+                    self.explorer.styles.max_width = "100%"
+                    self.explorer.styles.min_width = "100%"
                     self.explorer.width = self.size.width or 80
                     main.display = False
                 else:
@@ -490,6 +502,8 @@ if TEXTUAL_AVAILABLE:
                 if is_port:
                     if self.explorer.display and self.explorer.width > 0:
                         self.explorer.styles.width = "100%"
+                        self.explorer.styles.max_width = "100%"
+                        self.explorer.styles.min_width = "100%"
                         main.display = False
                         self.sync_resizer()
                         self._sync_sidebar_toggle()
@@ -560,6 +574,8 @@ if TEXTUAL_AVAILABLE:
                     chat_col.display = False
                     right.display = True
                     right.styles.width = "100%"
+                    right.styles.max_width = "100%"
+                    right.styles.min_width = "100%"
                     main.display = True
                     self.sync_right_resizer()
                     self._sync_switcher()

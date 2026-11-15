@@ -273,6 +273,60 @@ BUILTIN_EXTENSIONS: Dict[str, Dict[str, Any]] = {
         "dependencies": [],
         "compatibility": ">=0.9.0",
     },
+    "skill-creator": {
+        "id": "skill-creator",
+        "name": "Skill Creator",
+        "display_name": "Skill Creator — Agent Skill Authoring & Packaging",
+        "type": "skill",
+        "description": "Comprehensive guidelines, validation checks, and templates for designing and packaging reusable Agent Skills with YAML frontmatter, execution constraints, and tool handoffs. Highly credited to Anthropic (@anthropic).",
+        "icon": "🛠️",
+        "publisher": "Anthropic",
+        "publisher_id": "@anthropic",
+        "publisher_type": "organization",
+        "publisher_verified": True,
+        "verified": True,
+        "trusted": True,
+        "version": "1.0.0",
+        "category": "Tools",
+        "keywords": ["skill-creator", "skills", "agent-skills", "anthropic", "packaging", "prompts"],
+        "size_bytes": 1024 * 32,
+        "size_display": "32.0 KB",
+        "action": "skill_skill_creator",
+        "kind": "builtin",
+        "published_at": "2026-08-15",
+        "url": "https://github.com/anthropics/skills/tree/main/skills/skill-creator",
+        "credits": "Created by Anthropic (@anthropic) — https://github.com/anthropics/skills/tree/main/skills/skill-creator. Full credit for agent skill authoring and packaging guidelines.",
+        "permissions": ["read_files", "write_files"],
+        "dependencies": [],
+        "compatibility": ">=0.9.0",
+    },
+    "find-skills": {
+        "id": "find-skills",
+        "name": "Find Skills",
+        "display_name": "Find Skills — Agent Skills Discovery & Search",
+        "type": "skill",
+        "description": "Interactive search, evaluation, and safe installation of agent skills from GitHub repositories, packages, and community catalogues. Highly credited to Vercel Labs (@vercel-labs).",
+        "icon": "🔍",
+        "publisher": "Vercel Labs",
+        "publisher_id": "@vercel-labs",
+        "publisher_type": "organization",
+        "publisher_verified": True,
+        "verified": True,
+        "trusted": True,
+        "version": "1.0.0",
+        "category": "Tools",
+        "keywords": ["find-skills", "skill-finder", "discovery", "vercel", "vercel-labs", "registry", "catalog"],
+        "size_bytes": 1024 * 30,
+        "size_display": "30.0 KB",
+        "action": "skill_find_skills",
+        "kind": "builtin",
+        "published_at": "2026-09-01",
+        "url": "https://github.com/vercel-labs/skills/blob/main/skills/find-skills/SKILL.md",
+        "credits": "Created by Vercel Labs (@vercel-labs) — https://github.com/vercel-labs/skills/blob/main/skills/find-skills/SKILL.md. Full credit for agent skill search and discovery.",
+        "permissions": ["read_files", "network"],
+        "dependencies": [],
+        "compatibility": ">=0.9.0",
+    },
 }
 
 # For size, map each builtin to its source files/dirs
@@ -456,17 +510,37 @@ def discover() -> List[Dict[str, Any]]:
 def is_installed(extension_id: str) -> bool:
     data = _load_registry()
     rec = data.get(extension_id)
-    return bool(rec and rec.get("installed"))
+    if rec and rec.get("installed"):
+        return True
+    if extension_id in BUILTIN_EXTENSIONS:
+        return True
+    try:
+        from .skills.engine import get_skills_engine
+        if get_skills_engine().get_skill(extension_id) is not None:
+            return True
+    except Exception:
+        pass
+    try:
+        from .skills.registry import get_skill_registry
+        if get_skill_registry().get(extension_id) is not None:
+            return True
+    except Exception:
+        pass
+    return False
 
 def is_enabled(extension_id: str) -> bool:
     data = _load_registry()
     rec = data.get(extension_id)
-    return bool(rec and rec.get("installed") and rec.get("enabled"))
+    if rec is not None:
+        return bool(rec.get("installed") and rec.get("enabled"))
+    return is_installed(extension_id)
 
 def is_disabled(extension_id: str) -> bool:
     data = _load_registry()
     rec = data.get(extension_id)
-    return bool(rec and rec.get("installed") and not rec.get("enabled"))
+    if rec is not None:
+        return bool(rec.get("installed") and not rec.get("enabled"))
+    return False
 
 def get_state(extension_id: str) -> str:
     """Return state string: NOT_INSTALLED | INSTALLED_DISABLED | INSTALLED_ENABLED."""
@@ -485,6 +559,51 @@ def get_metadata(extension_id: str) -> Optional[Dict[str, Any]]:
     rec = data.get(extension_id, {})
 
     if not base:
+        # Check SkillsEngine for built-in or progressive disclosure skills
+        try:
+            from .skills.engine import get_skills_engine
+            sk_eng = get_skills_engine().get_skill(extension_id)
+            if sk_eng:
+                inst = True
+                enab = bool(rec.get("enabled")) if (rec and "enabled" in rec) else get_skills_engine().is_active(extension_id)
+                return {
+                    "id": extension_id,
+                    "name": sk_eng.name,
+                    "display_name": sk_eng.name,
+                    "type": "skill",
+                    "description": sk_eng.description,
+                    "icon": sk_eng.icon,
+                    "publisher": sk_eng.creator,
+                    "publisher_id": sk_eng.github_username,
+                    "publisher_type": "organization" if any(k in sk_eng.github_username.lower() for k in ("anthropic", "microsoft", "cloudflare", "cat", "remotion")) else "individual",
+                    "publisher_verified": True,
+                    "verified": True,
+                    "trusted": True,
+                    "version": sk_eng.version,
+                    "category": sk_eng.category.title(),
+                    "keywords": [extension_id, sk_eng.category, sk_eng.creator],
+                    "size_bytes": 1024 * 32,
+                    "size_display": "32.0 KB",
+                    "installed": inst,
+                    "enabled": enab,
+                    "install_time": rec.get("install_time", 0) if rec else 0,
+                    "updated_at": rec.get("updated_at", 0) if rec else 0,
+                    "install_source": "builtin",
+                    "permissions": ["read_files"],
+                    "dependencies": [],
+                    "cat_compatibility": ">=0.9.0",
+                    "platform_compatibility": ["windows", "linux", "darwin"],
+                    "install_error": None,
+                    "runtime_error": None,
+                    "state": "INSTALLED_ENABLED" if enab else "INSTALLED_DISABLED",
+                    "kind": "builtin",
+                    "action": f"skill_{extension_id}",
+                    "repository": sk_eng.repository,
+                    "license": sk_eng.license_name,
+                }
+        except Exception:
+            pass
+
         # Check custom extension directory ~/.cct_extensions/<id>/
         ext_dir = CUSTOM_EXTENSIONS_DIR / extension_id
         manifest_file = ext_dir / "extension.json"
@@ -868,8 +987,22 @@ def enable(extension_id: str) -> Tuple[bool, str]:
     data = _load_registry()
     rec = data.get(extension_id)
     if not rec or not rec.get("installed"):
-        return False, f"'{extension_id}' is not installed — install first"
-    if rec.get("enabled"):
+        if is_installed(extension_id):
+            meta = get_metadata(extension_id) or {}
+            data[extension_id] = {
+                "installed": True,
+                "enabled": True,
+                "version": meta.get("version", "1.0.0"),
+                "install_time": time.time(),
+                "updated_at": time.time(),
+                "type": meta.get("type", "extension"),
+                "permissions": meta.get("permissions", []),
+                "dependencies": meta.get("dependencies", []),
+            }
+            rec = data[extension_id]
+        else:
+            return False, f"'{extension_id}' is not installed — install first"
+    elif rec.get("enabled"):
         return False, f"'{extension_id}' is already enabled"
 
     rec["enabled"] = True
@@ -880,15 +1013,20 @@ def enable(extension_id: str) -> Tuple[bool, str]:
     ctype = meta.get("type", "extension")
 
     # Re-enable in subsystem
-    if ctype == "skill":
-        try:
-            from .skills.registry import get_skill_registry
-            sk = get_skill_registry().get(extension_id)
-            if sk:
-                sk.enabled = True
-        except Exception:
-            pass
-    elif ctype == "command":
+    try:
+        from .skills.registry import get_skill_registry
+        sk = get_skill_registry().get(extension_id)
+        if sk:
+            sk.enabled = True
+    except Exception:
+        pass
+    try:
+        from .skills.engine import get_skills_engine
+        get_skills_engine().activate_skill(extension_id)
+    except Exception:
+        pass
+
+    if ctype == "command":
         try:
             from .commands_registry import get_command_registry
             get_command_registry().set_extension_enabled(extension_id, True)
@@ -903,8 +1041,22 @@ def disable(extension_id: str) -> Tuple[bool, str]:
     data = _load_registry()
     rec = data.get(extension_id)
     if not rec or not rec.get("installed"):
-        return False, f"'{extension_id}' is not installed"
-    if not rec.get("enabled"):
+        if is_installed(extension_id):
+            meta = get_metadata(extension_id) or {}
+            data[extension_id] = {
+                "installed": True,
+                "enabled": False,
+                "version": meta.get("version", "1.0.0"),
+                "install_time": time.time(),
+                "updated_at": time.time(),
+                "type": meta.get("type", "extension"),
+                "permissions": meta.get("permissions", []),
+                "dependencies": meta.get("dependencies", []),
+            }
+            rec = data[extension_id]
+        else:
+            return False, f"'{extension_id}' is not installed"
+    elif not rec.get("enabled"):
         return False, f"'{extension_id}' is already disabled"
 
     rec["enabled"] = False
@@ -915,15 +1067,20 @@ def disable(extension_id: str) -> Tuple[bool, str]:
     ctype = meta.get("type", "extension")
 
     # Deactivate in subsystem
-    if ctype == "skill":
-        try:
-            from .skills.registry import get_skill_registry
-            sk = get_skill_registry().get(extension_id)
-            if sk:
-                sk.enabled = False
-        except Exception:
-            pass
-    elif ctype == "command":
+    try:
+        from .skills.registry import get_skill_registry
+        sk = get_skill_registry().get(extension_id)
+        if sk:
+            sk.enabled = False
+    except Exception:
+        pass
+    try:
+        from .skills.engine import get_skills_engine
+        get_skills_engine().deactivate_skill(extension_id)
+    except Exception:
+        pass
+
+    if ctype == "command":
         try:
             from .commands_registry import get_command_registry
             get_command_registry().set_extension_enabled(extension_id, False)

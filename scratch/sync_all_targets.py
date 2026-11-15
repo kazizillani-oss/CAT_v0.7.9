@@ -75,13 +75,6 @@ FILES_TO_SYNC = [
     os.path.join("providers", "providers.json"),
     os.path.join("skills", "registry.py"),
     os.path.join("skills", "engine.py"),
-    os.path.join("skills", "builtin", "manifest.json"),
-    os.path.join("skills", "builtin", "rea-reverse-engineer", "SKILL.md"),
-    os.path.join("skills", "builtin", "archify", "SKILL.md"),
-    os.path.join("skills", "builtin", "remotion-best-practices", "SKILL.md"),
-    os.path.join("skills", "builtin", "skillopt-sleep", "SKILL.md"),
-    os.path.join("skills", "builtin", "page-mascot", "SKILL.md"),
-    os.path.join("skills", "builtin", "frontend-design", "SKILL.md"),
     # UI Modules & Screens
     os.path.join("ui", "app.py"),
     os.path.join("ui", "header.py"),
@@ -133,12 +126,34 @@ for target in TARGET_DIRS:
         src = SOURCE_ROOT / rel_path
         dst = target / rel_path
         if src.exists():
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, dst)
-            count += 1
-            total_copied += 1
+            try:
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, dst)
+                count += 1
+                total_copied += 1
+            except Exception as e:
+                print(f"  Warning copying {rel_path}: {e}")
         else:
             print(f"  Source not found: {src}")
+    # Synchronize all builtin skills recursively
+    src_builtin = SOURCE_ROOT / "skills" / "builtin"
+    dst_builtin = target / "skills" / "builtin"
+    if src_builtin.exists():
+        dst_builtin.mkdir(parents=True, exist_ok=True)
+        for root, dirs, files in os.walk(src_builtin):
+            rel_dir = os.path.relpath(root, src_builtin)
+            target_sub = dst_builtin if rel_dir == "." else dst_builtin / rel_dir
+            target_sub.mkdir(parents=True, exist_ok=True)
+            for f in files:
+                try:
+                    shutil.copy2(os.path.join(root, f), target_sub / f)
+                    count += 1
+                    total_copied += 1
+                except Exception as e:
+                    pass
+                count += 1
+                total_copied += 1
+
     print(f"Synchronized {count} files to: {target}")
 
 print(f"\nTotal files synchronized successfully: {total_copied}")

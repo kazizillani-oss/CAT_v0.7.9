@@ -704,7 +704,7 @@ def wordmark_markup(width, height=None, available_width=None, available_height=N
             _variant, lines = pick_wordmark(width)
 
         if not lines or lines == ["CAT"]:
-            return f"[b]{g_start}CAT[/]"
+            return f"[{g_start} b]CAT[/]"
 
         n = max(1, len(lines) - 1)
         out = []

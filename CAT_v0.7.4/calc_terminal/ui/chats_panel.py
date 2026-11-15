@@ -71,10 +71,11 @@ if TEXTUAL_AVAILABLE:
             padding: 0 1;
         }
         #chats-box {
-            width: 100%;
-            height: 100%;
-            max-width: 94;
-            max-height: 100%;
+            width: 94;
+            max-width: 96%;
+            height: 92%;
+            max-height: 94%;
+            min-height: 12;
             min-width: 38;
             background: #13141f;
             border: heavy;
@@ -84,11 +85,12 @@ if TEXTUAL_AVAILABLE:
             border-right: heavy #45475a;
             padding: 0;
             layout: vertical;
+            overflow: hidden;
         }
         #chats-titlebar {
-            height: 4;
-            min-height: 4;
-            max-height: 4;
+            height: 3;
+            min-height: 3;
+            max-height: 3;
             padding: 0 1 0 2;
             border-top: tall #fab387;
             border-left: tall #e0af68;
@@ -243,7 +245,7 @@ if TEXTUAL_AVAILABLE:
         }
         #chats-list {
             height: 1fr;
-            min-height: 8;
+            min-height: 2;
             overflow-y: auto;
             margin: 0;
             padding: 0 1;
@@ -316,24 +318,31 @@ if TEXTUAL_AVAILABLE:
             min-height: 4;
         }
         #chats-btns {
+            dock: bottom;
             height: auto;
-            min-height: 7;
-            padding: 1 1 0 1;
+            min-height: 4;
+            max-height: 7;
+            padding: 0 1;
             border-top: tall #585b70;
+            background: #13141f;
+            layout: vertical;
         }
         #chats-btns-row1, #chats-btns-row2 {
             height: 3;
             min-height: 3;
+            max-height: 3;
             width: 100%;
-            margin-bottom: 1;
+            margin-bottom: 0;
             layout: horizontal;
+            align: center middle;
         }
         #chats-btns Button {
             margin-right: 1;
             width: 1fr;
-            min-width: 8;
+            min-width: 4;
             height: 3;
             min-height: 3;
+            max-height: 3;
             border-top: tall #cdd6f4;
             border-left: tall #89b4fa;
             border-bottom: tall #585b70;
@@ -342,6 +351,8 @@ if TEXTUAL_AVAILABLE:
             color: $text;
             text-style: bold;
             padding: 0 1;
+            content-align: center middle;
+            text-align: center;
         }
         #chats-btns-row1 Button:last-child, #chats-btns-row2 Button:last-child {
             margin-right: 0;
@@ -391,9 +402,51 @@ if TEXTUAL_AVAILABLE:
         }
         #chats-hint {
             color: $text-faint;
+            height: 1;
+            min-height: 0;
+            max-height: 1;
+            padding: 0 1;
+            text-align: center;
+        }
+
+        /* Responsive Layout for Portrait and Floating Window */
+        ChatsPanel.is-portrait #chats-box,
+        ChatsPanel.is-floating #chats-box,
+        .is-portrait #chats-box,
+        .is-floating #chats-box {
+            width: 98%; max-width: 98%; height: auto; max-height: 94%; padding: 0;
+        }
+        ChatsPanel.is-portrait #chats-workspace-bar,
+        ChatsPanel.is-floating #chats-workspace-bar,
+        .is-portrait #chats-workspace-bar,
+        .is-floating #chats-workspace-bar {
+            display: none;
+        }
+        ChatsPanel.is-portrait #chats-hint,
+        ChatsPanel.is-floating #chats-hint,
+        .is-portrait #chats-hint,
+        .is-floating #chats-hint {
+            display: none;
+        }
+        ChatsPanel.is-portrait #chats-btns,
+        ChatsPanel.is-floating #chats-btns,
+        .is-portrait #chats-btns,
+        .is-floating #chats-btns {
+            dock: bottom;
             height: auto;
-            min-height: 2;
-            padding: 0 2 1 2;
+            min-height: 3;
+            max-height: 7;
+            padding: 0;
+        }
+        ChatsPanel.is-portrait #chats-btns Button,
+        ChatsPanel.is-floating #chats-btns Button,
+        .is-portrait #chats-btns Button,
+        .is-floating #chats-btns Button {
+            min-width: 3;
+            margin-right: 1;
+            padding: 0;
+            content-align: center middle;
+            text-align: center;
         }
         """
 
@@ -506,10 +559,16 @@ if TEXTUAL_AVAILABLE:
 
         def _apply_layout_width(self):
             try:
+                w = getattr(self.app.size, "width", 80) if hasattr(self, "app") and self.app else (self.size.width if self.size.width else 80)
+                h = getattr(self.app.size, "height", 24) if hasattr(self, "app") and self.app else (self.size.height if self.size.height else 24)
+                is_portrait = (w < 86) or (w < h * 1.30)
+                is_floating = (h < 26) or (w < 76)
+                self.set_class(is_portrait, "is-portrait")
+                self.set_class(is_floating, "is-floating")
+
                 box = self.query_one("#chats-box")
-                w = self.size.width if self.size.width else 80
                 if w < 48:
-                    box.styles.max_width = w - 2
+                    box.styles.max_width = max(36, w - 2)
                 elif w < 72:
                     box.styles.max_width = w - 4
                 else:

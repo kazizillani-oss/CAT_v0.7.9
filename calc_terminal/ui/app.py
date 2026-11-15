@@ -2530,7 +2530,7 @@ Screen Button.cct-dash-action.-active {
     display: none;
 }
 #cct-header-explorer-btn {
-    display: none;
+    display: block;
     height: 3;
     min-height: 3;
     max-height: 3;
@@ -2566,7 +2566,41 @@ Screen Button.cct-dash-action.-active {
 }
 #cct-brandheader.is-portrait #cct-header-explorer-btn,
 .is-portrait #cct-header-explorer-btn {
-    display: none;
+    display: none !important;
+}
+#cct-brandheader.is-portrait {
+    height: 3;
+    min-height: 3;
+    max-height: 3;
+    padding: 0 1;
+    border-bottom: solid $border;
+}
+#cct-brandheader.is-portrait #cct-header-top {
+    height: 3;
+    min-height: 3;
+    max-height: 3;
+}
+#cct-brandheader.is-portrait #cct-header-left {
+    height: 3;
+    min-height: 3;
+    max-height: 3;
+    align-vertical: middle;
+}
+#cct-workspace.is-portrait #cct-sidebar,
+.is-portrait #cct-sidebar,
+#cct-sidebar.is-portrait {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 100% !important;
+    border-right: none !important;
+}
+#cct-workspace.is-portrait #cct-right-pane,
+.is-portrait #cct-right-pane,
+#cct-right-pane.is-portrait {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 100% !important;
+    border-left: none !important;
 }
 #cct-tb-close {
     height: 1;
@@ -4600,6 +4634,14 @@ if TEXTUAL_AVAILABLE:
                 else:
                     self.conversation.show_dashboard(WelcomeDashboard(
                         LOGO, self._version(), self._model_label(), len(self._history)))
+                return
+
+            if action in ("releases", "updates", "whatsnew"):
+                try:
+                    from .releases_modal import GitHubReleasesModal
+                    self.push_screen(GitHubReleasesModal())
+                except Exception as e:
+                    self._system_note(f"Releases modal unavailable: {e}")
                 return
 
             if action in ("ai_agents", "modes", "kitties"):
@@ -8470,6 +8512,24 @@ if TEXTUAL_AVAILABLE:
                 return
             if word in ("/debug", "/debugoverlay", "/hud"):
                 self.toggle_debug_overlay()
+                return
+            if word in ("/release", "/releases", "/update", "/updates"):
+                try:
+                    from .releases_modal import GitHubReleasesModal, fetch_latest_release
+                    rel_data = fetch_latest_release()
+                    self.push_screen(GitHubReleasesModal(rel_data))
+                    tag = rel_data.get("tag_name", "v0.9.000")
+                    url = rel_data.get("html_url", "https://github.com/kazizillani-oss/CAT_v0.7.9/releases")
+                    date_str = rel_data.get("published_at", "2026-11-14")
+                    self._system_note(
+                        f"🚀 **GitHub Release Information**\n\n"
+                        f"- **Installed Version**: v0.9.000\n"
+                        f"- **Latest Release**: {tag} ({date_str})\n"
+                        f"- **Repository & Changelog**: [{url}]({url})\n\n"
+                        f"{rel_data.get('body', '')}"
+                    )
+                except Exception as e:
+                    self._system_note(f"GitHub Releases: {e}")
                 return
             if word in ("/whatsnew", "/whats-new", "/what-is-new"):
                 try:

@@ -567,7 +567,7 @@ if TEXTUAL_AVAILABLE:
         CSS = """
         ExtensionsPanel { align: center middle; background: rgba(0, 0, 0, 0.72); }
         #ext-box {
-            width: 94; max-width: 96%; height: auto; max-height: 90%;
+            width: 94; max-width: 96%; height: 86%; max-height: 90%; min-height: 14;
             background: $surface;
             border: tall;
             border-top: tall $surface-highlight;
@@ -599,26 +599,38 @@ if TEXTUAL_AVAILABLE:
             background: $surface-dark;
             overflow: hidden;
         }
-        .ext-tab {
+        .ext-tab,
+        Button.ext-tab,
+        Button.ext-tab:focus,
+        Button.ext-tab:hover,
+        Button.ext-tab.-active {
             height: 3; min-height: 3; max-height: 3;
             width: 1fr;
-            min-width: 6;
+            min-width: 4;
             padding: 0 1;
             margin: 0;
             border: none;
+            border-bottom: tall transparent;
+            offset: 0 0;
             background: transparent;
             color: $text-muted;
             text-style: bold;
             text-align: center;
             content-align: center middle;
         }
-        .ext-tab:hover {
+        .ext-tab:hover,
+        Button.ext-tab:hover {
             color: $text;
             background: $surface-alt;
         }
-        .ext-tab.active {
+        .ext-tab.active,
+        Button.ext-tab.active,
+        Button.ext-tab.active:hover,
+        Button.ext-tab.active:focus,
+        Button.ext-tab.active.-active {
             color: $accent;
             background: $surface;
+            border: none;
             border-bottom: tall $accent;
             text-style: bold;
         }
@@ -695,8 +707,8 @@ if TEXTUAL_AVAILABLE:
 
         /* Card Scroll Container */
         #ext-list {
-            height: auto; min-height: 8; max-height: 22;
-            overflow-y: auto; scrollbar-gutter: stable; scrollbar-size: 1 1;
+            height: 1fr; min-height: 4;
+            overflow-y: scroll; scrollbar-gutter: stable; scrollbar-size: 1 1;
             margin: 0 1; padding: 0;
         }
         .ext-card {
@@ -778,8 +790,9 @@ if TEXTUAL_AVAILABLE:
         .ext-card-actions Button:first-child { margin-left: 0; }
         .ext-card-actions Button:disabled { opacity: 0.7; }
 
-        /* Bottom Action Bar */
+        /* Bottom Action Bar — docked strictly at bottom so it is NEVER clipped */
         #ext-actions {
+            dock: bottom;
             height: 4; min-height: 4; max-height: 4; padding: 0 1; margin: 0;
             border-top: solid $border;
             background: $surface;
@@ -789,7 +802,7 @@ if TEXTUAL_AVAILABLE:
         }
         #ext-actions-left { width: 1fr; height: 3; layout: horizontal; align: left middle; }
         #ext-actions-left Button, #ext-actions Button {
-            margin-right: 1; min-width: 12; height: 3; min-height: 3; max-height: 3; padding: 0 1;
+            margin-right: 1; min-width: 10; height: 3; min-height: 3; max-height: 3; padding: 0 1;
             border: tall;
             border-top: tall $surface-highlight;
             border-left: tall $surface-highlight;
@@ -813,7 +826,7 @@ if TEXTUAL_AVAILABLE:
             background: #4a1e27;
             color: #ff99a8;
             text-style: bold;
-            min-width: 12;
+            min-width: 10;
             height: 3; min-height: 3; max-height: 3;
             content-align: center middle;
         }
@@ -828,8 +841,10 @@ if TEXTUAL_AVAILABLE:
 
         /* Portrait Mode and Responsive Scaling */
         ExtensionsPanel.is-portrait #ext-box,
-        .is-portrait #ext-box {
-            width: 96%; max-width: 98%; max-height: 94%; padding: 0;
+        ExtensionsPanel.is-floating #ext-box,
+        .is-portrait #ext-box,
+        .is-floating #ext-box {
+            width: 96%; max-width: 98%; height: 92%; max-height: 94%; padding: 0;
         }
         ExtensionsPanel.is-portrait .ext-tab,
         .is-portrait .ext-tab {
@@ -871,36 +886,60 @@ if TEXTUAL_AVAILABLE:
             margin: 0 1;
         }
         ExtensionsPanel.is-portrait #ext-actions,
-        .is-portrait #ext-actions {
-            height: auto;
-            min-height: 7;
-            padding: 1;
-            layout: vertical;
+        ExtensionsPanel.is-floating #ext-actions,
+        .is-portrait #ext-actions,
+        .is-floating #ext-actions {
+            dock: bottom;
+            width: 100%;
+            height: 4;
+            min-height: 3;
+            max-height: 4;
+            padding: 0 1;
+            layout: horizontal;
             align: center middle;
         }
         ExtensionsPanel.is-portrait #ext-actions-left,
-        .is-portrait #ext-actions-left {
-            width: 100%;
+        ExtensionsPanel.is-floating #ext-actions-left,
+        .is-portrait #ext-actions-left,
+        .is-floating #ext-actions-left {
+            width: 1fr;
             height: 3;
             layout: horizontal;
-            align: center middle;
-            margin-bottom: 1;
+            align: left middle;
         }
         ExtensionsPanel.is-portrait #ext-actions-left Button,
-        .is-portrait #ext-actions-left Button {
+        ExtensionsPanel.is-floating #ext-actions-left Button,
+        .is-portrait #ext-actions-left Button,
+        .is-floating #ext-actions-left Button {
             width: 1fr;
-            min-width: 6;
+            min-width: 4;
             height: 3; min-height: 3;
-            margin: 0 1;
+            margin: 0 1 0 0;
+            padding: 0;
+            content-align: center middle;
+            text-align: center;
         }
         ExtensionsPanel.is-portrait #ext-actions #ext-close2,
-        .is-portrait #ext-actions #ext-close2 {
-            width: 100%;
+        ExtensionsPanel.is-floating #ext-actions #ext-close2,
+        .is-portrait #ext-actions #ext-close2,
+        .is-floating #ext-actions #ext-close2 {
+            width: auto;
+            min-width: 8;
             height: 3; min-height: 3;
+            margin-left: 1;
+            padding: 0 1;
+            content-align: center middle;
+            text-align: center;
         }
         """
 
-        BINDINGS = [Binding("escape", "cancel", "Cancel")]
+        BINDINGS = [
+            Binding("escape", "cancel", "Cancel"),
+            Binding("pageup", "scroll_page_up", "Page Up", show=False),
+            Binding("pagedown", "scroll_page_down", "Page Down", show=False),
+            Binding("up", "scroll_up", "Scroll Up", show=False),
+            Binding("down", "scroll_down", "Scroll Down", show=False),
+        ]
 
         def __init__(self):
             super().__init__()
@@ -912,16 +951,25 @@ if TEXTUAL_AVAILABLE:
             self._spin_timer = None
 
         def compose(self):
+            all_list = ext_mgr.list_extensions() if ext_mgr else []
+            installed_cnt = len([e for e in all_list if e.get("installed")])
+            mcp_cnt = len([e for e in all_list if e.get("kind") == "mcp" or "mcp" in str(e.get("category", "")).lower()])
+            builtin_cnt = len([
+                e for e in all_list
+                if e.get("kind") == "builtin" or e.get("install_source") == "builtin"
+                or any(p in str(e.get("publisher", "")).lower() for p in ("kazi", "morluto", "tt-a1i", "remotion", "microsoft", "nilbuild", "anthropic", "vercel", "cat", "obra", "mattpocock", "nextlevelbuilder", "cloudflare", "addyosmani", "pbakaus", "blader"))
+            ])
+
             with Vertical(id="ext-box"):
                 # Titlebar (top cross button removed as requested; only bottom Close button)
                 with Horizontal(id="ext-titlebar"):
                     yield Static("▣  Extensions & Component Manager", id="ext-title")
 
-                # Top-level Tabs (4 categories, fluid non-overlapping)
+                # Top-level Tabs (4 categories, fluid non-overlapping with dynamic badge counts)
                 with Horizontal(id="ext-tabs-bar"):
-                    yield Button("⭐ Built-in", id="tab-builtin", classes="ext-tab active")
-                    yield Button("📦 Installed", id="tab-installed", classes="ext-tab")
-                    yield Button("🔌 MCP Servers", id="tab-mcp", classes="ext-tab")
+                    yield Button(f"⭐ Built-in ({builtin_cnt})", id="tab-builtin", classes="ext-tab active")
+                    yield Button(f"📦 Installed ({installed_cnt})", id="tab-installed", classes="ext-tab")
+                    yield Button(f"🔌 MCP Servers ({mcp_cnt})", id="tab-mcp", classes="ext-tab")
                     yield Button("🌐 Discover", id="tab-discover", classes="ext-tab")
 
                 # Search row
@@ -965,7 +1013,19 @@ if TEXTUAL_AVAILABLE:
                 w = getattr(self.app.size, "width", 80)
                 h = getattr(self.app.size, "height", 25)
                 is_portrait = (w < 86) or (w < h * 1.30)
+                is_floating = (h < 26) or (w < 76)
                 self.set_class(is_portrait, "is-portrait")
+                self.set_class(is_floating, "is-floating")
+
+                # Responsive button labels to prevent overflow in narrow or portrait windows
+                gh_btn = self.query_one("#ext-gh-install-btn", Button)
+                create_btn = self.query_one("#ext-create-btn", Button)
+                if w < 76:
+                    gh_btn.label = "↓ GitHub"
+                    create_btn.label = "＋ Create"
+                else:
+                    gh_btn.label = "↓ GitHub Install"
+                    create_btn.label = "＋ Create Extension"
             except Exception:
                 pass
 
@@ -985,7 +1045,10 @@ if TEXTUAL_AVAILABLE:
                 if self._active_tab == "builtin":
                     all_exts = [
                         e for e in all_exts
-                        if e.get("kind") == "builtin" or e.get("install_source") == "builtin" or str(e.get("publisher", "")).lower() in ("kazi zillani", "morluto", "tt-a1i", "remotion team", "microsoft research", "nilbuild", "anthropic & antigravity design", "cat skill system")
+                        if e.get("kind") == "builtin"
+                        or e.get("install_source") == "builtin"
+                        or any(p in str(e.get("publisher", "")).lower() for p in ("kazi", "morluto", "tt-a1i", "remotion", "microsoft", "nilbuild", "anthropic", "vercel", "cat", "obra", "mattpocock", "nextlevelbuilder", "cloudflare", "addyosmani", "pbakaus", "blader"))
+                        or any(p in str(e.get("id", "")).lower() for p in ("skill-creator", "find-skills", "rea", "archify", "remotion", "skillopt", "page-mascot", "frontend-design", "gestures", "personalize", "superpowers", "ts-wizard", "mcp-builder", "ui-ux-pro-max", "cloudflare-security", "addy-agent-skills", "impeccable", "humanizer", "cat-", "brainstorming", "planning", "code-review", "debugging", "testing", "security-audit", "git-workflow", "documentation", "research", "browser-automation", "refactoring", "seo-optimization", "scientific-research"))
                     ]
                 elif self._active_tab == "installed":
                     all_exts = [e for e in all_exts if e.get("installed")]
@@ -1137,7 +1200,12 @@ if TEXTUAL_AVAILABLE:
         def on_input_changed(self, event):
             if getattr(event.input, "id", "") == "ext-search-input":
                 self._search_query = event.value
-                self._refresh()
+                if getattr(self, "_search_timer", None):
+                    try:
+                        self._search_timer.stop()
+                    except Exception:
+                        pass
+                self._search_timer = self.set_timer(0.12, self._refresh)
 
         def on_click(self, event):
             widget = getattr(event, "widget", None)
@@ -1154,9 +1222,16 @@ if TEXTUAL_AVAILABLE:
             if bid.startswith("tab-"):
                 tab_name = bid.replace("tab-", "")
                 self._active_tab = tab_name
+                self._active_subfilter = "all"
                 for btn in self.query(".ext-tab"):
                     btn.remove_class("active")
                 event.button.add_class("active")
+                for sub in self.query(".ext-subfilter"):
+                    sub.remove_class("active")
+                try:
+                    self.query_one("#sub-all", Button).add_class("active")
+                except Exception:
+                    pass
                 self._refresh()
                 return
 
@@ -1241,9 +1316,42 @@ if TEXTUAL_AVAILABLE:
         def action_cancel(self):
             self.dismiss(None)
 
+        def action_scroll_page_up(self):
+            try:
+                self.query_one("#ext-list", VerticalScroll).scroll_page_up()
+            except Exception:
+                pass
+
+        def action_scroll_page_down(self):
+            try:
+                self.query_one("#ext-list", VerticalScroll).scroll_page_down()
+            except Exception:
+                pass
+
+        def action_scroll_up(self):
+            try:
+                self.query_one("#ext-list", VerticalScroll).scroll_up()
+            except Exception:
+                pass
+
+        def action_scroll_down(self):
+            try:
+                self.query_one("#ext-list", VerticalScroll).scroll_down()
+            except Exception:
+                pass
+
         def on_key(self, event):
             if event.key == "escape":
                 self.dismiss(None)
+            elif event.key in ("pageup", "pagedown"):
+                try:
+                    lst = self.query_one("#ext-list", VerticalScroll)
+                    if event.key == "pageup":
+                        lst.scroll_page_up()
+                    else:
+                        lst.scroll_page_down()
+                except Exception:
+                    pass
 
 else:
     ExtensionsPanel = None

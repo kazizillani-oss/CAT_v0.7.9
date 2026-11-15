@@ -239,39 +239,171 @@ class SkillsEngine:
     def get_skill_prompts_for_agent(self, agent_role: str) -> str:
         """
         Produce a tailored instructions block for the given Kitty agent role:
-        - Aria (Build Agent) -> Archify, Frontend Design, REA
-        - Mira (Plan Mode Agent) -> REA, Archify, SkillOpt
-        - Qala (Notebook / Math Agent) -> SkillOpt, REA
-        - Nova (Operator Agent) -> All active skills
-        - Dex (Debugger Agent) -> REA, Archify
-        - Sage (Research Agent) -> SkillOpt, Archify, REA
+        - Aria / Build -> Frontend Design, UI/UX Pro Max, Archify, REA, TS Wizard, API Builder, Refactoring
+        - Dex / Debugger -> Debugging, Auto-Fix, Dependency Doctor, Code Review, Testing, Performance
+        - Mira / Plan -> Planning, Brainstorming, Archify, REA, Context Manager, Research
+        - Sage / Research -> Research, Scientific Research, Documentation, Find-Skills, SkillOpt
+        - Qala / Notebook -> Scientific Research, Quantum Engine, SkillOpt, REA
+        - Nova / Operator -> Dynamic multi-skill orchestration across all active capabilities
         """
         role_map = {
-            "aria": ["archify", "frontend-design", "rea-reverse-engineer", "remotion-best-practices"],
-            "mira": ["rea-reverse-engineer", "archify", "skillopt-sleep"],
-            "qala": ["skillopt-sleep", "rea-reverse-engineer"],
-            "nova": ["rea-reverse-engineer", "archify", "frontend-design", "remotion-best-practices", "page-mascot", "skillopt-sleep"],
-            "dex": ["rea-reverse-engineer", "archify"],
-            "sage": ["skillopt-sleep", "archify", "rea-reverse-engineer"],
+            "aria": [
+                "frontend-design", "ui-ux-pro-max", "cat-api-builder", "archify",
+                "rea-reverse-engineer", "ts-wizard", "refactoring", "cat-project-analyzer",
+                "mcp-builder", "remotion-best-practices"
+            ],
+            "build": [
+                "frontend-design", "ui-ux-pro-max", "cat-api-builder", "archify",
+                "rea-reverse-engineer", "ts-wizard", "refactoring", "cat-project-analyzer",
+                "mcp-builder", "remotion-best-practices"
+            ],
+            "mira": ["planning", "brainstorming", "archify", "rea-reverse-engineer", "cat-context-manager", "research", "skillopt-sleep"],
+            "plan": ["planning", "brainstorming", "archify", "rea-reverse-engineer", "cat-context-manager", "research", "skillopt-sleep"],
+            "dex": ["debugging", "cat-auto-fix", "cat-dependency-doctor", "code-review", "rea-reverse-engineer", "testing", "cat-performance"],
+            "debugger": ["debugging", "cat-auto-fix", "cat-dependency-doctor", "code-review", "rea-reverse-engineer", "testing", "cat-performance"],
+            "debug": ["debugging", "cat-auto-fix", "cat-dependency-doctor", "code-review", "rea-reverse-engineer", "testing", "cat-performance"],
+            "sage": ["research", "scientific-research", "documentation", "find-skills", "skillopt-sleep", "cat-quantum", "archify"],
+            "research": ["research", "scientific-research", "documentation", "find-skills", "skillopt-sleep", "cat-quantum", "archify"],
+            "qala": ["scientific-research", "cat-quantum", "skillopt-sleep", "rea-reverse-engineer", "math"],
+            "notebook": ["scientific-research", "cat-quantum", "skillopt-sleep", "rea-reverse-engineer"],
+            "math": ["scientific-research", "cat-quantum", "skillopt-sleep", "rea-reverse-engineer"],
+            "nova": [
+                "cat-project-analyzer", "rea-reverse-engineer", "archify", "planning",
+                "debugging", "cat-auto-fix", "frontend-design", "testing", "git-workflow",
+                "superpowers", "page-mascot", "skillopt-sleep"
+            ],
+            "operator": [
+                "cat-project-analyzer", "rea-reverse-engineer", "archify", "planning",
+                "debugging", "cat-auto-fix", "frontend-design", "testing", "git-workflow",
+                "superpowers", "page-mascot", "skillopt-sleep"
+            ],
         }
         target_ids = role_map.get(agent_role.lower(), list(self._skills.keys()))
+        return self.load_skills_context(target_ids, max_tokens=6000)
 
+    def detect_relevant_skills(self, prompt: str, active_mode: str = "nova", max_skills: int = 4) -> List[str]:
+        """
+        Dynamically detect the most relevant skills based on user prompt, intent keywords,
+        and current active Kitty agent role.
+        """
+        p_low = prompt.lower()
+        matched_scores: Dict[str, int] = {}
+
+        keyword_rules = [
+            (["test", "pytest", "unit test", "integration test", "coverage", "mock", "assert"], ["testing", "cat-test-generator"]),
+            (["debug", "error", "traceback", "exception", "crash", "fix this", "bug", "segfault"], ["debugging", "cat-auto-fix"]),
+            (["plan", "roadmap", "architecture", "break down", "design system", "steps to implement"], ["planning", "brainstorming", "archify"]),
+            (["review", "audit", "security", "vulnerability", "cve", "owasp", "leak", "clean code"], ["code-review", "security-audit", "cloudflare-security"]),
+            (["git", "commit", "branch", "merge", "conflict", "stash", "pr", "repo"], ["git-workflow"]),
+            (["ui", "ux", "css", "layout", "responsive", "frontend", "bevel", "color", "screen", "theme"], ["frontend-design", "ui-ux-pro-max", "page-mascot", "impeccable"]),
+            (["mcp", "model context protocol", "mcp server", "tools/call"], ["mcp-builder"]),
+            (["typescript", "generics", "type-level", "ts-ignore", "interface", "zod"], ["ts-wizard"]),
+            (["humanize", "robotic", "natural writing", "rewrite", "tone", "cliche"], ["humanizer"]),
+            (["seo", "meta tags", "sitemap", "web vitals", "indexable", "googlebot"], ["seo-optimization"]),
+            (["quantum", "qiskit", "circuit", "qubit", "superposition", "statevector"], ["cat-quantum"]),
+            (["database", "sql", "migration", "query", "schema", "postgres", "sqlite"], ["cat-database"]),
+            (["api", "rest", "graphql", "fastapi", "endpoint", "openapi", "routes"], ["cat-api-builder"]),
+            (["docker", "container", "deploy", "ci/cd", "github actions", "devops"], ["cat-deployment"]),
+            (["browser", "playwright", "puppeteer", "scrape", "headless", "e2e"], ["browser-automation"]),
+            (["performance", "profile", "bottleneck", "slow", "memory leak", "cpu", "latency"], ["cat-performance", "addy-agent-skills"]),
+            (["reverse engineer", "disassemble", "decompile", "inspect binary"], ["rea-reverse-engineer"]),
+            (["dependency", "package", "pip install", "npm install", "lockfile", "version conflict"], ["cat-dependency-doctor"]),
+            (["video", "animation", "motion graphics", "render mp4", "remotion"], ["remotion-best-practices"]),
+            (["analyze project", "project structure", "workspace summary", "tech stack"], ["cat-project-analyzer"]),
+            (["superpower", "sysadmin", "system recon", "processes", "daemon"], ["superpowers"]),
+        ]
+
+        for keywords, skill_list in keyword_rules:
+            for kw in keywords:
+                if kw in p_low:
+                    for sid in skill_list:
+                        matched_scores[sid] = matched_scores.get(sid, 0) + 3
+
+        # Add agent role affinity
+        role_priors = {
+            "aria": ["frontend-design", "ui-ux-pro-max", "cat-api-builder"],
+            "build": ["frontend-design", "ui-ux-pro-max", "cat-api-builder"],
+            "dex": ["debugging", "cat-auto-fix", "code-review"],
+            "debugger": ["debugging", "cat-auto-fix", "code-review"],
+            "mira": ["planning", "brainstorming", "archify"],
+            "plan": ["planning", "brainstorming", "archify"],
+            "sage": ["research", "scientific-research", "documentation"],
+            "research": ["research", "scientific-research", "documentation"],
+            "qala": ["scientific-research", "cat-quantum", "skillopt-sleep"],
+            "nova": ["cat-project-analyzer", "rea-reverse-engineer"],
+        }
+        for sid in role_priors.get(active_mode.lower(), []):
+            matched_scores[sid] = matched_scores.get(sid, 0) + 1
+
+        # Sort descending by score
+        sorted_skills = sorted(matched_scores.items(), key=lambda x: x[1], reverse=True)
+        return [sid for sid, score in sorted_skills if self.is_active(sid)][:max_skills]
+
+    def load_skills_context(self, skill_ids: List[str], max_tokens: int = 4000) -> str:
+        """
+        Progressive disclosure context loader: formats instruction blocks with strict
+        context isolation and token budgeting (~4 chars per token).
+        """
+        max_chars = max_tokens * 4
         blocks = []
-        for sid in target_ids:
-            if self.is_active(sid):
-                instr = self.load_skill_instructions(sid)
-                meta = self.get_skill(sid)
-                if instr and meta:
-                    blocks.append(
+        current_chars = 0
+
+        for sid in skill_ids:
+            if not self.is_active(sid):
+                continue
+            meta = self.get_skill(sid)
+            instr = self.load_skill_instructions(sid)
+            if not meta or not instr:
+                continue
+
+            block = (
+                f"### Active Skill: {meta.name} (by {meta.creator} {meta.github_username})\n"
+                f"Repository: {meta.repository}\n"
+                f"Category: {meta.category.title()} | License: {meta.license_name}\n\n"
+                f"{instr}\n"
+            )
+
+            # Check if block fits within budget
+            if current_chars + len(block) > max_chars:
+                # Truncate cleanly at section boundary
+                allowed = max_chars - current_chars
+                if allowed > 400:
+                    truncated_instr = instr[:allowed - 200]
+                    # Cut to last newline
+                    if "\n" in truncated_instr:
+                        truncated_instr = truncated_instr.rsplit("\n", 1)[0]
+                    truncated_block = (
                         f"### Active Skill: {meta.name} (by {meta.creator} {meta.github_username})\n"
-                        f"Repository: {meta.repository}\n\n"
-                        f"{instr}\n"
+                        f"Repository: {meta.repository} [Summary Mode]\n\n"
+                        f"{truncated_instr}\n\n*(remaining instructions truncated for context budget)*\n"
                     )
+                    blocks.append(truncated_block)
+                break
+
+            blocks.append(block)
+            current_chars += len(block)
 
         if not blocks:
             return ""
 
         return "\n---\n## 🧩 ACTIVE AGENT SKILLS\n" + "\n".join(blocks) + "\n---\n"
+
+    def check_skill_permissions(self, skill_id: str, requested_action: str) -> bool:
+        """
+        Check whether a skill's declared permission scope permits the requested action.
+        Standard scopes: 'read_files', 'write_files', 'shell_commands', 'network'.
+        """
+        meta = self.get_skill(skill_id)
+        if not meta:
+            return False
+        # Read frontmatter permissions if available
+        perms = meta.frontmatter.get("permissions") or []
+        if isinstance(perms, str):
+            perms = [p.strip() for p in perms.strip("[]").replace("'", "").replace('"', '').split(",")]
+        # Default safety: read_files is allowed for all active skills; destructive actions require explicit grant
+        if requested_action in ("read_files", "read"):
+            return True
+        return requested_action in perms
 
 
 def get_skills_engine() -> SkillsEngine:

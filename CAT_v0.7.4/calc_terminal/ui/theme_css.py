@@ -606,6 +606,7 @@ Screen Button.cct-dash-action:disabled {
     border-right: tall $border;
     tint: $accent 3%;
     transition: border 100ms, tint 100ms;
+    overflow: hidden hidden;
 }
 
 .cct-dash-card-3d:hover,
@@ -1445,12 +1446,14 @@ Button#cct-chat-sidebar-toggle:hover, .cct-chat-nav-btn:hover {
     text-style: italic;
 }
 #cct-composer-divider {
+    display: none;
     width: 100%;
-    height: 1;
-    min-height: 1;
-    max-height: 1;
+    height: 0;
+    min-height: 0;
+    max-height: 0;
     background: transparent;
-    border-top: solid $border;
+    border: none;
+    border-top: none;
     margin: 0;
     padding: 0;
 }
@@ -1548,12 +1551,31 @@ Button#cct-chat-sidebar-toggle:hover, .cct-chat-nav-btn:hover {
     margin-left: 1;
 }
 
-#cct-composer.cct-mode-notebook #cct-composer-divider { border-top: solid #3d569e; }
-#cct-composer.cct-mode-research #cct-composer-divider { border-top: solid #801f4c; }
-#cct-composer.cct-mode-plan #cct-composer-divider { border-top: solid #3f6212; }
-#cct-composer.cct-mode-build #cct-composer-divider { border-top: solid #6e4b1f; }
-#cct-composer.cct-mode-debugger #cct-composer-divider { border-top: solid #801024; }
-#cct-composer.cct-mode-agent #cct-composer-divider { border-top: solid #4e3575; }
+#cct-composer #cct-composer-divider {
+    display: none;
+    height: 0;
+    min-height: 0;
+    max-height: 0;
+    border: none;
+    border-top: none;
+    margin: 0;
+    padding: 0;
+}
+#cct-composer.cct-mode-notebook #cct-composer-divider,
+#cct-composer.cct-mode-research #cct-composer-divider,
+#cct-composer.cct-mode-plan #cct-composer-divider,
+#cct-composer.cct-mode-build #cct-composer-divider,
+#cct-composer.cct-mode-debugger #cct-composer-divider,
+#cct-composer.cct-mode-agent #cct-composer-divider {
+    display: none;
+    height: 0;
+    min-height: 0;
+    max-height: 0;
+    border: none;
+    border-top: none;
+    margin: 0;
+    padding: 0;
+}
 
 /* Status bar & interactive footer tabs */
 #cct-statusline {
@@ -1782,7 +1804,8 @@ Button.cct-tools-action-btn {
     padding: 0 1;
     margin-bottom: 1;
     content-align: center middle;
-    color: $text;
+    text-align: center;
+    color: #ffffff;
     background: $surface-alt;
     text-style: bold;
 }
@@ -2011,7 +2034,7 @@ _EditorArea .text-area--gutter,
 
 
 #cct-header-explorer-btn {
-    display: none;
+    display: block;
     height: 3;
     min-height: 3;
     max-height: 3;
@@ -2049,7 +2072,25 @@ _EditorArea .text-area--gutter,
 }
 #cct-brandheader.is-portrait #cct-header-explorer-btn,
 .is-portrait #cct-header-explorer-btn {
-    display: none;
+    display: none !important;
+}
+#cct-brandheader.is-portrait {
+    height: 3;
+    min-height: 3;
+    max-height: 3;
+    padding: 0 1;
+    border-bottom: solid $border;
+}
+#cct-brandheader.is-portrait #cct-header-top {
+    height: 3;
+    min-height: 3;
+    max-height: 3;
+}
+#cct-brandheader.is-portrait #cct-header-left {
+    height: 3;
+    min-height: 3;
+    max-height: 3;
+    align-vertical: middle;
 }
 #cct-brandheader.is-portrait #cct-header-right,
 .is-portrait #cct-header-right {
@@ -2063,6 +2104,24 @@ _EditorArea .text-area--gutter,
     width: auto;
     layout: horizontal;
     align: right middle;
+}
+
+/* Portrait Fullscreen Explorer & Code Editor */
+#cct-workspace.is-portrait #cct-sidebar,
+.is-portrait #cct-sidebar,
+#cct-sidebar.is-portrait {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 100% !important;
+    border-right: none !important;
+}
+#cct-workspace.is-portrait #cct-right-pane,
+.is-portrait #cct-right-pane,
+#cct-right-pane.is-portrait {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 100% !important;
+    border-left: none !important;
 }
 #cct-tb-close {
     height: 1;

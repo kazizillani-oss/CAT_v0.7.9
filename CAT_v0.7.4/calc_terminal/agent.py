@@ -3873,6 +3873,19 @@ def run_agent(user_text, max_steps=MAX_STEPS, verbose=True, on_step=None, mode="
         except Exception:
             pass
     try:
+        from .skills.engine import get_skills_engine
+        _skills_eng = get_skills_engine()
+        _detected_sids = _skills_eng.detect_relevant_skills(prompt, active_mode=mode, max_skills=3)
+        _skills_block = _skills_eng.get_skill_prompts_for_agent(mode)
+        if _skills_block:
+            system_prompt += f"\n\n{_skills_block}"
+        elif _detected_sids:
+            _det_block = _skills_eng.load_skills_context(_detected_sids, max_tokens=3000)
+            if _det_block:
+                system_prompt += f"\n\n{_det_block}"
+    except Exception:
+        pass
+    try:
         # v0.7.8 AI Personalization: the active profile's style
         # directive rides along inside the same system prompt the tool
         # loop already uses — tools, memory and permissions untouched.

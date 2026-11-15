@@ -267,12 +267,12 @@ if TEXTUAL_AVAILABLE:
             min-width: 40;
             max-width: 95%;
             height: auto;
-            background: $surface;
+            background: #181825;
             border: tall;
-            border-top: tall $surface-highlight;
-            border-left: tall $surface-highlight;
-            border-bottom: tall $border;
-            border-right: tall $border;
+            border-top: tall #585b70;
+            border-left: tall #585b70;
+            border-bottom: tall #313244;
+            border-right: tall #313244;
             margin-right: 2;
             margin-bottom: 2;
             padding: 1 2;
@@ -280,7 +280,7 @@ if TEXTUAL_AVAILABLE:
         }
         #cct-tools-title {
             text-style: bold;
-            color: $text;
+            color: #cdd6f4;
             padding-bottom: 1;
             width: 100%;
         }
@@ -291,40 +291,41 @@ if TEXTUAL_AVAILABLE:
             max-height: 3;
             width: 100%;
             border: tall;
-            border-top: tall $surface-highlight;
-            border-left: tall $surface-highlight;
-            border-bottom: tall $surface-shadow;
-            border-right: tall $surface-shadow;
+            border-top: tall #585b70;
+            border-left: tall #585b70;
+            border-bottom: tall #11111b;
+            border-right: tall #11111b;
             padding: 0 1;
             margin-bottom: 1;
             content-align: center middle;
-            color: $text;
-            background: $surface-alt;
+            text-align: center;
+            color: #ffffff;
+            background: #25283c;
             text-style: bold;
         }
         .cct-tools-action-btn:hover,
         Button.cct-tools-action-btn:hover {
             border-top: tall #ffffff;
-            border-left: tall $surface-highlight;
-            border-bottom: tall $surface-shadow;
-            border-right: tall $surface-shadow;
+            border-left: tall #89b4fa;
+            border-bottom: tall #11111b;
+            border-right: tall #11111b;
             color: #ffffff;
-            background: $surface-active;
+            background: #313244;
             text-style: bold;
         }
         .cct-tools-action-btn:focus,
         Button.cct-tools-action-btn:focus {
-            border-top: tall $surface-shadow;
-            border-left: tall $surface-shadow;
-            border-bottom: tall $surface-highlight;
-            border-right: tall $surface-highlight;
-            background: $surface-dark;
+            border-top: tall #11111b;
+            border-left: tall #11111b;
+            border-bottom: tall #585b70;
+            border-right: tall #585b70;
+            background: #11111b;
             color: #ffffff;
             text-style: bold;
         }
         #cct-tools-render-header {
             text-style: bold;
-            color: $accent;
+            color: #89b4fa;
             margin-top: 1;
             margin-bottom: 1;
             width: 100%;
@@ -338,9 +339,10 @@ if TEXTUAL_AVAILABLE:
             border: none;
             padding: 0 1;
             margin: 0;
-            color: $text;
+            color: #a6e3a1;
             background: transparent;
             content-align: left middle;
+            text-align: left;
         }
         .cct-tools-toggle-btn:hover,
         Button.cct-tools-toggle-btn:hover,
@@ -348,7 +350,7 @@ if TEXTUAL_AVAILABLE:
         Button.cct-tools-toggle-btn:focus {
             border: none;
             color: #ffffff;
-            background: $surface-active;
+            background: #313244;
             text-style: bold;
         }
         """
@@ -357,30 +359,46 @@ if TEXTUAL_AVAILABLE:
             super().__init__()
             self._ttfd = False
             self._token_usage = True
+            self._token_verbose = False
+
+        def _fmt_label(self, checked: bool, text: str):
+            try:
+                from rich.text import Text
+                t = Text()
+                if checked:
+                    t.append("[x] ", style="bold #a6e3a1")
+                else:
+                    t.append("[ ] ", style="bold #6c7086")
+                t.append(text, style="bold #ffffff")
+                return t
+            except Exception:
+                mark = r"\[x] " if checked else r"\[ ] "
+                return f"{mark}{text}"
 
         def compose(self):
             with Vertical(id="cct-tools-box"):
                 yield Static("Tools", id="cct-tools-title")
-                yield Button("📸 Write Debug Snapshot", id="cct-tools-snapshot-btn", classes="cct-tools-action-btn")
+                yield Button("📷 Write Debug Snapshot", id="cct-tools-snapshot-btn", classes="cct-tools-action-btn")
+                yield Button("🗑 Clear Session Display", id="cct-tools-clear-btn", classes="cct-tools-action-btn")
+                yield Button("🔄 Refresh Connection", id="cct-tools-refresh-btn", classes="cct-tools-action-btn")
                 yield Static("Render", id="cct-tools-render-header")
-                ttfd_mark = "[b #a6e3a1][x][/]" if self._ttfd else "[b #6c7086][ ][/]"
-                yield Button(f"{ttfd_mark} Time to first draw (TTFD)", id="cct-tools-ttfd-btn", classes="cct-tools-toggle-btn")
-                tu_mark = "[b #a6e3a1][x][/]" if self._token_usage else "[b #6c7086][ ][/]"
-                yield Button(f"{tu_mark} Turn token usage", id="cct-tools-token-btn", classes="cct-tools-toggle-btn")
+                yield Button(self._fmt_label(self._ttfd, "Time to first draw (TTFD)"), id="cct-tools-ttfd-btn", classes="cct-tools-toggle-btn")
+                yield Button(self._fmt_label(self._token_usage, "Turn token usage"), id="cct-tools-token-btn", classes="cct-tools-toggle-btn")
+                yield Button(self._fmt_label(self._token_verbose, "Turn token usage (verbose)"), id="cct-tools-verbose-btn", classes="cct-tools-toggle-btn")
 
         def on_mount(self):
             opts = getattr(self.app, "tools_render_options", None)
             if isinstance(opts, dict):
                 self._ttfd = opts.get("time_to_first_draw", False)
                 self._token_usage = opts.get("turn_token_usage", True)
+                self._token_verbose = opts.get("turn_token_usage_verbose", False)
                 self._refresh_checkboxes()
 
         def _refresh_checkboxes(self):
             try:
-                m1 = "[b #a6e3a1][x][/]" if self._ttfd else "[b #6c7086][ ][/]"
-                self.query_one("#cct-tools-ttfd-btn", Button).label = f"{m1} Time to first draw (TTFD)"
-                m2 = "[b #a6e3a1][x][/]" if self._token_usage else "[b #6c7086][ ][/]"
-                self.query_one("#cct-tools-token-btn", Button).label = f"{m2} Turn token usage"
+                self.query_one("#cct-tools-ttfd-btn", Button).label = self._fmt_label(self._ttfd, "Time to first draw (TTFD)")
+                self.query_one("#cct-tools-token-btn", Button).label = self._fmt_label(self._token_usage, "Turn token usage")
+                self.query_one("#cct-tools-verbose-btn", Button).label = self._fmt_label(self._token_verbose, "Turn token usage (verbose)")
             except Exception:
                 pass
 
@@ -389,6 +407,7 @@ if TEXTUAL_AVAILABLE:
                 self.app.tools_render_options = {
                     "time_to_first_draw": self._ttfd,
                     "turn_token_usage": self._token_usage,
+                    "turn_token_usage_verbose": self._token_verbose,
                 }
 
         def on_button_pressed(self, event):
@@ -422,6 +441,11 @@ if TEXTUAL_AVAILABLE:
             elif bid == "cct-tools-token-btn":
                 event.stop()
                 self._token_usage = not self._token_usage
+                self._refresh_checkboxes()
+                self._sync_to_app()
+            elif bid == "cct-tools-verbose-btn":
+                event.stop()
+                self._token_verbose = not self._token_verbose
                 self._refresh_checkboxes()
                 self._sync_to_app()
 

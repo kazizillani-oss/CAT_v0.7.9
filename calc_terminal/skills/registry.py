@@ -301,6 +301,29 @@ class SkillRegistry:
             for skill in BUILTIN_SKILLS:
                 self._skills[skill.id.lower()] = skill
 
+            # Register built-ins from progressive disclosure manifest.json
+            manifest_file = os.path.join(os.path.dirname(__file__), "builtin", "manifest.json")
+            if os.path.exists(manifest_file):
+                try:
+                    with open(manifest_file, "r", encoding="utf-8") as f:
+                        manifest = json.load(f)
+                    for item in manifest.get("skills", []):
+                        sid = item.get("cat_skill_id")
+                        if not sid or sid.lower() in self._skills:
+                            continue
+                        self._skills[sid.lower()] = SkillDefinition(
+                            id=sid,
+                            name=item.get("original_skill_name", sid),
+                            version=item.get("local_version", "1.0.0"),
+                            description=item.get("description", ""),
+                            category=item.get("category", "coding"),
+                            tags=[sid, item.get("category", "general")],
+                            builtin=True,
+                            enabled=True,
+                        )
+                except Exception as e:
+                    logger.warning(f"Error loading manifest skills into registry: {e}")
+
             # Load persistent user skills from disk
             self._load_from_disk()
 

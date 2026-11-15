@@ -64,3 +64,23 @@ These skills are licensed under their respective open-source terms. Inclusion in
 - **License**: MIT License
 - **Description**: Production design system compliance, responsive layout architecture, typography hierarchy, and accessible UX patterns.
 
+---
+
+## 7. Skill Creator
+- **CAT Skill ID**: `skill-creator`
+- **Original Creator**: Anthropic & Claude Quickstarts Team (`@anthropic`)
+- **Official Repository**: [https://github.com/anthropics/skills/tree/main/skills/skill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator)
+- **Upstream Commit**: `a149b5c328ef`
+- **License**: MIT License
+- **Description**: Official authoring guidelines, validation checks, and packaging templates for creating high-performance Agent Skills with YAML frontmatter.
+
+---
+
+## 8. Find Skills
+- **CAT Skill ID**: `find-skills`
+- **Original Creator**: Vercel Labs & Community (`@vercel-labs`)
+- **Official Repository**: [https://github.com/vercel-labs/skills/blob/main/skills/find-skills/SKILL.md](https://github.com/vercel-labs/skills/blob/main/skills/find-skills/SKILL.md)
+- **Upstream Commit**: `c594e21a08bd`
+- **License**: MIT License
+- **Description**: Search, evaluation, and safe installation protocol for discovering agent skills across GitHub repositories, registries, and catalogues.
+

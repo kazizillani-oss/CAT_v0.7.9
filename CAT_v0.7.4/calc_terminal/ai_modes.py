@@ -955,6 +955,16 @@ def system_prompt_for(mode_key):
     except Exception:
         pass
 
+    # Inject active skills prompts for current Kitty agent role
+    try:
+        from .skills.engine import get_skills_engine
+        engine = get_skills_engine()
+        skills_block = engine.get_skill_prompts_for_agent(mode_key)
+        if skills_block:
+            base = f"{base}\n\n{skills_block}"
+    except Exception:
+        pass
+
     try:
         from . import ai_personalization as ap
         return ap.personalize_system_prompt(base)

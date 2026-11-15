@@ -140,6 +140,14 @@ class UpdateManager:
             "latest_release": asdict(latest) if latest else None,
         }
 
+    def check_github_release(self) -> Dict[str, Any]:
+        """Check live GitHub releases from kazizillani-oss/CAT_v0.7.9."""
+        try:
+            from .ui.releases_modal import fetch_latest_release
+            return fetch_latest_release()
+        except Exception:
+            return {"online": False, "tag_name": f"v{CURRENT_VERSION}", "name": "CAT CLI"}
+
     def preview_update(self, version: Optional[str] = None) -> Dict[str, Any]:
         """Preview changes, breaking changes, and compatibility requirements."""
         target_v = version or (self.check_update().get("latest_release") or {}).get("version")

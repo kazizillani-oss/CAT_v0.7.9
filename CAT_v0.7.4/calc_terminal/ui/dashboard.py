@@ -560,8 +560,8 @@ if TEXTUAL_AVAILABLE:
             except Exception:
                 pass
 
-            is_portrait = (w < 55) or (w < 90 and (w / max(1, h)) < 1.30)
-            is_compact_floating = (h <= 30) or (w <= 95)
+            is_portrait = (w < 55) or (w < 85 and (w / max(1, h)) < 1.15)
+            is_compact_floating = (h < 16) or (w < 46)
             self.set_class(is_portrait, "is-portrait")
 
             # 2. Adjust vertical breathing room based on available height and mode
@@ -627,56 +627,32 @@ if TEXTUAL_AVAILABLE:
             except Exception:
                 pass
 
-            # 4. Responsive Card System: 3 columns -> 2 columns -> 1 column stack (or single CAT card in portrait)
+            # 4. Responsive Card System: 3 columns -> 2 columns -> 1 column stack
             try:
                 columns = self.query_one("#cct-dash-columns")
                 col_projects = self.query_one("#cct-dash-col-projects")
                 col_workspace = self.query_one("#cct-dash-col-workspace")
                 col_notebooks = self.query_one("#cct-dash-col-notebooks")
 
-                if is_portrait:
-                    # Portrait mode: Single centered CAT card
-                    col_projects.display = False
-                    col_workspace.display = False
-                    col_notebooks.display = True
-                    columns.set_class(True, "mode-portrait-single")
-                    columns.set_class(False, "mode-floating-single")
-                    columns.set_class(False, "mode-3col")
-                    columns.set_class(False, "mode-2col")
-                    columns.set_class(False, "mode-1col")
-                    columns.set_class(False, "stacked")
-                    col_mode = "portrait-single"
-                elif is_compact_floating:
-                    # Floating window mode: Remove recent projects and project & workspace per user spec
-                    col_projects.display = False
-                    col_workspace.display = False
-                    col_notebooks.display = True
-                    columns.set_class(True, "mode-floating-single")
-                    columns.set_class(False, "mode-portrait-single")
-                    columns.set_class(False, "mode-3col")
-                    columns.set_class(False, "mode-2col")
-                    columns.set_class(False, "mode-1col")
-                    columns.set_class(False, "stacked")
-                    col_mode = "floating-single"
+                # All 3 sections remain accessible in all viewports — never show only the cat greeting alone
+                col_projects.display = True
+                col_workspace.display = True
+                col_notebooks.display = True
+
+                columns.set_class(False, "mode-portrait-single")
+                columns.set_class(False, "mode-floating-single")
+
+                if w >= 70 and h >= 16:
+                    col_mode = "3col"
+                elif w >= 48 and h >= 14:
+                    col_mode = "2col"
                 else:
-                    # Spacious landscape: Show all 3 sections!
-                    col_projects.display = True
-                    col_workspace.display = True
-                    col_notebooks.display = True
-                    columns.set_class(False, "mode-portrait-single")
-                    columns.set_class(False, "mode-floating-single")
+                    col_mode = "1col"
 
-                    if w >= 70 and h >= 16:
-                        col_mode = "3col"
-                    elif w >= 50 and h >= 16:
-                        col_mode = "2col"
-                    else:
-                        col_mode = "1col"
-
-                    columns.set_class(col_mode == "3col", "mode-3col")
-                    columns.set_class(col_mode == "2col", "mode-2col")
-                    columns.set_class(col_mode == "1col", "mode-1col")
-                    columns.set_class(col_mode == "1col", "stacked")
+                columns.set_class(col_mode == "3col", "mode-3col")
+                columns.set_class(col_mode == "2col", "mode-2col")
+                columns.set_class(col_mode == "1col", "mode-1col")
+                columns.set_class(col_mode == "1col", "stacked")
 
                 self._col_mode = col_mode
 

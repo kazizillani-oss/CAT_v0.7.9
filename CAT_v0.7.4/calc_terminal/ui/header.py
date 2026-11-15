@@ -185,26 +185,34 @@ def get_nav_items():
             installed = []
             if hasattr(_ext, "list_installed"):
                 try:
-                    installed = _ext.list_installed()
+                    all_inst = _ext.list_installed()
                 except Exception:
-                    installed = []
-            if not installed:
+                    all_inst = []
+            else:
                 try:
-                    installed = [m for m in _ext.list_extensions() if m.get("installed")]
+                    all_inst = [m for m in _ext.list_extensions() if m.get("installed")]
                 except Exception:
-                    installed = []
+                    all_inst = []
+
+            # Only show custom / UI extensions in the main menu (not the 50+ agent skills,
+            # which are viewed and managed exclusively in the Extensions section).
+            installed = [
+                m for m in all_inst
+                if str(m.get("type", "")).lower() != "skill"
+                and (m.get("action") or m.get("kind") == "custom" or m.get("id") in ("customization", "gestures", "vision"))
+            ]
             try:
                 installed = sorted(installed, key=lambda m: (m.get("display_name") or m.get("name") or m.get("id", "")).lower())
             except Exception:
                 pass
 
             dl_extra = []
-            if filtered and not filtered[-1][0].startswith("sep"):
-                dl_extra.append(("sep_dl", "", ""))
-            count = len(installed)
-            hdr_label = f"Downloaded Extensions ({count})" if count else "Downloaded Extensions"
-            dl_extra.append(("__section_dl", "📦", hdr_label))
             if installed:
+                if filtered and not filtered[-1][0].startswith("sep"):
+                    dl_extra.append(("sep_dl", "", ""))
+                count = len(installed)
+                hdr_label = f"Downloaded Extensions ({count})" if count else "Downloaded Extensions"
+                dl_extra.append(("__section_dl", "📦", hdr_label))
                 for m in installed:
                     eid = m.get("id")
                     if not eid:
@@ -212,13 +220,9 @@ def get_nav_items():
                     icon = m.get("icon", "▣")
                     name = m.get("display_name") or m.get("name") or eid
                     enabled = bool(m.get("enabled"))
-                    # For builtins use original action when enabled (so
-                    # main-menu tests and direct panel open still work),
-                    # otherwise use ext: prefix with disabled hint.
                     builtin_meta = _ext.BUILTIN_EXTENSIONS.get(eid) if hasattr(_ext, "BUILTIN_EXTENSIONS") else None
                     if builtin_meta and enabled:
                         action_id = builtin_meta.get("action") or f"ext:{eid}"
-                        # no suffix needed — enabled is the normal visible state
                         label = name
                     else:
                         suffix = " \u25cf" if enabled else " \u25cb"
@@ -228,9 +232,6 @@ def get_nav_items():
                         label = f"{name}{suffix}"
                         action_id = f"ext:{eid}"
                     dl_extra.append((action_id, icon, label))
-            else:
-                dl_extra.append(("__placeholder_dl", "", "No extensions installed"))
-                dl_extra.append(("__hint_dl", "", "Install from Extensions \u2192"))
             filtered = filtered + dl_extra
         except Exception:
             pass
@@ -355,7 +356,7 @@ if TEXTUAL_AVAILABLE:
         }
         NavPanel.is-portrait #cct-navmenu-box,
         #cct-navmenu-box.is-portrait {
-            margin-top: 2; margin-left: 0; margin-right: 0;
+            margin-top: 3; margin-left: 0; margin-right: 0;
             width: 92%; max-width: 46;
             border: tall;
             border-top: tall #8b92b2;
@@ -436,40 +437,59 @@ if TEXTUAL_AVAILABLE:
 
         def is_portrait(self):
             try:
-                s = getattr(self.app, "size", None) or getattr(self.screen, "size", None)
+                app = getattr(self, "_app", None)
+                if app is None:
+                    try:
+                        app = self.app
+                    except Exception:
+                        app = None
+                s = getattr(app, "size", None) or getattr(self, "size", None)
                 if s:
-                    return (s.width < 92) or (s.width <= 105 and (s.width / max(1, s.height)) < 2.3)
+                    # True portrait orientation: height strictly exceeds width, or narrow mobile width < 54
+                    return (s.height > s.width) or (s.width < 54)
             except Exception:
                 pass
             return False
 
         def _get_filtered(self):
-            if self.is_portrait():
-                return (
-                    ("__header", "⬡ CAT", "Coding Agent Terminal"),
-                    ("__section_proj", "📁", "Project"),
-                    ("open_folder", "📂", "Open Folder"),
-                    ("recent_workspaces", "🕒", "Recent Workspaces"),
-                    ("sep_proj", "", ""),
-                    ("__section_int", "🔌", "Integrations"),
-                    ("mcp_servers", "🔌", "MCP Servers"),
-                    ("backup_providers", "📡", "Backup Providers"),
-                    ("sep_int", "", ""),
-                    ("__section_app", "🎨", "Appearance"),
-                    ("themes", "◑", "Themes"),
-                    ("extensions", "▣", "Extensions"),
-                    ("sep_app", "", ""),
-                    ("__section_acc", "👤", "Account"),
-                    ("user", "☺", "Users & Profile"),
-                    ("signout", "⎋", "Sign Out"),
-                    ("sep_acc", "", ""),
-                    ("__section_sys", "⚙", "Application"),
-                    ("quit", "✕", "Quit"),
-                )
             try:
-                return get_nav_items()
+                items = list(get_nav_items())
             except Exception:
-                return _NAV_ITEMS_BASE
+                items = list(_NAV_ITEMS_BASE)
+
+            # In portrait mode or compact layout, prepend decorative header and ensure quit is reachable
+            if self.is_portrait():
+                has_header = any(it[0] == "__header" for it in items)
+                if not has_header:
+                    items.insert(0, ("__header", "⬡ CAT", "Coding Agent Terminal"))
+                has_quit = any(it[0] == "quit" for it in items)
+                if not has_quit:
+                    items.append(("sep_sys", "", ""))
+                    items.append(("quit", "✕", "Quit"))
+            return tuple(items)
+
+        def refresh_items(self):
+            """Dynamically rebuild rows from fresh extensions/skills state."""
+            try:
+                box = self.query_one("#cct-navmenu-box", Vertical)
+                box.remove_children()
+                items = self._get_filtered()
+                self._nav_cache = items
+                for i, (action_id, icon, label) in enumerate(items):
+                    if action_id == "__header":
+                        box.mount(Static(f"⬡ CAT  [dim]Coding Agent Terminal[/dim]", classes="cct-navmenu-header"))
+                    elif action_id.startswith("sep"):
+                        box.mount(Static("─" * 30, id=f"cct-navmenu-sep-{i}", classes="cct-navmenu-sep"))
+                    elif action_id.startswith("__section"):
+                        box.mount(Static(f"{icon}  {label}", id=f"cct-navmenu-section-{i}", classes="cct-navmenu-section"))
+                    elif action_id.startswith("__placeholder") or action_id.startswith("__hint"):
+                        cls = "cct-navmenu-placeholder" if "placeholder" in action_id else "cct-navmenu-hint"
+                        box.mount(Static(label, id=f"cct-navmenu-placeholder-{i}", classes=cls))
+                    else:
+                        box.mount(_NavRow(action_id, icon, label, i))
+                self._sync_selected_class()
+            except Exception:
+                pass
 
         def compose(self):
             items = self._get_filtered()
@@ -1218,7 +1238,7 @@ if TEXTUAL_AVAILABLE:
             self.set_class(is_portrait, "is-portrait")
 
             if is_portrait:
-                self.styles.height = 4
+                self.styles.height = 3
                 compact = True
                 ultra_compact = (w < 45)
             else:
@@ -1233,8 +1253,8 @@ if TEXTUAL_AVAILABLE:
             try:
                 exp_btn = self.query_one("#cct-header-explorer-btn", Button)
                 w_right = self.query_one("#cct-header-right", Static)
-                # In portrait mode: do not show separate explorer button, keep header workspace button visible
-                exp_btn.display = False
+                # In portrait mode: remove explorer button only; in landscape mode: show it
+                exp_btn.display = not is_portrait
                 if ultra_compact:
                     w_right.display = False
                 else:
