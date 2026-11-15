@@ -72,6 +72,7 @@ try:
             "normalize", "encode_for_model",
             "analysis_prompt", "BASE_ANALYSIS_PROMPT",
             "run_local_ocr", "find_vision_config", "analyze",
+            "_query_vision_model",
         ):
             if hasattr(_mod, _name):
                 globals()[_name] = getattr(_mod, _name)
@@ -83,6 +84,7 @@ try:
             "normalize", "encode_for_model",
             "analysis_prompt", "BASE_ANALYSIS_PROMPT",
             "run_local_ocr", "find_vision_config", "analyze",
+            "_query_vision_model",
             "MAX_DIMENSION", "MAX_BYTES",
         ) if n not in __all__])
 except Exception:

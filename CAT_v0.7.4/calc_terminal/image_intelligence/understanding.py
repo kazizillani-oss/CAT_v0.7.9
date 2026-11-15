@@ -61,8 +61,12 @@ class VisionUnderstandingService:
             return True, None
         try:
             from .. import permissions as _perm
-            pm = _perm.get_manager()
-            if not pm.allowed("internet"):
+            pm = getattr(_perm, "get_manager", None)
+            if callable(pm):
+                pm = pm()
+            else:
+                pm = getattr(_perm, "manager", None)
+            if pm is not None and hasattr(pm, "allowed") and not pm.allowed("internet"):
                 return False, (
                     "Cloud vision transmission blocked: 'Internet' permission is currently disabled. "
                     "Enable Internet in the Permissions panel or switch to a local Ollama vision model."

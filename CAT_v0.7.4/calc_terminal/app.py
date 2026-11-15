@@ -2463,7 +2463,9 @@ class App:
             while voice_manager.state == VoiceState.LISTENING:
                 dur = voice_manager.get_duration_str()
                 wf = "".join(voice_manager._waveform_buffer[-16:])
-                sys.stdout.write(f"\r  {theme.red('\u25cf REC')} [{dur}] {theme.cyan(wf)}  (Press Enter to Stop)  ")
+                rec_badge = theme.red("● REC")
+                cyan_wf = theme.cyan(wf)
+                sys.stdout.write(f"\r  {rec_badge} [{dur}] {cyan_wf}  (Press Enter to Stop)  ")
                 sys.stdout.flush()
                 time.sleep(0.08)
                 if sys.platform == "win32":

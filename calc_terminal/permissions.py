@@ -337,6 +337,12 @@ def restore_mode():
 # any inline request card all read/write through this one object so the
 # checklist state and prompt behaviour stay consistent across a session.
 manager = PermissionManager()
+
+
+def get_manager() -> PermissionManager:
+    return manager
+
+
 try:
     manager.load_persisted_mode()
 except Exception:

@@ -522,7 +522,7 @@ def render_bloch_sphere(theta_deg=90.0, phi_deg=0.0, out_name=None):
     ax3d.set_xlim(-1.2, 1.2); ax3d.set_ylim(-1.2, 1.2); ax3d.set_zlim(-1.2, 1.2)
     ax3d.set_box_aspect((1, 1, 1))
     ax3d.set_axis_off()
-    ax3d.set_title(f"|\u03c8\u27e9 = cos(\u03b8/2)|0\u27e9 + e^{{i\u03c6}}sin(\u03b8/2)|1\u27e9"
+    ax3d.set_title("|\u03c8\u27e9 = cos(\u03b8/2)|0\u27e9 + e^{i\u03c6}sin(\u03b8/2)|1\u27e9"
                     f"   \u03b8={theta_deg:.0f}\u00b0 \u03c6={phi_deg:.0f}\u00b0",
                     color="#c0caf5", fontsize=9.5, family="monospace", pad=0)
 

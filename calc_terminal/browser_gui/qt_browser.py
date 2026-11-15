@@ -606,12 +606,14 @@ def _resolve_navigation_url(raw: str) -> str:
     if lower in ("obscura", "obscura web", "stealth", "privacy", "about:obscura", "about:stealth"):
         return "about:obscura"
     if lower in ("workspace", "cat workspace", "cat web", "fatty", "fattycat", "fatty-cat", "fatty cat"):
-        return "about:home"
+        return "http://localhost:8765/"
     if lower in ("fomoji", "login", "auth", "about:fomoji"):
         return "http://localhost:3000/home.html"
     if lower in ("terminal", "cli", "console", "cat terminal", "cat cli", "cat-terminal", "about:terminal", "about:cli", "about:cat-cli"):
         return "about:cat-cli"
-    if lower in ("viewer", "docs", "document", "about:viewer", "cat viewer"):
+    if lower in ("viewer", "about:viewer", "cat viewer"):
+        return "http://localhost:8765/viewer.html"
+    if lower in ("docs", "document"):
         return "about:home"
 
     # 2. Local filesystem path check (handles absolute paths, Windows drive letters, relative paths, etc.)
