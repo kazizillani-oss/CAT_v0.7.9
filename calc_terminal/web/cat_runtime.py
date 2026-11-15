@@ -461,7 +461,7 @@ class CatRuntime:
         if base in ("/about", "about"):
             return {"command": base, "output": f"FATTY CAT v{identity.APP_VERSION} (Source: {identity.APP_NAME})"}
 
-        if base in ("/browser", "/browse", "/cat", "browser", "browse", "cat"):
+        if base in ("/browser", "/browse", "browser", "browse"):
             try:
                 from calc_terminal.host.launcher import launch_cat_host, can_launch_host
                 if can_launch_host():
@@ -556,7 +556,7 @@ class CatRuntime:
 
         # Route CAT CLI subcommands (/cat ..., cat ..., /agents, /missions, /lab, /benchmark, /dataset, /experiment, /hardware, /storage, /backup, /integrations, /skills, /schedule, /doctor, /debug, /providers, /models, /offline)
         cli_prefixes = {
-            "/cat": [], "cat": [], "cct": [], "catx": [],
+            "cct": [], "catx": [],
             "/agents": ["agents"], "/agent-cli": ["agent"], "agents": ["agents"],
             "/missions": ["missions"], "/mission": ["mission"], "missions": ["missions"], "mission": ["mission"],
             "/lab": ["lab"], "lab": ["lab"],
@@ -818,7 +818,7 @@ class CatRuntime:
         else:
             argv = [str(a) for a in (argv_or_cmd or [])]
 
-        if argv and argv[0].lower() in ("cat", "catx", "cct", "/cat"):
+        if argv and argv[0].lower() in ("cct", "catx"):
             argv = argv[1:]
 
         if not argv:

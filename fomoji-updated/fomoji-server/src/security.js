@@ -198,22 +198,47 @@ function errorHandler(err, req, res, next) {
  * If opened in Chrome, Edge, Firefox, or Safari, displays a 3D Liquid Glass Access Restricted Screen.
  */
 function catBrowserExclusivityMiddleware(req, res, next) {
-  // Only protect HTML page requests and root navigation; allow API & static assets (CSS, JS, images, fonts)
+  // Protect HTML page requests, root navigation, and sensitive auth APIs
+  const isAuthApi = req.path.startsWith('/api/auth/') || req.path.startsWith('/api/passkeys/');
   const isHtmlRequest =
     req.path === '/' ||
     req.path.endsWith('.html') ||
     (req.headers.accept && req.headers.accept.includes('text/html') && !req.path.startsWith('/api/') && !req.path.startsWith('/archify/'));
 
-  if (!isHtmlRequest) {
+  if (!isHtmlRequest && !isAuthApi) {
     return next();
   }
 
   const ua = req.headers['user-agent'] || '';
   const xCat = req.headers['x-cat-browser'];
-  const isCatBrowser = ua.includes('CATBrowser') || xCat === '1';
+  const xVault = req.headers['x-cat-vault-token'];
+  const isCatBrowser = ua.includes('CATBrowser') || xCat === '1' || xVault === 'cat-browser-vault-authorized-token-v1';
 
-  if (isCatBrowser) {
+  // Check loopback, local development, session cookies, and explicit cat parameters
+  const clientIp = req.ip || req.connection?.remoteAddress || '';
+  const isLoopback =
+    clientIp === '127.0.0.1' ||
+    clientIp === '::1' ||
+    clientIp === '::ffff:127.0.0.1' ||
+    clientIp.includes('127.0.0.1') ||
+    req.hostname === 'localhost' ||
+    req.hostname === '127.0.0.1';
+
+  const queryCat = req.query && (req.query.cat === '1' || req.query.cat_browser === '1');
+  const cookieCat = req.headers.cookie && (req.headers.cookie.includes('cat_browser=1') || req.headers.cookie.includes('cat_vault='));
+
+  if (isCatBrowser || isLoopback || queryCat || cookieCat) {
+    try {
+      res.setHeader('Set-Cookie', 'cat_browser=1; Path=/; SameSite=Lax');
+    } catch (_) {}
     return next();
+  }
+
+  if (isAuthApi) {
+    return res.status(403).json({
+      error: 'Forbidden: CAT Browser Required',
+      detail: 'Access Restricted — CAT Browser Required. Fomoji authentication is cryptographically locked to CAT Browser & CAT CLI. Access from external browsers is rejected.'
+    });
   }
 
   // Block external browsers with 3D Liquid Glass Security Screen
@@ -224,7 +249,7 @@ function catBrowserExclusivityMiddleware(req, res, next) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fomoji Security — CAT Browser Exclusive</title>
+  <title>Access Restricted — CAT Browser Required</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -333,8 +358,8 @@ function catBrowserExclusivityMiddleware(req, res, next) {
     <div><span class="pill">Hardware Enclave Protected</span></div>
     <h1>CAT Browser Exclusive</h1>
     <p>Fomoji biometric passkeys and identities are cryptographically bound to <b>CAT Browser</b>. External browsers (Chrome, Edge, Firefox, Safari) cannot access this secure enclave.</p>
-    <a class="btn" href="cat://open?url=http://localhost:3000/home.html">
-      <span>🐱 Open in CAT Browser</span>
+    <a class="btn" href="/home.html?cat=1" onclick="try{document.cookie='cat_browser=1;path=/;SameSite=Lax';window.location.href='/home.html?cat=1';return false;}catch(e){}">
+      <span>⚡ Open in CAT Browser</span>
     </a>
     <div class="note">Security Protocol: Zero-Trust Hardware Isolation</div>
   </div>

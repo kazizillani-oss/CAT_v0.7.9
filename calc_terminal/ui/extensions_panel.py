@@ -148,30 +148,65 @@ if TEXTUAL_AVAILABLE:
                     markup=True
                 )
 
-            # Right actions (3 rows tall, never clipped)
             with Horizontal(classes="ext-card-actions"):
-                if busy:
-                    if busy == "install":
-                        yield Button("⟳ Installing…", id=f"ext-busy-{self.ext_id}", variant="primary", classes="cct-btn-sm", disabled=True)
-                    elif busy == "uninstall":
-                        yield Button("⟳ Removing…", id=f"ext-busy-{self.ext_id}", variant="error", classes="cct-btn-sm", disabled=True)
-                    elif busy == "enable":
-                        yield Button("⟳ Enabling…", id=f"ext-busy-{self.ext_id}", variant="primary", classes="cct-btn-sm", disabled=True)
-                    elif busy == "disable":
-                        yield Button("⟳ Disabling…", id=f"ext-busy-{self.ext_id}", classes="cct-btn-sm", disabled=True)
-                    else:
-                        yield Button("⟳ Working…", id=f"ext-busy-{self.ext_id}", disabled=True, classes="cct-btn-sm")
+                if state == "NOT_INSTALLED":
+                    yield Button("Install", id=f"ext-install-{self.ext_id}", variant="primary", classes="cct-btn-sm")
+                elif state == "INSTALLED_DISABLED":
+                    yield Button("Enable", id=f"ext-enable-{self.ext_id}", variant="primary", classes="cct-btn-sm")
+                    yield Button("Uninstall", id=f"ext-uninstall-{self.ext_id}", variant="error", classes="cct-btn-sm")
+                elif state == "INSTALLED_ENABLED":
+                    yield Button("Disable", id=f"ext-disable-{self.ext_id}", classes="cct-btn-sm")
+                    yield Button("Uninstall", id=f"ext-uninstall-{self.ext_id}", variant="error", classes="cct-btn-sm")
                 else:
-                    if state == "NOT_INSTALLED":
-                        yield Button("Install", id=f"ext-install-{self.ext_id}", variant="primary", classes="cct-btn-sm")
-                    elif state == "INSTALLED_DISABLED":
-                        yield Button("Enable", id=f"ext-enable-{self.ext_id}", variant="primary", classes="cct-btn-sm")
-                        yield Button("Uninstall", id=f"ext-uninstall-{self.ext_id}", variant="error", classes="cct-btn-sm")
-                    elif state == "INSTALLED_ENABLED":
-                        yield Button("Disable", id=f"ext-disable-{self.ext_id}", classes="cct-btn-sm")
-                        yield Button("Uninstall", id=f"ext-uninstall-{self.ext_id}", variant="error", classes="cct-btn-sm")
-                    else:
-                        yield Button("Install", id=f"ext-install-{self.ext_id}", variant="primary", classes="cct-btn-sm")
+                    yield Button("Install", id=f"ext-install-{self.ext_id}", variant="primary", classes="cct-btn-sm")
+
+        def refresh_card(self, new_meta=None):
+            """Update this card in-place with zero list rebuilds and zero blinking."""
+            if new_meta is not None:
+                self.ext = new_meta
+            elif ext_mgr:
+                m = ext_mgr.get_metadata(self.ext_id)
+                if m:
+                    self.ext = m
+            try:
+                state = self.ext.get("state", "NOT_INSTALLED")
+                if self.ext.get("installed") and self.ext.get("enabled"):
+                    state = "INSTALLED_ENABLED"
+                elif self.ext.get("installed") and not self.ext.get("enabled"):
+                    state = "INSTALLED_DISABLED"
+                elif not self.ext.get("installed"):
+                    state = "NOT_INSTALLED"
+
+                status_map = {
+                    "NOT_INSTALLED": ("○ Not Installed", "text-faint"),
+                    "INSTALLED_ENABLED": ("● Enabled", "success"),
+                    "INSTALLED_DISABLED": ("○ Disabled", "warning"),
+                }
+                status_text, tone = status_map.get(state, ("Unknown", "text-faint"))
+                creator = self.ext.get("publisher") or self.ext.get("creator") or "Unknown"
+                creator_handle = self.ext.get("publisher_id") or self.ext.get("github_username") or ""
+                creator_str = f"{creator} ({creator_handle})" if creator_handle and not creator.endswith(creator_handle) else creator
+                version = self.ext.get("version", "1.0.0")
+                category = self.ext.get("category", "General")
+                license_name = self.ext.get("license", "MIT")
+
+                meta_lbl = self.query_one(".ext-meta", Static)
+                meta_lbl.update(f"{creator_str}  •  v{version}  •  {category}  •  {license_name}  •  [{_hex(tone)}]{status_text}[/]")
+
+                actions_box = self.query_one(".ext-card-actions", Horizontal)
+                actions_box.remove_children()
+                if state == "NOT_INSTALLED":
+                    actions_box.mount(Button("Install", id=f"ext-install-{self.ext_id}", variant="primary", classes="cct-btn-sm"))
+                elif state == "INSTALLED_DISABLED":
+                    actions_box.mount(Button("Enable", id=f"ext-enable-{self.ext_id}", variant="primary", classes="cct-btn-sm"))
+                    actions_box.mount(Button("Uninstall", id=f"ext-uninstall-{self.ext_id}", variant="error", classes="cct-btn-sm"))
+                elif state == "INSTALLED_ENABLED":
+                    actions_box.mount(Button("Disable", id=f"ext-disable-{self.ext_id}", classes="cct-btn-sm"))
+                    actions_box.mount(Button("Uninstall", id=f"ext-uninstall-{self.ext_id}", variant="error", classes="cct-btn-sm"))
+                else:
+                    actions_box.mount(Button("Install", id=f"ext-install-{self.ext_id}", variant="primary", classes="cct-btn-sm"))
+            except Exception:
+                pass
 
         def on_click(self, event):
             if getattr(event, "widget", None) is self:
@@ -1130,71 +1165,105 @@ if TEXTUAL_AVAILABLE:
                 return
             self._spinner_index = (self._spinner_index + 1) % 4
 
-        def _start_busy(self, ext_id: str, action: str):
-            self._busy[ext_id] = action
-            self._refresh()
-
-        def _finish_busy(self, ext_id: str):
+        def _update_tab_counts(self):
             try:
-                self._busy.pop(ext_id, None)
+                all_list = ext_mgr.list_extensions() if ext_mgr else []
+                installed_cnt = len([e for e in all_list if e.get("installed")])
+                mcp_cnt = len([e for e in all_list if e.get("kind") == "mcp" or "mcp" in str(e.get("category", "")).lower()])
+                builtin_cnt = len([
+                    e for e in all_list
+                    if e.get("kind") == "builtin" or e.get("install_source") == "builtin"
+                    or any(p in str(e.get("publisher", "")).lower() for p in ("kazi", "morluto", "tt-a1i", "remotion", "microsoft", "nilbuild", "anthropic", "vercel", "cat", "obra", "mattpocock", "nextlevelbuilder", "cloudflare", "addyosmani", "pbakaus", "blader"))
+                ])
+                self.query_one("#tab-builtin", Button).label = f"⭐ Built-in ({builtin_cnt})"
+                self.query_one("#tab-installed", Button).label = f"📦 Installed ({installed_cnt})"
+                self.query_one("#tab-mcp", Button).label = f"🔌 MCP Servers ({mcp_cnt})"
             except Exception:
                 pass
-            self._refresh()
+
+        def _update_card(self, ext_id: str):
+            """Update only the specific card in-place with zero list blinking."""
+            try:
+                meta = ext_mgr.get_metadata(ext_id) if ext_mgr else None
+                if not meta:
+                    return
+                for card in self.query(_ExtCard):
+                    if card.ext_id == ext_id:
+                        if self._active_tab == "installed" and not meta.get("installed"):
+                            card.remove()
+                        else:
+                            card.refresh_card(meta)
+                        break
+                self._update_tab_counts()
+            except Exception:
+                pass
 
         def _do_install(self, ext_id: str):
             try:
                 if ext_mgr:
                     ok, msg = ext_mgr.install(ext_id)
-                    self._finish_busy(ext_id)
-                    self._refresh(msg)
+                    self._update_card(ext_id)
+                    if msg:
+                        try:
+                            self.app._system_note(msg)
+                        except Exception:
+                            pass
                     if not ok:
                         self._show_error(msg)
                     else:
                         self._show_error("")
             except Exception as e:
-                self._finish_busy(ext_id)
                 self._show_error(str(e))
 
         def _do_uninstall(self, ext_id: str):
             try:
                 if ext_mgr:
                     ok, msg = ext_mgr.uninstall(ext_id)
-                    self._finish_busy(ext_id)
-                    self._refresh(msg)
+                    self._update_card(ext_id)
+                    if msg:
+                        try:
+                            self.app._system_note(msg)
+                        except Exception:
+                            pass
                     if not ok:
                         self._show_error(msg)
                     else:
                         self._show_error("")
             except Exception as e:
-                self._finish_busy(ext_id)
                 self._show_error(str(e))
 
         def _do_enable(self, ext_id: str):
             try:
                 if ext_mgr:
                     ok, msg = ext_mgr.enable(ext_id)
-                    self._finish_busy(ext_id)
-                    self._refresh(msg)
+                    self._update_card(ext_id)
+                    if msg:
+                        try:
+                            self.app._system_note(msg)
+                        except Exception:
+                            pass
                     if not ok:
                         self._show_error(msg)
                     else:
                         self._show_error("")
             except Exception as e:
-                self._finish_busy(ext_id)
                 self._show_error(str(e))
 
         def _do_disable(self, ext_id: str):
             try:
                 if ext_mgr:
                     ok, msg = ext_mgr.disable(ext_id)
-                    self._finish_busy(ext_id)
-                    self._refresh(msg)
+                    self._update_card(ext_id)
+                    if msg:
+                        try:
+                            self.app._system_note(msg)
+                        except Exception:
+                            pass
                     if not ok:
                         self._show_error(msg)
                     else:
                         self._show_error("")
             except Exception as e:
-                self._finish_busy(ext_id)
                 self._show_error(str(e))
 
         def on_input_changed(self, event):
@@ -1263,46 +1332,22 @@ if TEXTUAL_AVAILABLE:
 
             if bid.startswith("ext-install-"):
                 key = bid.replace("ext-install-", "")
-                if key in self._busy:
-                    return
-                self._start_busy(key, "install")
-                try:
-                    self.set_timer(0.4, lambda: self._do_install(key))
-                except Exception:
-                    self._do_install(key)
+                self._do_install(key)
                 return
 
             if bid.startswith("ext-enable-"):
                 key = bid.replace("ext-enable-", "")
-                if key in self._busy:
-                    return
-                self._start_busy(key, "enable")
-                try:
-                    self.set_timer(0.3, lambda: self._do_enable(key))
-                except Exception:
-                    self._do_enable(key)
+                self._do_enable(key)
                 return
 
             if bid.startswith("ext-disable-"):
                 key = bid.replace("ext-disable-", "")
-                if key in self._busy:
-                    return
-                self._start_busy(key, "disable")
-                try:
-                    self.set_timer(0.3, lambda: self._do_disable(key))
-                except Exception:
-                    self._do_disable(key)
+                self._do_disable(key)
                 return
 
             if bid.startswith("ext-uninstall-"):
                 key = bid.replace("ext-uninstall-", "")
-                if key in self._busy:
-                    return
-                self._start_busy(key, "uninstall")
-                try:
-                    self.set_timer(0.4, lambda: self._do_uninstall(key))
-                except Exception:
-                    self._do_uninstall(key)
+                self._do_uninstall(key)
                 return
 
         def _on_created_extension(self, res):

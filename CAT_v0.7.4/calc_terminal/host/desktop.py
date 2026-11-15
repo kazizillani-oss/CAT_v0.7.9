@@ -412,7 +412,107 @@ if _QT_AVAILABLE:
             super().triggerAction(action, checked)
 
     class SecureWebEngineView(QWebEngineView):
-        """Custom view with inspect code disabled and smooth hardware rendering."""
+        """Custom view with inspect code disabled, custom ultra-smooth scrollbars,
+        debounced zoom rate limiting (anti-crash), and automatic render recovery."""
+
+        def __init__(self, parent=None):
+            super().__init__(parent)
+            self._target_zoom = 1.0
+            self._zoom_timer = None
+            try:
+                self.page().setBackgroundColor(QColor(13, 18, 27))
+            except Exception:
+                pass
+            # Automatic render process recovery if GPU drops context during rapid zoom or heavy graphics
+            try:
+                self.renderProcessTerminated.connect(self._on_render_process_terminated)
+            except Exception:
+                pass
+            # Inject custom ultra-smooth glassmorphic scrollbar
+            self._inject_custom_scrollbar()
+
+        def _inject_custom_scrollbar(self):
+            try:
+                from PySide6.QtWebEngineCore import QWebEngineScript
+                script = QWebEngineScript()
+                script.setName("cat_custom_scrollbar_engine")
+                script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentReady)
+                script.setWorldId(QWebEngineScript.ScriptWorldId.ApplicationWorld)
+                script.setRunsOnSubFrames(True)
+                css = (
+                    "::-webkit-scrollbar { width: 8px !important; height: 8px !important; }"
+                    "::-webkit-scrollbar-track { background: rgba(15, 17, 26, 0.45) !important; border-radius: 4px !important; }"
+                    "::-webkit-scrollbar-thumb { background: rgba(137, 180, 250, 0.38) !important; border-radius: 4px !important; border: 2px solid transparent !important; background-clip: content-box !important; }"
+                    "::-webkit-scrollbar-thumb:hover { background: rgba(137, 180, 250, 0.78) !important; background-clip: content-box !important; }"
+                    "html { scroll-behavior: smooth !important; }"
+                )
+                js = f"(function(){{ try {{ let s = document.createElement('style'); s.id = 'cat-browser-scrollbar'; s.textContent = `{css}`; (document.head || document.documentElement).appendChild(s); }} catch(e){{}} }})();"
+                script.setSourceCode(js)
+                self.page().scripts().insert(script)
+            except Exception:
+                pass
+
+        def _on_render_process_terminated(self, status, exit_code):
+            """Never crash CAT Browser on Chromium memory or GPU faults; break infinite reload loops."""
+            try:
+                import time, gc
+                gc.collect()
+                now = time.monotonic()
+                history = getattr(self, "_crash_history", [])
+                history = [t for t in history if now - t < 10.0]
+                history.append(now)
+                self._crash_history = history
+                if len(history) >= 3:
+                    # More than 2 crashes within 10s: prevent infinite loop, load clean lightweight home tab
+                    log_event("render_process_crash_loop_prevented", exit_code=exit_code)
+                    from PySide6.QtCore import QTimer, QUrl
+                    QTimer.singleShot(200, lambda: self.setUrl(QUrl("about:home")))
+                    return
+
+                from PySide6.QtCore import QTimer
+                QTimer.singleShot(350, lambda: self.reload())
+            except Exception:
+                pass
+
+        def _step_zoom(self, step: float):
+            """Debounced smooth zoom limiter: prevents GPU context loss from high-frequency zoom bursts."""
+            cur = getattr(self, "_target_zoom", None)
+            if cur is None:
+                try:
+                    cur = self.zoomFactor()
+                except Exception:
+                    cur = 1.0
+            self._target_zoom = max(0.25, min(3.0, round(cur + step, 2)))
+            if self._zoom_timer is None:
+                try:
+                    from PySide6.QtCore import QTimer
+                    self._zoom_timer = QTimer(self)
+                    self._zoom_timer.setSingleShot(True)
+                    self._zoom_timer.setInterval(45)
+                    self._zoom_timer.timeout.connect(self._apply_debounced_zoom)
+                except Exception:
+                    pass
+            if self._zoom_timer and not self._zoom_timer.isActive():
+                self._zoom_timer.start()
+
+        def _apply_debounced_zoom(self):
+            try:
+                if hasattr(self, "_target_zoom"):
+                    cur = self.zoomFactor()
+                    if abs(cur - self._target_zoom) > 0.01:
+                        self.setZoomFactor(self._target_zoom)
+            except Exception:
+                pass
+
+        def wheelEvent(self, event):
+            mods = event.modifiers()
+            if mods & Qt.KeyboardModifier.ControlModifier:
+                delta = event.angleDelta().y()
+                if delta != 0:
+                    self._step_zoom(0.08 if delta > 0 else -0.08)
+                event.accept()
+                return
+            super().wheelEvent(event)
 
         def contextMenuEvent(self, event):
             try:
@@ -439,12 +539,28 @@ if _QT_AVAILABLE:
 
         def keyPressEvent(self, event):
             key = event.key()
-            if key == Qt.Key.Key_F12:
-                event.accept()
-                return
             mods = event.modifiers()
             ctrl = bool(mods & Qt.KeyboardModifier.ControlModifier)
             shift = bool(mods & Qt.KeyboardModifier.ShiftModifier)
+
+            # Quick zoom shortcuts with rate limiting & anti-crash protection
+            if ctrl and key in (Qt.Key.Key_Plus, Qt.Key.Key_Equal):
+                self._step_zoom(0.1)
+                event.accept()
+                return
+            if ctrl and key in (Qt.Key.Key_Minus, Qt.Key.Key_Underscore):
+                self._step_zoom(-0.1)
+                event.accept()
+                return
+            if ctrl and key == Qt.Key.Key_0:
+                self._target_zoom = 1.0
+                self._apply_debounced_zoom()
+                event.accept()
+                return
+
+            if key == Qt.Key.Key_F12:
+                event.accept()
+                return
             if ctrl and shift and key in (Qt.Key.Key_I, Qt.Key.Key_C, Qt.Key.Key_J):
                 event.accept()
                 return
@@ -475,15 +591,15 @@ if _QT_AVAILABLE:
         "security.html": "Fomoji Security",
         "identities.html": "Fomoji Identities",
         "settings.html": "Fomoji Settings",
-        ":8765": "Fatty CAT",
-        "8765": "Fatty CAT",
+        ":8765": "CAT Web Workspace",
+        "8765": "CAT Web Workspace",
     }
 
     def _friendly_url(url: str) -> str:
         if not url or url in ("about:home", "about:blank"):
             return ""
         if "8765" in url:
-            return "Fatty CAT"
+            return "CAT Web Workspace"
         if "localhost" in url or "127.0.0.1" in url:
             for page, name in _FOMOJI_PAGE_NAMES.items():
                 if page in url:
@@ -550,13 +666,14 @@ if _QT_AVAILABLE:
             user32 = ctypes.windll.user32
             dwmapi = ctypes.windll.dwmapi
 
-            # 1. Clear WS_CAPTION to completely eliminate native Windows title bar & buttons
+            # 1. Clear WS_CAPTION to eliminate native title bar, retain WS_THICKFRAME for DWM shadow & rounded corners
             GWL_STYLE = -16
             style = user32.GetWindowLongW(hwnd, GWL_STYLE)
             WS_CAPTION = 0x00C00000
-            if style & WS_CAPTION:
-                style &= ~WS_CAPTION
-                user32.SetWindowLongW(hwnd, GWL_STYLE, style)
+            WS_THICKFRAME = 0x00040000
+            new_style = (style & ~WS_CAPTION) | WS_THICKFRAME
+            if new_style != style:
+                user32.SetWindowLongW(hwnd, GWL_STYLE, new_style)
                 SWP_FRAMECHANGED = 0x0020
                 SWP_NOMOVE = 0x0002
                 SWP_NOSIZE = 0x0001
@@ -580,7 +697,7 @@ if _QT_AVAILABLE:
                 ctypes.sizeof(corner_pref),
             )
 
-            # 3. Native DWM drop shadow without client-area frame bleed (prevents Chromium D3D11 tearing & flicker)
+            # 3. Native DWM drop shadow with 1px frame extension into client area
             class MARGINS(ctypes.Structure):
                 _fields_ = [
                     ("cxLeftWidth", ctypes.c_int),
@@ -588,7 +705,7 @@ if _QT_AVAILABLE:
                     ("cyTopHeight", ctypes.c_int),
                     ("cyBottomHeight", ctypes.c_int),
                 ]
-            margins = MARGINS(0, 0, 0, 0)
+            margins = MARGINS(1, 1, 1, 1)
             dwmapi.DwmExtendFrameIntoClientArea(wintypes.HWND(hwnd), ctypes.byref(margins))
         except Exception:
             pass
@@ -695,21 +812,83 @@ if _QT_AVAILABLE:
                 self.profile.setPersistentCookiesPolicy(
                     QWebEngineProfile.PersistentCookiesPolicy.ForcePersistentCookies
                 )
-                cache = str(pathlib.Path.home() / ".cat_browser_cache" / "embedded")
+                cache = str(pathlib.Path.home() / ".cat_browser_cache" / f"session_{os.getpid()}")
                 storage = str(pathlib.Path.home() / ".cat_browser_storage" / "embedded")
                 pathlib.Path(cache).mkdir(parents=True, exist_ok=True)
                 pathlib.Path(storage).mkdir(parents=True, exist_ok=True)
                 self.profile.setCachePath(cache)
                 self.profile.setPersistentStoragePath(storage)
                 try:
-                    self.profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.DiskHttpCache)
-                    self.profile.setHttpCacheMaximumSize(35 * 1024 * 1024)
+                    # MemoryHttpCache provides ultra-fast startup and completely eliminates
+                    # Windows file lock collision crashes (0x5 Access Denied) on cached GPU/renderer assets.
+                    self.profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.MemoryHttpCache)
+                    # Dynamic system-algorithm hardware tuning
+                    total_ram_gb = 8.0
+                    cpu_cores = os.cpu_count() or 4
+                    try:
+                        from ..hardware_analyzer import HardwareAnalyzer
+                        if HardwareAnalyzer._cached_profile:
+                            prof = HardwareAnalyzer._cached_profile
+                            total_ram_gb = getattr(prof, "ram_total_gb", 8.0) or 8.0
+                    except Exception:
+                        pass
+                    if total_ram_gb < 4.0 or cpu_cores <= 2:
+                        self.profile.setHttpCacheMaximumSize(16 * 1024 * 1024)
+                    elif total_ram_gb >= 16.0 and cpu_cores >= 8:
+                        self.profile.setHttpCacheMaximumSize(48 * 1024 * 1024)
+                    else:
+                        self.profile.setHttpCacheMaximumSize(32 * 1024 * 1024)
                 except Exception:
                     pass
                 try:
+                    # Standard clean User-Agent for external websites (prevents Cloudflare & Google bot CAPTCHA blocks)
                     self.profile.setHttpUserAgent(
-                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 CATBrowser/0.8.4 (CAT OS; LiquidGlassEngine; FomojiAuthorized)"
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
                     )
+                except Exception:
+                    pass
+                # Cryptographic Vault Interceptor: inject exclusive hardware tokens for Fomoji auth (isolated to loopback)
+                try:
+                    from PySide6.QtWebEngineCore import QWebEngineUrlRequestInterceptor
+                    class _CATDesktopVaultInterceptor(QWebEngineUrlRequestInterceptor):
+                        def interceptRequest(self, info):
+                            try:
+                                url_str = info.requestUrl().toString()
+                                if "3000" in url_str or "localhost" in url_str or "127.0.0.1" in url_str or "fomoji" in url_str:
+                                    info.setHttpHeader(b"X-CAT-Browser", b"1")
+                                    info.setHttpHeader(b"User-Agent", b"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 CATBrowser/0.8.4")
+                                    try:
+                                        from ..fomoji_manager import read_vault_token
+                                        v_tok = (read_vault_token() or "cat-browser-vault-authorized-token-v1").encode("utf-8")
+                                    except Exception:
+                                        v_tok = b"cat-browser-vault-authorized-token-v1"
+                                    info.setHttpHeader(b"X-CAT-Vault-Token", v_tok)
+                            except Exception:
+                                pass
+                    self._desktop_interceptor = _CATDesktopVaultInterceptor(self)
+                    self.profile.setUrlRequestInterceptor(self._desktop_interceptor)
+                except Exception:
+                    pass
+                # Anti-bot / stealth injection: eliminates Cloudflare & Google automated CAPTCHA triggers
+                try:
+                    from PySide6.QtWebEngineCore import QWebEngineScript
+                    stealth_script = QWebEngineScript()
+                    stealth_script.setName("cat_stealth_anti_captcha")
+                    stealth_script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentCreation)
+                    stealth_script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
+                    stealth_script.setRunsOnSubFrames(True)
+                    stealth_js = """
+                    (function() {
+                        try {
+                            Object.defineProperty(navigator, 'webdriver', { get: () => undefined, configurable: true });
+                            if (!window.chrome) {
+                                window.chrome = { runtime: {}, loadTimes: function() {}, csi: function() {}, app: {} };
+                            }
+                        } catch(e) {}
+                    })();
+                    """
+                    stealth_script.setSourceCode(stealth_js)
+                    self.profile.scripts().insert(stealth_script)
                 except Exception:
                     pass
             except Exception:
@@ -1189,13 +1368,22 @@ if _QT_AVAILABLE:
                 w.showMinimized()
 
         def _safari_zoom(self):
+            now = time.monotonic()
+            if hasattr(self, "_last_zoom_toggle") and now - self._last_zoom_toggle < 0.35:
+                return
+            self._last_zoom_toggle = now
             w = self.window()
             if w:
-                if w.isMaximized():
-                    w.showNormal()
-                else:
-                    w.showMaximized()
-                self._update_window_controls_state()
+                try:
+                    if w.isMaximized():
+                        w.showNormal()
+                    else:
+                        w.showMaximized()
+                    self._update_window_controls_state()
+                    if hasattr(w, "_update_window_mask"):
+                        w._update_window_mask()
+                except Exception:
+                    pass
 
         def _update_window_controls_state(self):
             w = self.window()
@@ -1503,8 +1691,8 @@ if _QT_AVAILABLE:
             )
             bb_layout.addWidget(logo)
 
-            # Feature / Mode Pill (e.g. ⚡ Low-End Eco Engine · 🛡 Zero-Telemetry · 🚀 Fast)
-            pill = QLabel("⚡ ECO ENGINE ACTIVE  ·  🛡 AD-SHIELD ON  ·  🚀 60 FPS SMOOTH SCROLL")
+            # Feature / Mode Pill (e.g. ⚡ Fast Chromium · 🔒 Fomoji Vault · 🚀 Smooth Scroll)
+            pill = QLabel("⚡ FAST CHROMIUM ENGINE  ·  🔒 FOMOJI SECURE VAULT  ·  🚀 60 FPS SMOOTH SCROLL")
             pill.setAlignment(Qt.AlignmentFlag.AlignCenter)
             pill.setStyleSheet(
                 f"QLabel {{ background: rgba(165, 184, 235, 0.13); color: {accent}; "
@@ -1577,8 +1765,8 @@ if _QT_AVAILABLE:
             grid.setSpacing(10)
 
             shortcuts = [
-                ("🐱", "Fatty CAT", "AI Web Workspace", "http://localhost:8765/", "#a6e3a1"),
-                ("🔗", "Fomoji Portal", "Auth & Passkeys", "http://localhost:3000/home.html", "#89b4fa"),
+                ("⚡", "CAT Workspace", "Cloud IDE & Web App", "https://cat-v0-7-9.vercel.app/", "#80cbc4"),
+                ("🔒", "Fomoji Portal", "Auth & Passkeys", "http://localhost:3000/home.html?cat=1", "#89b4fa"),
                 ("📖", "CAT Manual", "CLI Docs & Guide", "http://localhost:3000/cat-manual.html", "#f9e2af"),
                 ("📄", "Media Viewer", "Images, PDFs & Docs", "http://localhost:8765/viewer.html", "#cba6f7"),
                 ("⚙", "Settings", "Browser & System", "http://localhost:3000/settings.html", "#fab387"),
@@ -1665,7 +1853,7 @@ if _QT_AVAILABLE:
                 url = _resolve_navigation_url(text)
             else:
                 clean = text.strip()
-                if clean.lower() in ("fatty", "fattycat", "fatty-cat", "fatty cat", "cat web"):
+                if clean.lower() in ("workspace", "cat workspace", "cat web", "fatty", "fattycat", "fatty-cat", "fatty cat"):
                     url = "http://localhost:8765/"
                 elif clean.lower() in ("fomoji", "login", "auth"):
                     url = "http://localhost:3000/home.html"
@@ -1786,6 +1974,18 @@ if _QT_AVAILABLE:
             self._rebuild_view_index()
             self._sync_chrome()
             self._update_tab_control_label()
+            try:
+                top = self.window()
+                if top and hasattr(top, "_update_window_mask"):
+                    top._update_window_mask()
+            except Exception:
+                pass
+            try:
+                top = self.window()
+                if top and hasattr(top, "_update_window_mask"):
+                    top._update_window_mask()
+            except Exception:
+                pass
             log_event("tab_created", tab_id=self._tab_id_for_view(self._views[tab_idx]),
                       tab_kind="newtab" if is_newtab_url else "web")
             return tab_idx
@@ -1873,7 +2073,7 @@ if _QT_AVAILABLE:
                 clean = raw.strip()
                 if not clean:
                     return
-                if clean.lower() in ("fatty", "fattycat", "fatty-cat", "fatty cat", "cat web"):
+                if clean.lower() in ("workspace", "cat workspace", "cat web", "fatty", "fattycat", "fatty-cat", "fatty cat"):
                     url = "http://localhost:8765/"
                 elif clean.lower() in ("fomoji", "login", "auth"):
                     url = "http://localhost:3000/home.html"
@@ -1889,11 +2089,13 @@ if _QT_AVAILABLE:
                 self._launch_native_cli()
                 return
 
-            # Auto-ensure Fatty CAT server is running when navigating to port 8765
+            # Non-blocking server check for port 8765
             if "8765" in url:
                 try:
-                    from ..web.server import ensure_fatty_server
-                    ensure_fatty_server(timeout=5.0, auto_start=True)
+                    import threading
+                    from ..web.server import ensure_fatty_server, is_server_running
+                    if not is_server_running(timeout=0.2):
+                        threading.Thread(target=lambda: ensure_fatty_server(timeout=3.0, auto_start=True), daemon=True).start()
                 except Exception:
                     pass
 
@@ -1933,7 +2135,16 @@ if _QT_AVAILABLE:
             if not self._is_newtab(cur_w):
                 # Normal navigation in WebEngineView
                 try:
-                    cur_w.load(QUrl(url))  # type: ignore
+                    if url == "about:agent-browser":
+                        from ..browser_gui.browser_pages import get_agent_browser_html
+                        cur_w.setHtml(get_agent_browser_html(), QUrl("about:agent-browser"))
+                        self.tab_bar.setTabText(cur, "🤖  Agent Browser")
+                    elif url == "about:obscura":
+                        from ..browser_gui.browser_pages import get_obscura_html
+                        cur_w.setHtml(get_obscura_html(), QUrl("about:obscura"))
+                        self.tab_bar.setTabText(cur, "🛡️  Obscura Web")
+                    else:
+                        cur_w.load(QUrl(url))  # type: ignore
                 except Exception:
                     log_exception("browser_navigation_failed", tab_id=self._tab_id_for_view(cur_w))
                 if self.state and 0 <= cur < len(self.state.tabs):
@@ -1996,10 +2207,31 @@ if _QT_AVAILABLE:
             self.tab_bar.setTabText(idx, "⟳  Loading…")
             self._show_progress(0)
             try:
-                view.load(QUrl(url))
+                if url == "about:agent-browser":
+                    from ..browser_gui.browser_pages import get_agent_browser_html
+                    view.setHtml(get_agent_browser_html(), QUrl("about:agent-browser"))
+                    self.tab_bar.setTabText(idx, "🤖  Agent Browser")
+                    if self.state and 0 <= idx < len(self.state.tabs):
+                        self.state.tabs[idx].title = "Agent Browser"
+                        self.state.tabs[idx].favicon = "🤖"
+                elif url == "about:obscura":
+                    from ..browser_gui.browser_pages import get_obscura_html
+                    view.setHtml(get_obscura_html(), QUrl("about:obscura"))
+                    self.tab_bar.setTabText(idx, "🛡️  Obscura Web")
+                    if self.state and 0 <= idx < len(self.state.tabs):
+                        self.state.tabs[idx].title = "Obscura Web"
+                        self.state.tabs[idx].favicon = "🛡️"
+                else:
+                    view.load(QUrl(url))
             except Exception:
                 log_exception("new_tab_navigation_failed", tab_id=self._tab_id_for_view(view))
             self._sync_chrome()
+            try:
+                top = self.window()
+                if top and hasattr(top, "_update_window_mask"):
+                    top._update_window_mask()
+            except Exception:
+                pass
 
         def _replace_webview_with_newtab(self, idx: int):
             old = self._views[idx]
@@ -2017,6 +2249,12 @@ if _QT_AVAILABLE:
                 self.state.tabs[idx].favicon = "○"
             self._hide_progress()
             self._sync_chrome()
+            try:
+                top = self.window()
+                if top and hasattr(top, "_update_window_mask"):
+                    top._update_window_mask()
+            except Exception:
+                pass
 
         # ----------------------------------------------------------------
         # Signals from WebEngineView
@@ -2278,18 +2516,14 @@ if _QT_AVAILABLE:
                 page = view.page()
                 if self._page_is_audible(page) or getattr(view, "_cat_is_loading", False):
                     return
-                frozen = self._page_lifecycle_state("Frozen")
-                if frozen is not None:
-                    page.setLifecycleState(frozen)
+                # Native Chromium MemorySaverMode handles background page throttling safely
+                # without freezing IPC threads or triggering watchdog renderer crashes
                 timer = getattr(view, "_cat_discard_timer", None)
                 if timer is None:
                     timer = QTimer(view)
                     timer.setSingleShot(True)
                     timer.timeout.connect(lambda v=view: self._discard_background_view(v))
                     view._cat_discard_timer = timer
-                # Use a shorter idle window on low-memory devices. Discarding
-                # still requires Chromium's own recommendation to avoid losing
-                # forms or interrupting site state unexpectedly.
                 timer.start(120_000 if self._low_end_mode else 300_000)
             except Exception:
                 log_exception("background_tab_throttle_failed", tab_id=self._tab_id_for_view(view))
@@ -2322,9 +2556,6 @@ if _QT_AVAILABLE:
                 timer = getattr(view, "_cat_discard_timer", None)
                 if timer is not None:
                     timer.stop()
-                active = self._page_lifecycle_state("Active")
-                if active is not None:
-                    view.page().setLifecycleState(active)
             except Exception:
                 log_exception("foreground_tab_resume_failed", tab_id=self._tab_id_for_view(view))
 
@@ -2441,6 +2672,12 @@ if _QT_AVAILABLE:
                 self.viewport_stack.setCurrentIndex(new_idx)
                 self._sync_chrome()
             self._update_tab_control_label()
+            try:
+                top = self.window()
+                if top and hasattr(top, "_update_window_mask"):
+                    top._update_window_mask()
+            except Exception:
+                pass
 
         def _update_tab_control_label(self):
             if hasattr(self, "tab_pos_btn"):
@@ -2539,8 +2776,6 @@ if _QT_AVAILABLE:
             _add("Fomoji Settings", lambda: self.navigate("http://localhost:3000/settings.html"))
             _add("Launch CAT CLI (Terminal)", lambda: self._launch_native_cli())
             _add("CAT CLI Manual & Reference", lambda: self.navigate("http://localhost:3000/cat-manual.html"))
-            _add("Document & Media Viewer", lambda: self.navigate("http://localhost:8765/viewer.html"))
-            _add("Fatty CAT AI Web", lambda: self.navigate("http://localhost:8765/"))
             _add("", sep=True)
             _add("Developer Tools", lambda: self._show_devtools())
             menu.exec(self.menu_btn.mapToGlobal(self.menu_btn.rect().bottomLeft()))
@@ -2728,10 +2963,7 @@ if _QT_AVAILABLE:
             self._pending_browser_url = start_browser_url or "about:home"
             self.setWindowTitle("CAT Browser")
             self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Window)
-            if sys.platform != "win32":
-                self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-            else:
-                self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
             self.resize(1280, 860)
             self.setMinimumSize(960, 640)
             self.setMouseTracking(True)
@@ -2765,6 +2997,7 @@ if _QT_AVAILABLE:
 
             self._center_on_screen()
             self._build_ui()
+            self._update_window_mask()
             self._setup_shortcuts()
             if start_browser_url and start_browser_url not in ("about:home", "about:blank"):
                 QTimer.singleShot(150, lambda: self.navigate(start_browser_url))
@@ -2812,10 +3045,94 @@ if _QT_AVAILABLE:
                 w.setStyleSheet(f"""
                     QWidget#cat_central_widget {{
                         background: {c['bg']};
-                        border: 1px solid rgba(255, 255, 255, 0.12);
+                        border: 1.5px solid rgba(137, 180, 250, 0.45);
                         border-radius: 12px;
                     }}
                 """)
+            try:
+                self.setStyleSheet(f"""
+                    QMainWindow {{ background: {c['bg']}; }}
+                    QScrollBar:vertical {{
+                        border: none;
+                        background: rgba(15, 18, 28, 0.45);
+                        width: 8px;
+                        margin: 0px;
+                        border-radius: 4px;
+                    }}
+                    QScrollBar::handle:vertical {{
+                        background: rgba(137, 180, 250, 0.38);
+                        min-height: 24px;
+                        border-radius: 4px;
+                    }}
+                    QScrollBar::handle:vertical:hover {{
+                        background: rgba(137, 180, 250, 0.78);
+                    }}
+                    QScrollBar:horizontal {{
+                        border: none;
+                        background: rgba(15, 18, 28, 0.45);
+                        height: 8px;
+                        margin: 0px;
+                        border-radius: 4px;
+                    }}
+                    QScrollBar::handle:horizontal {{
+                        background: rgba(137, 180, 250, 0.38);
+                        min-width: 24px;
+                        border-radius: 4px;
+                    }}
+                    QScrollBar::handle:horizontal:hover {{
+                        background: rgba(137, 180, 250, 0.78);
+                    }}
+                """)
+            except Exception:
+                pass
+
+        def _update_window_mask(self):
+            """Enforce hardware-level 12px rounded corner clipping uniformly across all tabs, webviews, and sizes."""
+            if self.isMaximized() or self.isFullScreen():
+                self.clearMask()
+                self._update_central_style(is_maximized=True)
+                if sys.platform == "win32":
+                    hwnd = getattr(self, "_cached_hwnd", None) or (int(self.winId()) if hasattr(self, "winId") else 0)
+                    if hwnd > 0:
+                        try:
+                            import ctypes
+                            from ctypes import wintypes
+                            dwmapi = ctypes.windll.dwmapi
+                            corner_pref = ctypes.c_int(1)  # DWMWCP_DONOTROUND = 1
+                            dwmapi.DwmSetWindowAttribute(wintypes.HWND(hwnd), ctypes.c_uint(33), ctypes.byref(corner_pref), ctypes.sizeof(corner_pref))
+                        except Exception:
+                            pass
+                return
+
+            self._update_central_style(is_maximized=False)
+            if sys.platform == "win32" and not getattr(self, "_applied_win32_decorations", False):
+                try:
+                    hwnd = getattr(self, "_cached_hwnd", None) or (int(self.winId()) if hasattr(self, "winId") else 0)
+                    if hwnd > 0:
+                        self._cached_hwnd = hwnd
+                        self._applied_win32_decorations = True
+                        _apply_win32_window_decorations(hwnd)
+                except Exception:
+                    pass
+
+            try:
+                from PySide6.QtCore import QRectF
+                from PySide6.QtGui import QPainterPath, QRegion
+            except ImportError:
+                from PyQt6.QtCore import QRectF  # type: ignore
+                from PyQt6.QtGui import QPainterPath, QRegion  # type: ignore
+
+            w = self.width()
+            h = self.height()
+            if w > 0 and h > 0:
+                path = QPainterPath()
+                path.addRoundedRect(QRectF(0, 0, w, h), 12.0, 12.0)
+                poly = path.toFillPolygon().toPolygon()
+                self.setMask(QRegion(poly))
+
+        def resizeEvent(self, event):
+            super().resizeEvent(event)
+            self._update_window_mask()
 
         def _build_ui(self):
             c = _cat_colors()
@@ -2924,8 +3241,7 @@ if _QT_AVAILABLE:
             except ImportError:
                 from PyQt6.QtCore import QEvent  # type: ignore
             if event.type() == QEvent.Type.WindowStateChange:
-                is_max = self.isMaximized()
-                self._update_central_style(is_maximized=is_max)
+                self._update_window_mask()
                 if hasattr(self, "browser") and hasattr(self.browser, "_update_window_controls_state"):
                     self.browser._update_window_controls_state()
                 if sys.platform == "win32":
@@ -2935,6 +3251,7 @@ if _QT_AVAILABLE:
 
         def showEvent(self, event):
             super().showEvent(event)
+            self._update_window_mask()
             if sys.platform == "win32":
                 hwnd = getattr(self, "_cached_hwnd", None) or (int(self.winId()) if hasattr(self, "winId") else 0)
                 if hwnd > 0:

@@ -560,7 +560,7 @@ class AgentModeMenu(Screen):
             box = self.query_one("#cct-agentmenu-box")
             screen_w = getattr(self.app.size, "width", 80)
             screen_h = getattr(self.app.size, "height", 25)
-            is_portrait = (screen_w < 80) or (screen_w < screen_h * 1.25)
+            is_portrait = (screen_w < 55) or (screen_w < 75 and screen_w <= screen_h * 1.05)
             self.set_class(is_portrait, "is-portrait")
 
             box_w = min(box.size.width or 74, screen_w - 2)

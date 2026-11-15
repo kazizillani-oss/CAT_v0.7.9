@@ -238,8 +238,8 @@ def _usage(prog: str = None) -> str:
         "  terminal, cli   launch native CAT CLI interactive terminal\n"
         "  fomoji          open Fomoji Identity Portal in CAT Browser\n"
         "  viewer [file]   open Document & Media Viewer in CAT Browser\n"
-        "  fatty, web      launch Fatty CAT in CAT Browser (starts server on :8765)\n"
-        "  server          start Fatty CAT server in foreground (:8765)\n"
+        "  workspace, web  launch CAT Workspace in CAT Browser (starts server on :8765)\n"
+        "  server          start CAT Workspace server in foreground (:8765)\n"
         "  vision          CAT Vision commands: start | stop | pause | analyze | screenshot | clear\n"
         "  models          dynamic AI models: [--provider <id>] [--new] [--updated] [--deprecated] [refresh]\n"
         "  providers       manage AI providers: list | audit | refresh | status | test | backup\n"
@@ -1159,6 +1159,10 @@ def main(argv=None):
     except Exception:
         pass
 
+    if argv and argv[0] in ("--fix-powershell", "fix-powershell", "--fix-ps", "fix-ps"):
+        from .doctor import fix_powershell
+        return fix_powershell(assume_yes=True)
+
     if argv and argv[0] in ("--doctor", "doctor"):
         from .doctor import main as _doctor_main
         return _doctor_main(argv[1:])
@@ -1220,42 +1224,42 @@ def main(argv=None):
         print(f"cat: unknown vision subcommand: {sub} (try: cat vision help)")
         return 2
 
-    # --- Fatty CAT Web / PWA Server & Launcher ---------------------------
-    # `cat fatty` / `cat web` / `cat server` / `cat --fatty` / `cat --web` / `cat mascot`
-    if argv and argv[0] in ("fatty", "--fatty", "web", "--web", "pwa", "--pwa", "server", "--server", "mascot", "--mascot", "mascots", "--mascots"):
+    # --- CAT Workspace Web / PWA Server & Launcher ---------------------------
+    # `cat workspace` / `cat fatty` / `cat web` / `cat server` / `cat --workspace` / `cat mascot`
+    if argv and argv[0] in ("workspace", "--workspace", "fatty", "--fatty", "web", "--web", "pwa", "--pwa", "server", "--server", "mascot", "--mascot", "mascots", "--mascots"):
         cmd = argv[0].lstrip("-")
         try:
             from .web.server import ensure_fatty_server, is_server_running, main as _server_main
         except ImportError as e:
-            print("cat: the Fatty CAT web server needs the optional `web` extra.", file=sys.stderr)
+            print("cat: the CAT Workspace web server needs the optional `web` extra.", file=sys.stderr)
             print(f"  (missing: {e})", file=sys.stderr)
             print("  Install it with:  pip install \"cct-cli[web]\"", file=sys.stderr)
             return 1
         if cmd in ("server",):
-            print("Starting Fatty CAT server on http://localhost:8765 ... (Press Ctrl+C to stop)")
+            print("Starting CAT Workspace server on http://localhost:8765 ... (Press Ctrl+C to stop)")
             try:
                 _server_main()
                 return 0
             except KeyboardInterrupt:
-                print("\nFatty CAT server stopped.")
+                print("\nCAT Workspace server stopped.")
                 return 0
             except Exception as e:
                 print(f"cat server error: {e}", file=sys.stderr)
                 return 1
 
-        # `cat fatty` or `cat web` or `cat mascot`: ensure server is running, then open browser
+        # `cat workspace` or `cat web` or `cat mascot`: ensure server is running, then open browser
         if cmd in ("mascot", "mascots"):
-            print("🐾 Launching Fatty CAT Mascot Studio (Chibi Otter & Fatty Cat) at http://localhost:8765/ ...")
+            print("🐾 Launching CAT Mascot Studio (Chibi Otter) at http://localhost:8765/ ...")
         else:
-            print("Launching Fatty CAT at http://localhost:8765 ...")
+            print("Launching CAT Workspace at http://localhost:8765 ...")
         if not is_server_running():
-            print("Starting background Fatty CAT server...")
+            print("Starting background CAT Workspace server...")
             if not ensure_fatty_server(timeout=10.0, auto_start=True):
-                print("cat: failed to start Fatty CAT server on port 8765", file=sys.stderr)
+                print("cat: failed to start CAT Workspace server on port 8765", file=sys.stderr)
                 return 1
-            print("✓ Fatty CAT server is running at http://localhost:8765/")
+            print("✓ CAT Workspace server is running at http://localhost:8765/")
         else:
-            print("✓ Fatty CAT server is already active at http://localhost:8765/")
+            print("✓ CAT Workspace server is already active at http://localhost:8765/")
 
         # Try to launch inside CAT's own browser first
         try:
@@ -1282,7 +1286,7 @@ def main(argv=None):
     # --- CAT Browser (real Qt WebEngine / Chromium) ----------------------
     # `cat browse [url]` / `cat open [target]` / `cat view [target]` — opens CAT's real browser
     # using QWebEngineView (Chromium via Qt WebEngine). Real HTML/CSS/JS.
-    if argv and argv[0] in ("browse", "--browse", "--browser", "browser", "open", "--open", "view", "--view", "preview", "--preview", "viewer", "--viewer", "--host", "--host-browser", "host", "/cat", "cat-browser"):
+    if argv and argv[0] in ("browse", "--browse", "--browser", "browser", "open", "--open", "view", "--view", "preview", "--preview", "viewer", "--viewer", "--host", "--host-browser", "host", "/browser", "/browse", "cat-browser"):
         _browse_args = argv[1:]
         if "--status" in _browse_args or "-s" in _browse_args:
             try:
@@ -1297,7 +1301,7 @@ def main(argv=None):
         no_block = "--no-block" in _browse_args
         clean_args = [a for a in _browse_args if not a.startswith("-")]
         url = clean_args[0] if clean_args else None
-        if url and url.lower() in ("fatty", "--fatty", "web", "--web"):
+        if url and url.lower() in ("workspace", "--workspace", "fatty", "--fatty", "web", "--web"):
             url = "http://localhost:8765/"
         elif url and url.lower() in ("terminal", "--terminal", "cli", "--cli", "console", "cat terminal"):
             url = "about:home"
@@ -1317,7 +1321,7 @@ def main(argv=None):
                         from .web.server import ensure_fatty_server, is_server_running
                         if not is_server_running():
                             if not ensure_fatty_server(timeout=10.0, auto_start=True):
-                                raise RuntimeError("Fatty CAT's local file viewer could not start")
+                                raise RuntimeError("CAT Workspace's local file viewer could not start")
                         url = "http://localhost:8765/viewer.html?path=" + quote(str(p.resolve()), safe="")
                     else:
                         url = p.resolve().as_uri()

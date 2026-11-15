@@ -26,7 +26,7 @@ def _has_module(name: str) -> bool:
 
 
 def can_launch_host() -> bool:
-    return _has_module("PySide6") or _has_module("PyQt6")
+    return _has_module("PySide6") or _has_module("PyQt6") or _has_module("playwright")
 
 
 def get_host_status() -> dict:
@@ -35,11 +35,13 @@ def get_host_status() -> dict:
         engines.append("PySide6 (Qt WebEngine)")
     if _has_module("PyQt6"):
         engines.append("PyQt6 (Qt WebEngine)")
+    if _has_module("playwright"):
+        engines.append("Playwright (Chromium)")
     return {
         "available": bool(engines),
         "engines": engines,
         "preferred": engines[0] if engines else None,
-        "reason": "ready" if engines else "no browser engine - install: pip install PySide6",
+        "reason": "ready" if engines else "no browser engine - install: pip install PySide6 or pip install playwright",
         "webview2_runtime": _webview2_runtime_version(),
     }
 
@@ -84,37 +86,67 @@ def _store_pending_verification(url: str):
 
 
 def get_optimal_chromium_flags() -> str:
-    """Keep Chromium's normal GPU, process isolation, and raster heuristics."""
+    """Keep Chromium's normal GPU, process isolation, and raster heuristics, optimized for speed & crash immunity."""
     flags = [
         "--no-default-browser-check",
         "--disable-dev-shm-usage",
-        "--disable-features=CalculateNativeWinOcclusion",
+        "--disable-features=CalculateNativeWinOcclusion,Translate,OptimizationHints,NetworkServiceInProcess2",
+        "--disable-gpu-process-crash-limit",
+        "--disable-breakpad",
+        "--disable-logging",
+        "--disable-blink-features=AutomationControlled",
     ]
+    # Do not pass --no-sandbox on Windows to avoid triggering Cloudflare/Google anti-bot CAPTCHAs.
+    # Only root on Linux strictly requires --no-sandbox to start Chromium.
+    if getattr(os, "geteuid", None) is not None and os.geteuid() == 0:
+        flags.append("--no-sandbox")
+
+    # Adapt V8 heap limit dynamically to system hardware specifications
+    v8_mb = 1024
+    try:
+        from ..hardware_analyzer import HardwareAnalyzer
+        if HardwareAnalyzer._cached_profile is not None:
+            ram = getattr(HardwareAnalyzer._cached_profile, "ram_total_gb", 8.0) or 8.0
+            if ram >= 16.0:
+                v8_mb = 2048
+            elif ram < 4.0:
+                v8_mb = 512
+    except Exception:
+        pass
+    flags.append(f"--js-flags=--max-old-space-size={v8_mb}")
     if os.environ.get("CAT_BROWSER_GPU_COMPOSITING", "").lower() == "compat":
         # Used only after the supervised GPU-composited browser process faults.
         # Chromium keeps other GPU APIs available while using software compositing.
         flags.append("--disable-gpu-compositing")
 
-    try:
-        from ..hardware_analyzer import HardwareAnalyzer
-        prof = HardwareAnalyzer.analyze()
-        is_low_end = (
-            not getattr(prof, "has_gpu", True)
-            or (getattr(prof, "ram_total_gb", 8.0) is not None and getattr(prof, "ram_total_gb", 8.0) < 4.0)
-            or (getattr(prof, "cpu_threads", 4) is not None and getattr(prof, "cpu_threads", 4) <= 2)
-            or getattr(prof, "ai_capability", "") == "LIMITED"
-            or getattr(getattr(prof, "local_ai_tier", None), "value", str(getattr(prof, "local_ai_tier", ""))) == "LIMITED"
-        )
-    except Exception:
-        is_low_end = False
+    is_low_end = False
+    if os.environ.get("CAT_ECO_MODE") == "1":
+        is_low_end = True
+    else:
+        try:
+            from ..hardware_analyzer import HardwareAnalyzer
+            # Instant memory check: avoid synchronous subprocess/WMI delay during browser open
+            if HardwareAnalyzer._cached_profile is not None:
+                prof = HardwareAnalyzer._cached_profile
+                is_low_end = (
+                    not getattr(prof, "has_gpu", True)
+                    or (getattr(prof, "ram_total_gb", 8.0) is not None and getattr(prof, "ram_total_gb", 8.0) < 4.0)
+                    or (getattr(prof, "cpu_threads", 4) is not None and getattr(prof, "cpu_threads", 4) <= 2)
+                    or getattr(prof, "ai_capability", "") == "LIMITED"
+                    or getattr(getattr(prof, "local_ai_tier", None), "value", str(getattr(prof, "local_ai_tier", ""))) == "LIMITED"
+                )
+            elif (os.cpu_count() or 4) <= 2:
+                is_low_end = True
+        except Exception:
+            is_low_end = False
 
     if is_low_end:
         flags.append("--enable-low-end-device-mode")
-        flags.append("--renderer-process-limit=1")
+        flags.append("--renderer-process-limit=2")
         flags.append("--num-raster-threads=1")
     else:
-        flags.append("--renderer-process-limit=4")
-        flags.append("--num-raster-threads=2")
+        flags.append("--renderer-process-limit=6")
+        flags.append("--num-raster-threads=4")
 
     return " ".join(flags)
 
@@ -214,14 +246,20 @@ def launch_cat_host(
     block=True:  creates app + window + runs event loop (BLOCKS until closed).
     block=False: navigates existing window to URL (no new app, returns fast).
     """
-    if start_browser_url in ("fatty", "--fatty", "cat web"):
-        start_browser_url = "http://localhost:8765/"
+    if start_browser_url in ("workspace", "--workspace", "cat workspace", "fatty", "--fatty", "cat web"):
+        start_browser_url = "about:home"
+        start_mode = "browser"
+    elif start_browser_url in ("agent-browser", "--agent-browser", "agent", "vercel", "about:agent-browser"):
+        start_browser_url = "about:agent-browser"
+        start_mode = "browser"
+    elif start_browser_url in ("obscura", "--obscura", "stealth", "privacy", "about:obscura"):
+        start_browser_url = "about:obscura"
         start_mode = "browser"
     elif start_browser_url in ("terminal", "--terminal", "cli", "--cli", "console", "cat terminal", "about:cat-cli"):
         start_browser_url = "about:home"
         start_mode = "browser"
     elif start_browser_url in ("viewer", "--viewer", "about:viewer"):
-        start_browser_url = "http://localhost:8765/viewer.html"
+        start_browser_url = "about:home"
         start_mode = "browser"
     elif start_browser_url in ("fomoji", "--fomoji", "login", "auth"):
         start_browser_url = "http://localhost:3000/home.html"
@@ -238,8 +276,10 @@ def launch_cat_host(
 
     if start_browser_url and "8765" in start_browser_url:
         try:
-            from ..web.server import ensure_fatty_server
-            ensure_fatty_server(timeout=5.0, auto_start=True)
+            import threading
+            from ..web.server import ensure_fatty_server, is_server_running
+            if not is_server_running(timeout=0.2):
+                threading.Thread(target=lambda: ensure_fatty_server(timeout=3.0, auto_start=True), daemon=True).start()
         except Exception:
             pass
 
@@ -405,6 +445,15 @@ def launch_cat_host(
                 print(f"[CAT Browser] failed to spawn background browser: {e}", file=sys.stderr)
         return 0
 
+    backend_pref = os.environ.get("CAT_BROWSER_BACKEND", "").lower().strip()
+    if backend_pref == "playwright" and _has_module("playwright"):
+        try:
+            from ..browser_gui.playwright_browser import launch_playwright_browser
+            return launch_playwright_browser(url)
+        except Exception:
+            pass
+
+    # Primary In-Built Personal Browser: CAT Browser (Arc/Zen/Firefox-style personal UI)
     has_qt = _has_module("PySide6") or _has_module("PyQt6")
     if has_qt:
         if os.environ.get("CAT_BROWSER_SUPERVISED_CHILD") != "1":
@@ -412,9 +461,14 @@ def launch_cat_host(
             return run_supervisor(url)
         return _launch_with_qt(start_browser_url, start_mode, repl)
 
+    if _has_module("playwright"):
+        from ..browser_gui.playwright_browser import launch_playwright_browser
+        return launch_playwright_browser(url)
+
     print("\n[CAT Browser] No browser engine found.", file=sys.stderr)
-    print("Install PySide6 for real HTML/CSS/JS rendering:", file=sys.stderr)
+    print("Install PySide6 or Playwright for real HTML/CSS/JS rendering:", file=sys.stderr)
     print("  pip install PySide6", file=sys.stderr)
+    print("  or: pip install playwright && playwright install chromium", file=sys.stderr)
     return 2
 
 
@@ -425,14 +479,19 @@ def _launch_with_qt(start_browser_url, start_mode, repl) -> int:
         app, created = _ensure_qt_app()
 
         initial_url = start_browser_url if (start_mode == "browser" or start_browser_url) else None
-        try:
-            from .desktop import CATDesktopWindow
-            w = CATDesktopWindow(repl=repl, start_browser_url=initial_url)
-        except Exception:
-            log_exception("desktop_window_creation_failed", fallback="standalone_qt_browser")
-            # Fallback to standalone Qt browser window if Desktop wrapper has an issue
+        if start_mode == "browser":
+            # Dedicated Arc/Zen-style in-built personal browser
             from ..browser_gui.qt_browser import CATBrowserWindow
             w = CATBrowserWindow(start_url=initial_url)
+        else:
+            try:
+                from .desktop import CATDesktopWindow
+                w = CATDesktopWindow(repl=repl, start_browser_url=initial_url)
+            except Exception:
+                log_exception("desktop_window_creation_failed", fallback="standalone_qt_browser")
+                # Fallback to standalone Qt browser window if Desktop wrapper has an issue
+                from ..browser_gui.qt_browser import CATBrowserWindow
+                w = CATBrowserWindow(start_url=initial_url)
 
         w.show()
         try:
@@ -484,11 +543,16 @@ def main():
     p.add_argument("--mode", choices=["terminal", "browser"], default="browser")
     p.add_argument("--no-block", action="store_true")
     p.add_argument("--status", action="store_true")
-    p.add_argument("--fatty", action="store_true", help="Open Fatty CAT Web interface")
+    p.add_argument("--workspace", action="store_true", help="Open CAT Workspace interface")
+    p.add_argument("--fatty", action="store_true", help="Open CAT Workspace interface (alias)")
+    p.add_argument("--backend", choices=["auto", "qt", "playwright"], default="auto", help="Browser engine backend")
     p.add_argument("--terminal", action="store_true", help="Open CAT CLI Web Terminal")
     p.add_argument("--fomoji", action="store_true", help="Open Fomoji Portal")
     p.add_argument("--viewer", action="store_true", help="Open Document & Media Viewer")
     args, unknown = p.parse_known_args()
+
+    if args.backend and args.backend != "auto":
+        os.environ["CAT_BROWSER_BACKEND"] = args.backend
 
     if args.status:
         import json
@@ -505,7 +569,7 @@ def main():
     elif args.viewer:
         start_url = "http://localhost:8765/viewer.html"
         args.mode = "browser"
-    elif args.fatty:
+    elif args.workspace or args.fatty:
         start_url = "http://localhost:8765/"
         args.mode = "browser"
     elif start_url and "localhost" in start_url and args.mode == "terminal":

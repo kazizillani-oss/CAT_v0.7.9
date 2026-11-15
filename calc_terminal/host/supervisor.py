@@ -121,7 +121,7 @@ def _run_child(url: str, compatibility_compositing: bool) -> int:
 
 
 def run_supervisor(url: str = "about:home") -> int:
-    """Retry one native failure in short-lived software-compositing mode."""
+    """Supervise CAT Browser and prevent annoying reopen loops."""
     state_path, log_path = _state_paths()
     compatibility = _fallback_is_active(state_path, time.time())
     log_event(
@@ -129,18 +129,37 @@ def run_supervisor(url: str = "about:home") -> int:
         compositor_mode="compatibility" if compatibility else "default",
         initial_url="[not logged]",
     )
+    t0 = time.time()
     exit_code = _run_child(url or "about:home", compatibility)
+    duration = time.time() - t0
+
+    # If the browser ran for more than 3.0 seconds, or exited cleanly / user closed it:
+    # NEVER restart or reopen the window!
     if compatibility:
-        # Compatibility is a one-session recovery, never a persistent default.
-        _clear_fallback(state_path)
-        return exit_code
-    if exit_code == 0:
         _clear_fallback(state_path)
         return exit_code
 
+    # Normal exits, user close, or standard termination
+    if exit_code in (0, 1, 130, 259, -15, -2) or duration > 3.0:
+        _clear_fallback(state_path)
+        return exit_code
+
+    # Only recover once from immediate native GPU crashes, and never loop
     _record_fallback(state_path, log_path, exit_code)
     log_event("gpu_compositing_fallback_enabled", prior_exit_code=exit_code)
     fallback_exit = _run_child(url or "about:home", compatibility_compositing=True)
+    _clear_fallback(state_path)
+
+    # If explicitly configured for playwright fallback, switch; otherwise stay within personal built-in CAT Browser
+    if fallback_exit not in (0, 1, 130, 259, -15, -2):
+        if os.environ.get("CAT_BROWSER_BACKEND", "").lower().strip() == "playwright":
+            try:
+                from ..browser_gui.playwright_browser import can_launch_playwright, launch_playwright_browser
+                if can_launch_playwright():
+                    log_event("fallback_to_playwright_after_qt_crash", prior_exit_code=fallback_exit)
+                    return launch_playwright_browser(url or "about:home")
+            except Exception:
+                pass
     return fallback_exit
 
 

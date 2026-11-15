@@ -490,30 +490,43 @@ function Install-Cat {
 
     # Configure PowerShell Profile so 'cat' invokes CAT instead of Get-Content
     try {
-        $profilePath = $PROFILE.CurrentUserCurrentHost
-        if ($profilePath) {
-            $profileParent = Split-Path -Parent $profilePath
-            if (-not (Test-Path $profileParent)) {
-                New-Item -ItemType Directory -Path $profileParent -Force | Out-Null
-            }
-            $aliasMarker = '# === CAT CLI Profile Integration ==='
-            $aliasLines = @(
-                $aliasMarker,
-                ('if (Get-Command "' + $binDir + '\cat.cmd" -ErrorAction SilentlyContinue) {'),
-                '    Remove-Item Alias:cat -Force -ErrorAction SilentlyContinue',
-                ('    function global:cat { & "' + $binDir + '\cat.cmd" @args }'),
-                '}',
-                '# ==================================='
-            )
-            $aliasBlock = $aliasLines -join "`r`n"
-            $existingProfile = if (Test-Path $profilePath) { Get-Content $profilePath -Raw } else { '' }
-            if ($existingProfile -notlike ('*' + $aliasMarker + '*')) {
-                Add-Content -Path $profilePath -Value ("`r`n" + $aliasBlock)
-                Write-Host ('      Added PowerShell profile alias helper to: ' + $profilePath) -ForegroundColor Green
+        $profileTargets = @(
+            $PROFILE.CurrentUserAllHosts,
+            $PROFILE.CurrentUserCurrentHost,
+            (Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'WindowsPowerShell\profile.ps1'),
+            (Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'PowerShell\profile.ps1')
+        ) | Where-Object { $_ } | Select-Object -Unique
+
+        $aliasMarker = '# === CAT CLI Profile Integration ==='
+        $aliasLines = @(
+            $aliasMarker,
+            '# Prevent PowerShell Get-Content alias from intercepting CAT CLI (cat / Path[0] prompt)',
+            'if (Test-Path Alias:cat) {',
+            '    Remove-Item Alias:cat -Force -ErrorAction SilentlyContinue',
+            '}',
+            '# ==================================='
+        )
+        $aliasBlock = $aliasLines -join "`r`n"
+
+        foreach ($pPath in $profileTargets) {
+            try {
+                $pParent = Split-Path -Parent $pPath
+                if (-not (Test-Path $pParent)) {
+                    New-Item -ItemType Directory -Path $pParent -Force | Out-Null
+                }
+                $existing = if (Test-Path $pPath) { Get-Content $pPath -Raw } else { '' }
+                if ($existing -notlike ('*' + $aliasMarker + '*')) {
+                    Add-Content -Path $pPath -Value ("`r`n" + $aliasBlock)
+                    Write-Host ('      Added PowerShell profile alias fix to: ' + $pPath) -ForegroundColor Green
+                }
+            } catch {
+                # Ignore individual profile write failures
             }
         }
         # In current session:
-        Remove-Item Alias:cat -Force -ErrorAction SilentlyContinue
+        if (Test-Path Alias:cat) {
+            Remove-Item Alias:cat -Force -ErrorAction SilentlyContinue
+        }
     } catch {
         Write-Host '      Notice: Could not update profile automatically. You can always use catx or cat.cmd.' -ForegroundColor DarkYellow
     }

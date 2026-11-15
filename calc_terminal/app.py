@@ -202,10 +202,9 @@ class App:
             # CAT Vision — split_optional so `/vision` and `/vision start` both work
             "/vision": self.cmd_vision,
             "/vscode": self.cmd_vscode,
-            # CAT Browser — split_optional so `/browser`, `/browse`, and `/cat` all work
+            # CAT Browser — split_optional so `/browser` and `/browse` work
             "/browser": self.cmd_browser,
             "/browse": self.cmd_browser,
-            "/cat": self.cmd_browser,
             "/mascot": self.cmd_mascot,
             "/mascots": self.cmd_mascot,
         }
@@ -599,7 +598,7 @@ class App:
             return
 
         # ---- CAT Browser (full terminal browser, Fomoji-gated) --------------
-        if low in ("/browser", "/browse", "/cat", "browser", "browse", "cat browser", "cat browse", "open browser") or low.startswith(("/browser ", "/browse ", "/cat ", "browser ", "browse ", "cat browser ", "cat browse ")):
+        if low in ("/browser", "/browse", "browser", "browse", "cat browser", "cat browse", "open browser") or low.startswith(("/browser ", "/browse ", "browser ", "browse ", "cat browser ", "cat browse ")):
             rest = raw.split(" ", 1)[1].strip() if " " in raw else ""
             if low.startswith(("cat browser", "cat browse")):
                 parts = raw.split(None, 2)
@@ -2023,27 +2022,27 @@ class App:
             self.print_home()
 
     def cmd_mascot(self, arg=""):
-        """Display the interactive Fatty CAT & Chibi Otter mascot or launch in browser."""
+        """Display the interactive mascot companion studio or launch in browser."""
         print()
         lines = [
-            theme.purple("🐱 FATTY CAT & CHIBI OTTER MASCOT", bold=True),
+            theme.purple("🐱 CAT MASCOT STUDIO", bold=True),
             "",
             "  (\\_/)      (\\_/)     (>•<)     (•ᴥ•)   ",
             " ( o.o )    ( >.< )    /   \\    ( > < )  ",
             " > ^ <      (\")(\")     \"   \"     \"   \"   ",
-            theme.cyan(" Fatty Cat   Riso Cat   Otter   Riso Otter"),
+            theme.cyan(" Cat Companion   Riso Cat   Otter   Riso Otter"),
             "",
             theme.text("Available Page Mascots:"),
             theme.dim("  1. 🦦 Chibi Otter (Classic)   - /mascots/otter-directions.webp"),
             theme.dim("  2. 🦦 Chibi Otter (Riso)      - /mascots/otter-riso-directions.webp"),
-            theme.dim("  3. 🐱 Fatty Cat (Classic)     - /mascots/fattycat-directions.webp"),
-            theme.dim("  4. 🐱 Fatty Cat (Riso)        - /mascots/fattycat-riso-directions.webp"),
+            theme.dim("  3. 🐱 Chibi Cat (Classic)     - /mascots/fattycat-directions.webp"),
+            theme.dim("  4. 🐱 Chibi Cat (Riso)        - /mascots/fattycat-riso-directions.webp"),
             "",
             theme.faint("In React:"),
             theme.cyan("  import { Mascot } from 'page-mascot'"),
             theme.faint("  <Mascot directions=\"/mascots/otter-directions.webp\" reactions=\"/mascots/otter-reactions.webp\" />"),
             "",
-            theme.green("Opening interactive mascot in Fatty CAT Web..."),
+            theme.green("Opening interactive mascot in CAT Web Workspace..."),
         ]
         print(theme.panel(lines, title="mascot", color=theme.PURPLE, width=72))
         try:

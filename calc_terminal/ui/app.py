@@ -8930,21 +8930,21 @@ if TEXTUAL_AVAILABLE:
                 return
 
             # CAT Doctor & System Diagnostics per §32
-            if word == "/doctor" or (word == "/cat" and arg.lower().startswith("doctor")):
+            if word == "/doctor":
                 from ..diagnostics import doctor_engine
                 rep = doctor_engine.run_diagnostics()
                 self._system_note(f"```\n{rep.format_text()}\n```", role="assistant")
                 return
 
             # CAT Automated Self-Test per §33
-            if word in ("/self-test", "/selftest") or (word == "/cat" and arg.lower() in ("self-test", "selftest")):
+            if word in ("/self-test", "/selftest"):
                 from ..diagnostics import run_self_test
                 rep = run_self_test()
                 self._system_note(f"```\n{rep.format_table()}\n```", role="assistant")
                 return
 
             # CAT Reality Engine Verification per §10, §12
-            if word == "/verify" or (word == "/cat" and arg.lower().startswith("verify")):
+            if word == "/verify":
                 from ..core.verification import reality_engine
                 ws = self._workspace_root or os.getcwd()
                 rep = reality_engine.run_cat_verify(ws)
@@ -9009,15 +9009,9 @@ if TEXTUAL_AVAILABLE:
                 self._system_note("\n".join(lines), role="assistant")
                 return
 
-            if word in ("/browser", "/browse", "/cat", "browser", "browse", "cat"):
+            if word in ("/browser", "/browse", "browser", "browse"):
                 # Graphical browser — never suspend to CLI Links UI
                 start_url = arg.strip() if arg else "about:home"
-                if word in ("/cat", "cat"):
-                    low_arg = arg.strip().lower()
-                    if low_arg in ("browser", "browse"):
-                        start_url = "about:home"
-                    elif low_arg.startswith(("browser ", "browse ")):
-                        start_url = arg.strip().split(None, 1)[1].strip()
                 # Support `search cats` shorthand inside /browser
                 low = start_url.lower()
                 if low.startswith("search ") or low.startswith("s "):
@@ -9055,8 +9049,8 @@ if TEXTUAL_AVAILABLE:
                     "**🐾 Page Mascot Studio**\n\n"
                     "Interactive cursor-tracking mascots with 9-direction gaze & 9 boop reactions!\n\n"
                     "- 🦦 **Chibi Otter** (Classic & Risograph)\n"
-                    "- 🐱 **Chibi Fatty Cat** (Classic & Risograph)\n\n"
-                    "Launching interactive mascot in Fatty CAT Web (`http://localhost:8765/`)..."
+                    "- 🐱 **Chibi Cat Companion** (Classic & Risograph)\n\n"
+                    "Launching interactive mascot in CAT Web Workspace (`http://localhost:8765/`)..."
                 )
                 self._system_note(card, role="assistant")
                 try:

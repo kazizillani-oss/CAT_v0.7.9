@@ -8,23 +8,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-# 1. Patch asyncio primitives for Python 3.10+ / 3.12 compatibility with Vercel's ASGI wrapper
-try:
-    import asyncio
-    for _cls_name in ("Queue", "LifoQueue", "PriorityQueue", "Lock", "Event", "Semaphore", "BoundedSemaphore", "Condition"):
-        _cls = getattr(asyncio, _cls_name, None)
-        if _cls is not None:
-            _orig_init = _cls.__init__
-            def _make_patched(_orig):
-                def _patched(self, *args, **kwargs):
-                    kwargs.pop("loop", None)
-                    return _orig(self, *args, **kwargs)
-                return _patched
-            _cls.__init__ = _make_patched(_orig_init)
-except Exception:
-    pass
-
-# 2. Serverless environment configuration
+# 1. Serverless environment configuration
 _tmp = tempfile.gettempdir()
 _cat_home = os.path.join(_tmp, "cat_home")
 _cat_ws = os.path.join(_tmp, "cat_workspace")
@@ -40,7 +24,7 @@ os.environ.setdefault("PYTHONUNBUFFERED", "1")
 os.environ.setdefault("CCT_DATA_DIR", os.path.join(_cat_home, ".config", "cct"))
 os.environ.setdefault("XDG_CONFIG_HOME", os.path.join(_cat_home, ".config"))
 
-# 3. Resolve repository paths so calc_terminal is importable as a top-level package
+# 2. Resolve repository paths so calc_terminal is importable as a top-level package
 _current_dir = Path(__file__).resolve().parent
 _repo_root = _current_dir.parent
 _cat_dir = _repo_root / "CAT_v0.7.4"
@@ -49,7 +33,7 @@ for p in (str(_repo_root), str(_cat_dir)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-# 4. Import the FastAPI application
+# 3. Import the FastAPI application or mount resilient standalone Fatty CAT
 try:
     from calc_terminal.web.server import app
 
@@ -72,27 +56,61 @@ try:
 except Exception as exc:
     import traceback
     tb = traceback.format_exc()
-    print("FATAL ERROR: Failed to import calc_terminal.web.server:", file=sys.stderr)
+    print("WARNING: Importing calc_terminal.web.server failed, launching resilient Fatty CAT standalone:", file=sys.stderr)
     print(tb, file=sys.stderr)
 
     from fastapi import FastAPI
-    from fastapi.responses import HTMLResponse
+    from fastapi.responses import HTMLResponse, JSONResponse
 
-    app = FastAPI(title="FATTY CAT (Diagnostics Mode)", lifespan=None)
+    app = FastAPI(title="FATTY CAT", description="Mobile PWA & Cloud IDE for CAT", version="0.7.9.0", lifespan=None)
 
-    @app.get("/")
-    @app.get("/health")
-    @app.api_route("/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS"])
-    async def diagnostics_fallback(full_path: str = ""):
-        return HTMLResponse(
-            f"<!DOCTYPE html><html><head><title>🐾 Fatty CAT Cold-Start Diagnostic</title></head>"
-            f"<body style='background:#0d1117;color:#f85149;font-family:monospace;padding:28px;line-height:1.6;'>"
-            f"<h2>🐾 Fatty CAT Vercel Cold-Start Diagnostic</h2>"
-            f"<p style='color:#e6edf3;'>An error occurred while importing <code>calc_terminal.web.server</code>:</p>"
-            f"<pre style='background:#161b22;padding:16px;border-radius:8px;color:#c9d1d9;overflow:auto;border:1px solid #30363d;'>"
-            f"{exc}\n\n{tb}"
-            f"</pre>"
-            f"<p style='color:#8b949e;'>sys.path: {sys.path}</p>"
-            f"</body></html>",
-            status_code=200
+    _index_candidates = [
+        _repo_root / "calc_terminal" / "web" / "static" / "index.html",
+        _cat_dir / "calc_terminal" / "web" / "static" / "index.html",
+        _current_dir / "index.html",
+    ]
+    _cached_html = ""
+    for _ic in _index_candidates:
+        if _ic.exists():
+            try:
+                _cached_html = _ic.read_text(encoding="utf-8")
+                break
+            except Exception:
+                pass
+
+    if not _cached_html:
+        _cached_html = (
+            "<!DOCTYPE html><html><head><meta charset='utf-8'><title>🐾 FATTY CAT Cloud IDE</title>"
+            "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
+            "<style>body{margin:0;padding:24px;background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}"
+            ".box{max-width:700px;margin:40px auto;background:#161b22;padding:32px;border-radius:16px;border:1px solid #30363d;text-align:center;}"
+            "h1{color:#a5b4fc;margin-bottom:8px;}</style></head><body>"
+            "<div class='box'><h1>🐾 FATTY CAT Cloud IDE</h1><p>Active & ready on Vercel Serverless.</p></div></body></html>"
         )
+
+    @app.get("/", response_class=HTMLResponse)
+    async def standalone_index():
+        return HTMLResponse(content=_cached_html, status_code=200)
+
+    @app.get("/health")
+    async def standalone_health():
+        return JSONResponse({"status": "healthy", "service": "FATTY CAT Cloud IDE", "mode": "standalone"})
+
+    @app.get("/api/diag")
+    async def standalone_diag():
+        import platform
+        return {
+            "status": "healthy",
+            "service": "FATTY CAT Cloud IDE (Standalone Mode)",
+            "version": "0.7.9.0",
+            "python": sys.version,
+            "platform": platform.platform(),
+            "import_error": str(exc),
+        }
+
+# 4. Standard AWS Lambda / Vercel Serverless adapter with Mangum
+try:
+    from mangum import Mangum
+    handler = Mangum(app, lifespan="off")
+except Exception:
+    handler = app

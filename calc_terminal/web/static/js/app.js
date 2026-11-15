@@ -936,7 +936,7 @@
             '• <code>/notebook &lt;solve|new|list&gt;</code> — Session notebooks & chemistry derivations<br>' +
             '• <code>/settings</code> — Open configuration dialog<br>' +
             '• <code>/docs</code> — Open documentation<br>' +
-            '• <code>/cat</code> or <code>/browse</code> — Launch CAT Browser<br>' +
+            '• <code>/browser</code> or <code>/browse</code> — Launch CAT Browser<br>' +
             '• <code>/status</code> — Display AI and workspace status' +
             '</div>'
           );
@@ -1021,9 +1021,8 @@
         case '/docs':
           this.openDocs();
           return;
-        case '/cat':
-        case '/browse':
         case '/browser':
+        case '/browse':
           api.post('/api/browser/open', { url: arg || 'about:home' }).catch(() => {});
           this.appendSystemNotice('Launching CAT Browser…');
           return;

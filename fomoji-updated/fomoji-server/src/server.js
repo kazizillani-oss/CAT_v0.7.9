@@ -58,6 +58,7 @@ app.use('/api/auth-card', authCardRouter);
 app.use('/api/connector', connectorRouter);
 app.use('/api/groups', groupsRouter);
 app.use('/api/fatty', fattyRouter);
+app.use('/api/workspace', fattyRouter);
 
 // Launch real OS browser (Edge/Chrome on Windows) for local desktop CAT passkey ceremony.
 // Strictly restricted to local development loopback and anchored to ORIGIN.
@@ -103,7 +104,7 @@ app.all('/api/open-system-browser', (req, res) => {
 });
 
 // Serve Archify interactive architecture & workflow diagrams
-const archifyDir = path.resolve(__dirname, '../../../.archify');
+const archifyDir = path.resolve(__dirname, '../../../../.archify');
 app.use('/archify', express.static(archifyDir, { dotfiles: 'allow' }));
 
 // Exclusively protect Fomoji front-end: only accessible within CAT Browser

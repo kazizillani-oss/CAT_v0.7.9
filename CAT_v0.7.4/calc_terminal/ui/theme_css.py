@@ -1446,14 +1446,14 @@ Button#cct-chat-sidebar-toggle:hover, .cct-chat-nav-btn:hover {
     text-style: italic;
 }
 #cct-composer-divider {
-    display: none;
+    display: block;
     width: 100%;
-    height: 0;
-    min-height: 0;
-    max-height: 0;
+    height: 1;
+    min-height: 1;
+    max-height: 1;
     background: transparent;
     border: none;
-    border-top: none;
+    border-top: solid $border;
     margin: 0;
     padding: 0;
 }
@@ -1552,12 +1552,12 @@ Button#cct-chat-sidebar-toggle:hover, .cct-chat-nav-btn:hover {
 }
 
 #cct-composer #cct-composer-divider {
-    display: none;
-    height: 0;
-    min-height: 0;
-    max-height: 0;
+    display: block;
+    height: 1;
+    min-height: 1;
+    max-height: 1;
     border: none;
-    border-top: none;
+    border-top: solid $border;
     margin: 0;
     padding: 0;
 }
@@ -1567,12 +1567,12 @@ Button#cct-chat-sidebar-toggle:hover, .cct-chat-nav-btn:hover {
 #cct-composer.cct-mode-build #cct-composer-divider,
 #cct-composer.cct-mode-debugger #cct-composer-divider,
 #cct-composer.cct-mode-agent #cct-composer-divider {
-    display: none;
-    height: 0;
-    min-height: 0;
-    max-height: 0;
+    display: block;
+    height: 1;
+    min-height: 1;
+    max-height: 1;
     border: none;
-    border-top: none;
+    border-top: solid $border;
     margin: 0;
     padding: 0;
 }

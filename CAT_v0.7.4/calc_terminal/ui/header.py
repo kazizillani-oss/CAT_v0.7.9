@@ -1091,20 +1091,10 @@ if TEXTUAL_AVAILABLE:
                     yield Logo()
                 yield PermissionPill()
                 with Horizontal(id="cct-header-right-box"):
-                    yield Button(_safe_glyph("📁", "Exp"), id="cct-header-explorer-btn", classes="cct-header-explorer-btn", tooltip="Toggle Explorer (Ctrl+B)")
                     yield _Clickable("", widget_id="cct-header-right", on_click=self._show_workspace_info)
 
         def on_button_pressed(self, event: Button.Pressed) -> None:
-            if event.button.id == "cct-header-explorer-btn":
-                event.stop()
-                try:
-                    self.app.action_toggle_sidebar()
-                except Exception:
-                    try:
-                        from .workspace import WorkspaceShell
-                        self.app.query_one(WorkspaceShell).toggle_sidebar()
-                    except Exception:
-                        pass
+            pass
 
         def on_mount(self):
             self.refresh_brand()
@@ -1251,10 +1241,7 @@ if TEXTUAL_AVAILABLE:
             except Exception:
                 pass
             try:
-                exp_btn = self.query_one("#cct-header-explorer-btn", Button)
                 w_right = self.query_one("#cct-header-right", Static)
-                # In portrait mode: remove explorer button only; in landscape mode: show it
-                exp_btn.display = not is_portrait
                 if ultra_compact:
                     w_right.display = False
                 else:

@@ -489,8 +489,8 @@ def get_cat_routine_display(
     line2 = f"  [{accent_hex} b](o.o)[/] [{accent_hex} b]{short_greeting}[/]"
 
     # Wide landscape mode / fullscreen terminal: Always show the 3D ASCII greeting art!
-    # Only omit in ultra-constrained compact cards (width < 22).
-    if card_width >= 22:
+    # Only omit in ultra-constrained compact cards (width < 14).
+    if card_width >= 14:
         return f"{art}\n\n{line1}\n{line2}"
 
     return f"{line1}\n{line2}"

@@ -510,8 +510,8 @@ def discover() -> List[Dict[str, Any]]:
 def is_installed(extension_id: str) -> bool:
     data = _load_registry()
     rec = data.get(extension_id)
-    if rec and rec.get("installed"):
-        return True
+    if rec is not None:
+        return bool(rec.get("installed", False))
     if extension_id in BUILTIN_EXTENSIONS:
         return True
     try:
@@ -529,26 +529,28 @@ def is_installed(extension_id: str) -> bool:
     return False
 
 def is_enabled(extension_id: str) -> bool:
+    if not is_installed(extension_id):
+        return False
     data = _load_registry()
     rec = data.get(extension_id)
-    if rec is not None:
-        return bool(rec.get("installed") and rec.get("enabled"))
-    return is_installed(extension_id)
+    if rec is not None and "enabled" in rec:
+        return bool(rec.get("enabled", False))
+    try:
+        from .skills.engine import get_skills_engine
+        if get_skills_engine().get_skill(extension_id) is not None:
+            return get_skills_engine().is_active(extension_id)
+    except Exception:
+        pass
+    return True
 
 def is_disabled(extension_id: str) -> bool:
-    data = _load_registry()
-    rec = data.get(extension_id)
-    if rec is not None:
-        return bool(rec.get("installed") and not rec.get("enabled"))
-    return False
+    return is_installed(extension_id) and not is_enabled(extension_id)
 
 def get_state(extension_id: str) -> str:
     """Return state string: NOT_INSTALLED | INSTALLED_DISABLED | INSTALLED_ENABLED."""
-    data = _load_registry()
-    rec = data.get(extension_id)
-    if not rec or not rec.get("installed"):
+    if not is_installed(extension_id):
         return "NOT_INSTALLED"
-    if rec.get("enabled"):
+    if is_enabled(extension_id):
         return "INSTALLED_ENABLED"
     return "INSTALLED_DISABLED"
 
@@ -564,8 +566,11 @@ def get_metadata(extension_id: str) -> Optional[Dict[str, Any]]:
             from .skills.engine import get_skills_engine
             sk_eng = get_skills_engine().get_skill(extension_id)
             if sk_eng:
-                inst = True
-                enab = bool(rec.get("enabled")) if (rec and "enabled" in rec) else get_skills_engine().is_active(extension_id)
+                inst = bool(rec.get("installed", True)) if rec else True
+                enab = bool(rec.get("enabled", True)) if (rec and "enabled" in rec) else get_skills_engine().is_active(extension_id)
+                if not inst:
+                    enab = False
+                state = "INSTALLED_ENABLED" if (inst and enab) else ("INSTALLED_DISABLED" if inst else "NOT_INSTALLED")
                 return {
                     "id": extension_id,
                     "name": sk_eng.name,
@@ -595,7 +600,7 @@ def get_metadata(extension_id: str) -> Optional[Dict[str, Any]]:
                     "platform_compatibility": ["windows", "linux", "darwin"],
                     "install_error": None,
                     "runtime_error": None,
-                    "state": "INSTALLED_ENABLED" if enab else "INSTALLED_DISABLED",
+                    "state": state,
                     "kind": "builtin",
                     "action": f"skill_{extension_id}",
                     "repository": sk_eng.repository,
@@ -721,6 +726,12 @@ def list_extensions(category: Optional[str] = None, component_type: Optional[str
         for sk in get_skill_registry().list_skills():
             sk_id = sk.id
             if sk_id not in seen:
+                rec_sk = data.get(sk_id)
+                inst = bool(rec_sk.get("installed", True)) if rec_sk else True
+                enab = bool(rec_sk.get("enabled", sk.enabled)) if (rec_sk and "enabled" in rec_sk) else sk.enabled
+                if not inst:
+                    enab = False
+                state = "INSTALLED_ENABLED" if (inst and enab) else ("INSTALLED_DISABLED" if inst else "NOT_INSTALLED")
                 sk_meta = {
                     "id": sk_id,
                     "name": sk.name,
@@ -738,9 +749,9 @@ def list_extensions(category: Optional[str] = None, component_type: Optional[str
                     "keywords": sk.tags,
                     "size_bytes": 1024 * 32,
                     "size_display": "32.0 KB",
-                    "installed": True,
-                    "enabled": sk.enabled,
-                    "state": "INSTALLED_ENABLED" if sk.enabled else "INSTALLED_DISABLED",
+                    "installed": inst,
+                    "enabled": enab,
+                    "state": state,
                     "install_time": sk.created_at,
                     "updated_at": sk.updated_at,
                     "install_source": "builtin" if sk.builtin else "skill_registry",
@@ -849,14 +860,42 @@ def install(extension_id: str) -> Tuple[bool, str]:
         _save_registry(data)
         return True, f"✓ {b_meta.get('display_name', extension_id)} installed successfully"
 
-    # 2. Check if already installed
+    # 2. If it's a built-in skill or registered skill
+    try:
+        from .skills.engine import get_skills_engine
+        sk_eng = get_skills_engine().get_skill(extension_id)
+        if sk_eng:
+            data = _load_registry()
+            data[extension_id] = {
+                "installed": True,
+                "enabled": True,
+                "version": sk_eng.version,
+                "install_time": time.time(),
+                "type": "skill",
+                "source": "builtin",
+                "display_name": sk_eng.name,
+            }
+            _save_registry(data)
+            get_skills_engine().activate_skill(extension_id)
+            try:
+                from .skills.registry import get_skill_registry
+                sk_obj = get_skill_registry().get(extension_id)
+                if sk_obj:
+                    sk_obj.enabled = True
+            except Exception:
+                pass
+            return True, f"✓ Skill '{sk_eng.name}' installed successfully"
+    except Exception:
+        pass
+
+    # 3. Check if already installed
     data = _load_registry()
     if extension_id in data and data[extension_id].get("installed"):
         if not data[extension_id].get("enabled"):
             return enable(extension_id)
         return False, f"Extension '{extension_id}' is already installed"
 
-    # 3. Check if available in curated catalogue
+    # 4. Check if available in curated catalogue
     from .extension_installer import CURATED_CATALOGUE
     for item in CURATED_CATALOGUE:
         if item["id"] == extension_id:
@@ -935,9 +974,7 @@ def check_for_dependencies(extension_id: str) -> List[str]:
 
 def uninstall(extension_id: str, force: bool = False) -> Tuple[bool, str]:
     """UNINSTALL: Removes registered capabilities and managed files safely."""
-    data = _load_registry()
-    rec = data.get(extension_id)
-    if not rec or not rec.get("installed"):
+    if not is_installed(extension_id):
         return False, f"'{extension_id}' is not installed"
 
     # Dependency check: warn if other extensions rely on this one
@@ -950,14 +987,19 @@ def uninstall(extension_id: str, force: bool = False) -> Tuple[bool, str]:
 
     meta = get_metadata(extension_id) or {}
     ctype = meta.get("type", "extension")
+    display_name = meta.get("display_name") or meta.get("name") or extension_id
 
     # 1. Unregister from Kitty Skills if it's a Skill
-    if ctype == "skill":
-        try:
-            from .skills.registry import get_skill_registry
-            get_skill_registry().unregister(extension_id)
-        except Exception:
-            pass
+    try:
+        from .skills.registry import get_skill_registry
+        get_skill_registry().unregister(extension_id)
+    except Exception:
+        pass
+    try:
+        from .skills.engine import get_skills_engine
+        get_skills_engine().deactivate_skill(extension_id)
+    except Exception:
+        pass
 
     # 2. Unregister from Custom Commands if it's a Command
     if ctype == "command" or extension_id:
@@ -967,8 +1009,15 @@ def uninstall(extension_id: str, force: bool = False) -> Tuple[bool, str]:
         except Exception:
             pass
 
-    # 3. Remove from source-of-truth registry
-    del data[extension_id]
+    # 3. Mark uninstalled in source-of-truth registry
+    data = _load_registry()
+    data[extension_id] = {
+        "installed": False,
+        "enabled": False,
+        "uninstalled_at": time.time(),
+        "type": ctype,
+        "display_name": display_name,
+    }
     _save_registry(data)
 
     # 4. Safely remove ONLY the extension's managed directory
@@ -979,7 +1028,7 @@ def uninstall(extension_id: str, force: bool = False) -> Tuple[bool, str]:
     except Exception:
         pass
 
-    return True, f"✓ {meta.get('display_name', extension_id)} uninstalled successfully"
+    return True, f"✓ '{display_name}' uninstalled successfully"
 
 
 def enable(extension_id: str) -> Tuple[bool, str]:

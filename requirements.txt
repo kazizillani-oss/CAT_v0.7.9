@@ -10,3 +10,4 @@ plyer>=2.1
 colorama>=0.4.6; sys_platform == 'win32'
 sympy>=1.12
 httpx>=0.24.0
+mangum>=0.17.0

@@ -262,5 +262,14 @@ def ensure_first_run():
         print("Nothing was marked as initialized — the next launch will retry.")
         print(f"Application data directory: {data_dir()}")
         return 1
+
+    # On Windows, automatically fix PowerShell's Get-Content alias so bare `cat` works
+    if sys.platform == "win32":
+        try:
+            from .doctor import fix_powershell
+            fix_powershell(assume_yes=True)
+        except Exception:
+            pass
+
     print("✓ CAT core initialized\n")
     return 0

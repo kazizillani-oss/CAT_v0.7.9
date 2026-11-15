@@ -112,7 +112,19 @@ FILES_TO_SYNC = [
     os.path.join("ui", "widgets.py"),
     os.path.join("ui", "design_system.py"),
     os.path.join("ui", "events.py"),
+    # Browser, Host & GUI Systems
+    os.path.join("browser_gui", "qt_browser.py"),
+    os.path.join("browser_gui", "browser_pages.py"),
+    os.path.join("browser_gui", "playwright_browser.py"),
+    os.path.join("host", "desktop.py"),
+    os.path.join("host", "launcher.py"),
+    os.path.join("host", "supervisor.py"),
+    os.path.join("ui", "releases_modal.py"),
+    "cli.py",
+    "first_run.py",
+    "doctor.py",
     os.path.join("web", "cat_runtime.py"),
+    os.path.join("fomoji_server", "public", "home.html"),
 ]
 
 print("Starting synchronization across targets...")

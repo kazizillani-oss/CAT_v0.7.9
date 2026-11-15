@@ -84,17 +84,16 @@
     </div>
   </div>
 
-  <div class="dash-card reveal-on-scroll" id="catCard" style="margin-top:14px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; transition-delay:120ms;">
+  <div class="dash-card reveal-on-scroll" id="catCard" style="margin-top:14px; display:none; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; transition-delay:120ms;">
     <div>
       <div class="dash-card-label" style="display:flex; align-items:center;">
-        <span>CAT CLI &amp; FATTY CAT</span>
-        <span id="fattyStatusPill" style="margin-left:8px; font-size:11px; padding:2px 8px; border-radius:10px; background:rgba(255,255,255,0.1); color:var(--text-muted); font-weight:normal;">Checking...</span>
+        <span>CAT CLI</span>
+        <span id="fattyStatusPill" style="margin-left:8px; font-size:11px; padding:2px 8px; border-radius:10px; background:rgba(0, 212, 170, 0.15); color:#00d4aa; font-weight:normal;">ONLINE</span>
       </div>
       <div style="font-size:15px; font-weight:600; margin-top:6px;" id="catCardHeadline">Not connected</div>
       <div class="dash-card-sub" id="catCardSub">Connect once to sign in to CAT with this identity.</div>
     </div>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
-      <a href="http://localhost:8765/" class="btn btn-primary btn-inline" target="_blank" rel="noopener" id="startFattyCatBtn">Start FATTY CAT</a>
       <a href="help.html" class="btn btn-ghost btn-inline">Help</a>
       <button type="button" class="btn btn-primary btn-inline" id="homeCatConnectBtn">Connect CAT CLI</button>
       <button type="button" class="btn btn-danger btn-inline is-hidden" id="homeCatDisconnectBtn">Disconnect</button>
@@ -110,8 +109,25 @@
       <span>Change password<small>Update your credentials</small></span>
       <span>&rarr;</span>
     </a>
-    <a class="dash-link" href="http://localhost:8765/" id="fattyCatLink" target="_blank" rel="noopener" data-longpress-menu='[{"label":"Copy link","action":"copy"},{"label":"Open in new tab","action":"newtab"}]'>
-      <span>Start FATTY CAT Web<small>AI-powered coding assistant in your browser</small></span>
+    <a class="dash-link" href="/archify/cat-unified.html" id="systemHubLink" target="_blank" rel="noopener" data-longpress-menu='[{"label":"Copy link","action":"copy"},{"label":"Open in new tab","action":"newtab"}]'>
+      <span style="display:flex; align-items:center; gap:8px;">
+        <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:linear-gradient(135deg, #06b6d4, #10b981); box-shadow:0 0 8px rgba(6,182,212,0.6);"></span>
+        <span><strong>CAT Unified Architecture &amp; Workflow Hub</strong><small>Merged interactive viewer: Workflow + Full Architecture + Code Matrix</small></span>
+      </span>
+      <span>&rarr;</span>
+    </a>
+    <a class="dash-link" href="/archify/cat-system-workflow.html" id="systemWorkflowLink" target="_blank" rel="noopener" data-longpress-menu='[{"label":"Copy link","action":"copy"},{"label":"Open in new tab","action":"newtab"}]'>
+      <span style="display:flex; align-items:center; gap:8px;">
+        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#06b6d4;"></span>
+        <span>System Workflow (Standalone)<small>Interactive Node.js, Web Developing, Engine &amp; Data Lineage</small></span>
+      </span>
+      <span>&rarr;</span>
+    </a>
+    <a class="dash-link" href="/archify/cat-architecture.html" id="systemArchLink" target="_blank" rel="noopener" data-longpress-menu='[{"label":"Copy link","action":"copy"},{"label":"Open in new tab","action":"newtab"}]'>
+      <span style="display:flex; align-items:center; gap:8px;">
+        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10b981;"></span>
+        <span>System Architecture (Standalone)<small>Full-stack component boundaries, providers &amp; storage</small></span>
+      </span>
       <span>&rarr;</span>
     </a>
     <a class="dash-link" href="#" id="logoutLink">
@@ -207,17 +223,31 @@ function fallbackCopy(text, label) {
 
   function renderCatCard() {
     const connections = FomojiAPI.getConnections(account);
+    if (account && !connections.cat) {
+      try {
+        FomojiAPI.connectApp(account, 'cat');
+        connections.cat = { connectedAt: new Date().toISOString() };
+      } catch (e) {}
+    }
     const connected = !!connections.cat;
 
-    document.getElementById('connectedValue').textContent = connected ? '1 / 1' : '0 / 1';
-    document.getElementById('connectedSub').textContent = connected
-      ? 'CAT is connected to this identity.'
-      : "CAT hasn't been connected yet.";
+    const catCard = document.getElementById('catCard');
+    // If authentication / sign-in is already completed, hide this section completely
+    if (account || connected) {
+      if (catCard) catCard.style.display = 'none';
+      const connVal = document.getElementById('connectedValue');
+      if (connVal) connVal.textContent = '1 / 1';
+      const connSub = document.getElementById('connectedSub');
+      if (connSub) connSub.textContent = 'CAT CLI is authenticated and connected.';
+      return;
+    }
+    if (catCard) catCard.style.display = 'flex';
 
-    document.getElementById('catCardHeadline').textContent = connected ? 'Connected' : 'Not connected';
-    document.getElementById('catCardSub').textContent = connected
-      ? (account.isGuest ? 'Connected for this guest session.' : 'This identity can sign in to CAT.')
-      : 'Connect once to sign in to CAT with this identity.';
+    document.getElementById('connectedValue').textContent = '0 / 1';
+    document.getElementById('connectedSub').textContent = "CAT hasn't been connected yet.";
+
+    document.getElementById('catCardHeadline').textContent = 'Not connected';
+    document.getElementById('catCardSub').textContent = 'Connect once to sign in to CAT with this identity.';
     homeCatConnectBtn.classList.toggle('is-hidden', connected);
     homeCatDisconnectBtn.classList.toggle('is-hidden', !connected);
 
@@ -229,9 +259,52 @@ function fallbackCopy(text, label) {
     }
   }
 
+  let pendingCatCode = null;
+  async function checkPendingCatRequest() {
+    try {
+      const resp = await fetch('/api/connector/device/pending-cat');
+      const data = await resp.json();
+      if (data.pending && data.userCode) {
+        pendingCatCode = data.userCode;
+        document.getElementById('catCardHeadline').textContent = `Authorization requested (${data.userCode})`;
+        document.getElementById('catCardSub').textContent = `CAT CLI is waiting for authorization. Code: ${data.userCode}`;
+        homeCatConnectBtn.textContent = `Approve CAT (${data.userCode})`;
+        homeCatConnectBtn.classList.remove('is-hidden');
+      }
+    } catch (_) {}
+  }
+  checkPendingCatRequest();
+
   renderCatCard();
 
-  homeCatConnectBtn.addEventListener('click', () => {
+  homeCatConnectBtn.addEventListener('click', async () => {
+    if (pendingCatCode) {
+      homeCatConnectBtn.disabled = true;
+      homeCatConnectBtn.textContent = 'Connecting…';
+      try {
+        const aResp = await fetch('/api/connector/device/approve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ userCode: pendingCatCode }),
+        });
+        const aData = await aResp.json();
+        if (aResp.ok && aData.ok) {
+          showToast('CAT CLI connected successfully!', 'success');
+          pendingCatCode = null;
+          document.getElementById('catCardHeadline').textContent = 'Connected';
+          document.getElementById('catCardSub').textContent = 'CAT CLI is connected to this identity.';
+          homeCatConnectBtn.classList.add('is-hidden');
+          homeCatDisconnectBtn.classList.remove('is-hidden');
+          window.FomojiCompanion?.react('success');
+          return;
+        }
+      } catch (e) {
+        alert(e.message);
+      } finally {
+        homeCatConnectBtn.disabled = false;
+      }
+    }
     FomojiConnect.open(account, {
       onConnected: () => {
         renderCatCard();
@@ -248,73 +321,6 @@ function fallbackCopy(text, label) {
       homeCatDisconnectBtn.disabled = false;
     }
   });
-
-  /* ---- FATTY CAT Auto-Launcher & Status Integration ---- */
-  const startFattyCatBtn = document.getElementById('startFattyCatBtn');
-  const fattyCatLink = document.getElementById('fattyCatLink');
-  const fattyStatusPill = document.getElementById('fattyStatusPill');
-
-  async function checkFattyStatus() {
-    try {
-      const res = await fetch('/api/fatty/status');
-      const data = await res.json();
-      if (data.running) {
-        if (fattyStatusPill) {
-          fattyStatusPill.textContent = '● Online';
-          fattyStatusPill.style.color = '#00d4aa';
-          fattyStatusPill.style.background = 'rgba(0, 212, 170, 0.15)';
-        }
-        if (startFattyCatBtn) startFattyCatBtn.textContent = 'Open FATTY CAT';
-      } else {
-        if (fattyStatusPill) {
-          fattyStatusPill.textContent = '○ Offline';
-          fattyStatusPill.style.color = 'var(--text-muted)';
-          fattyStatusPill.style.background = 'rgba(255, 255, 255, 0.08)';
-        }
-        if (startFattyCatBtn) startFattyCatBtn.textContent = 'Start FATTY CAT';
-      }
-      return data.running;
-    } catch {
-      if (fattyStatusPill) fattyStatusPill.textContent = '○ Offline';
-      return false;
-    }
-  }
-
-  async function launchFattyCat(e) {
-    if (e) e.preventDefault();
-    const isRunning = await checkFattyStatus();
-    if (isRunning) {
-      window.open('http://localhost:8765/', '_blank', 'noopener');
-      return;
-    }
-
-    showToast('Starting FATTY CAT server...', 'info');
-    if (startFattyCatBtn) {
-      startFattyCatBtn.textContent = 'Starting...';
-      startFattyCatBtn.disabled = true;
-    }
-
-    try {
-      const res = await fetch('/api/fatty/start', { method: 'POST' });
-      const data = await res.json();
-      if (data.success || data.running) {
-        showToast('FATTY CAT is ready! Opening...', 'success');
-        await checkFattyStatus();
-        window.open(data.url || 'http://localhost:8765/', '_blank', 'noopener');
-      } else {
-        showToast(data.error || 'Failed to start FATTY CAT', 'danger');
-      }
-    } catch (err) {
-      showToast('Error launching FATTY CAT: ' + err.message, 'danger');
-    } finally {
-      if (startFattyCatBtn) startFattyCatBtn.disabled = false;
-      checkFattyStatus();
-    }
-  }
-
-  if (startFattyCatBtn) startFattyCatBtn.addEventListener('click', launchFattyCat);
-  if (fattyCatLink) fattyCatLink.addEventListener('click', launchFattyCat);
-  checkFattyStatus();
 
   if (account.isGuest) {
     document.getElementById('greet').textContent = 'Browsing as guest.';

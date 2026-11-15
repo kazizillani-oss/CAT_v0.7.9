@@ -16,10 +16,19 @@ function banner() {
 \x1b[35m│\x1b[0m                                                        \x1b[35m│\x1b[0m
 \x1b[35m│\x1b[0m   Usage:                                               \x1b[35m│\x1b[0m
 \x1b[35m│\x1b[0m     \x1b[32mcat\x1b[0m           Launch autonomous CAT TUI interface   \x1b[35m│\x1b[0m
+\x1b[35m│\x1b[0m     \x1b[32mcatx\x1b[0m          Safe alias (guaranteed no PS conflict)\x1b[35m│\x1b[0m
 \x1b[35m│\x1b[0m     \x1b[32mcat --help\x1b[0m    Inspect command-line options & flags  \x1b[35m│\x1b[0m
 \x1b[35m│\x1b[0m     \x1b[32mcat /mode\x1b[0m     Select active AI Kitties & agents     \x1b[35m│\x1b[0m
 \x1b[35m└────────────────────────────────────────────────────────┘\x1b[0m
 `);
+
+  if (process.platform === 'win32') {
+    try {
+      execSync('powershell -NoProfile -NonInteractive -Command "if (Test-Path Alias:cat) { Remove-Item Alias:cat -Force -ErrorAction SilentlyContinue }"', {
+        stdio: 'ignore'
+      });
+    } catch (e) {}
+  }
 }
 
 try {

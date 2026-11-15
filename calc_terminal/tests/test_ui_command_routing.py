@@ -9,9 +9,9 @@ from calc_terminal.commands_data import COMMANDS, NATIVE_UI_COMMANDS
 def test_command_palette_registry_coverage():
     # Verify all new platform commands are registered
     command_names = [c[0] for c in COMMANDS]
-    assert "/cat doctor" in command_names
-    assert "/cat self-test" in command_names
-    assert "/cat verify" in command_names
+    assert "/browser" in command_names
+    assert "/browse" in command_names
+    assert "/cat" not in command_names
     assert "/doctor" in command_names
     assert "/self-test" in command_names
     assert "/verify" in command_names
@@ -35,24 +35,20 @@ def test_ui_command_dispatch_doctor_and_selftest():
     app._system_note = lambda msg, role="system": notes.append((msg, role))
     app._workspace_root = None
 
-    # 1. Test /cat doctor
-    app._handle_command("/cat doctor")
+    # 1. Test /doctor
+    app._handle_command("/doctor")
     assert len(notes) >= 1
     assert "CAT SYSTEM DOCTOR REPORT" in notes[-1][0]
 
-    # 2. Test /doctor alias
-    app._handle_command("/doctor")
-    assert "CAT SYSTEM DOCTOR REPORT" in notes[-1][0]
-
-    # 3. Test /cat self-test
-    app._handle_command("/cat self-test")
+    # 2. Test /self-test
+    app._handle_command("/self-test")
     assert "CAT AUTOMATED SELF-TEST SUITE" in notes[-1][0]
 
-    # 4. Test /verify
+    # 3. Test /verify
     app._handle_command("/verify")
     assert "VERIFICATION EVIDENCE TABLE" in notes[-1][0]
 
-    # 5. Test /compute
+    # 4. Test /compute
     app._handle_command("/compute")
     assert "Compute Fabric Targets" in notes[-1][0]
 
@@ -90,12 +86,12 @@ def test_ui_command_dispatch_cat_browser_fallback():
     browser_calls = []
     app.action_toggle_browser = lambda start_url="": browser_calls.append(start_url)
 
-    # Bare /cat
-    app._handle_command("/cat")
+    # Bare /browser
+    app._handle_command("/browser")
     assert len(browser_calls) == 1
     assert browser_calls[-1] == "about:home"
 
-    # /cat https://example.com
-    app._handle_command("/cat https://example.com")
+    # /browser https://example.com
+    app._handle_command("/browser https://example.com")
     assert len(browser_calls) == 2
     assert browser_calls[-1] == "https://example.com"

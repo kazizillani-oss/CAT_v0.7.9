@@ -47,7 +47,7 @@ class CommandSpec:
 CATEGORY_MAP = {
     "/help": "general", "/about": "general", "/shortcuts": "general", "/settings": "general",
     "/history": "general", "/memory": "general", "/upload": "general", "/voice": "general",
-    "/permissions": "general", "/browser": "general", "/browse": "general", "/cat": "general",
+    "/permissions": "general", "/browser": "general", "/browse": "general",
     "/mascot": "general", "/mascots": "general",
     "/calculator": "calculation", "/solve": "calculation", "/formulas": "calculation",
     "/derive": "calculation",
@@ -160,10 +160,10 @@ RICH_METADATA = {
                                "pinned", "favorite", "rename", "search"],
     ),
     "/browser": dict(
-        icon="\U0001f30d", aliases=["/browse", "/cat"], permissions=[],
+        icon="\U0001f30d", aliases=["/browse"], permissions=[],
         ai_modes=["notebook", "agent", "build", "plan"],
-        examples=["/browser", "/cat", "/cat https://example.com", "/cat search cats on mars"],
-        autocomplete_keywords=["browser", "browse", "cat", "web", "surf", "terminal browser", "duckduckgo", "fomoji browser"],
+        examples=["/browser", "/browser https://example.com", "/browser search cats on mars"],
+        autocomplete_keywords=["browser", "browse", "web", "surf", "terminal browser", "duckduckgo", "fomoji browser"],
     ),
     "/browse": dict(
         icon="\U0001f30d", aliases=[], permissions=[],
@@ -171,17 +171,11 @@ RICH_METADATA = {
         examples=["/browse https://example.com", "/browse search cats"],
         autocomplete_keywords=["browse", "browser", "surf", "open url", "search"],
     ),
-    "/cat": dict(
-        icon="\U0001f30d", aliases=[], permissions=[],
-        ai_modes=["notebook", "agent", "build", "plan"],
-        examples=["/cat", "/cat https://example.com", "/cat search cats on mars"],
-        autocomplete_keywords=["cat", "browser", "browse", "web", "chromium", "qt webengine"],
-    ),
     "/mascot": dict(
         icon="🐾", aliases=["/mascots"], permissions=[],
         ai_modes=["notebook", "agent", "build", "plan"],
         examples=["/mascot", "/mascot otter", "/mascot cat", "/mascot riso"],
-        autocomplete_keywords=["mascot", "mascots", "otter", "cat", "fattycat", "chibi", "riso", "cursor", "boop"],
+        autocomplete_keywords=["mascot", "mascots", "otter", "cat", "chibi", "riso", "cursor", "boop"],
     ),
     "/mascots": dict(
         icon="🐾", aliases=[], permissions=[],
@@ -206,7 +200,7 @@ ALIAS_TABLE = {
     "/cp": "/codepad", "/tk": "/tokens", "/th": "/theme", "/ws": "/websearch",
     "/rs": "/research", "/im": "/import", "/pt": "/pet", "/cc": "/copycode",
     "/rx": "/react", "/ex": "/export", "/tu": "/tui", "/co": "/composer",
-    "/br": "/browser", "/bw": "/browse", "/cat": "/browser",
+    "/br": "/browser", "/bw": "/browse",
 }
 
 

@@ -94,7 +94,7 @@ if TEXTUAL_AVAILABLE:
                     s = getattr(self, "size", None)
             w = s.width if s else 80
             h = s.height if s else 40
-            return (w < 86) or (w < h * 1.30)
+            return (w < 55) or (w < 75 and w <= h * 1.05)
 
         def __init__(self, conversation_view, composer=None, id="cct-workspace"):
             super().__init__(id=id)
@@ -628,11 +628,6 @@ if TEXTUAL_AVAILABLE:
             self.sync_right_resizer()
             self._sync_switcher()
             self._sync_sidebar_toggle()
-            try:
-                exp_btn = self.query_one("#cct-sidebar-expand-btn", Button)
-                exp_btn.display = (not self.explorer.display or self.explorer.width == 0)
-            except Exception:
-                pass
             self._notify_dashboard_relayout()
 
         def _notify_dashboard_relayout(self):

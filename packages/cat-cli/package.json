@@ -30,6 +30,7 @@
   "main": "./bin/cat.js",
   "bin": {
     "cat": "./bin/cat.js",
+    "catx": "./bin/cat.js",
     "cat-cli": "./bin/cat.js"
   },
   "files": [

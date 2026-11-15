@@ -419,7 +419,7 @@ if TEXTUAL_AVAILABLE:
                 muted = theme_css.current_hex("text-muted")
                 faint = theme_css.current_hex("text-faint")
                 w, h = self._get_viewport_size()
-                is_portrait = (w < 55) or (w < 90 and (w / max(1, h)) < 1.30)
+                is_portrait = (w < 55) or (w < 75 and (w / max(1, h)) <= 1.05)
                 has_ws = bool(self._workspace_root)
                 col_mode = getattr(self, "_col_mode", "3col" if (w >= 92 and h >= 22 and has_ws) else ("2col" if w >= 62 else "1col"))
 

@@ -2172,9 +2172,25 @@ def _tool_device_action(args):
 
 def _tool_cat_browser(args):
     """Agentic CAT Browser controller: drives CAT Browser tabs,
-    multitasking, navigation, DOM evaluation, and page inspection."""
+    multitasking, navigation, DOM evaluation, and background AI agent actions
+    powered by Agent Browser (Vercel) and Obscura Stealth Engine."""
     action = str(args.get("action", "open")).strip().lower()
     target = str(args.get("url") or args.get("target") or args.get("script") or "").strip()
+
+    # Backend Agent Browser & Obscura capabilities for autonomous AI agents
+    if action in ("agent_inspect", "agent_dom", "accessibility_tree"):
+        try:
+            from .browser_gui.browser_pages import agent_inspect_page
+            return agent_inspect_page(target)
+        except Exception as e:
+            return f"Agent Browser inspection failed: {e}"
+    if action in ("stealth_fetch", "obscura_fetch", "stealth_scrape"):
+        try:
+            from .browser_gui.browser_pages import obscura_stealth_fetch
+            return obscura_stealth_fetch(target)
+        except Exception as e:
+            return f"Obscura stealth fetch failed: {e}"
+
     return _tool_device_action({
         "provider": "browser",
         "action": action,
