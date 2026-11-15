@@ -700,7 +700,35 @@ if TEXTUAL_AVAILABLE:
                 self.set_ai_mode(ai_modes.current_mode())
             except Exception:
                 pass
+            try:
+                from ..voice import voice_manager
+                def _on_voice_state_change(state, data):
+                    try:
+                        if hasattr(self, "app") and self.app:
+                            self.app.call_from_thread(self._handle_voice_state_update, state, data)
+                    except Exception:
+                        pass
+                voice_manager.add_listener(_on_voice_state_change)
+                self._voice_listener = _on_voice_state_change
+            except Exception:
+                pass
             self._update_context_bar()
+
+        def _handle_voice_state_update(self, state, data):
+            from ..voice import VoiceState, voice_manager
+            try:
+                strip = self.query_one("#cct-voice-strip")
+                status = self.query_one("#cct-voice-status", Static)
+                if state == VoiceState.SPEAKING:
+                    strip.display = True
+                    self._start_voice_refresh_timer()
+                    rich_wf = voice_manager.get_rich_waveform(width=22)
+                    status.update(f"[bold #a6e3a1]🐱 Agent Talking...[/] {rich_wf}")
+                elif state == VoiceState.IDLE and not getattr(self, "_recording_active", False):
+                    self._stop_voice_refresh_timer()
+                    strip.display = False
+            except Exception:
+                pass
 
         def _toggle_notebook(self):
             self.post_message(CommandExecuted("/mode"))
@@ -832,10 +860,12 @@ if TEXTUAL_AVAILABLE:
                 except Exception:
                     pass
             elif voice_manager.state == VoiceState.SPEAKING:
-                rich_wf = voice_manager.get_rich_waveform(width=20)
+                rich_wf = voice_manager.get_rich_waveform(width=22)
                 try:
+                    strip = self.query_one("#cct-voice-strip")
+                    strip.display = True
                     status = self.query_one("#cct-voice-status", Static)
-                    status.update(f"[bold #a6e3a1]🔊 Speaking...[/] {rich_wf}")
+                    status.update(f"[bold #a6e3a1]🐱 Agent Talking...[/] {rich_wf}")
                 except Exception:
                     pass
             elif voice_manager.state == VoiceState.READY_TO_SUBMIT:

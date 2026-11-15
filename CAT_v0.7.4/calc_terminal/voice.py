@@ -14,6 +14,7 @@ exact same underlying subsystem.
 import enum
 import math
 import os
+import re
 import sys
 import threading
 import time
@@ -151,6 +152,7 @@ class VoiceManager:
         self._audio_stream = None
         self._recording_thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
+        self._speaking_stop_event = threading.Event()
         self._audio_frames: List[bytes] = []
         self._sample_rate = 16000
         self._channels = 1
@@ -484,7 +486,7 @@ class VoiceManager:
         threading.Thread(target=self._speak_worker, args=(clean,), daemon=True).start()
 
     def _speak_worker(self, text: str) -> None:
-        """Background speech synthesis worker using platform audio engine."""
+        """Background speech synthesis worker using platform audio engine with realtime ASCII waveform modulation."""
         prev_state = self.state
         self.state = VoiceState.SPEAKING
         self._notify()
@@ -501,26 +503,74 @@ class VoiceManager:
                         if self._speaking_stop_event.is_set():
                             speaker.Speak("", 2)  # SVSFPurgeBeforeSpeak
                             break
-                        time.sleep(0.05)
+                        t_now = time.time()
+                        cadence = (math.sin(t_now * 8.5) * 0.45 + math.cos(t_now * 14.2) * 0.35 + 0.5)
+                        speech_amp = max(0.18, min(0.98, cadence * (0.65 + 0.35 * math.sin(t_now * 3.2))))
+                        self._current_amplitude = speech_amp
+                        self._raw_amplitudes.append(speech_amp)
+                        if len(self._raw_amplitudes) > 24:
+                            self._raw_amplitudes.pop(0)
+                        self._notify()
+                        time.sleep(0.06)
                 except Exception:
-                    # Fallback to PowerShell speech synthesis
+                    # Fallback to PowerShell speech synthesis with real-time waveform modulation
                     import subprocess
-                    ps_cmd = f"Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak('{text[:200]}')"
-                    subprocess.run(["powershell", "-NoProfile", "-Command", ps_cmd], capture_output=True, timeout=10)
+                    ps_cmd = f"Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak('{text[:250]}')"
+                    proc = subprocess.Popen(["powershell", "-NoProfile", "-Command", ps_cmd])
+                    while proc.poll() is None:
+                        if self._speaking_stop_event.is_set():
+                            proc.terminate()
+                            break
+                        t_now = time.time()
+                        cadence = (math.sin(t_now * 8.5) * 0.45 + math.cos(t_now * 14.2) * 0.35 + 0.5)
+                        speech_amp = max(0.18, min(0.98, cadence * (0.65 + 0.35 * math.sin(t_now * 3.2))))
+                        self._current_amplitude = speech_amp
+                        self._raw_amplitudes.append(speech_amp)
+                        if len(self._raw_amplitudes) > 24:
+                            self._raw_amplitudes.pop(0)
+                        self._notify()
+                        time.sleep(0.06)
             elif sys.platform == "darwin":
                 import subprocess
-                subprocess.run(["say", text[:300]], capture_output=True, timeout=15)
+                proc = subprocess.Popen(["say", text[:300]])
+                while proc.poll() is None:
+                    if self._speaking_stop_event.is_set():
+                        proc.terminate()
+                        break
+                    t_now = time.time()
+                    cadence = (math.sin(t_now * 8.5) * 0.45 + math.cos(t_now * 14.2) * 0.35 + 0.5)
+                    speech_amp = max(0.18, min(0.98, cadence * (0.65 + 0.35 * math.sin(t_now * 3.2))))
+                    self._current_amplitude = speech_amp
+                    self._raw_amplitudes.append(speech_amp)
+                    if len(self._raw_amplitudes) > 24:
+                        self._raw_amplitudes.pop(0)
+                    self._notify()
+                    time.sleep(0.06)
             else:
                 import subprocess
                 for cmd in ["espeak", "spd-say"]:
                     try:
-                        subprocess.run([cmd, text[:300]], capture_output=True, timeout=15)
+                        proc = subprocess.Popen([cmd, text[:300]])
+                        while proc.poll() is None:
+                            if self._speaking_stop_event.is_set():
+                                proc.terminate()
+                                break
+                            t_now = time.time()
+                            cadence = (math.sin(t_now * 8.5) * 0.45 + math.cos(t_now * 14.2) * 0.35 + 0.5)
+                            speech_amp = max(0.18, min(0.98, cadence * (0.65 + 0.35 * math.sin(t_now * 3.2))))
+                            self._current_amplitude = speech_amp
+                            self._raw_amplitudes.append(speech_amp)
+                            if len(self._raw_amplitudes) > 24:
+                                self._raw_amplitudes.pop(0)
+                            self._notify()
+                            time.sleep(0.06)
                         break
                     except Exception:
                         pass
         except Exception as e:
             pass
         finally:
+            self._current_amplitude = 0.0
             if self.state == VoiceState.SPEAKING:
                 self.state = VoiceState.IDLE
                 self._notify()

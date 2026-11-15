@@ -96,7 +96,14 @@ def start_fomoji_server_background(server_dir: Optional[Path] = None, node_path:
     import threading
     def _run():
         try:
-            start_fomoji_server(server_dir=server_dir, node_path=node_path)
+            s_dir = server_dir or locate_fomoji_server_dir()
+            n_path = node_path
+            if not n_path:
+                node_env = detect_nodejs()
+                if node_env.installed and node_env.node_path:
+                    n_path = node_env.node_path
+            if s_dir and n_path:
+                start_fomoji_server(server_dir=s_dir, node_path=n_path)
         except Exception:
             pass
     t = threading.Thread(target=_run, daemon=True)
