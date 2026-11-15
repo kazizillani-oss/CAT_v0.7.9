@@ -150,8 +150,8 @@ class TestCLISafetyContract(unittest.TestCase):
     def test_update_check_success_zero_filesystem_mutation(self):
         """D1: update --check queries metadata, prints update status, and performs zero file mutations."""
         mock_payload = json.dumps({
-            "tag_name": "v0.8.0.0",
-            "html_url": "https://github.com/kazizillani-oss/CAT_v0.7.9/releases/tag/v0.8.0.0",
+            "tag_name": "v0.9.0.0",
+            "html_url": "https://github.com/kazizillani-oss/CAT_v0.7.9/releases/tag/v0.9.0.0",
         }).encode("utf-8")
 
         mock_resp = MagicMock()

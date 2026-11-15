@@ -27,6 +27,7 @@ import os
 import subprocess
 import threading
 import time
+from typing import Optional
 
 MCP_FILE = os.path.join(os.path.expanduser("~"), ".cct_mcp_servers.json")
 _PROTOCOL_VERSION = "2024-11-05"

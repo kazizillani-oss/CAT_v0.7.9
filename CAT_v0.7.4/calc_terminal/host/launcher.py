@@ -91,8 +91,6 @@ def get_optimal_chromium_flags() -> str:
         "--no-default-browser-check",
         "--disable-dev-shm-usage",
         "--disable-features=CalculateNativeWinOcclusion,Translate,OptimizationHints,NetworkServiceInProcess2",
-        "--disable-gpu-process-crash-limit",
-        "--disable-breakpad",
         "--disable-logging",
         "--disable-blink-features=AutomationControlled",
     ]
@@ -103,10 +101,12 @@ def get_optimal_chromium_flags() -> str:
 
     # Adapt V8 heap limit dynamically to system hardware specifications
     v8_mb = 1024
+    prof = None
     try:
         from ..hardware_analyzer import HardwareAnalyzer
-        if HardwareAnalyzer._cached_profile is not None:
-            ram = getattr(HardwareAnalyzer._cached_profile, "ram_total_gb", 8.0) or 8.0
+        prof = HardwareAnalyzer.analyze()
+        if prof is not None:
+            ram = getattr(prof, "ram_total_gb", 8.0) or 8.0
             if ram >= 16.0:
                 v8_mb = 2048
             elif ram < 4.0:
@@ -122,27 +122,20 @@ def get_optimal_chromium_flags() -> str:
     is_low_end = False
     if os.environ.get("CAT_ECO_MODE") == "1":
         is_low_end = True
-    else:
-        try:
-            from ..hardware_analyzer import HardwareAnalyzer
-            # Instant memory check: avoid synchronous subprocess/WMI delay during browser open
-            if HardwareAnalyzer._cached_profile is not None:
-                prof = HardwareAnalyzer._cached_profile
-                is_low_end = (
-                    not getattr(prof, "has_gpu", True)
-                    or (getattr(prof, "ram_total_gb", 8.0) is not None and getattr(prof, "ram_total_gb", 8.0) < 4.0)
-                    or (getattr(prof, "cpu_threads", 4) is not None and getattr(prof, "cpu_threads", 4) <= 2)
-                    or getattr(prof, "ai_capability", "") == "LIMITED"
-                    or getattr(getattr(prof, "local_ai_tier", None), "value", str(getattr(prof, "local_ai_tier", ""))) == "LIMITED"
-                )
-            elif (os.cpu_count() or 4) <= 2:
-                is_low_end = True
-        except Exception:
-            is_low_end = False
+    elif prof is not None:
+        is_low_end = (
+            not getattr(prof, "has_gpu", True)
+            or (getattr(prof, "ram_total_gb", 8.0) is not None and getattr(prof, "ram_total_gb", 8.0) < 4.0)
+            or (getattr(prof, "cpu_threads", 4) is not None and getattr(prof, "cpu_threads", 4) <= 2)
+            or getattr(prof, "ai_capability", "") == "LIMITED"
+            or getattr(getattr(prof, "local_ai_tier", None), "value", str(getattr(prof, "local_ai_tier", ""))) == "LIMITED"
+        )
+    elif (os.cpu_count() or 4) <= 2:
+        is_low_end = True
 
     if is_low_end:
         flags.append("--enable-low-end-device-mode")
-        flags.append("--renderer-process-limit=2")
+        flags.append("--renderer-process-limit=1")
         flags.append("--num-raster-threads=1")
     else:
         flags.append("--renderer-process-limit=6")

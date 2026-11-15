@@ -43,7 +43,6 @@ _SETTINGS = dict(_DEFAULT_SETTINGS)
 
 
 def _load_settings():
-    global _SETTINGS
     try:
         if os.path.exists(_SETTINGS_FILE):
             with open(_SETTINGS_FILE, "r", encoding="utf-8") as f:

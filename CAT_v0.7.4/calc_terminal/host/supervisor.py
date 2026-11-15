@@ -148,7 +148,6 @@ def run_supervisor(url: str = "about:home") -> int:
     _record_fallback(state_path, log_path, exit_code)
     log_event("gpu_compositing_fallback_enabled", prior_exit_code=exit_code)
     fallback_exit = _run_child(url or "about:home", compatibility_compositing=True)
-    _clear_fallback(state_path)
 
     # If explicitly configured for playwright fallback, switch; otherwise stay within personal built-in CAT Browser
     if fallback_exit not in (0, 1, 130, 259, -15, -2):

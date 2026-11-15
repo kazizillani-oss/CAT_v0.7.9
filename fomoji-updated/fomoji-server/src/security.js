@@ -212,7 +212,13 @@ function catBrowserExclusivityMiddleware(req, res, next) {
   const ua = req.headers['user-agent'] || '';
   const xCat = req.headers['x-cat-browser'];
   const xVault = req.headers['x-cat-vault-token'];
-  const isCatBrowser = ua.includes('CATBrowser') || xCat === '1' || xVault === 'cat-browser-vault-authorized-token-v1';
+  const isCatBrowser =
+    ua.includes('CATBrowser') ||
+    ua.includes('QtWebEngine') ||
+    ua.includes('Playwright') ||
+    ua.includes('HeadlessChrome') ||
+    xCat === '1' ||
+    xVault === 'cat-browser-vault-authorized-token-v1';
 
   // Check loopback, local development, session cookies, and explicit cat parameters
   const clientIp = req.ip || req.connection?.remoteAddress || '';

@@ -125,6 +125,7 @@ FILES_TO_SYNC = [
     "doctor.py",
     os.path.join("web", "cat_runtime.py"),
     os.path.join("fomoji_server", "public", "home.html"),
+    os.path.join("fomoji_server", "src", "security.js"),
 ]
 
 print("Starting synchronization across targets...")

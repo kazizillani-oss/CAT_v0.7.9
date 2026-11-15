@@ -3891,7 +3891,7 @@ def run_agent(user_text, max_steps=MAX_STEPS, verbose=True, on_step=None, mode="
     try:
         from .skills.engine import get_skills_engine
         _skills_eng = get_skills_engine()
-        _detected_sids = _skills_eng.detect_relevant_skills(prompt, active_mode=mode, max_skills=3)
+        _detected_sids = _skills_eng.detect_relevant_skills(user_text, active_mode=mode, max_skills=3)
         _skills_block = _skills_eng.get_skill_prompts_for_agent(mode)
         if _skills_block:
             system_prompt += f"\n\n{_skills_block}"

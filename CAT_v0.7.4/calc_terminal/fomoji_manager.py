@@ -42,11 +42,9 @@ _FOMOJI_RUNTIME_STATE: Dict[str, Any] = {
 }
 
 def get_fomoji_runtime_state() -> Dict[str, Any]:
-    global _FOMOJI_RUNTIME_STATE
     return dict(_FOMOJI_RUNTIME_STATE)
 
 def update_fomoji_runtime_state(**kwargs) -> Dict[str, Any]:
-    global _FOMOJI_RUNTIME_STATE
     _FOMOJI_RUNTIME_STATE.update(kwargs)
     return dict(_FOMOJI_RUNTIME_STATE)
 
@@ -613,7 +611,7 @@ def start_fomoji_server(
 
         if progress_anim:
             try:
-                progress_anim.update(title=f"Starting Fomoji server on port {port}...", progress=0.75)
+                progress_anim.update(title="Starting Fomoji server...", progress=0.75)
             except Exception:
                 pass
 

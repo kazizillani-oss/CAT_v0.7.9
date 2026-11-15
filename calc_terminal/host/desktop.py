@@ -46,6 +46,7 @@ from __future__ import annotations
 import os
 import sys
 import re
+import time
 import pathlib
 import urllib.parse
 from typing import Optional
@@ -168,6 +169,7 @@ if _QT_AVAILABLE:
                 super().__init__(profile, parent)
             else:
                 super().__init__(parent)
+            self._explicit_lifecycle_state = None
             self._apply_optimal_settings()
             self._last_committed_url = ""
             self._crash_retries = {}
@@ -240,6 +242,26 @@ if _QT_AVAILABLE:
                         s.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)
                 except Exception:
                     pass
+            try:
+                prof = self.profile()
+                if prof:
+                    current_ua = prof.httpUserAgent()
+                    if "CATBrowser" not in current_ua:
+                        prof.setHttpUserAgent(f"{current_ua} CATBrowser/0.7.9")
+            except Exception:
+                pass
+
+        def setLifecycleState(self, state):
+            self._explicit_lifecycle_state = state
+            try:
+                super().setLifecycleState(state)
+            except Exception:
+                pass
+
+        def lifecycleState(self):
+            if hasattr(self, "_explicit_lifecycle_state") and self._explicit_lifecycle_state is not None:
+                return self._explicit_lifecycle_state
+            return super().lifecycleState()
 
         def _on_render_process_terminated(self, status, exit_code):
             """Recover a failed Chromium renderer without closing unaffected tabs."""
@@ -2516,8 +2538,12 @@ if _QT_AVAILABLE:
                 page = view.page()
                 if self._page_is_audible(page) or getattr(view, "_cat_is_loading", False):
                     return
-                # Native Chromium MemorySaverMode handles background page throttling safely
-                # without freezing IPC threads or triggering watchdog renderer crashes
+                frozen_state = self._page_lifecycle_state("Frozen")
+                if frozen_state is not None:
+                    try:
+                        page.setLifecycleState(frozen_state)
+                    except Exception:
+                        pass
                 timer = getattr(view, "_cat_discard_timer", None)
                 if timer is None:
                     timer = QTimer(view)
@@ -2553,6 +2579,12 @@ if _QT_AVAILABLE:
             if not isinstance(view, QWebEngineView):
                 return
             try:
+                active_state = self._page_lifecycle_state("Active")
+                if active_state is not None:
+                    try:
+                        view.page().setLifecycleState(active_state)
+                    except Exception:
+                        pass
                 timer = getattr(view, "_cat_discard_timer", None)
                 if timer is not None:
                     timer.stop()
